@@ -1,0 +1,1339 @@
+[2026-05-12 19:21:22] local.INFO: === USER UPDATE DEBUG ===  
+[2026-05-12 19:21:22] local.INFO: Route $id: 18  
+[2026-05-12 19:21:22] local.INFO: Request id: 18  
+[2026-05-12 19:21:22] local.INFO: Request mobile_no: 9773256235  
+[2026-05-12 19:21:22] local.INFO: Request email: demo@gmail.com  
+[2026-05-12 19:21:22] local.INFO: Request method: PATCH  
+[2026-05-12 19:21:22] local.INFO: Request URL: http://localhost/Artera/admin/user/18  
+[2026-05-12 19:21:22] local.INFO: Validation rule mobile_no: required|numeric|unique:users,mobile_no,18  
+[2026-05-12 19:21:22] local.INFO: Existing user with same mobile (excluding current): NONE  
+[2026-05-12 19:26:46] local.INFO: DEBUG API customPost: userId resolved: NULL, token present: NO, query: {"t":"1778594205894"}  
+[2026-05-12 19:26:46] local.INFO: DEBUG API customPost: userId resolved: NULL, token present: NO, query: {"t":"1778594205894"}  
+[2026-05-12 19:26:46] local.INFO: CustomPost API Debug:  {"categories_count":1,"data_count":1,"data_dump":[{"customCategoryId":3,"customCategoryName":"Product details page","customCategoryIcon":"http://localhost/Artera/uploads/0ebf08e8-851e-403a-9636-1c97c8c21615.jpeg","posts":[{"postId":"Product details page48","id":48,"type":"business_custom_frame","is_template":true,"language":"All","image":"http://localhost/Artera/uploads/template/673026ee-d21b-40e7-88c7-3a56828f130b/preview.jpg","is_paid":false,"height":1080,"width":1080,"image_type":"Full","aspect_ratio":"1:1","name":"673026ee-d21b-40e7-88c7-3a56828f130b","json":"{
+  \"name\": \"Frame_Squre_106\",
+  \"path\": \"Frame_Squre_106/\",
+  \"info\": {
+    \"width\": 1200,
+    \"height\": 1200
+  },
+  \"ai_global_rule\": \"The overall headline must be divided across three interconnected layers: 'Heading 1' (intro phrase, max 6 chars), 'Heading' (main core subject, max 15 chars), and 'Sub heading' (highlight/conclusion, max 6 chars). The AI must generate a cohesive marketing message that perfectly fits these tight character limits without cutting off words. The 'List topic' layers must contain technical product data or features depending on the admin Configure Purpose AI prompt.\",
+  
+  \"layers\": [
+    {
+      \"name\": \"list_4Rectangle_4\",
+      \"type\": \"image\",
+      \"src\": \"../skins/Frame_Squre_106/list_4Rectangle_4.png\",
+      \"x\": 948,
+      \"y\": 888,
+      \"w\": 21,
+      \"h\": 21,
+      \"z_index\": 17
+    },
+    {
+      \"name\": \"list_3Rectangle_3\",
+      \"type\": \"image\",
+      \"src\": \"../skins/Frame_Squre_106/list_3Rectangle_3.png\",
+      \"x\": 948,
+      \"y\": 853,
+      \"w\": 21,
+      \"h\": 21,
+      \"z_index\": 16
+    },
+\t{
+      \"name\": \"list_2Rectangle_2\",
+      \"type\": \"image\",
+      \"src\": \"../skins/Frame_Squre_106/list_2Rectangle_2.png\",
+      \"x\": 631,
+      \"y\": 885,
+      \"w\": 21,
+      \"h\": 21,
+      \"z_index\": 15
+    },
+    {
+      \"name\": \"list_1Rectangle_1\",
+      \"type\": \"image\",
+      \"src\": \"../skins/Frame_Squre_106/list_1Rectangle_1.png\",
+      \"x\": 631,
+      \"y\": 851,
+      \"w\": 21,
+      \"h\": 21,
+      \"z_index\": 14
+    },
+    {
+      \"name\": \"list 4\",
+      \"type\": \"text\",
+      \"x\": 716,
+      \"y\": 957,
+      \"w\": 454.07,
+      \"h\": 25.5,
+      \"z_index\": 13,
+      \"text\": \"SEO Campaign\",
+      \"size\": 22.92,
+      \"font\": \"Montserrat-Bold\",
+      \"color\": \"#000000\",
+      \"justification\": \"left\",
+\t  \"ai_role\": \"Technical product feature or service specification 1.\",
+      \"ai_max_chars\": 15
+    },
+    {
+      \"name\": \"list 3\",
+      \"type\": \"text\",
+      \"x\": 715.26,
+      \"y\": 912.54,
+      \"w\": 454.8,
+      \"h\": 25.2,
+      \"z_index\": 12,
+      \"text\": \"Graphic Design\",
+      \"size\": 22.92,
+      \"font\": \"Montserrat-Bold\",
+      \"color\": \"#000000\",
+      \"justification\": \"left\",
+\t  \"ai_role\": \"Technical product feature or service specification 1.\",
+      \"ai_max_chars\": 15
+    },
+    {
+      \"name\": \"list 2\",
+      \"type\": \"text\",
+      \"x\": 715.26,
+      \"y\": 868.54,
+      \"w\": 454.8,
+      \"h\": 25.2,
+      \"z_index\": 11,
+      \"text\": \"Digital Marketing\",
+      \"size\": 22.92,
+      \"font\": \"Montserrat-Bold\",
+      \"color\": \"#000000\",
+      \"justification\": \"left\",
+\t  \"ai_role\": \"Technical product feature or service specification 1.\",
+      \"ai_max_chars\": 15
+    },
+    {
+      \"name\": \"list 1\",
+      \"type\": \"text\",
+      \"x\": 715.26,
+      \"y\": 824.54,
+      \"w\": 454.8,
+      \"h\": 25.2,
+      \"z_index\": 10,
+      \"text\": \"Digital Marketing\",
+      \"size\": 22.92,
+      \"font\": \"Montserrat-Bold\",
+      \"color\": \"#000000\",
+      \"justification\": \"left\",
+\t  \"ai_role\": \"Technical product feature or service specification 1.\",
+      \"ai_max_chars\": 15
+    },
+    {
+      \"name\": \"sub heading 2\",
+      \"type\": \"text\",
+      \"x\": 716,
+      \"y\": 489.97,
+      \"w\": 441.35,
+      \"h\": 143.7,
+      \"z_index\": 9,
+      \"text\": \"Expert\",
+      \"size\": 125,
+      \"font\": \"Mistral Regular\",
+      \"color\": \"#ffffff\",
+      \"justification\": \"right\",
+\t  \"ai_role\": \"Short intro phrase for the headline. Leads into the main Heading.\",
+      \"ai_max_chars\": 8
+    },
+    {
+      \"name\": \"description\",
+      \"type\": \"text\",
+      \"x\": 658,
+      \"y\": 706,
+      \"w\": 525,
+      \"h\": 88,
+      \"z_index\": 8,
+      \"text\": \"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\",
+      \"size\": 19.21,
+      \"font\": \"Montserrat-Regular\",
+      \"color\": \"#000000\",
+      \"justification\": \"right\",
+\t  \"ai_role\": \"product details ka ai se general content generate krao\",
+      \"ai_max_chars\": 150
+    },
+    {
+      \"name\": \"heading 1\",
+      \"type\": \"text\",
+      \"x\": 850,
+      \"y\": 232,
+      \"w\": 304,
+      \"h\": 50,
+      \"z_index\": 7,
+      \"text\": \"WE ARE\",
+      \"size\": 43.75,
+      \"font\": \"Montserrat-ExtraBold\",
+      \"color\": \"#ffffff\",
+      \"justification\": \"right\",
+\t  \"ai_role\": \"Short intro phrase for the headline. Leads into the main Heading.\",
+      \"ai_max_chars\": 12
+    },
+    {
+      \"name\": \"Heading 2\",
+      \"type\": \"text\",
+      \"x\": 680.05,
+      \"y\": 259.25,
+      \"w\": 490.02,
+      \"h\": 166.25,
+      \"z_index\": 6,
+      \"text\": \"DIGITAL\",
+      \"size\": 158.33,
+      \"font\": \"BebasNeue-Regular\",
+      \"color\": \"#ffffff\",
+      \"justification\": \"right\",
+\t  \"ai_role\": \"Main core subject of the headline. Must logically connect the intro (Heading 1) to the conclusion (Sub heading 1).\",
+      \"ai_max_chars\": 10
+    },
+    {
+      \"name\": \"sub heading 1\",
+      \"type\": \"text\",
+      \"x\": 647,
+      \"y\": 397.13,
+      \"w\": 531.92,
+      \"h\": 153.12,
+      \"z_index\": 5,
+      \"text\": \"MARKETING\",
+      \"size\": 145.83,
+      \"font\": \"BebasNeue-Regular\",
+      \"color\": \"#5089ed\",
+      \"justification\": \"right\",
+\t  \"ai_role\": \"Main core subject of the headline. Must logically connect the intro (Heading 1) to the conclusion (Sub heading 1)\",
+      \"ai_max_chars\": 10
+    },
+    {
+      \"name\": \"img Ellipse\",
+      \"type\": \"image\",
+      \"src\": \"../skins/Frame_Squre_106/img Ellipse.png\",
+      \"x\": -55,
+      \"y\": 225,
+      \"w\": 602,
+      \"h\": 670,
+      \"z_index\": 4,
+      \"image_type\": \"Full\"
+    },
+    {
+      \"name\": \"Ellipse 1\",
+      \"type\": \"image\",
+      \"src\": \"../skins/Frame_Squre_106/Ellipse 1.png\",
+      \"x\": -95.06,
+      \"y\": 200.56,
+      \"w\": 726.16,
+      \"h\": 721.77,
+      \"z_index\": 3
+    },
+    {
+      \"name\": \"BG Shape 2\",
+      \"type\": \"image\",
+      \"src\": \"../skins/Frame_Squre_106/BG Shape 2.png\",
+      \"x\": -4,
+      \"y\": 527,
+      \"w\": 1203,
+      \"h\": 672,
+      \"z_index\": 2
+    },
+    {
+      \"name\": \"BG\",
+      \"type\": \"image\",
+      \"src\": \"../skins/Frame_Squre_106/BG.png\",
+      \"x\": 0,
+      \"y\": 0,
+      \"w\": 1200,
+      \"h\": 1200,
+      \"z_index\": 1,
+      \"is_background\": true
+    }
+  ]
+}"},{"postId":"Product details page20","id":20,"type":"business_custom_frame","is_template":true,"language":"All","image":"http://localhost/Artera/uploads/template/1ee980f3-fcf2-4cb6-a022-9ea4b23e380f/preview.jpg","is_paid":false,"height":1080,"width":1080,"image_type":"Full","aspect_ratio":"1:1","name":"1ee980f3-fcf2-4cb6-a022-9ea4b23e380f","json":"{
+  \"name\": \"Frame_Square_101\",
+  \"path\": \"Frame_Square_101/\",
+  \"info\": {
+    \"width\": 1200,
+    \"height\": 1200
+  },
+  \"ai_global_rule\": \"The overall headline must be divided across three interconnected layers: 'Heading 1' (intro phrase, max 6 chars), 'Heading' (main core subject, max 15 chars), and 'Sub heading' (highlight/conclusion, max 6 chars). The AI must generate a cohesive marketing message that perfectly fits these tight character limits without cutting off words. The 'List topic' layers must contain technical product data or features depending on the admin Configure Purpose AI prompt.\",
+  \"layers\": [
+
+    {
+      \"name\": \"BG\",
+      \"type\": \"image\",
+      \"src\": \"../skins/Frame_Square_101/BG.png\",
+      \"x\": 0,
+      \"y\": 0,
+      \"w\": 1200,
+      \"h\": 1200,
+      \"z_index\": 1,
+      \"is_background\": true,
+      \"image_type\": \"\"
+    },
+
+    {
+      \"name\": \"heading1\",
+      \"type\": \"text\",
+      \"text\": \"we are\",
+      \"x\": 687,
+      \"y\": 153,
+      \"w\": 335,
+      \"h\": 124,
+      \"z_index\": 2,
+      \"size\": 83.33,
+      \"font\": \"Allura-Regular\",
+      \"color\": \"#0042ff\",
+      \"color_group\": \"primary\",
+      \"justification\": \"left\",
+      \"ai_role\": \"Short intro phrase for the headline. Leads into the main Heading.\",
+      \"ai_max_chars\": 6
+    },
+
+    {
+      \"name\": \"heading2\",
+      \"type\": \"text\",
+      \"text\": \"SOCIAL MEDIA\",
+      \"x\": 687,
+      \"y\": 242,
+      \"w\": 518,
+      \"h\": 122,
+      \"z_index\": 3,
+      \"size\": 116.66,
+      \"font\": \"BebasNeue-Regular\",
+      \"color\": \"#0f0f0f\",
+      \"color_group\": \"secondary\",
+      \"weight\": \"bold\",
+      \"justification\": \"left\",
+      \"ai_role\": \"Main core subject of the headline. Must logically connect the intro (Heading 1) to the conclusion (Sub heading).\",
+      \"ai_max_chars\": 9
+    },
+
+    {
+      \"name\": \"list1\",
+      \"type\": \"text\",
+      \"text\": \"Creative Design\",
+      \"x\": 724,
+      \"y\": 576,
+      \"w\": 376,
+      \"h\": 48,
+      \"z_index\": 4,
+      \"size\": 33.33,
+      \"font\": \"Poppins-Bold\",
+      \"color\": \"#0f0f0f\",
+      \"color_group\": \"secondary\",
+      \"weight\": \"bold\",
+      \"justification\": \"right\",
+      \"ai_role\": \"Technical product feature or service specification 1.\",
+      \"ai_max_chars\": 25
+    },
+
+    {
+      \"name\": \"list2\",
+      \"type\": \"text\",
+      \"text\": \"Marketing\",
+      \"x\": 724,
+      \"y\": 645,
+      \"w\": 376,
+      \"h\": 37,
+      \"z_index\": 5,
+      \"size\": 33.33,
+      \"font\": \"Poppins-Bold\",
+      \"color\": \"#0f0f0f\",
+      \"color_group\": \"secondary\",
+      \"weight\": \"bold\",
+      \"justification\": \"right\",
+      \"ai_role\": \"Technical product feature or service specification 2.\",
+      \"ai_max_chars\": 25
+    },
+
+    {
+      \"name\": \"list3\",
+      \"type\": \"text\",
+      \"text\": \"Marketing\",
+      \"x\": 724,
+      \"y\": 711,
+      \"w\": 376,
+      \"h\": 37,
+      \"z_index\": 6,
+      \"size\": 33.33,
+      \"font\": \"Poppins-Bold\",
+      \"color\": \"#0f0f0f\",
+      \"color_group\": \"secondary\",
+      \"weight\": \"bold\",
+      \"justification\": \"right\",
+      \"ai_role\": \"Technical product feature or service specification 3.\",
+      \"ai_max_chars\": 25
+    },
+
+    {
+      \"name\": \"list4\",
+      \"type\": \"text\",
+      \"text\": \"Marketing\",
+      \"x\": 724,
+      \"y\": 777,
+      \"w\": 376,
+      \"h\": 37,
+      \"z_index\": 7,
+      \"size\": 33.33,
+      \"font\": \"Poppins-Bold\",
+      \"color\": \"#0f0f0f\",
+      \"color_group\": \"secondary\",
+      \"weight\": \"bold\",
+      \"justification\": \"right\",
+      \"ai_role\": \"Technical product feature or service specification 4.\",
+      \"ai_max_chars\": 25
+    },
+
+    {
+      \"name\": \"description\",
+      \"type\": \"text\",
+      \"text\": \"Lorem ipsum dolor sit amet, \\nconsectetur adipiscing elit, sed do \\neiusmod tempor incididunt ut labore et dolore magna aliqua.\",
+      \"x\": 647,
+      \"y\": 860,
+      \"w\": 503,
+      \"h\": 130,
+      \"z_index\": 8,
+      \"size\": 25,
+      \"font\": \"Poppins-Bold\",
+      \"color\": \"#0f0f0f\",
+      \"color_group\": \"secondary\",
+      \"weight\": \"bold\",
+      \"justification\": \"right\",
+      \"ai_role\": \"Detailed product description explaining benefits or technical context.\",
+      \"ai_max_chars\": 120
+    },
+
+    {
+      \"name\": \"heading3\",
+      \"type\": \"text\",
+      \"text\": \"EXPERT\",
+      \"x\": 687,
+      \"y\": 330,
+      \"w\": 509,
+      \"h\": 233,
+      \"z_index\": 9,
+      \"size\": 222.62,
+      \"font\": \"BebasNeue-Regular\",
+      \"color\": \"#0041fa\",
+      \"color_group\": \"primary\",
+      \"weight\": \"bold\",
+      \"justification\": \"left\",
+      \"ai_role\": \"Impactful highlight or concluding word of the headline. Follows the main Heading.\",
+      \"ai_max_chars\": 6
+    },
+
+    {
+      \"name\": \"Rectangle 2\",
+      \"type\": \"image\",
+      \"src\": \"../skins/Frame_Square_101/Rectangle 2.png\",
+      \"x\": 6,
+      \"y\": -309,
+      \"w\": 644,
+      \"h\": 1137,
+      \"z_index\": 10,
+      \"image_type\": \"\"
+    },
+
+    {
+      \"name\": \"Line 1\",
+      \"type\": \"image\",
+      \"src\": \"../skins/Frame_Square_101/Line 1.png\",
+      \"x\": 813,
+      \"y\": 624,
+      \"w\": 338,
+      \"h\": 3,
+      \"z_index\": 11,
+      \"image_type\": \"\"
+    },
+
+    {
+      \"name\": \"Line 3\",
+      \"type\": \"image\",
+      \"src\": \"../skins/Frame_Square_101/Line 3.png\",
+      \"x\": 813,
+      \"y\": 761,
+      \"w\": 338,
+      \"h\": 3,
+      \"z_index\": 12,
+      \"image_type\": \"\"
+    },
+
+    {
+      \"name\": \"Line 4\",
+      \"type\": \"image\",
+      \"src\": \"../skins/Frame_Square_101/Line 4.png\",
+      \"x\": 813,
+      \"y\": 830,
+      \"w\": 338,
+      \"h\": 3,
+      \"z_index\": 13,
+      \"image_type\": \"\"
+    },
+
+    {
+      \"name\": \"Line 2\",
+      \"type\": \"image\",
+      \"src\": \"../skins/Frame_Square_101/Line 2.png\",
+      \"x\": 813,
+      \"y\": 692,
+      \"w\": 338,
+      \"h\": 3,
+      \"z_index\": 14,
+      \"image_type\": \"\"
+    },
+
+    {
+      \"name\": \"Icon 1\",
+      \"type\": \"image\",
+      \"src\": \"../skins/Frame_Square_101/Icon 1.png\",
+      \"x\": 1124,
+      \"y\": 578,
+      \"w\": 26,
+      \"h\": 25,
+      \"z_index\": 15,
+      \"image_type\": \"\"
+    },
+
+    {
+      \"name\": \"Icon 2\",
+      \"type\": \"image\",
+      \"src\": \"../skins/Frame_Square_101/Icon 2.png\",
+      \"x\": 1124,
+      \"y\": 647,
+      \"w\": 26,
+      \"h\": 27,
+      \"z_index\": 16,
+      \"image_type\": \"\"
+    },
+
+    {
+      \"name\": \"Icon 3\",
+      \"type\": \"image\",
+      \"src\": \"../skins/Frame_Square_101/Icon 3.png\",
+      \"x\": 1124,
+      \"y\": 715,
+      \"w\": 26,
+      \"h\": 28,
+      \"z_index\": 17,
+      \"image_type\": \"\"
+    },
+
+    {
+      \"name\": \"Icon 4\",
+      \"type\": \"image\",
+      \"src\": \"../skins/Frame_Square_101/Icon 4.png\",
+      \"x\": 1124,
+      \"y\": 785,
+      \"w\": 26,
+      \"h\": 27,
+      \"z_index\": 18,
+      \"image_type\": \"\"
+    },
+
+    {
+      \"name\": \"image\",
+      \"type\": \"image\",
+      \"src\": \"../skins/Frame_Square_101/image.png\",
+      \"x\": 7,
+      \"y\": 271,
+      \"w\": 644,
+      \"h\": 631,
+      \"z_index\": 19,
+      \"is_slot\": true,
+      \"image_type\": \"\"
+    }
+
+  ]
+}"}]}]} 
+[2026-05-13 12:28:07] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778655487208"}  
+[2026-05-13 12:28:07] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-05-13 12:28:07] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-05-13 12:28:07] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778655487208"}  
+[2026-05-13 12:28:07] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-05-13 12:28:07] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-05-13 12:28:07] local.INFO: CustomPost API Debug:  {"categories_count":1,"data_count":1,"data_dump":[{"customCategoryId":3,"customCategoryName":"Product details page","customCategoryIcon":"http://localhost/Artera/uploads/0ebf08e8-851e-403a-9636-1c97c8c21615.jpeg","posts":[{"postId":"Product details page48","id":48,"type":"business_custom_frame","is_template":true,"language":"All","image":"http://localhost/Artera/uploads/template/673026ee-d21b-40e7-88c7-3a56828f130b/preview.jpg","is_paid":false,"height":1080,"width":1080,"image_type":"Full","aspect_ratio":"1:1","name":"673026ee-d21b-40e7-88c7-3a56828f130b","json":"{\"name\":\"Frame_Squre_106\",\"path\":\"Frame_Squre_106\\/\",\"info\":{\"width\":1200,\"height\":1200},\"ai_global_rule\":\"The overall headline must be divided across three interconnected layers: 'Heading 1' (intro phrase, max 6 chars), 'Heading' (main core subject, max 15 chars), and 'Sub heading' (highlight\\/conclusion, max 6 chars). The AI must generate a cohesive marketing message that perfectly fits these tight character limits without cutting off words. The 'List topic' layers must contain technical product data or features depending on the admin Configure Purpose AI prompt.\",\"layers\":[{\"name\":\"list_4Rectangle_4\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_Squre_106\\/list_4Rectangle_4.png\",\"x\":948,\"y\":888,\"w\":21,\"h\":21,\"z_index\":17},{\"name\":\"list_3Rectangle_3\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_Squre_106\\/list_3Rectangle_3.png\",\"x\":948,\"y\":853,\"w\":21,\"h\":21,\"z_index\":16},{\"name\":\"list_2Rectangle_2\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_Squre_106\\/list_2Rectangle_2.png\",\"x\":631,\"y\":885,\"w\":21,\"h\":21,\"z_index\":15},{\"name\":\"list_1Rectangle_1\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_Squre_106\\/list_1Rectangle_1.png\",\"x\":631,\"y\":851,\"w\":21,\"h\":21,\"z_index\":14},{\"name\":\"list 4\",\"type\":\"text\",\"x\":716,\"y\":957,\"w\":454.07,\"h\":25.5,\"z_index\":13,\"text\":\"Bulk Pack Sets\",\"size\":22.92,\"font\":\"Montserrat-Bold\",\"color\":\"#000000\",\"justification\":\"left\",\"ai_role\":\"Technical product feature or service specification 1.\",\"ai_max_chars\":15},{\"name\":\"list 3\",\"type\":\"text\",\"x\":715.26,\"y\":912.54,\"w\":454.8,\"h\":25.2,\"z_index\":12,\"text\":\"6 Size Options\",\"size\":22.92,\"font\":\"Montserrat-Bold\",\"color\":\"#000000\",\"justification\":\"left\",\"ai_role\":\"Technical product feature or service specification 1.\",\"ai_max_chars\":15},{\"name\":\"list 2\",\"type\":\"text\",\"x\":715.26,\"y\":868.54,\"w\":454.8,\"h\":25.2,\"z_index\":11,\"text\":\"8+ Finishes\",\"size\":22.92,\"font\":\"Montserrat-Bold\",\"color\":\"#000000\",\"justification\":\"left\",\"ai_role\":\"Technical product feature or service specification 1.\",\"ai_max_chars\":15},{\"name\":\"list 1\",\"type\":\"text\",\"x\":715.26,\"y\":824.54,\"w\":454.8,\"h\":25.2,\"z_index\":10,\"text\":\"Aluminium Body\",\"size\":22.92,\"font\":\"Montserrat-Bold\",\"color\":\"#000000\",\"justification\":\"left\",\"ai_role\":\"Technical product feature or service specification 1.\",\"ai_max_chars\":15},{\"name\":\"sub heading 2\",\"type\":\"text\",\"x\":716,\"y\":489.97,\"w\":441.35,\"h\":143.7,\"z_index\":9,\"text\":\"Seamless\",\"size\":125,\"font\":\"Mistral Regular\",\"color\":\"#ffffff\",\"justification\":\"right\",\"ai_role\":\"Short intro phrase for the headline. Leads into the main Heading.\",\"ai_max_chars\":8},{\"name\":\"description\",\"type\":\"text\",\"x\":658,\"y\":706,\"w\":525,\"h\":88,\"z_index\":8,\"text\":\"Experience minimalist design with the 007 Conceal Handle. Crafted from premium aluminium for a sleek, flush finish. Elevate your space with modern sty...\",\"size\":19.21,\"font\":\"Montserrat-Regular\",\"color\":\"#000000\",\"justification\":\"right\",\"ai_role\":\"product details ka ai se general content generate krao\",\"ai_max_chars\":150},{\"name\":\"heading 1\",\"type\":\"text\",\"x\":850,\"y\":232,\"w\":304,\"h\":50,\"z_index\":7,\"text\":\"The 007 Hand...\",\"size\":43.75,\"font\":\"Montserrat-ExtraBold\",\"color\":\"#ffffff\",\"justification\":\"right\",\"ai_role\":\"Short intro phrase for the headline. Leads into the main Heading.\",\"ai_max_chars\":12},{\"name\":\"Heading 2\",\"type\":\"text\",\"x\":680.05,\"y\":259.25,\"w\":490.02,\"h\":166.25,\"z_index\":6,\"text\":\"Concealed\",\"size\":158.33,\"font\":\"BebasNeue-Regular\",\"color\":\"#ffffff\",\"justification\":\"right\",\"ai_role\":\"Main core subject of the headline. Must logically connect the intro (Heading 1) to the conclusion (Sub heading 1).\",\"ai_max_chars\":10},{\"name\":\"sub heading 1\",\"type\":\"text\",\"x\":647,\"y\":397.13,\"w\":531.92,\"h\":153.12,\"z_index\":5,\"text\":\"Perfection\",\"size\":145.83,\"font\":\"BebasNeue-Regular\",\"color\":\"#5089ed\",\"justification\":\"right\",\"ai_role\":\"Main core subject of the headline. Must logically connect the intro (Heading 1) to the conclusion (Sub heading 1)\",\"ai_max_chars\":10},{\"name\":\"img Ellipse\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_Squre_106\\/img Ellipse.png\",\"x\":-55,\"y\":225,\"w\":602,\"h\":670,\"z_index\":4,\"image_type\":\"Full\"},{\"name\":\"Ellipse 1\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_Squre_106\\/Ellipse 1.png\",\"x\":-95.06,\"y\":200.56,\"w\":726.16,\"h\":721.77,\"z_index\":3},{\"name\":\"BG Shape 2\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_Squre_106\\/BG Shape 2.png\",\"x\":-4,\"y\":527,\"w\":1203,\"h\":672,\"z_index\":2},{\"name\":\"BG\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_Squre_106\\/BG.png\",\"x\":0,\"y\":0,\"w\":1200,\"h\":1200,\"z_index\":1,\"is_background\":true}]}"},{"postId":"Product details page20","id":20,"type":"business_custom_frame","is_template":true,"language":"All","image":"http://localhost/Artera/uploads/template/1ee980f3-fcf2-4cb6-a022-9ea4b23e380f/preview.jpg","is_paid":false,"height":1080,"width":1080,"image_type":"Full","aspect_ratio":"1:1","name":"1ee980f3-fcf2-4cb6-a022-9ea4b23e380f","json":"{\"name\":\"Frame_Square_101\",\"path\":\"Frame_Square_101\\/\",\"info\":{\"width\":1200,\"height\":1200},\"ai_global_rule\":\"The overall headline must be divided across three interconnected layers: 'Heading 1' (intro phrase, max 6 chars), 'Heading' (main core subject, max 15 chars), and 'Sub heading' (highlight\\/conclusion, max 6 chars). The AI must generate a cohesive marketing message that perfectly fits these tight character limits without cutting off words. The 'List topic' layers must contain technical product data or features depending on the admin Configure Purpose AI prompt.\",\"layers\":[{\"name\":\"BG\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_Square_101\\/BG.png\",\"x\":0,\"y\":0,\"w\":1200,\"h\":1200,\"z_index\":1,\"is_background\":true,\"image_type\":\"\"},{\"name\":\"heading1\",\"type\":\"text\",\"text\":\"Sleek\",\"x\":687,\"y\":153,\"w\":335,\"h\":124,\"z_index\":2,\"size\":83.33,\"font\":\"Allura-Regular\",\"color\":\"#0042ff\",\"color_group\":\"primary\",\"justification\":\"left\",\"ai_role\":\"Short intro phrase for the headline. Leads into the main Heading.\",\"ai_max_chars\":6},{\"name\":\"heading2\",\"type\":\"text\",\"text\":\"Elegance\",\"x\":687,\"y\":242,\"w\":518,\"h\":122,\"z_index\":3,\"size\":116.66,\"font\":\"BebasNeue-Regular\",\"color\":\"#0f0f0f\",\"color_group\":\"secondary\",\"weight\":\"bold\",\"justification\":\"left\",\"ai_role\":\"Main core subject of the headline. Must logically connect the intro (Heading 1) to the conclusion (Sub heading).\",\"ai_max_chars\":9},{\"name\":\"list1\",\"type\":\"text\",\"text\":\"Model: 0010 Conceal\",\"x\":724,\"y\":576,\"w\":376,\"h\":48,\"z_index\":4,\"size\":33.33,\"font\":\"Poppins-Bold\",\"color\":\"#0f0f0f\",\"color_group\":\"secondary\",\"weight\":\"bold\",\"justification\":\"right\",\"ai_role\":\"Technical product feature or service specification 1.\",\"ai_max_chars\":25},{\"name\":\"list2\",\"type\":\"text\",\"text\":\"Material: Aluminium\",\"x\":724,\"y\":645,\"w\":376,\"h\":37,\"z_index\":5,\"size\":33.33,\"font\":\"Poppins-Bold\",\"color\":\"#0f0f0f\",\"color_group\":\"secondary\",\"weight\":\"bold\",\"justification\":\"right\",\"ai_role\":\"Technical product feature or service specification 2.\",\"ai_max_chars\":25},{\"name\":\"list3\",\"type\":\"text\",\"text\":\"Blasting Black & Copper\",\"x\":724,\"y\":711,\"w\":376,\"h\":37,\"z_index\":6,\"size\":33.33,\"font\":\"Poppins-Bold\",\"color\":\"#0f0f0f\",\"color_group\":\"secondary\",\"weight\":\"bold\",\"justification\":\"right\",\"ai_role\":\"Technical product feature or service specification 3.\",\"ai_max_chars\":25},{\"name\":\"list4\",\"type\":\"text\",\"text\":\"Blasting S.S, Gold, Brown\",\"x\":724,\"y\":777,\"w\":376,\"h\":37,\"z_index\":7,\"size\":33.33,\"font\":\"Poppins-Bold\",\"color\":\"#0f0f0f\",\"color_group\":\"secondary\",\"weight\":\"bold\",\"justification\":\"right\",\"ai_role\":\"Technical product feature or service specification 4.\",\"ai_max_chars\":25},{\"name\":\"description\",\"type\":\"text\",\"text\":\"RV Solutions presents the 0010 conceal handle. Crafted from premium aluminium for a seamless, modern look on any cabinet\",\"x\":647,\"y\":860,\"w\":503,\"h\":130,\"z_index\":8,\"size\":25,\"font\":\"Poppins-Bold\",\"color\":\"#0f0f0f\",\"color_group\":\"secondary\",\"weight\":\"bold\",\"justification\":\"right\",\"ai_role\":\"Detailed product description explaining benefits or technical context.\",\"ai_max_chars\":120},{\"name\":\"heading3\",\"type\":\"text\",\"text\":\"Inside\",\"x\":687,\"y\":330,\"w\":509,\"h\":233,\"z_index\":9,\"size\":222.62,\"font\":\"BebasNeue-Regular\",\"color\":\"#0041fa\",\"color_group\":\"primary\",\"weight\":\"bold\",\"justification\":\"left\",\"ai_role\":\"Impactful highlight or concluding word of the headline. Follows the main Heading.\",\"ai_max_chars\":6},{\"name\":\"Rectangle 2\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_Square_101\\/Rectangle 2.png\",\"x\":6,\"y\":-309,\"w\":644,\"h\":1137,\"z_index\":10,\"image_type\":\"\"},{\"name\":\"Line 1\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_Square_101\\/Line 1.png\",\"x\":813,\"y\":624,\"w\":338,\"h\":3,\"z_index\":11,\"image_type\":\"\"},{\"name\":\"Line 3\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_Square_101\\/Line 3.png\",\"x\":813,\"y\":761,\"w\":338,\"h\":3,\"z_index\":12,\"image_type\":\"\"},{\"name\":\"Line 4\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_Square_101\\/Line 4.png\",\"x\":813,\"y\":830,\"w\":338,\"h\":3,\"z_index\":13,\"image_type\":\"\"},{\"name\":\"Line 2\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_Square_101\\/Line 2.png\",\"x\":813,\"y\":692,\"w\":338,\"h\":3,\"z_index\":14,\"image_type\":\"\"},{\"name\":\"Icon 1\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_Square_101\\/Icon 1.png\",\"x\":1124,\"y\":578,\"w\":26,\"h\":25,\"z_index\":15,\"image_type\":\"\"},{\"name\":\"Icon 2\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_Square_101\\/Icon 2.png\",\"x\":1124,\"y\":647,\"w\":26,\"h\":27,\"z_index\":16,\"image_type\":\"\"},{\"name\":\"Icon 3\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_Square_101\\/Icon 3.png\",\"x\":1124,\"y\":715,\"w\":26,\"h\":28,\"z_index\":17,\"image_type\":\"\"},{\"name\":\"Icon 4\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_Square_101\\/Icon 4.png\",\"x\":1124,\"y\":785,\"w\":26,\"h\":27,\"z_index\":18,\"image_type\":\"\"},{\"name\":\"image\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_Square_101\\/image.png\",\"x\":7,\"y\":271,\"w\":644,\"h\":631,\"z_index\":19,\"is_slot\":true,\"image_type\":\"\"}]}"}]}]} 
+[2026-05-13 12:46:37] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778656597235"}  
+[2026-05-13 12:46:37] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-05-13 12:46:37] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-05-13 12:46:37] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778656597235"}  
+[2026-05-13 12:46:37] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-05-13 12:46:37] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-05-13 12:46:37] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-13 12:46:47] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778656606815"}  
+[2026-05-13 12:46:47] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-05-13 12:46:47] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-05-13 12:46:47] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778656606815"}  
+[2026-05-13 12:46:47] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-05-13 12:46:47] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-05-13 12:46:47] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-13 12:47:28] local.INFO: DEBUG universal_edit: AI content injected for user 18, frame 48  
+[2026-05-13 12:49:52] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778656792112"}  
+[2026-05-13 12:49:52] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-05-13 12:49:52] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-05-13 12:49:52] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778656792112"}  
+[2026-05-13 12:49:52] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-05-13 12:49:52] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-05-13 12:49:52] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-13 12:50:01] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778656800887"}  
+[2026-05-13 12:50:01] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-05-13 12:50:01] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-05-13 12:50:01] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778656800887"}  
+[2026-05-13 12:50:01] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-05-13 12:50:01] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-05-13 12:50:01] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-13 12:50:33] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778656833473"}  
+[2026-05-13 12:50:33] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-05-13 12:50:33] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-05-13 12:50:33] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778656833473"}  
+[2026-05-13 12:50:33] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-05-13 12:50:33] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-05-13 12:50:33] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-13 12:50:48] local.INFO: DEBUG universal_edit: AI content injected for user 18, frame 48  
+[2026-05-13 12:50:54] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778656854232"}  
+[2026-05-13 12:50:54] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-05-13 12:50:54] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-05-13 12:50:54] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778656854232"}  
+[2026-05-13 12:50:54] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-05-13 12:50:54] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-05-13 12:50:54] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-13 12:52:26] local.INFO: DEBUG API customPost: userId resolved: NULL, token present: NO, query: []  
+[2026-05-13 12:52:26] local.INFO: DEBUG API customPost: userId resolved: NULL, token present: NO, query: []  
+[2026-05-13 12:52:26] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-13 12:54:44] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778657084048"}  
+[2026-05-13 12:54:44] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-05-13 12:54:44] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-05-13 12:54:44] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778657084048"}  
+[2026-05-13 12:54:44] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-05-13 12:54:44] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-05-13 12:54:44] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-13 12:57:32] local.INFO: DEBUG API customPost: userId resolved: NULL, token present: NO, query: []  
+[2026-05-13 12:57:32] local.INFO: DEBUG API customPost: userId resolved: NULL, token present: NO, query: []  
+[2026-05-13 12:57:32] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-13 12:59:01] local.INFO: DEBUG API customPost: userId resolved: NULL, token present: NO, query: {"t":"1778657340674"}  
+[2026-05-13 12:59:01] local.INFO: DEBUG API customPost: userId resolved: NULL, token present: NO, query: {"t":"1778657340674"}  
+[2026-05-13 12:59:01] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-13 13:03:45] local.INFO: DEBUG API customPost: userId resolved: NULL, token present: NO, query: {"t":"1778657625034"}  
+[2026-05-13 13:03:45] local.INFO: DEBUG API customPost: userId resolved: NULL, token present: NO, query: {"t":"1778657625034"}  
+[2026-05-13 13:03:45] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-13 13:04:19] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778657659396"}  
+[2026-05-13 13:04:19] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-05-13 13:04:19] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-05-13 13:04:19] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778657659396"}  
+[2026-05-13 13:04:19] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-05-13 13:04:19] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-05-13 13:04:19] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-13 13:05:31] local.INFO: DEBUG universal_edit: AI content injected for user 18, frame 20  
+[2026-05-13 13:06:07] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778657767550"}  
+[2026-05-13 13:06:07] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-05-13 13:06:07] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-05-13 13:06:07] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778657767550"}  
+[2026-05-13 13:06:07] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-05-13 13:06:07] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-05-13 13:06:07] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-13 13:36:22] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778659581786"}  
+[2026-05-13 13:36:22] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-05-13 13:36:22] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-05-13 13:36:22] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778659581786"}  
+[2026-05-13 13:36:22] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-05-13 13:36:22] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-05-13 13:36:22] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-13 13:36:51] local.INFO: DEBUG universal_edit: AI content injected for user 18, frame 48  
+[2026-05-13 13:37:55] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778659674652"}  
+[2026-05-13 13:37:55] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-05-13 13:37:55] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-05-13 13:37:55] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778659674652"}  
+[2026-05-13 13:37:55] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-05-13 13:37:55] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-05-13 13:37:55] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-13 13:42:29] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778659949512"}  
+[2026-05-13 13:42:29] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-05-13 13:42:29] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-05-13 13:42:29] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778659949512"}  
+[2026-05-13 13:42:29] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-05-13 13:42:29] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-05-13 13:42:29] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-13 13:46:41] local.INFO: DEBUG universal_edit: AI content injected for user 18, frame 20  
+[2026-05-13 13:56:28] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778660788301"}  
+[2026-05-13 13:56:28] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-05-13 13:56:28] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-05-13 13:56:28] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778660788301"}  
+[2026-05-13 13:56:28] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-05-13 13:56:28] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-05-13 13:56:28] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-13 13:56:33] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778660792987"}  
+[2026-05-13 13:56:33] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-05-13 13:56:33] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-05-13 13:56:33] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778660792987"}  
+[2026-05-13 13:56:33] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-05-13 13:56:33] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-05-13 13:56:33] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-13 13:56:40] local.INFO: DEBUG universal_edit: AI content injected for user 18, frame 48  
+[2026-05-13 13:57:11] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778660830673"}  
+[2026-05-13 13:57:11] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-05-13 13:57:11] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-05-13 13:57:11] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778660830673"}  
+[2026-05-13 13:57:11] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-05-13 13:57:11] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-05-13 13:57:11] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-13 13:57:36] local.INFO: DEBUG universal_edit: AI content injected for user 18, frame 20  
+[2026-05-13 13:57:46] local.ERROR: SQLSTATE[22001]: String data, right truncated: 1406 Data too long for column 'template_id' at row 1 (SQL: insert into `editor_product_selections` (`user_id`, `product_id`, `template_id`, `image_url`, `image_mode`, `updated_at`, `created_at`) values (18, 104, {"name":"Frame_5","path":"Frame_5\/","info":{"width":1080,"height":1091,"ppi":300},"layers":[{"id":"leftrectangle","type":"image","src":"..\/skins\/Frame_5\/leftrectangle.png","x":0,"y":955,"w":659,"h":80,"z_index":1},{"id":"rightrectangle","type":"image","src":"..\/skins\/Frame_5\/rightrectangle.png","x":645,"y":966,"w":435,"h":69,"z_index":2},{"id":"line","type":"image","src":"..\/skins\/Frame_5\/line.png","x":630,"y":969,"w":46,"h":66,"z_index":3},{"id":"Logo","type":"image","src":"..\/skins\/Frame_5\/Logo.png","x":59,"y":25,"w":131,"h":156,"z_index":4},{"id":"instagram","type":"image","src":"..\/skins\/Frame_5\/instagram.png","x":843,"y":13,"w":32,"h":32,"z_index":5},{"id":"facebook","type":"image","src":"..\/skins\/Frame_5\/facebook_.png","x":904,"y":13,"w":32,"h":32,"z_index":6},{"id":"twitter","type":"image","src":"..\/skins\/Frame_5\/twitter.png","x":968,"y":13,"w":32,"h":32,"z_index":7},{"id":"youtube","type":"image","src":"..\/skins\/Frame_5\/youtube.png","x":1031,"y":13,"w":32,"h":32,"z_index":8},{"id":"phoneicon","type":"image","src":"..\/skins\/Frame_5\/phoneicon.png","x":26,"y":983,"w":30,"h":30,"z_index":9},{"id":"number","type":"text","x":66,"y":986,"w":188,"h":36,"font_name":"Poppins-SemiBold","font_size":6,"color":"#010101","z_index":10},{"id":"mailicon","type":"image","src":"..\/skins\/Frame_5\/mailicon.png","x":253,"y":982,"w":31,"h":31,"z_index":11},{"id":"email","type":"text","x":292,"y":986,"w":324,"h":36,"font_name":"Poppins-SemiBold","font_size":6,"color":"#010101","z_index":12},{"id":"webicon","type":"image","src":"..\/skins\/Frame_5\/webicon.png","x":696,"y":985,"w":30,"h":30,"z_index":13},{"id":"website","type":"text","x":737,"y":987,"w":342,"h":36,"font_name":"Poppins-SemiBold","font_size":6,"color":"#ffffff","z_index":14},{"id":"addressicon","type":"image","src":"..\/skins\/Frame_5\/addressicon.png","x":27,"y":1039,"w":30,"h":30,"z_index":15},{"id":"address","type":"text","x":65,"y":1042,"w":998,"h":36,"font_name":"Poppins-SemiBold","font_size":6,"color":"#010101","z_index":16}]}, http://localhost/Artera/uploads/products/1778474304_scaled_The-future-of-farming-exploring-Precision-Agriculture.jpg, full, 2026-05-13 13:57:46, 2026-05-13 13:57:46)) {"userId":18,"exception":"[object] (Illuminate\\Database\\QueryException(code: 22001): SQLSTATE[22001]: String data, right truncated: 1406 Data too long for column 'template_id' at row 1 (SQL: insert into `editor_product_selections` (`user_id`, `product_id`, `template_id`, `image_url`, `image_mode`, `updated_at`, `created_at`) values (18, 104, {\"name\":\"Frame_5\",\"path\":\"Frame_5\\/\",\"info\":{\"width\":1080,\"height\":1091,\"ppi\":300},\"layers\":[{\"id\":\"leftrectangle\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/leftrectangle.png\",\"x\":0,\"y\":955,\"w\":659,\"h\":80,\"z_index\":1},{\"id\":\"rightrectangle\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/rightrectangle.png\",\"x\":645,\"y\":966,\"w\":435,\"h\":69,\"z_index\":2},{\"id\":\"line\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/line.png\",\"x\":630,\"y\":969,\"w\":46,\"h\":66,\"z_index\":3},{\"id\":\"Logo\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/Logo.png\",\"x\":59,\"y\":25,\"w\":131,\"h\":156,\"z_index\":4},{\"id\":\"instagram\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/instagram.png\",\"x\":843,\"y\":13,\"w\":32,\"h\":32,\"z_index\":5},{\"id\":\"facebook\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/facebook_.png\",\"x\":904,\"y\":13,\"w\":32,\"h\":32,\"z_index\":6},{\"id\":\"twitter\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/twitter.png\",\"x\":968,\"y\":13,\"w\":32,\"h\":32,\"z_index\":7},{\"id\":\"youtube\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/youtube.png\",\"x\":1031,\"y\":13,\"w\":32,\"h\":32,\"z_index\":8},{\"id\":\"phoneicon\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/phoneicon.png\",\"x\":26,\"y\":983,\"w\":30,\"h\":30,\"z_index\":9},{\"id\":\"number\",\"type\":\"text\",\"x\":66,\"y\":986,\"w\":188,\"h\":36,\"font_name\":\"Poppins-SemiBold\",\"font_size\":6,\"color\":\"#010101\",\"z_index\":10},{\"id\":\"mailicon\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/mailicon.png\",\"x\":253,\"y\":982,\"w\":31,\"h\":31,\"z_index\":11},{\"id\":\"email\",\"type\":\"text\",\"x\":292,\"y\":986,\"w\":324,\"h\":36,\"font_name\":\"Poppins-SemiBold\",\"font_size\":6,\"color\":\"#010101\",\"z_index\":12},{\"id\":\"webicon\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/webicon.png\",\"x\":696,\"y\":985,\"w\":30,\"h\":30,\"z_index\":13},{\"id\":\"website\",\"type\":\"text\",\"x\":737,\"y\":987,\"w\":342,\"h\":36,\"font_name\":\"Poppins-SemiBold\",\"font_size\":6,\"color\":\"#ffffff\",\"z_index\":14},{\"id\":\"addressicon\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/addressicon.png\",\"x\":27,\"y\":1039,\"w\":30,\"h\":30,\"z_index\":15},{\"id\":\"address\",\"type\":\"text\",\"x\":65,\"y\":1042,\"w\":998,\"h\":36,\"font_name\":\"Poppins-SemiBold\",\"font_size\":6,\"color\":\"#010101\",\"z_index\":16}]}, http://localhost/Artera/uploads/products/1778474304_scaled_The-future-of-farming-exploring-Precision-Agriculture.jpg, full, 2026-05-13 13:57:46, 2026-05-13 13:57:46)) at C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php:760)
+[stacktrace]
+#0 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(720): Illuminate\\Database\\Connection->runQueryCallback('insert into `ed...', Array, Object(Closure))
+#1 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(546): Illuminate\\Database\\Connection->run('insert into `ed...', Array, Object(Closure))
+#2 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(498): Illuminate\\Database\\Connection->statement('insert into `ed...', Array)
+#3 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3224): Illuminate\\Database\\Connection->insert('insert into `ed...', Array)
+#4 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3342): Illuminate\\Database\\Query\\Builder->insert(Array)
+#5 C:\\xampp\\htdocs\\Artera\\app\\Http\\Controllers\\MainController.php(1126): Illuminate\\Database\\Query\\Builder->updateOrInsert(Array, Array)
+#6 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Controller.php(54): App\\Http\\Controllers\\MainController->saveProductSelection(Object(Illuminate\\Http\\Request))
+#7 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\ControllerDispatcher.php(43): Illuminate\\Routing\\Controller->callAction('saveProductSele...', Array)
+#8 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(260): Illuminate\\Routing\\ControllerDispatcher->dispatch(Object(Illuminate\\Routing\\Route), Object(App\\Http\\Controllers\\MainController), 'saveProductSele...')
+#9 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(205): Illuminate\\Routing\\Route->runController()
+#10 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(798): Illuminate\\Routing\\Route->run()
+#11 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(141): Illuminate\\Routing\\Router->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#12 C:\\xampp\\htdocs\\Artera\\app\\Http\\Middleware\\LogUserActivity.php(19): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#13 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): App\\Http\\Middleware\\LogUserActivity->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#14 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Middleware\\SubstituteBindings.php(50): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#15 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Routing\\Middleware\\SubstituteBindings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#16 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Auth\\Middleware\\Authenticate.php(44): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#17 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Auth\\Middleware\\Authenticate->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#18 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken.php(78): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#19 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#20 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\View\\Middleware\\ShareErrorsFromSession.php(49): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#21 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\View\\Middleware\\ShareErrorsFromSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#22 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(121): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#23 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(64): Illuminate\\Session\\Middleware\\StartSession->handleStatefulRequest(Object(Illuminate\\Http\\Request), Object(Illuminate\\Session\\Store), Object(Closure))
+#24 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Session\\Middleware\\StartSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#25 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse.php(37): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#26 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#27 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\EncryptCookies.php(67): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#28 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Cookie\\Middleware\\EncryptCookies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#29 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(116): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#30 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(799): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#31 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(776): Illuminate\\Routing\\Router->runRouteWithinStack(Object(Illuminate\\Routing\\Route), Object(Illuminate\\Http\\Request))
+#32 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(740): Illuminate\\Routing\\Router->runRoute(Object(Illuminate\\Http\\Request), Object(Illuminate\\Routing\\Route))
+#33 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(729): Illuminate\\Routing\\Router->dispatchToRoute(Object(Illuminate\\Http\\Request))
+#34 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(190): Illuminate\\Routing\\Router->dispatch(Object(Illuminate\\Http\\Request))
+#35 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(141): Illuminate\\Foundation\\Http\\Kernel->Illuminate\\Foundation\\Http\\{closure}(Object(Illuminate\\Http\\Request))
+#36 C:\\xampp\\htdocs\\Artera\\vendor\\fruitcake\\laravel-cors\\src\\HandleCors.php(52): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#37 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Fruitcake\\Cors\\HandleCors->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#38 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#39 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull.php(31): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#40 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#41 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#42 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TrimStrings.php(40): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#43 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\TrimStrings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#44 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\ValidatePostSize.php(27): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#45 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\ValidatePostSize->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#46 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance.php(86): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#47 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#48 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\HandleCors.php(62): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#49 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Http\\Middleware\\HandleCors->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#50 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\TrustProxies.php(39): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#51 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Http\\Middleware\\TrustProxies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#52 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(116): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#53 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(165): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#54 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(134): Illuminate\\Foundation\\Http\\Kernel->sendRequestThroughRouter(Object(Illuminate\\Http\\Request))
+#55 C:\\xampp\\htdocs\\Artera\\index.php(52): Illuminate\\Foundation\\Http\\Kernel->handle(Object(Illuminate\\Http\\Request))
+#56 {main}
+
+[previous exception] [object] (PDOException(code: 22001): SQLSTATE[22001]: String data, right truncated: 1406 Data too long for column 'template_id' at row 1 at C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php:545)
+[stacktrace]
+#0 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(545): PDOStatement->execute()
+#1 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(753): Illuminate\\Database\\Connection->Illuminate\\Database\\{closure}('insert into `ed...', Array)
+#2 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(720): Illuminate\\Database\\Connection->runQueryCallback('insert into `ed...', Array, Object(Closure))
+#3 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(546): Illuminate\\Database\\Connection->run('insert into `ed...', Array, Object(Closure))
+#4 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(498): Illuminate\\Database\\Connection->statement('insert into `ed...', Array)
+#5 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3224): Illuminate\\Database\\Connection->insert('insert into `ed...', Array)
+#6 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3342): Illuminate\\Database\\Query\\Builder->insert(Array)
+#7 C:\\xampp\\htdocs\\Artera\\app\\Http\\Controllers\\MainController.php(1126): Illuminate\\Database\\Query\\Builder->updateOrInsert(Array, Array)
+#8 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Controller.php(54): App\\Http\\Controllers\\MainController->saveProductSelection(Object(Illuminate\\Http\\Request))
+#9 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\ControllerDispatcher.php(43): Illuminate\\Routing\\Controller->callAction('saveProductSele...', Array)
+#10 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(260): Illuminate\\Routing\\ControllerDispatcher->dispatch(Object(Illuminate\\Routing\\Route), Object(App\\Http\\Controllers\\MainController), 'saveProductSele...')
+#11 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(205): Illuminate\\Routing\\Route->runController()
+#12 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(798): Illuminate\\Routing\\Route->run()
+#13 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(141): Illuminate\\Routing\\Router->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#14 C:\\xampp\\htdocs\\Artera\\app\\Http\\Middleware\\LogUserActivity.php(19): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#15 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): App\\Http\\Middleware\\LogUserActivity->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#16 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Middleware\\SubstituteBindings.php(50): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#17 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Routing\\Middleware\\SubstituteBindings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#18 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Auth\\Middleware\\Authenticate.php(44): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#19 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Auth\\Middleware\\Authenticate->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#20 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken.php(78): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#21 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#22 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\View\\Middleware\\ShareErrorsFromSession.php(49): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#23 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\View\\Middleware\\ShareErrorsFromSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#24 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(121): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#25 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(64): Illuminate\\Session\\Middleware\\StartSession->handleStatefulRequest(Object(Illuminate\\Http\\Request), Object(Illuminate\\Session\\Store), Object(Closure))
+#26 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Session\\Middleware\\StartSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#27 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse.php(37): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#28 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#29 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\EncryptCookies.php(67): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#30 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Cookie\\Middleware\\EncryptCookies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#31 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(116): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#32 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(799): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#33 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(776): Illuminate\\Routing\\Router->runRouteWithinStack(Object(Illuminate\\Routing\\Route), Object(Illuminate\\Http\\Request))
+#34 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(740): Illuminate\\Routing\\Router->runRoute(Object(Illuminate\\Http\\Request), Object(Illuminate\\Routing\\Route))
+#35 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(729): Illuminate\\Routing\\Router->dispatchToRoute(Object(Illuminate\\Http\\Request))
+#36 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(190): Illuminate\\Routing\\Router->dispatch(Object(Illuminate\\Http\\Request))
+#37 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(141): Illuminate\\Foundation\\Http\\Kernel->Illuminate\\Foundation\\Http\\{closure}(Object(Illuminate\\Http\\Request))
+#38 C:\\xampp\\htdocs\\Artera\\vendor\\fruitcake\\laravel-cors\\src\\HandleCors.php(52): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#39 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Fruitcake\\Cors\\HandleCors->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#40 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#41 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull.php(31): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#42 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#43 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#44 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TrimStrings.php(40): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#45 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\TrimStrings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#46 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\ValidatePostSize.php(27): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#47 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\ValidatePostSize->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#48 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance.php(86): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#49 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#50 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\HandleCors.php(62): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#51 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Http\\Middleware\\HandleCors->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#52 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\TrustProxies.php(39): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#53 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Http\\Middleware\\TrustProxies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#54 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(116): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#55 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(165): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#56 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(134): Illuminate\\Foundation\\Http\\Kernel->sendRequestThroughRouter(Object(Illuminate\\Http\\Request))
+#57 C:\\xampp\\htdocs\\Artera\\index.php(52): Illuminate\\Foundation\\Http\\Kernel->handle(Object(Illuminate\\Http\\Request))
+#58 {main}
+"} 
+[2026-05-13 13:58:23] local.ERROR: SQLSTATE[22001]: String data, right truncated: 1406 Data too long for column 'template_id' at row 1 (SQL: insert into `editor_product_selections` (`user_id`, `product_id`, `template_id`, `image_url`, `image_mode`, `updated_at`, `created_at`) values (18, 104, {"name":"Frame_5","path":"Frame_5\/","info":{"width":1080,"height":1091,"ppi":300},"layers":[{"id":"leftrectangle","type":"image","src":"..\/skins\/Frame_5\/leftrectangle.png","x":0,"y":955,"w":659,"h":80,"z_index":1},{"id":"rightrectangle","type":"image","src":"..\/skins\/Frame_5\/rightrectangle.png","x":645,"y":966,"w":435,"h":69,"z_index":2},{"id":"line","type":"image","src":"..\/skins\/Frame_5\/line.png","x":630,"y":969,"w":46,"h":66,"z_index":3},{"id":"Logo","type":"image","src":"..\/skins\/Frame_5\/Logo.png","x":59,"y":25,"w":131,"h":156,"z_index":4},{"id":"instagram","type":"image","src":"..\/skins\/Frame_5\/instagram.png","x":843,"y":13,"w":32,"h":32,"z_index":5},{"id":"facebook","type":"image","src":"..\/skins\/Frame_5\/facebook_.png","x":904,"y":13,"w":32,"h":32,"z_index":6},{"id":"twitter","type":"image","src":"..\/skins\/Frame_5\/twitter.png","x":968,"y":13,"w":32,"h":32,"z_index":7},{"id":"youtube","type":"image","src":"..\/skins\/Frame_5\/youtube.png","x":1031,"y":13,"w":32,"h":32,"z_index":8},{"id":"phoneicon","type":"image","src":"..\/skins\/Frame_5\/phoneicon.png","x":26,"y":983,"w":30,"h":30,"z_index":9},{"id":"number","type":"text","x":66,"y":986,"w":188,"h":36,"font_name":"Poppins-SemiBold","font_size":6,"color":"#010101","z_index":10},{"id":"mailicon","type":"image","src":"..\/skins\/Frame_5\/mailicon.png","x":253,"y":982,"w":31,"h":31,"z_index":11},{"id":"email","type":"text","x":292,"y":986,"w":324,"h":36,"font_name":"Poppins-SemiBold","font_size":6,"color":"#010101","z_index":12},{"id":"webicon","type":"image","src":"..\/skins\/Frame_5\/webicon.png","x":696,"y":985,"w":30,"h":30,"z_index":13},{"id":"website","type":"text","x":737,"y":987,"w":342,"h":36,"font_name":"Poppins-SemiBold","font_size":6,"color":"#ffffff","z_index":14},{"id":"addressicon","type":"image","src":"..\/skins\/Frame_5\/addressicon.png","x":27,"y":1039,"w":30,"h":30,"z_index":15},{"id":"address","type":"text","x":65,"y":1042,"w":998,"h":36,"font_name":"Poppins-SemiBold","font_size":6,"color":"#010101","z_index":16}]}, http://localhost/Artera/uploads/products/1778474304_scaled_The-future-of-farming-exploring-Precision-Agriculture.jpg, full, 2026-05-13 13:58:23, 2026-05-13 13:58:23)) {"userId":18,"exception":"[object] (Illuminate\\Database\\QueryException(code: 22001): SQLSTATE[22001]: String data, right truncated: 1406 Data too long for column 'template_id' at row 1 (SQL: insert into `editor_product_selections` (`user_id`, `product_id`, `template_id`, `image_url`, `image_mode`, `updated_at`, `created_at`) values (18, 104, {\"name\":\"Frame_5\",\"path\":\"Frame_5\\/\",\"info\":{\"width\":1080,\"height\":1091,\"ppi\":300},\"layers\":[{\"id\":\"leftrectangle\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/leftrectangle.png\",\"x\":0,\"y\":955,\"w\":659,\"h\":80,\"z_index\":1},{\"id\":\"rightrectangle\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/rightrectangle.png\",\"x\":645,\"y\":966,\"w\":435,\"h\":69,\"z_index\":2},{\"id\":\"line\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/line.png\",\"x\":630,\"y\":969,\"w\":46,\"h\":66,\"z_index\":3},{\"id\":\"Logo\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/Logo.png\",\"x\":59,\"y\":25,\"w\":131,\"h\":156,\"z_index\":4},{\"id\":\"instagram\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/instagram.png\",\"x\":843,\"y\":13,\"w\":32,\"h\":32,\"z_index\":5},{\"id\":\"facebook\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/facebook_.png\",\"x\":904,\"y\":13,\"w\":32,\"h\":32,\"z_index\":6},{\"id\":\"twitter\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/twitter.png\",\"x\":968,\"y\":13,\"w\":32,\"h\":32,\"z_index\":7},{\"id\":\"youtube\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/youtube.png\",\"x\":1031,\"y\":13,\"w\":32,\"h\":32,\"z_index\":8},{\"id\":\"phoneicon\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/phoneicon.png\",\"x\":26,\"y\":983,\"w\":30,\"h\":30,\"z_index\":9},{\"id\":\"number\",\"type\":\"text\",\"x\":66,\"y\":986,\"w\":188,\"h\":36,\"font_name\":\"Poppins-SemiBold\",\"font_size\":6,\"color\":\"#010101\",\"z_index\":10},{\"id\":\"mailicon\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/mailicon.png\",\"x\":253,\"y\":982,\"w\":31,\"h\":31,\"z_index\":11},{\"id\":\"email\",\"type\":\"text\",\"x\":292,\"y\":986,\"w\":324,\"h\":36,\"font_name\":\"Poppins-SemiBold\",\"font_size\":6,\"color\":\"#010101\",\"z_index\":12},{\"id\":\"webicon\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/webicon.png\",\"x\":696,\"y\":985,\"w\":30,\"h\":30,\"z_index\":13},{\"id\":\"website\",\"type\":\"text\",\"x\":737,\"y\":987,\"w\":342,\"h\":36,\"font_name\":\"Poppins-SemiBold\",\"font_size\":6,\"color\":\"#ffffff\",\"z_index\":14},{\"id\":\"addressicon\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/addressicon.png\",\"x\":27,\"y\":1039,\"w\":30,\"h\":30,\"z_index\":15},{\"id\":\"address\",\"type\":\"text\",\"x\":65,\"y\":1042,\"w\":998,\"h\":36,\"font_name\":\"Poppins-SemiBold\",\"font_size\":6,\"color\":\"#010101\",\"z_index\":16}]}, http://localhost/Artera/uploads/products/1778474304_scaled_The-future-of-farming-exploring-Precision-Agriculture.jpg, full, 2026-05-13 13:58:23, 2026-05-13 13:58:23)) at C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php:760)
+[stacktrace]
+#0 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(720): Illuminate\\Database\\Connection->runQueryCallback('insert into `ed...', Array, Object(Closure))
+#1 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(546): Illuminate\\Database\\Connection->run('insert into `ed...', Array, Object(Closure))
+#2 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(498): Illuminate\\Database\\Connection->statement('insert into `ed...', Array)
+#3 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3224): Illuminate\\Database\\Connection->insert('insert into `ed...', Array)
+#4 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3342): Illuminate\\Database\\Query\\Builder->insert(Array)
+#5 C:\\xampp\\htdocs\\Artera\\app\\Http\\Controllers\\MainController.php(1126): Illuminate\\Database\\Query\\Builder->updateOrInsert(Array, Array)
+#6 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Controller.php(54): App\\Http\\Controllers\\MainController->saveProductSelection(Object(Illuminate\\Http\\Request))
+#7 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\ControllerDispatcher.php(43): Illuminate\\Routing\\Controller->callAction('saveProductSele...', Array)
+#8 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(260): Illuminate\\Routing\\ControllerDispatcher->dispatch(Object(Illuminate\\Routing\\Route), Object(App\\Http\\Controllers\\MainController), 'saveProductSele...')
+#9 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(205): Illuminate\\Routing\\Route->runController()
+#10 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(798): Illuminate\\Routing\\Route->run()
+#11 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(141): Illuminate\\Routing\\Router->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#12 C:\\xampp\\htdocs\\Artera\\app\\Http\\Middleware\\LogUserActivity.php(19): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#13 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): App\\Http\\Middleware\\LogUserActivity->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#14 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Middleware\\SubstituteBindings.php(50): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#15 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Routing\\Middleware\\SubstituteBindings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#16 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Auth\\Middleware\\Authenticate.php(44): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#17 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Auth\\Middleware\\Authenticate->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#18 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken.php(78): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#19 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#20 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\View\\Middleware\\ShareErrorsFromSession.php(49): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#21 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\View\\Middleware\\ShareErrorsFromSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#22 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(121): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#23 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(64): Illuminate\\Session\\Middleware\\StartSession->handleStatefulRequest(Object(Illuminate\\Http\\Request), Object(Illuminate\\Session\\Store), Object(Closure))
+#24 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Session\\Middleware\\StartSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#25 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse.php(37): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#26 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#27 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\EncryptCookies.php(67): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#28 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Cookie\\Middleware\\EncryptCookies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#29 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(116): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#30 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(799): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#31 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(776): Illuminate\\Routing\\Router->runRouteWithinStack(Object(Illuminate\\Routing\\Route), Object(Illuminate\\Http\\Request))
+#32 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(740): Illuminate\\Routing\\Router->runRoute(Object(Illuminate\\Http\\Request), Object(Illuminate\\Routing\\Route))
+#33 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(729): Illuminate\\Routing\\Router->dispatchToRoute(Object(Illuminate\\Http\\Request))
+#34 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(190): Illuminate\\Routing\\Router->dispatch(Object(Illuminate\\Http\\Request))
+#35 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(141): Illuminate\\Foundation\\Http\\Kernel->Illuminate\\Foundation\\Http\\{closure}(Object(Illuminate\\Http\\Request))
+#36 C:\\xampp\\htdocs\\Artera\\vendor\\fruitcake\\laravel-cors\\src\\HandleCors.php(52): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#37 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Fruitcake\\Cors\\HandleCors->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#38 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#39 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull.php(31): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#40 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#41 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#42 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TrimStrings.php(40): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#43 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\TrimStrings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#44 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\ValidatePostSize.php(27): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#45 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\ValidatePostSize->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#46 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance.php(86): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#47 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#48 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\HandleCors.php(62): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#49 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Http\\Middleware\\HandleCors->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#50 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\TrustProxies.php(39): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#51 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Http\\Middleware\\TrustProxies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#52 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(116): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#53 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(165): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#54 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(134): Illuminate\\Foundation\\Http\\Kernel->sendRequestThroughRouter(Object(Illuminate\\Http\\Request))
+#55 C:\\xampp\\htdocs\\Artera\\index.php(52): Illuminate\\Foundation\\Http\\Kernel->handle(Object(Illuminate\\Http\\Request))
+#56 {main}
+
+[previous exception] [object] (PDOException(code: 22001): SQLSTATE[22001]: String data, right truncated: 1406 Data too long for column 'template_id' at row 1 at C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php:545)
+[stacktrace]
+#0 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(545): PDOStatement->execute()
+#1 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(753): Illuminate\\Database\\Connection->Illuminate\\Database\\{closure}('insert into `ed...', Array)
+#2 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(720): Illuminate\\Database\\Connection->runQueryCallback('insert into `ed...', Array, Object(Closure))
+#3 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(546): Illuminate\\Database\\Connection->run('insert into `ed...', Array, Object(Closure))
+#4 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(498): Illuminate\\Database\\Connection->statement('insert into `ed...', Array)
+#5 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3224): Illuminate\\Database\\Connection->insert('insert into `ed...', Array)
+#6 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3342): Illuminate\\Database\\Query\\Builder->insert(Array)
+#7 C:\\xampp\\htdocs\\Artera\\app\\Http\\Controllers\\MainController.php(1126): Illuminate\\Database\\Query\\Builder->updateOrInsert(Array, Array)
+#8 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Controller.php(54): App\\Http\\Controllers\\MainController->saveProductSelection(Object(Illuminate\\Http\\Request))
+#9 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\ControllerDispatcher.php(43): Illuminate\\Routing\\Controller->callAction('saveProductSele...', Array)
+#10 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(260): Illuminate\\Routing\\ControllerDispatcher->dispatch(Object(Illuminate\\Routing\\Route), Object(App\\Http\\Controllers\\MainController), 'saveProductSele...')
+#11 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(205): Illuminate\\Routing\\Route->runController()
+#12 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(798): Illuminate\\Routing\\Route->run()
+#13 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(141): Illuminate\\Routing\\Router->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#14 C:\\xampp\\htdocs\\Artera\\app\\Http\\Middleware\\LogUserActivity.php(19): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#15 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): App\\Http\\Middleware\\LogUserActivity->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#16 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Middleware\\SubstituteBindings.php(50): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#17 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Routing\\Middleware\\SubstituteBindings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#18 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Auth\\Middleware\\Authenticate.php(44): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#19 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Auth\\Middleware\\Authenticate->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#20 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken.php(78): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#21 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#22 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\View\\Middleware\\ShareErrorsFromSession.php(49): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#23 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\View\\Middleware\\ShareErrorsFromSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#24 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(121): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#25 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(64): Illuminate\\Session\\Middleware\\StartSession->handleStatefulRequest(Object(Illuminate\\Http\\Request), Object(Illuminate\\Session\\Store), Object(Closure))
+#26 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Session\\Middleware\\StartSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#27 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse.php(37): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#28 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#29 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\EncryptCookies.php(67): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#30 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Cookie\\Middleware\\EncryptCookies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#31 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(116): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#32 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(799): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#33 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(776): Illuminate\\Routing\\Router->runRouteWithinStack(Object(Illuminate\\Routing\\Route), Object(Illuminate\\Http\\Request))
+#34 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(740): Illuminate\\Routing\\Router->runRoute(Object(Illuminate\\Http\\Request), Object(Illuminate\\Routing\\Route))
+#35 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(729): Illuminate\\Routing\\Router->dispatchToRoute(Object(Illuminate\\Http\\Request))
+#36 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(190): Illuminate\\Routing\\Router->dispatch(Object(Illuminate\\Http\\Request))
+#37 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(141): Illuminate\\Foundation\\Http\\Kernel->Illuminate\\Foundation\\Http\\{closure}(Object(Illuminate\\Http\\Request))
+#38 C:\\xampp\\htdocs\\Artera\\vendor\\fruitcake\\laravel-cors\\src\\HandleCors.php(52): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#39 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Fruitcake\\Cors\\HandleCors->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#40 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#41 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull.php(31): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#42 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#43 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#44 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TrimStrings.php(40): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#45 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\TrimStrings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#46 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\ValidatePostSize.php(27): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#47 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\ValidatePostSize->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#48 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance.php(86): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#49 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#50 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\HandleCors.php(62): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#51 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Http\\Middleware\\HandleCors->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#52 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\TrustProxies.php(39): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#53 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Http\\Middleware\\TrustProxies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#54 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(116): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#55 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(165): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#56 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(134): Illuminate\\Foundation\\Http\\Kernel->sendRequestThroughRouter(Object(Illuminate\\Http\\Request))
+#57 C:\\xampp\\htdocs\\Artera\\index.php(52): Illuminate\\Foundation\\Http\\Kernel->handle(Object(Illuminate\\Http\\Request))
+#58 {main}
+"} 
+[2026-05-13 13:58:32] local.ERROR: SQLSTATE[22001]: String data, right truncated: 1406 Data too long for column 'template_id' at row 1 (SQL: insert into `editor_product_selections` (`user_id`, `product_id`, `template_id`, `image_url`, `image_mode`, `updated_at`, `created_at`) values (18, 104, {"name":"Frame_5","path":"Frame_5\/","info":{"width":1080,"height":1091,"ppi":300},"layers":[{"id":"leftrectangle","type":"image","src":"..\/skins\/Frame_5\/leftrectangle.png","x":0,"y":955,"w":659,"h":80,"z_index":1},{"id":"rightrectangle","type":"image","src":"..\/skins\/Frame_5\/rightrectangle.png","x":645,"y":966,"w":435,"h":69,"z_index":2},{"id":"line","type":"image","src":"..\/skins\/Frame_5\/line.png","x":630,"y":969,"w":46,"h":66,"z_index":3},{"id":"Logo","type":"image","src":"..\/skins\/Frame_5\/Logo.png","x":59,"y":25,"w":131,"h":156,"z_index":4},{"id":"instagram","type":"image","src":"..\/skins\/Frame_5\/instagram.png","x":843,"y":13,"w":32,"h":32,"z_index":5},{"id":"facebook","type":"image","src":"..\/skins\/Frame_5\/facebook_.png","x":904,"y":13,"w":32,"h":32,"z_index":6},{"id":"twitter","type":"image","src":"..\/skins\/Frame_5\/twitter.png","x":968,"y":13,"w":32,"h":32,"z_index":7},{"id":"youtube","type":"image","src":"..\/skins\/Frame_5\/youtube.png","x":1031,"y":13,"w":32,"h":32,"z_index":8},{"id":"phoneicon","type":"image","src":"..\/skins\/Frame_5\/phoneicon.png","x":26,"y":983,"w":30,"h":30,"z_index":9},{"id":"number","type":"text","x":66,"y":986,"w":188,"h":36,"font_name":"Poppins-SemiBold","font_size":6,"color":"#010101","z_index":10},{"id":"mailicon","type":"image","src":"..\/skins\/Frame_5\/mailicon.png","x":253,"y":982,"w":31,"h":31,"z_index":11},{"id":"email","type":"text","x":292,"y":986,"w":324,"h":36,"font_name":"Poppins-SemiBold","font_size":6,"color":"#010101","z_index":12},{"id":"webicon","type":"image","src":"..\/skins\/Frame_5\/webicon.png","x":696,"y":985,"w":30,"h":30,"z_index":13},{"id":"website","type":"text","x":737,"y":987,"w":342,"h":36,"font_name":"Poppins-SemiBold","font_size":6,"color":"#ffffff","z_index":14},{"id":"addressicon","type":"image","src":"..\/skins\/Frame_5\/addressicon.png","x":27,"y":1039,"w":30,"h":30,"z_index":15},{"id":"address","type":"text","x":65,"y":1042,"w":998,"h":36,"font_name":"Poppins-SemiBold","font_size":6,"color":"#010101","z_index":16}]}, http://localhost/Artera/uploads/products/1778474304_scaled_The-future-of-farming-exploring-Precision-Agriculture.jpg, full, 2026-05-13 13:58:32, 2026-05-13 13:58:32)) {"userId":18,"exception":"[object] (Illuminate\\Database\\QueryException(code: 22001): SQLSTATE[22001]: String data, right truncated: 1406 Data too long for column 'template_id' at row 1 (SQL: insert into `editor_product_selections` (`user_id`, `product_id`, `template_id`, `image_url`, `image_mode`, `updated_at`, `created_at`) values (18, 104, {\"name\":\"Frame_5\",\"path\":\"Frame_5\\/\",\"info\":{\"width\":1080,\"height\":1091,\"ppi\":300},\"layers\":[{\"id\":\"leftrectangle\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/leftrectangle.png\",\"x\":0,\"y\":955,\"w\":659,\"h\":80,\"z_index\":1},{\"id\":\"rightrectangle\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/rightrectangle.png\",\"x\":645,\"y\":966,\"w\":435,\"h\":69,\"z_index\":2},{\"id\":\"line\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/line.png\",\"x\":630,\"y\":969,\"w\":46,\"h\":66,\"z_index\":3},{\"id\":\"Logo\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/Logo.png\",\"x\":59,\"y\":25,\"w\":131,\"h\":156,\"z_index\":4},{\"id\":\"instagram\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/instagram.png\",\"x\":843,\"y\":13,\"w\":32,\"h\":32,\"z_index\":5},{\"id\":\"facebook\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/facebook_.png\",\"x\":904,\"y\":13,\"w\":32,\"h\":32,\"z_index\":6},{\"id\":\"twitter\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/twitter.png\",\"x\":968,\"y\":13,\"w\":32,\"h\":32,\"z_index\":7},{\"id\":\"youtube\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/youtube.png\",\"x\":1031,\"y\":13,\"w\":32,\"h\":32,\"z_index\":8},{\"id\":\"phoneicon\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/phoneicon.png\",\"x\":26,\"y\":983,\"w\":30,\"h\":30,\"z_index\":9},{\"id\":\"number\",\"type\":\"text\",\"x\":66,\"y\":986,\"w\":188,\"h\":36,\"font_name\":\"Poppins-SemiBold\",\"font_size\":6,\"color\":\"#010101\",\"z_index\":10},{\"id\":\"mailicon\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/mailicon.png\",\"x\":253,\"y\":982,\"w\":31,\"h\":31,\"z_index\":11},{\"id\":\"email\",\"type\":\"text\",\"x\":292,\"y\":986,\"w\":324,\"h\":36,\"font_name\":\"Poppins-SemiBold\",\"font_size\":6,\"color\":\"#010101\",\"z_index\":12},{\"id\":\"webicon\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/webicon.png\",\"x\":696,\"y\":985,\"w\":30,\"h\":30,\"z_index\":13},{\"id\":\"website\",\"type\":\"text\",\"x\":737,\"y\":987,\"w\":342,\"h\":36,\"font_name\":\"Poppins-SemiBold\",\"font_size\":6,\"color\":\"#ffffff\",\"z_index\":14},{\"id\":\"addressicon\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/addressicon.png\",\"x\":27,\"y\":1039,\"w\":30,\"h\":30,\"z_index\":15},{\"id\":\"address\",\"type\":\"text\",\"x\":65,\"y\":1042,\"w\":998,\"h\":36,\"font_name\":\"Poppins-SemiBold\",\"font_size\":6,\"color\":\"#010101\",\"z_index\":16}]}, http://localhost/Artera/uploads/products/1778474304_scaled_The-future-of-farming-exploring-Precision-Agriculture.jpg, full, 2026-05-13 13:58:32, 2026-05-13 13:58:32)) at C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php:760)
+[stacktrace]
+#0 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(720): Illuminate\\Database\\Connection->runQueryCallback('insert into `ed...', Array, Object(Closure))
+#1 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(546): Illuminate\\Database\\Connection->run('insert into `ed...', Array, Object(Closure))
+#2 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(498): Illuminate\\Database\\Connection->statement('insert into `ed...', Array)
+#3 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3224): Illuminate\\Database\\Connection->insert('insert into `ed...', Array)
+#4 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3342): Illuminate\\Database\\Query\\Builder->insert(Array)
+#5 C:\\xampp\\htdocs\\Artera\\app\\Http\\Controllers\\MainController.php(1126): Illuminate\\Database\\Query\\Builder->updateOrInsert(Array, Array)
+#6 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Controller.php(54): App\\Http\\Controllers\\MainController->saveProductSelection(Object(Illuminate\\Http\\Request))
+#7 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\ControllerDispatcher.php(43): Illuminate\\Routing\\Controller->callAction('saveProductSele...', Array)
+#8 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(260): Illuminate\\Routing\\ControllerDispatcher->dispatch(Object(Illuminate\\Routing\\Route), Object(App\\Http\\Controllers\\MainController), 'saveProductSele...')
+#9 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(205): Illuminate\\Routing\\Route->runController()
+#10 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(798): Illuminate\\Routing\\Route->run()
+#11 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(141): Illuminate\\Routing\\Router->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#12 C:\\xampp\\htdocs\\Artera\\app\\Http\\Middleware\\LogUserActivity.php(19): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#13 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): App\\Http\\Middleware\\LogUserActivity->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#14 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Middleware\\SubstituteBindings.php(50): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#15 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Routing\\Middleware\\SubstituteBindings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#16 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Auth\\Middleware\\Authenticate.php(44): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#17 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Auth\\Middleware\\Authenticate->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#18 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken.php(78): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#19 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#20 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\View\\Middleware\\ShareErrorsFromSession.php(49): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#21 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\View\\Middleware\\ShareErrorsFromSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#22 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(121): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#23 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(64): Illuminate\\Session\\Middleware\\StartSession->handleStatefulRequest(Object(Illuminate\\Http\\Request), Object(Illuminate\\Session\\Store), Object(Closure))
+#24 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Session\\Middleware\\StartSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#25 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse.php(37): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#26 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#27 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\EncryptCookies.php(67): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#28 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Cookie\\Middleware\\EncryptCookies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#29 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(116): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#30 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(799): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#31 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(776): Illuminate\\Routing\\Router->runRouteWithinStack(Object(Illuminate\\Routing\\Route), Object(Illuminate\\Http\\Request))
+#32 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(740): Illuminate\\Routing\\Router->runRoute(Object(Illuminate\\Http\\Request), Object(Illuminate\\Routing\\Route))
+#33 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(729): Illuminate\\Routing\\Router->dispatchToRoute(Object(Illuminate\\Http\\Request))
+#34 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(190): Illuminate\\Routing\\Router->dispatch(Object(Illuminate\\Http\\Request))
+#35 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(141): Illuminate\\Foundation\\Http\\Kernel->Illuminate\\Foundation\\Http\\{closure}(Object(Illuminate\\Http\\Request))
+#36 C:\\xampp\\htdocs\\Artera\\vendor\\fruitcake\\laravel-cors\\src\\HandleCors.php(52): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#37 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Fruitcake\\Cors\\HandleCors->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#38 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#39 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull.php(31): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#40 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#41 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#42 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TrimStrings.php(40): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#43 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\TrimStrings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#44 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\ValidatePostSize.php(27): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#45 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\ValidatePostSize->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#46 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance.php(86): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#47 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#48 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\HandleCors.php(62): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#49 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Http\\Middleware\\HandleCors->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#50 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\TrustProxies.php(39): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#51 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Http\\Middleware\\TrustProxies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#52 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(116): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#53 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(165): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#54 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(134): Illuminate\\Foundation\\Http\\Kernel->sendRequestThroughRouter(Object(Illuminate\\Http\\Request))
+#55 C:\\xampp\\htdocs\\Artera\\index.php(52): Illuminate\\Foundation\\Http\\Kernel->handle(Object(Illuminate\\Http\\Request))
+#56 {main}
+
+[previous exception] [object] (PDOException(code: 22001): SQLSTATE[22001]: String data, right truncated: 1406 Data too long for column 'template_id' at row 1 at C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php:545)
+[stacktrace]
+#0 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(545): PDOStatement->execute()
+#1 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(753): Illuminate\\Database\\Connection->Illuminate\\Database\\{closure}('insert into `ed...', Array)
+#2 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(720): Illuminate\\Database\\Connection->runQueryCallback('insert into `ed...', Array, Object(Closure))
+#3 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(546): Illuminate\\Database\\Connection->run('insert into `ed...', Array, Object(Closure))
+#4 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(498): Illuminate\\Database\\Connection->statement('insert into `ed...', Array)
+#5 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3224): Illuminate\\Database\\Connection->insert('insert into `ed...', Array)
+#6 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3342): Illuminate\\Database\\Query\\Builder->insert(Array)
+#7 C:\\xampp\\htdocs\\Artera\\app\\Http\\Controllers\\MainController.php(1126): Illuminate\\Database\\Query\\Builder->updateOrInsert(Array, Array)
+#8 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Controller.php(54): App\\Http\\Controllers\\MainController->saveProductSelection(Object(Illuminate\\Http\\Request))
+#9 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\ControllerDispatcher.php(43): Illuminate\\Routing\\Controller->callAction('saveProductSele...', Array)
+#10 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(260): Illuminate\\Routing\\ControllerDispatcher->dispatch(Object(Illuminate\\Routing\\Route), Object(App\\Http\\Controllers\\MainController), 'saveProductSele...')
+#11 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(205): Illuminate\\Routing\\Route->runController()
+#12 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(798): Illuminate\\Routing\\Route->run()
+#13 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(141): Illuminate\\Routing\\Router->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#14 C:\\xampp\\htdocs\\Artera\\app\\Http\\Middleware\\LogUserActivity.php(19): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#15 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): App\\Http\\Middleware\\LogUserActivity->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#16 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Middleware\\SubstituteBindings.php(50): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#17 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Routing\\Middleware\\SubstituteBindings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#18 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Auth\\Middleware\\Authenticate.php(44): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#19 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Auth\\Middleware\\Authenticate->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#20 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken.php(78): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#21 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#22 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\View\\Middleware\\ShareErrorsFromSession.php(49): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#23 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\View\\Middleware\\ShareErrorsFromSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#24 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(121): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#25 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(64): Illuminate\\Session\\Middleware\\StartSession->handleStatefulRequest(Object(Illuminate\\Http\\Request), Object(Illuminate\\Session\\Store), Object(Closure))
+#26 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Session\\Middleware\\StartSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#27 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse.php(37): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#28 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#29 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\EncryptCookies.php(67): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#30 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Cookie\\Middleware\\EncryptCookies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#31 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(116): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#32 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(799): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#33 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(776): Illuminate\\Routing\\Router->runRouteWithinStack(Object(Illuminate\\Routing\\Route), Object(Illuminate\\Http\\Request))
+#34 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(740): Illuminate\\Routing\\Router->runRoute(Object(Illuminate\\Http\\Request), Object(Illuminate\\Routing\\Route))
+#35 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(729): Illuminate\\Routing\\Router->dispatchToRoute(Object(Illuminate\\Http\\Request))
+#36 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(190): Illuminate\\Routing\\Router->dispatch(Object(Illuminate\\Http\\Request))
+#37 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(141): Illuminate\\Foundation\\Http\\Kernel->Illuminate\\Foundation\\Http\\{closure}(Object(Illuminate\\Http\\Request))
+#38 C:\\xampp\\htdocs\\Artera\\vendor\\fruitcake\\laravel-cors\\src\\HandleCors.php(52): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#39 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Fruitcake\\Cors\\HandleCors->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#40 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#41 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull.php(31): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#42 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#43 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#44 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TrimStrings.php(40): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#45 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\TrimStrings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#46 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\ValidatePostSize.php(27): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#47 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\ValidatePostSize->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#48 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance.php(86): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#49 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#50 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\HandleCors.php(62): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#51 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Http\\Middleware\\HandleCors->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#52 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\TrustProxies.php(39): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#53 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Http\\Middleware\\TrustProxies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#54 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(116): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#55 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(165): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#56 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(134): Illuminate\\Foundation\\Http\\Kernel->sendRequestThroughRouter(Object(Illuminate\\Http\\Request))
+#57 C:\\xampp\\htdocs\\Artera\\index.php(52): Illuminate\\Foundation\\Http\\Kernel->handle(Object(Illuminate\\Http\\Request))
+#58 {main}
+"} 
+[2026-05-13 13:59:16] local.ERROR: SQLSTATE[22001]: String data, right truncated: 1406 Data too long for column 'template_id' at row 1 (SQL: insert into `editor_product_selections` (`user_id`, `product_id`, `template_id`, `image_url`, `image_mode`, `updated_at`, `created_at`) values (18, 103, {"name":"Frame_5","path":"Frame_5\/","info":{"width":1080,"height":1091,"ppi":300},"layers":[{"id":"leftrectangle","type":"image","src":"..\/skins\/Frame_5\/leftrectangle.png","x":0,"y":955,"w":659,"h":80,"z_index":1},{"id":"rightrectangle","type":"image","src":"..\/skins\/Frame_5\/rightrectangle.png","x":645,"y":966,"w":435,"h":69,"z_index":2},{"id":"line","type":"image","src":"..\/skins\/Frame_5\/line.png","x":630,"y":969,"w":46,"h":66,"z_index":3},{"id":"Logo","type":"image","src":"..\/skins\/Frame_5\/Logo.png","x":59,"y":25,"w":131,"h":156,"z_index":4},{"id":"instagram","type":"image","src":"..\/skins\/Frame_5\/instagram.png","x":843,"y":13,"w":32,"h":32,"z_index":5},{"id":"facebook","type":"image","src":"..\/skins\/Frame_5\/facebook_.png","x":904,"y":13,"w":32,"h":32,"z_index":6},{"id":"twitter","type":"image","src":"..\/skins\/Frame_5\/twitter.png","x":968,"y":13,"w":32,"h":32,"z_index":7},{"id":"youtube","type":"image","src":"..\/skins\/Frame_5\/youtube.png","x":1031,"y":13,"w":32,"h":32,"z_index":8},{"id":"phoneicon","type":"image","src":"..\/skins\/Frame_5\/phoneicon.png","x":26,"y":983,"w":30,"h":30,"z_index":9},{"id":"number","type":"text","x":66,"y":986,"w":188,"h":36,"font_name":"Poppins-SemiBold","font_size":6,"color":"#010101","z_index":10},{"id":"mailicon","type":"image","src":"..\/skins\/Frame_5\/mailicon.png","x":253,"y":982,"w":31,"h":31,"z_index":11},{"id":"email","type":"text","x":292,"y":986,"w":324,"h":36,"font_name":"Poppins-SemiBold","font_size":6,"color":"#010101","z_index":12},{"id":"webicon","type":"image","src":"..\/skins\/Frame_5\/webicon.png","x":696,"y":985,"w":30,"h":30,"z_index":13},{"id":"website","type":"text","x":737,"y":987,"w":342,"h":36,"font_name":"Poppins-SemiBold","font_size":6,"color":"#ffffff","z_index":14},{"id":"addressicon","type":"image","src":"..\/skins\/Frame_5\/addressicon.png","x":27,"y":1039,"w":30,"h":30,"z_index":15},{"id":"address","type":"text","x":65,"y":1042,"w":998,"h":36,"font_name":"Poppins-SemiBold","font_size":6,"color":"#010101","z_index":16}]}, http://localhost/Artera/uploads/products/1778474319_scaled_design_highres__11_.png, full, 2026-05-13 13:59:16, 2026-05-13 13:59:16)) {"userId":18,"exception":"[object] (Illuminate\\Database\\QueryException(code: 22001): SQLSTATE[22001]: String data, right truncated: 1406 Data too long for column 'template_id' at row 1 (SQL: insert into `editor_product_selections` (`user_id`, `product_id`, `template_id`, `image_url`, `image_mode`, `updated_at`, `created_at`) values (18, 103, {\"name\":\"Frame_5\",\"path\":\"Frame_5\\/\",\"info\":{\"width\":1080,\"height\":1091,\"ppi\":300},\"layers\":[{\"id\":\"leftrectangle\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/leftrectangle.png\",\"x\":0,\"y\":955,\"w\":659,\"h\":80,\"z_index\":1},{\"id\":\"rightrectangle\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/rightrectangle.png\",\"x\":645,\"y\":966,\"w\":435,\"h\":69,\"z_index\":2},{\"id\":\"line\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/line.png\",\"x\":630,\"y\":969,\"w\":46,\"h\":66,\"z_index\":3},{\"id\":\"Logo\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/Logo.png\",\"x\":59,\"y\":25,\"w\":131,\"h\":156,\"z_index\":4},{\"id\":\"instagram\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/instagram.png\",\"x\":843,\"y\":13,\"w\":32,\"h\":32,\"z_index\":5},{\"id\":\"facebook\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/facebook_.png\",\"x\":904,\"y\":13,\"w\":32,\"h\":32,\"z_index\":6},{\"id\":\"twitter\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/twitter.png\",\"x\":968,\"y\":13,\"w\":32,\"h\":32,\"z_index\":7},{\"id\":\"youtube\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/youtube.png\",\"x\":1031,\"y\":13,\"w\":32,\"h\":32,\"z_index\":8},{\"id\":\"phoneicon\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/phoneicon.png\",\"x\":26,\"y\":983,\"w\":30,\"h\":30,\"z_index\":9},{\"id\":\"number\",\"type\":\"text\",\"x\":66,\"y\":986,\"w\":188,\"h\":36,\"font_name\":\"Poppins-SemiBold\",\"font_size\":6,\"color\":\"#010101\",\"z_index\":10},{\"id\":\"mailicon\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/mailicon.png\",\"x\":253,\"y\":982,\"w\":31,\"h\":31,\"z_index\":11},{\"id\":\"email\",\"type\":\"text\",\"x\":292,\"y\":986,\"w\":324,\"h\":36,\"font_name\":\"Poppins-SemiBold\",\"font_size\":6,\"color\":\"#010101\",\"z_index\":12},{\"id\":\"webicon\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/webicon.png\",\"x\":696,\"y\":985,\"w\":30,\"h\":30,\"z_index\":13},{\"id\":\"website\",\"type\":\"text\",\"x\":737,\"y\":987,\"w\":342,\"h\":36,\"font_name\":\"Poppins-SemiBold\",\"font_size\":6,\"color\":\"#ffffff\",\"z_index\":14},{\"id\":\"addressicon\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/addressicon.png\",\"x\":27,\"y\":1039,\"w\":30,\"h\":30,\"z_index\":15},{\"id\":\"address\",\"type\":\"text\",\"x\":65,\"y\":1042,\"w\":998,\"h\":36,\"font_name\":\"Poppins-SemiBold\",\"font_size\":6,\"color\":\"#010101\",\"z_index\":16}]}, http://localhost/Artera/uploads/products/1778474319_scaled_design_highres__11_.png, full, 2026-05-13 13:59:16, 2026-05-13 13:59:16)) at C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php:760)
+[stacktrace]
+#0 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(720): Illuminate\\Database\\Connection->runQueryCallback('insert into `ed...', Array, Object(Closure))
+#1 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(546): Illuminate\\Database\\Connection->run('insert into `ed...', Array, Object(Closure))
+#2 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(498): Illuminate\\Database\\Connection->statement('insert into `ed...', Array)
+#3 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3224): Illuminate\\Database\\Connection->insert('insert into `ed...', Array)
+#4 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3342): Illuminate\\Database\\Query\\Builder->insert(Array)
+#5 C:\\xampp\\htdocs\\Artera\\app\\Http\\Controllers\\MainController.php(1126): Illuminate\\Database\\Query\\Builder->updateOrInsert(Array, Array)
+#6 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Controller.php(54): App\\Http\\Controllers\\MainController->saveProductSelection(Object(Illuminate\\Http\\Request))
+#7 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\ControllerDispatcher.php(43): Illuminate\\Routing\\Controller->callAction('saveProductSele...', Array)
+#8 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(260): Illuminate\\Routing\\ControllerDispatcher->dispatch(Object(Illuminate\\Routing\\Route), Object(App\\Http\\Controllers\\MainController), 'saveProductSele...')
+#9 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(205): Illuminate\\Routing\\Route->runController()
+#10 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(798): Illuminate\\Routing\\Route->run()
+#11 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(141): Illuminate\\Routing\\Router->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#12 C:\\xampp\\htdocs\\Artera\\app\\Http\\Middleware\\LogUserActivity.php(19): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#13 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): App\\Http\\Middleware\\LogUserActivity->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#14 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Middleware\\SubstituteBindings.php(50): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#15 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Routing\\Middleware\\SubstituteBindings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#16 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Auth\\Middleware\\Authenticate.php(44): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#17 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Auth\\Middleware\\Authenticate->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#18 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken.php(78): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#19 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#20 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\View\\Middleware\\ShareErrorsFromSession.php(49): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#21 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\View\\Middleware\\ShareErrorsFromSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#22 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(121): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#23 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(64): Illuminate\\Session\\Middleware\\StartSession->handleStatefulRequest(Object(Illuminate\\Http\\Request), Object(Illuminate\\Session\\Store), Object(Closure))
+#24 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Session\\Middleware\\StartSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#25 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse.php(37): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#26 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#27 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\EncryptCookies.php(67): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#28 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Cookie\\Middleware\\EncryptCookies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#29 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(116): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#30 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(799): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#31 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(776): Illuminate\\Routing\\Router->runRouteWithinStack(Object(Illuminate\\Routing\\Route), Object(Illuminate\\Http\\Request))
+#32 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(740): Illuminate\\Routing\\Router->runRoute(Object(Illuminate\\Http\\Request), Object(Illuminate\\Routing\\Route))
+#33 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(729): Illuminate\\Routing\\Router->dispatchToRoute(Object(Illuminate\\Http\\Request))
+#34 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(190): Illuminate\\Routing\\Router->dispatch(Object(Illuminate\\Http\\Request))
+#35 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(141): Illuminate\\Foundation\\Http\\Kernel->Illuminate\\Foundation\\Http\\{closure}(Object(Illuminate\\Http\\Request))
+#36 C:\\xampp\\htdocs\\Artera\\vendor\\fruitcake\\laravel-cors\\src\\HandleCors.php(52): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#37 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Fruitcake\\Cors\\HandleCors->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#38 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#39 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull.php(31): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#40 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#41 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#42 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TrimStrings.php(40): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#43 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\TrimStrings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#44 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\ValidatePostSize.php(27): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#45 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\ValidatePostSize->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#46 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance.php(86): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#47 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#48 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\HandleCors.php(62): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#49 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Http\\Middleware\\HandleCors->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#50 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\TrustProxies.php(39): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#51 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Http\\Middleware\\TrustProxies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#52 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(116): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#53 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(165): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#54 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(134): Illuminate\\Foundation\\Http\\Kernel->sendRequestThroughRouter(Object(Illuminate\\Http\\Request))
+#55 C:\\xampp\\htdocs\\Artera\\index.php(52): Illuminate\\Foundation\\Http\\Kernel->handle(Object(Illuminate\\Http\\Request))
+#56 {main}
+
+[previous exception] [object] (PDOException(code: 22001): SQLSTATE[22001]: String data, right truncated: 1406 Data too long for column 'template_id' at row 1 at C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php:545)
+[stacktrace]
+#0 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(545): PDOStatement->execute()
+#1 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(753): Illuminate\\Database\\Connection->Illuminate\\Database\\{closure}('insert into `ed...', Array)
+#2 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(720): Illuminate\\Database\\Connection->runQueryCallback('insert into `ed...', Array, Object(Closure))
+#3 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(546): Illuminate\\Database\\Connection->run('insert into `ed...', Array, Object(Closure))
+#4 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(498): Illuminate\\Database\\Connection->statement('insert into `ed...', Array)
+#5 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3224): Illuminate\\Database\\Connection->insert('insert into `ed...', Array)
+#6 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3342): Illuminate\\Database\\Query\\Builder->insert(Array)
+#7 C:\\xampp\\htdocs\\Artera\\app\\Http\\Controllers\\MainController.php(1126): Illuminate\\Database\\Query\\Builder->updateOrInsert(Array, Array)
+#8 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Controller.php(54): App\\Http\\Controllers\\MainController->saveProductSelection(Object(Illuminate\\Http\\Request))
+#9 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\ControllerDispatcher.php(43): Illuminate\\Routing\\Controller->callAction('saveProductSele...', Array)
+#10 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(260): Illuminate\\Routing\\ControllerDispatcher->dispatch(Object(Illuminate\\Routing\\Route), Object(App\\Http\\Controllers\\MainController), 'saveProductSele...')
+#11 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(205): Illuminate\\Routing\\Route->runController()
+#12 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(798): Illuminate\\Routing\\Route->run()
+#13 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(141): Illuminate\\Routing\\Router->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#14 C:\\xampp\\htdocs\\Artera\\app\\Http\\Middleware\\LogUserActivity.php(19): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#15 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): App\\Http\\Middleware\\LogUserActivity->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#16 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Middleware\\SubstituteBindings.php(50): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#17 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Routing\\Middleware\\SubstituteBindings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#18 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Auth\\Middleware\\Authenticate.php(44): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#19 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Auth\\Middleware\\Authenticate->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#20 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken.php(78): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#21 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#22 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\View\\Middleware\\ShareErrorsFromSession.php(49): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#23 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\View\\Middleware\\ShareErrorsFromSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#24 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(121): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#25 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(64): Illuminate\\Session\\Middleware\\StartSession->handleStatefulRequest(Object(Illuminate\\Http\\Request), Object(Illuminate\\Session\\Store), Object(Closure))
+#26 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Session\\Middleware\\StartSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#27 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse.php(37): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#28 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#29 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\EncryptCookies.php(67): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#30 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Cookie\\Middleware\\EncryptCookies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#31 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(116): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#32 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(799): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#33 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(776): Illuminate\\Routing\\Router->runRouteWithinStack(Object(Illuminate\\Routing\\Route), Object(Illuminate\\Http\\Request))
+#34 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(740): Illuminate\\Routing\\Router->runRoute(Object(Illuminate\\Http\\Request), Object(Illuminate\\Routing\\Route))
+#35 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(729): Illuminate\\Routing\\Router->dispatchToRoute(Object(Illuminate\\Http\\Request))
+#36 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(190): Illuminate\\Routing\\Router->dispatch(Object(Illuminate\\Http\\Request))
+#37 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(141): Illuminate\\Foundation\\Http\\Kernel->Illuminate\\Foundation\\Http\\{closure}(Object(Illuminate\\Http\\Request))
+#38 C:\\xampp\\htdocs\\Artera\\vendor\\fruitcake\\laravel-cors\\src\\HandleCors.php(52): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#39 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Fruitcake\\Cors\\HandleCors->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#40 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#41 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull.php(31): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#42 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#43 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#44 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TrimStrings.php(40): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#45 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\TrimStrings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#46 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\ValidatePostSize.php(27): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#47 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\ValidatePostSize->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#48 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance.php(86): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#49 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#50 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\HandleCors.php(62): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#51 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Http\\Middleware\\HandleCors->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#52 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\TrustProxies.php(39): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#53 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Http\\Middleware\\TrustProxies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#54 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(116): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#55 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(165): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#56 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(134): Illuminate\\Foundation\\Http\\Kernel->sendRequestThroughRouter(Object(Illuminate\\Http\\Request))
+#57 C:\\xampp\\htdocs\\Artera\\index.php(52): Illuminate\\Foundation\\Http\\Kernel->handle(Object(Illuminate\\Http\\Request))
+#58 {main}
+"} 
+[2026-05-13 14:03:08] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778661188000"}  
+[2026-05-13 14:03:08] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-05-13 14:03:08] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-05-13 14:03:08] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778661188000"}  
+[2026-05-13 14:03:08] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-05-13 14:03:08] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-05-13 14:03:08] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-13 14:03:12] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778661192539"}  
+[2026-05-13 14:03:12] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-05-13 14:03:12] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-05-13 14:03:12] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778661192539"}  
+[2026-05-13 14:03:12] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-05-13 14:03:12] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-05-13 14:03:12] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-13 14:03:18] local.INFO: DEBUG universal_edit: AI content injected for user 18, frame 20  
+[2026-05-13 14:03:25] local.ERROR: SQLSTATE[22001]: String data, right truncated: 1406 Data too long for column 'template_id' at row 1 (SQL: insert into `editor_product_selections` (`user_id`, `product_id`, `template_id`, `image_url`, `image_mode`, `updated_at`, `created_at`) values (18, 103, {"name":"Frame_5","path":"Frame_5\/","info":{"width":1080,"height":1091,"ppi":300},"layers":[{"id":"leftrectangle","type":"image","src":"..\/skins\/Frame_5\/leftrectangle.png","x":0,"y":955,"w":659,"h":80,"z_index":1},{"id":"rightrectangle","type":"image","src":"..\/skins\/Frame_5\/rightrectangle.png","x":645,"y":966,"w":435,"h":69,"z_index":2},{"id":"line","type":"image","src":"..\/skins\/Frame_5\/line.png","x":630,"y":969,"w":46,"h":66,"z_index":3},{"id":"Logo","type":"image","src":"..\/skins\/Frame_5\/Logo.png","x":59,"y":25,"w":131,"h":156,"z_index":4},{"id":"instagram","type":"image","src":"..\/skins\/Frame_5\/instagram.png","x":843,"y":13,"w":32,"h":32,"z_index":5},{"id":"facebook","type":"image","src":"..\/skins\/Frame_5\/facebook_.png","x":904,"y":13,"w":32,"h":32,"z_index":6},{"id":"twitter","type":"image","src":"..\/skins\/Frame_5\/twitter.png","x":968,"y":13,"w":32,"h":32,"z_index":7},{"id":"youtube","type":"image","src":"..\/skins\/Frame_5\/youtube.png","x":1031,"y":13,"w":32,"h":32,"z_index":8},{"id":"phoneicon","type":"image","src":"..\/skins\/Frame_5\/phoneicon.png","x":26,"y":983,"w":30,"h":30,"z_index":9},{"id":"number","type":"text","x":66,"y":986,"w":188,"h":36,"font_name":"Poppins-SemiBold","font_size":6,"color":"#010101","z_index":10},{"id":"mailicon","type":"image","src":"..\/skins\/Frame_5\/mailicon.png","x":253,"y":982,"w":31,"h":31,"z_index":11},{"id":"email","type":"text","x":292,"y":986,"w":324,"h":36,"font_name":"Poppins-SemiBold","font_size":6,"color":"#010101","z_index":12},{"id":"webicon","type":"image","src":"..\/skins\/Frame_5\/webicon.png","x":696,"y":985,"w":30,"h":30,"z_index":13},{"id":"website","type":"text","x":737,"y":987,"w":342,"h":36,"font_name":"Poppins-SemiBold","font_size":6,"color":"#ffffff","z_index":14},{"id":"addressicon","type":"image","src":"..\/skins\/Frame_5\/addressicon.png","x":27,"y":1039,"w":30,"h":30,"z_index":15},{"id":"address","type":"text","x":65,"y":1042,"w":998,"h":36,"font_name":"Poppins-SemiBold","font_size":6,"color":"#010101","z_index":16}]}, http://localhost/Artera/uploads/products/1778474319_scaled_design_highres__11_.png, full, 2026-05-13 14:03:25, 2026-05-13 14:03:25)) {"userId":18,"exception":"[object] (Illuminate\\Database\\QueryException(code: 22001): SQLSTATE[22001]: String data, right truncated: 1406 Data too long for column 'template_id' at row 1 (SQL: insert into `editor_product_selections` (`user_id`, `product_id`, `template_id`, `image_url`, `image_mode`, `updated_at`, `created_at`) values (18, 103, {\"name\":\"Frame_5\",\"path\":\"Frame_5\\/\",\"info\":{\"width\":1080,\"height\":1091,\"ppi\":300},\"layers\":[{\"id\":\"leftrectangle\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/leftrectangle.png\",\"x\":0,\"y\":955,\"w\":659,\"h\":80,\"z_index\":1},{\"id\":\"rightrectangle\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/rightrectangle.png\",\"x\":645,\"y\":966,\"w\":435,\"h\":69,\"z_index\":2},{\"id\":\"line\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/line.png\",\"x\":630,\"y\":969,\"w\":46,\"h\":66,\"z_index\":3},{\"id\":\"Logo\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/Logo.png\",\"x\":59,\"y\":25,\"w\":131,\"h\":156,\"z_index\":4},{\"id\":\"instagram\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/instagram.png\",\"x\":843,\"y\":13,\"w\":32,\"h\":32,\"z_index\":5},{\"id\":\"facebook\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/facebook_.png\",\"x\":904,\"y\":13,\"w\":32,\"h\":32,\"z_index\":6},{\"id\":\"twitter\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/twitter.png\",\"x\":968,\"y\":13,\"w\":32,\"h\":32,\"z_index\":7},{\"id\":\"youtube\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/youtube.png\",\"x\":1031,\"y\":13,\"w\":32,\"h\":32,\"z_index\":8},{\"id\":\"phoneicon\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/phoneicon.png\",\"x\":26,\"y\":983,\"w\":30,\"h\":30,\"z_index\":9},{\"id\":\"number\",\"type\":\"text\",\"x\":66,\"y\":986,\"w\":188,\"h\":36,\"font_name\":\"Poppins-SemiBold\",\"font_size\":6,\"color\":\"#010101\",\"z_index\":10},{\"id\":\"mailicon\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/mailicon.png\",\"x\":253,\"y\":982,\"w\":31,\"h\":31,\"z_index\":11},{\"id\":\"email\",\"type\":\"text\",\"x\":292,\"y\":986,\"w\":324,\"h\":36,\"font_name\":\"Poppins-SemiBold\",\"font_size\":6,\"color\":\"#010101\",\"z_index\":12},{\"id\":\"webicon\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/webicon.png\",\"x\":696,\"y\":985,\"w\":30,\"h\":30,\"z_index\":13},{\"id\":\"website\",\"type\":\"text\",\"x\":737,\"y\":987,\"w\":342,\"h\":36,\"font_name\":\"Poppins-SemiBold\",\"font_size\":6,\"color\":\"#ffffff\",\"z_index\":14},{\"id\":\"addressicon\",\"type\":\"image\",\"src\":\"..\\/skins\\/Frame_5\\/addressicon.png\",\"x\":27,\"y\":1039,\"w\":30,\"h\":30,\"z_index\":15},{\"id\":\"address\",\"type\":\"text\",\"x\":65,\"y\":1042,\"w\":998,\"h\":36,\"font_name\":\"Poppins-SemiBold\",\"font_size\":6,\"color\":\"#010101\",\"z_index\":16}]}, http://localhost/Artera/uploads/products/1778474319_scaled_design_highres__11_.png, full, 2026-05-13 14:03:25, 2026-05-13 14:03:25)) at C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php:760)
+[stacktrace]
+#0 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(720): Illuminate\\Database\\Connection->runQueryCallback('insert into `ed...', Array, Object(Closure))
+#1 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(546): Illuminate\\Database\\Connection->run('insert into `ed...', Array, Object(Closure))
+#2 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(498): Illuminate\\Database\\Connection->statement('insert into `ed...', Array)
+#3 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3224): Illuminate\\Database\\Connection->insert('insert into `ed...', Array)
+#4 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3342): Illuminate\\Database\\Query\\Builder->insert(Array)
+#5 C:\\xampp\\htdocs\\Artera\\app\\Http\\Controllers\\MainController.php(1126): Illuminate\\Database\\Query\\Builder->updateOrInsert(Array, Array)
+#6 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Controller.php(54): App\\Http\\Controllers\\MainController->saveProductSelection(Object(Illuminate\\Http\\Request))
+#7 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\ControllerDispatcher.php(43): Illuminate\\Routing\\Controller->callAction('saveProductSele...', Array)
+#8 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(260): Illuminate\\Routing\\ControllerDispatcher->dispatch(Object(Illuminate\\Routing\\Route), Object(App\\Http\\Controllers\\MainController), 'saveProductSele...')
+#9 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(205): Illuminate\\Routing\\Route->runController()
+#10 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(798): Illuminate\\Routing\\Route->run()
+#11 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(141): Illuminate\\Routing\\Router->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#12 C:\\xampp\\htdocs\\Artera\\app\\Http\\Middleware\\LogUserActivity.php(19): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#13 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): App\\Http\\Middleware\\LogUserActivity->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#14 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Middleware\\SubstituteBindings.php(50): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#15 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Routing\\Middleware\\SubstituteBindings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#16 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Auth\\Middleware\\Authenticate.php(44): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#17 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Auth\\Middleware\\Authenticate->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#18 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken.php(78): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#19 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#20 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\View\\Middleware\\ShareErrorsFromSession.php(49): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#21 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\View\\Middleware\\ShareErrorsFromSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#22 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(121): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#23 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(64): Illuminate\\Session\\Middleware\\StartSession->handleStatefulRequest(Object(Illuminate\\Http\\Request), Object(Illuminate\\Session\\Store), Object(Closure))
+#24 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Session\\Middleware\\StartSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#25 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse.php(37): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#26 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#27 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\EncryptCookies.php(67): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#28 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Cookie\\Middleware\\EncryptCookies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#29 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(116): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#30 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(799): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#31 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(776): Illuminate\\Routing\\Router->runRouteWithinStack(Object(Illuminate\\Routing\\Route), Object(Illuminate\\Http\\Request))
+#32 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(740): Illuminate\\Routing\\Router->runRoute(Object(Illuminate\\Http\\Request), Object(Illuminate\\Routing\\Route))
+#33 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(729): Illuminate\\Routing\\Router->dispatchToRoute(Object(Illuminate\\Http\\Request))
+#34 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(190): Illuminate\\Routing\\Router->dispatch(Object(Illuminate\\Http\\Request))
+#35 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(141): Illuminate\\Foundation\\Http\\Kernel->Illuminate\\Foundation\\Http\\{closure}(Object(Illuminate\\Http\\Request))
+#36 C:\\xampp\\htdocs\\Artera\\vendor\\fruitcake\\laravel-cors\\src\\HandleCors.php(52): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#37 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Fruitcake\\Cors\\HandleCors->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#38 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#39 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull.php(31): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#40 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#41 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#42 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TrimStrings.php(40): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#43 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\TrimStrings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#44 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\ValidatePostSize.php(27): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#45 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\ValidatePostSize->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#46 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance.php(86): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#47 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#48 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\HandleCors.php(62): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#49 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Http\\Middleware\\HandleCors->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#50 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\TrustProxies.php(39): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#51 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Http\\Middleware\\TrustProxies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#52 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(116): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#53 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(165): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#54 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(134): Illuminate\\Foundation\\Http\\Kernel->sendRequestThroughRouter(Object(Illuminate\\Http\\Request))
+#55 C:\\xampp\\htdocs\\Artera\\index.php(52): Illuminate\\Foundation\\Http\\Kernel->handle(Object(Illuminate\\Http\\Request))
+#56 {main}
+
+[previous exception] [object] (PDOException(code: 22001): SQLSTATE[22001]: String data, right truncated: 1406 Data too long for column 'template_id' at row 1 at C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php:545)
+[stacktrace]
+#0 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(545): PDOStatement->execute()
+#1 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(753): Illuminate\\Database\\Connection->Illuminate\\Database\\{closure}('insert into `ed...', Array)
+#2 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(720): Illuminate\\Database\\Connection->runQueryCallback('insert into `ed...', Array, Object(Closure))
+#3 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(546): Illuminate\\Database\\Connection->run('insert into `ed...', Array, Object(Closure))
+#4 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(498): Illuminate\\Database\\Connection->statement('insert into `ed...', Array)
+#5 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3224): Illuminate\\Database\\Connection->insert('insert into `ed...', Array)
+#6 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Query\\Builder.php(3342): Illuminate\\Database\\Query\\Builder->insert(Array)
+#7 C:\\xampp\\htdocs\\Artera\\app\\Http\\Controllers\\MainController.php(1126): Illuminate\\Database\\Query\\Builder->updateOrInsert(Array, Array)
+#8 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Controller.php(54): App\\Http\\Controllers\\MainController->saveProductSelection(Object(Illuminate\\Http\\Request))
+#9 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\ControllerDispatcher.php(43): Illuminate\\Routing\\Controller->callAction('saveProductSele...', Array)
+#10 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(260): Illuminate\\Routing\\ControllerDispatcher->dispatch(Object(Illuminate\\Routing\\Route), Object(App\\Http\\Controllers\\MainController), 'saveProductSele...')
+#11 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Route.php(205): Illuminate\\Routing\\Route->runController()
+#12 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(798): Illuminate\\Routing\\Route->run()
+#13 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(141): Illuminate\\Routing\\Router->Illuminate\\Routing\\{closure}(Object(Illuminate\\Http\\Request))
+#14 C:\\xampp\\htdocs\\Artera\\app\\Http\\Middleware\\LogUserActivity.php(19): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#15 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): App\\Http\\Middleware\\LogUserActivity->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#16 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Middleware\\SubstituteBindings.php(50): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#17 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Routing\\Middleware\\SubstituteBindings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#18 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Auth\\Middleware\\Authenticate.php(44): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#19 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Auth\\Middleware\\Authenticate->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#20 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken.php(78): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#21 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\VerifyCsrfToken->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#22 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\View\\Middleware\\ShareErrorsFromSession.php(49): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#23 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\View\\Middleware\\ShareErrorsFromSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#24 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(121): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#25 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Session\\Middleware\\StartSession.php(64): Illuminate\\Session\\Middleware\\StartSession->handleStatefulRequest(Object(Illuminate\\Http\\Request), Object(Illuminate\\Session\\Store), Object(Closure))
+#26 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Session\\Middleware\\StartSession->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#27 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse.php(37): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#28 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Cookie\\Middleware\\AddQueuedCookiesToResponse->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#29 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Cookie\\Middleware\\EncryptCookies.php(67): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#30 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Cookie\\Middleware\\EncryptCookies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#31 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(116): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#32 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(799): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#33 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(776): Illuminate\\Routing\\Router->runRouteWithinStack(Object(Illuminate\\Routing\\Route), Object(Illuminate\\Http\\Request))
+#34 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(740): Illuminate\\Routing\\Router->runRoute(Object(Illuminate\\Http\\Request), Object(Illuminate\\Routing\\Route))
+#35 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\Router.php(729): Illuminate\\Routing\\Router->dispatchToRoute(Object(Illuminate\\Http\\Request))
+#36 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(190): Illuminate\\Routing\\Router->dispatch(Object(Illuminate\\Http\\Request))
+#37 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(141): Illuminate\\Foundation\\Http\\Kernel->Illuminate\\Foundation\\Http\\{closure}(Object(Illuminate\\Http\\Request))
+#38 C:\\xampp\\htdocs\\Artera\\vendor\\fruitcake\\laravel-cors\\src\\HandleCors.php(52): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#39 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Fruitcake\\Cors\\HandleCors->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#40 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#41 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull.php(31): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#42 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#43 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest.php(21): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#44 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\TrimStrings.php(40): Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#45 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\TrimStrings->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#46 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\ValidatePostSize.php(27): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#47 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\ValidatePostSize->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#48 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance.php(86): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#49 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#50 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\HandleCors.php(62): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#51 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Http\\Middleware\\HandleCors->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#52 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Http\\Middleware\\TrustProxies.php(39): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#53 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(180): Illuminate\\Http\\Middleware\\TrustProxies->handle(Object(Illuminate\\Http\\Request), Object(Closure))
+#54 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Pipeline\\Pipeline.php(116): Illuminate\\Pipeline\\Pipeline->Illuminate\\Pipeline\\{closure}(Object(Illuminate\\Http\\Request))
+#55 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(165): Illuminate\\Pipeline\\Pipeline->then(Object(Closure))
+#56 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Http\\Kernel.php(134): Illuminate\\Foundation\\Http\\Kernel->sendRequestThroughRouter(Object(Illuminate\\Http\\Request))
+#57 C:\\xampp\\htdocs\\Artera\\index.php(52): Illuminate\\Foundation\\Http\\Kernel->handle(Object(Illuminate\\Http\\Request))
+#58 {main}
+"} 
+[2026-05-14 18:11:58] local.INFO: DEBUG API customPost: userId resolved: NULL, token present: NO, query: []  
+[2026-05-14 18:11:58] local.INFO: DEBUG API customPost: userId resolved: NULL, token present: NO, query: []  
+[2026-05-14 18:11:58] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-14 18:18:22] local.INFO: DEBUG API customPost: userId resolved: NULL, token present: NO, query: {"t":"1778762902099"}  
+[2026-05-14 18:18:22] local.INFO: DEBUG API customPost: userId resolved: NULL, token present: NO, query: {"t":"1778762902099"}  
+[2026-05-14 18:18:22] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-14 18:18:39] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778762919043"}  
+[2026-05-14 18:18:39] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-05-14 18:18:39] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-05-14 18:18:39] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778762919043"}  
+[2026-05-14 18:18:39] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-05-14 18:18:39] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-05-14 18:18:39] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-14 18:20:30] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778763030023"}  
+[2026-05-14 18:20:30] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-05-14 18:20:30] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-05-14 18:20:30] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778763030023"}  
+[2026-05-14 18:20:30] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-05-14 18:20:30] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-05-14 18:20:30] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-14 18:24:09] local.INFO: DEBUG API customPost: userId resolved: NULL, token present: NO, query: {"t":"1778763249274"}  
+[2026-05-14 18:24:09] local.INFO: DEBUG API customPost: userId resolved: NULL, token present: NO, query: {"t":"1778763249274"}  
+[2026-05-14 18:24:09] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-14 18:40:40] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778764240136"}  
+[2026-05-14 18:40:40] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-05-14 18:40:40] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-05-14 18:40:40] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778764240136"}  
+[2026-05-14 18:40:40] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-05-14 18:40:40] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-05-14 18:40:40] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-05-14 18:40:46] local.INFO: DEBUG universal_edit: AI content injected for user 18, frame 20  
+[2026-05-14 19:02:59] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778765578916"}  
+[2026-05-14 19:02:59] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-05-14 19:02:59] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-05-14 19:02:59] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1778765578916"}  
+[2026-05-14 19:02:59] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-05-14 19:02:59] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-05-14 19:02:59] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 

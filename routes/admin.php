@@ -1,0 +1,227 @@
+<?php
+
+use Illuminate\Support\Facades\Artisan;
+
+Route::group(['middleware' => ['IsUpdate']], function () {
+    Auth::routes(['register' => false]);
+});
+
+Route::post('login', 'Auth\LoginController@authenticate')->middleware(['IsInstalled', 'IsUpdate'])->name('login');
+
+Route::
+        namespace('Admin')->middleware(['auth', 'IsInstalled', 'IsUpdate'])->group(function () {
+            Route::post("logout", 'HomeController@logout')->name('logout');
+            Route::get('/', 'HomeController@index')->name('admin');
+
+            Route::get("clear-cache", function () {
+                Cache::flush();
+                Artisan::call('optimize:clear');
+                Artisan::call('clear-compiled');
+
+                return back();
+            })->middleware(['IsInstalled', 'IsUpdate']);
+
+            Route::get('get-details', 'HomeController@get_details');
+            Route::get('sql-database', 'HomeController@database')->middleware(['IsInstalled', 'IsUpdate']);
+
+
+            //Route::get('members','HomeController@members');
+            Route::get('user-profile', 'HomeController@userProfile');
+            Route::Post('user-profile', 'HomeController@userProfileUpdate');
+
+            Route::resource('language', 'LanguageController');
+            Route::Post('language-status', 'LanguageController@language_status');
+
+            Route::resource('category', 'CategoryController');
+            Route::Post('category-status', 'CategoryController@category_status');
+            Route::Post('category-feature-status', 'CategoryController@category_feature_status');
+
+            Route::resource('category-post', 'CategoryPostController');
+            Route::Post('category-post-status', 'CategoryPostController@category_post_status');
+            Route::Post('category-post-type', 'CategoryPostController@category_post_type');
+            Route::get('get-category-post', 'CategoryPostController@get_category_post');
+            Route::get('category-get/{id}', 'CategoryPostController@category_get');
+            Route::Post('category-post-action', 'CategoryPostController@category_post_action');
+
+            Route::resource('festivals', 'FestivalsController');
+            Route::Post('festivals-status', 'FestivalsController@festivals_status');
+            Route::Post('festivals-feature-status', 'FestivalsController@festivals_feature_status');
+            Route::get('festivals-search', 'FestivalsController@festivals_search');
+            Route::Post('festivals-action', 'FestivalsController@festivals_action');
+
+            Route::resource('festivals-post', 'FestivalsPostController');
+            Route::Post('festivals-post-status', 'FestivalsPostController@festivals_post_status');
+            Route::Post('festivals-post-type', 'FestivalsPostController@festivals_post_type');
+            Route::get('festival/{id}', 'FestivalsPostController@festival_filter');
+            Route::Post('festivals-post-action', 'FestivalsPostController@festivals_post_action');
+
+            Route::resource('custom-post', 'CustomPostController');
+            Route::Post('custom-post-status', 'CustomPostController@custom_post_status');
+            Route::Post('custom-feature-status', 'CustomPostController@custom_feature_status');
+
+            Route::resource('custom-post-frame', 'CustomPostFrameController');
+            Route::Post('custom-post-frame-status', 'CustomPostFrameController@custom_post_frame_status');
+            Route::Post('custom-post-frame-type', 'CustomPostFrameController@custom_post_frame_type');
+            Route::get('custom-post-get/{id}', 'CustomPostFrameController@custom_post_get');
+            Route::Post('custom-post-frame-action', 'CustomPostFrameController@custom_post_frame_action');
+
+            Route::resource('business-category', 'BusinessCategoryController');
+            Route::Post('business-category-status', 'BusinessCategoryController@business_category_status');
+            Route::resource('business-sub-category', 'BusinessSubCategoryController');
+            Route::Post('business-sub-category-status', 'BusinessSubCategoryController@business_sub_category_status');
+            Route::get('get-business-sub-category', 'BusinessFrameController@get_business_sub_category');
+            Route::resource('business-frame', 'BusinessFrameController');
+            Route::Post('business-frame-status', 'BusinessFrameController@business_frame_status');
+            Route::Post('business-frame-type', 'BusinessFrameController@business_frame_type');
+            Route::get('business-category-get/{id}', 'BusinessFrameController@business_category_get');
+            Route::post('custom-frame-purpose-create', 'BusinessFrameController@createCustomFramePurpose');
+            Route::post('custom-frame-purpose', 'BusinessFrameController@storeCustomFramePurpose');
+            Route::put('custom-frame-purpose/{id}', 'BusinessFrameController@updateCustomFramePurpose');
+            Route::delete('custom-frame-purpose/{id}', 'BusinessFrameController@deleteCustomFramePurpose');
+            Route::post('custom-frame-image-type', 'BusinessFrameController@storeCustomFrameImageType');
+            Route::post('business-custom-frame-zip', 'BusinessFrameController@storeBusinessCustomFrame');
+            Route::delete('business-custom-frame-zip/{id}', 'BusinessFrameController@deleteBusinessCustomFrame');
+            Route::Post('business-frame-action', 'BusinessFrameController@business_frame_action');
+
+            Route::resource('general-post', 'GeneralPostController');
+            Route::Post('general-post-status', 'GeneralPostController@general_post_status');
+            Route::Post('general-post-type', 'GeneralPostController@general_post_type');
+            Route::get('get-business-sub-category', 'GeneralPostController@get_business_sub_category');
+            Route::get('business-category-get-general/{id}', 'GeneralPostController@business_category_get');
+            Route::Post('general-post-action', 'GeneralPostController@general_post_action');
+            Route::Post('general-post-subcategory-image', 'GeneralPostController@update_subcategory_images');
+
+            Route::resource('zip-file-manager', 'ZipFileManagerController');
+
+            Route::resource('sticker-category', 'StickerCategoryController');
+            Route::Post('sticker-category-status', 'StickerCategoryController@sticker_category_status');
+            Route::resource('sticker', 'StickerController');
+            Route::Post('sticker-status', 'StickerController@sticker_status');
+            Route::get('sticker-category-get/{id}', 'StickerController@sticker_category_get');
+            Route::Post('sticker-action', 'StickerController@sticker_action');
+
+            Route::resource('product-category', 'ProductCategoryController');
+            Route::Post('product-category-status', 'ProductCategoryController@product_category_status');
+            Route::resource('product', 'ProductController');
+            Route::Post('product-status', 'ProductController@product_status');
+            Route::resource('inquiry', 'InquiryController');
+
+            Route::resource('poster-maker', 'PosterMakerController');
+            Route::post('poster-maker/bulk-delete', 'PosterMakerController@bulkDelete')->name('admin.poster_maker.bulk_delete');
+            Route::post('poster-maker-frame-type', 'PosterMakerController@poster_maker_frame_type');
+            Route::resource('poster-category', 'PosterCategoryController');
+            Route::Post('poster-category-status', 'PosterCategoryController@poster_category_status');
+
+            Route::get('referral-system', 'ReferralSystemController@referral_system');
+            Route::post('referral-system', 'ReferralSystemController@post_referral_system');
+            Route::get('withdraw-request', 'ReferralSystemController@withdraw_request');
+            Route::post('withdraw-request', 'ReferralSystemController@post_withdraw_request');
+
+            Route::resource('video', 'VideoController');
+            Route::Post('video-status', 'VideoController@video_status');
+            Route::get('video-list/{type}', 'VideoController@video_list');
+            Route::get('video-list/{type}/{id}', 'VideoController@video_list_id');
+            Route::Post('video-type', 'VideoController@video_type');
+            Route::Post('video-action', 'VideoController@video_action');
+
+            Route::resource('news', 'NewsController');
+            Route::resource('story', 'StoryController');
+            Route::Post('story-status', 'StoryController@story_status');
+            Route::Post('story-sort-order', 'StoryController@updateSortOrder');
+
+            Route::resource('user', 'UserController');
+            Route::post('user-bulk-delete', 'UserController@bulkDelete')->name('admin.user.bulk_delete');
+            Route::Post('user-status', 'UserController@user_status');
+            Route::Post('subscription-update', 'UserController@subscription_update');
+            Route::get('user-get-plan', 'UserController@get_plan');
+            Route::get('user-activities', 'UserActivityController@index')->name('admin.user_activities');
+            Route::get('reported-errors', 'ClientErrorController@index')->name('admin.reported_errors');
+            Route::post('reported-errors/bulk-destroy', 'ClientErrorController@bulk_destroy')->name('admin.reported_errors.bulk_destroy');
+            Route::post('reported-errors/bulk-status', 'ClientErrorController@bulkUpdateStatus')->name('admin.reported_errors.bulk_status');
+            Route::post('reported-errors/status/{id}', 'ClientErrorController@updateStatus')->name('admin.reported_errors.status');
+            Route::delete('reported-errors/{id}', 'ClientErrorController@destroy')->name('admin.reported_errors.destroy');
+
+            Route::resource('business', 'BusinessController');
+            Route::Post('business-status', 'BusinessController@business_status');
+            Route::get('user-business/{id}', 'BusinessController@user_business');
+
+            Route::resource('subscription-plan', 'SubscriptionController');
+            Route::Post('subscription-plan-status', 'SubscriptionController@subscription_status');
+
+            Route::resource('coupon-code', 'CouponCodeController');
+            Route::Post('coupon-code-status', 'CouponCodeController@coupon_code_status');
+
+            Route::get('transaction', 'HomeController@transaction');
+            Route::post('transaction-delete', 'HomeController@transaction_delete');
+            Route::get('payment-completed/{id}', 'HomeController@payment_completed');
+            Route::get('notification', 'HomeController@notification')->name('admin.notification');
+            Route::get('notification-list', 'HomeController@notification_list')->name('admin.notification_list');
+            Route::post('notification', 'HomeController@post_notification');
+            Route::post('notification-delete', 'HomeController@notification_delete')->name('admin.notification_delete');
+            Route::post('today-event-notification', 'HomeController@today_event_notification');
+
+            Route::resource('whatsapp-message', 'WhatsappMessageController');
+            Route::post('send-whatsapp-msg', 'WhatsappMessageController@send_whatsapp_msg');
+            Route::post('send-whatsapp-msg-user', 'WhatsappMessageController@send_whatsapp_msg_user');
+
+            Route::resource('custom-frame', 'CustomFrameController');
+            Route::Post('custom-frame-status', 'CustomFrameController@custom_frame_status');
+
+            Route::resource('offer', 'OfferController');
+            Route::Post('offer-status', 'OfferController@offer_status');
+
+            Route::resource('business-card', 'BusinessCardController');
+            Route::Post('business-card-status', 'BusinessCardController@business_card_status');
+
+            Route::resource('entry', 'EntryController');
+            Route::resource('subject', 'SubjectController');
+
+            Route::resource('backup', 'BackupController');
+            Route::get('backup/download/{name}', 'BackupController@download');
+
+            Route::get('destroy', 'SettingController@destroy_data');
+            Route::get('settings', 'SettingController@setting');
+            Route::post('app-setting', 'SettingController@app_setting');
+            Route::post('email-setting', 'SettingController@email_setting');
+            Route::post('notification-setting', 'SettingController@notification_setting');
+            Route::post('payment-setting', 'SettingController@payment_setting');
+            Route::post('storage-setting', 'SettingController@storage_setting');
+            Route::post('api-setting', 'SettingController@api_setting');
+            Route::post('whatsapp-setting', 'SettingController@whatsapp_setting');
+            Route::post('app-update-setting', 'SettingController@app_update_setting');
+            Route::post('other-setting', 'SettingController@other_setting');
+            Route::post('ads-setting', 'SettingController@ads_setting');
+            Route::post('whatsapp-contact', 'SettingController@whatsapp_contact');
+            Route::post('ai-setting', 'SettingController@ai_setting');
+            Route::get('check-ai-connection', 'SettingController@check_ai_connection');
+            Route::post('ai-playground-chat', 'SettingController@ai_playground_chat');
+            
+            // AI Token Analytics
+            Route::get('ai-analytics', 'AiAnalyticsController@index')->name('admin.ai_analytics');
+            Route::get('user-performance', 'UserPerformanceController@index')->name('admin.user_performance');
+            Route::get('user-performance/details', 'UserPerformanceController@details')->name('admin.user_performance.details');
+            
+            // AI Generation Monitor & Debugger
+            Route::get('ai-monitor', 'AiMonitorController@index')->name('admin.ai_monitor');
+            Route::get('ai-monitor/batch/{id}', 'AiMonitorController@batchLogs')->name('admin.ai_monitor.batch');
+            Route::post('ai-monitor/playground', 'AiMonitorController@playground')->name('admin.ai_monitor.playground');
+            Route::get('ai-monitor/batch-status/{id}', 'AiMonitorController@batchStatus')->name('admin.ai_monitor.batch_status');
+            
+            // Magic Cloner Admin Setup
+            Route::get('magic-cloner', 'MagicClonerController@index')->name('admin.magic_cloner.index');
+            Route::post('magic-cloner', 'MagicClonerController@store')->name('admin.magic_cloner.store');
+            Route::resource('post-purpose', 'PostPurposeController');
+            Route::post('post-purpose-status', 'PostPurposeController@post_purpose_status');
+
+
+            Route::post('test-image-digitalOcean', 'SettingController@test_image_digitalOcean');
+            Route::get('get-zip-library', 'ZipFileManagerController@getZipLibrary');
+            Route::post('ajax-zip-upload', 'ZipFileManagerController@ajaxStore');
+            // Route::post('check-credentials-digitalOcean','SettingController@check_credentials_digitalOcean');
+            // Route::get('move-local-to-digitalOcean','SettingController@move_local_to_digitalOcean');
+        
+            Route::resource('roles', 'UserAccessController');
+            Route::get('create-permission', 'UserAccessController@create_permission');
+            Route::get('generat-code', 'UserController@generat_code');
+        });
+

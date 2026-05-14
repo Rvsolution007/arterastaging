@@ -1,0 +1,72 @@
+@charset "utf-8";
+/* CSS Document */
+
+@font-face {
+    font-family: 'LatoHeavy';
+    src: url('../fonts/latoheavy.eot');
+    src: url('../fonts/latoheavy.eot') format('embedded-opentype'),
+         url('../fonts/latoheavy.woff2') format('woff2'),
+         url('../fonts/latoheavy.woff') format('woff'),
+         url('fonts/latoheavy.ttf') format('truetype'),
+         url('fonts/latoheavy.svg#LatoHeavy') format('svg');
+}
+@font-face {
+    font-family: 'latolight';
+    src: url('../fonts/latolight.eot');
+    src: url('../fonts/latolight.eot') format('embedded-opentype'),
+         url('../fonts/latolight.woff2') format('woff2'),
+         url('../fonts/latolight.woff') format('woff'),
+         url('../fonts/latolight.ttf') format('truetype'),
+         url('../fonts/latolight.svg#LatoLight') format('svg');
+}
+@font-face {
+    font-family: 'LatoRegular';
+    src: url('../fonts/latoregular.eot');
+    src: url('../fonts/latoregular.eot') format('embedded-opentype'),
+         url('../fonts/latoregular.woff2') format('woff2'),
+         url('../fonts/latoregular.woff') format('woff'),
+         url('../fonts/latoregular.ttf') format('truetype'),
+         url('../fonts/latoregular.svg#LatoRegular') format('svg');
+}
+@font-face {
+    font-family: 'LatoBold';
+    src: url('../fonts/latobold.eot');
+    src: url('../fonts/latobold.eot') format('embedded-opentype'),
+         url('../fonts/latobold.woff2') format('woff2'),
+         url('../fonts/latobold.woff') format('woff'),
+         url('../fonts/latobold.ttf') format('truetype'),
+         url('../fonts/latobold.svg#LatoBold') format('svg');
+}
+@font-face {
+    font-family: 'LatoMedium';
+    src: url('../fonts/latomedium.eot');
+    src: url('../fonts/latomedium.eot') format('embedded-opentype'),
+         url('../fonts/latomedium.woff2') format('woff2'),
+         url('../fonts/latomedium.woff') format('woff'),
+         url('../fonts/latomedium.ttf') format('truetype'),
+         url('../fonts/latomedium.svg#LatoMedium') format('svg');
+}
+@font-face {
+    font-family: 'Shruti';
+    src: url('../fonts/shruti.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'Hind';
+    src: url('../fonts/Hind-Regular.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'Arial Unicode MS';
+    src: url('../fonts/arial-unicode-ms.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'Noto Sans Devanagari';
+    src: url('../fonts/NotoSansDevanagari-Regular.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'Noto Sans Gujarati';
+    src: url('../fonts/NotoSansGujarati-Regular.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'Poppins';
+    src: url('https://fonts.googleapis.com/css2?family=Poppins');
+}

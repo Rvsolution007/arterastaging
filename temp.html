@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Sign In</title>
+    <script>
+        // One-time cleanup: unregister any old service workers that may be blocking CDN resources
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(regs => {
+                regs.forEach(r => r.unregister());
+            });
+        }
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Pacifico&display=swap"
+        rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        border: "hsl(220 15% 90%)",
+                        input: "hsl(220 15% 90%)",
+                        ring: "hsl(230 65% 55%)",
+                        background: "hsl(220 20% 97%)",
+                        foreground: "hsl(220 20% 15%)",
+                        primary: {
+                            DEFAULT: "hsl(230 65% 55%)",
+                            foreground: "hsl(0 0% 100%)",
+                        },
+                        secondary: {
+                            DEFAULT: "hsl(220 15% 94%)",
+                            foreground: "hsl(220 10% 45%)",
+                        },
+                        destructive: {
+                            DEFAULT: "hsl(0 65% 55%)",
+                            foreground: "hsl(0 0% 100%)",
+                        },
+                        muted: {
+                            DEFAULT: "hsl(220 15% 94%)",
+                            foreground: "hsl(220 10% 45%)",
+                        },
+                        accent: {
+                            DEFAULT: "hsl(250 60% 60%)",
+                            foreground: "hsl(0 0% 100%)",
+                        },
+                        card: {
+                            DEFAULT: "hsl(0 0% 100%)",
+                            foreground: "hsl(220 20% 15%)",
+                        },
+                        fab: "hsl(250 60% 60%)",
+                        success: "hsl(160 60% 45%)",
+                        warning: "hsl(35 90% 55%)",
+                        info: "hsl(200 80% 55%)",
+                    },
+                    borderRadius: {
+                        lg: "1rem",
+                        xl: "1.25rem",
+                        "2xl": "1.5rem",
+                        "3xl": "2rem",
+                        "4xl": "2.5rem",
+                        "5xl": "3rem",
+                    },
+                    animation: {
+                        'fade-in': 'fade-in 0.4s ease-out',
+                        'scale-in': 'scale-in 0.2s ease-out',
+                    },
+                    keyframes: {
+                        'fade-in': { '0%': { opacity: '0', transform: 'translateY(10px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+                        'scale-in': { '0%': { transform: 'scale(0.95)', opacity: '0' }, '100%': { transform: 'scale(1)', opacity: '1' } }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --primary: 230 65% 55%;
+            --accent: 250 60% 60%;
+            --gradient-primary: linear-gradient(135deg, hsl(230 65% 55%), hsl(250 60% 60%));
+        }
+
+        body {
+            overscroll-behavior: none;
+            touch-action: manipulation;
+            background-color: white;
+            overflow: hidden;
+        }
+
+        .mobile-container {
+            max-width: 448px;
+            margin: 0 auto;
+            height: 100vh;
+            position: relative;
+            background-color: hsl(220 20% 97%);
+            overflow: hidden;
+        }
+
+        .bg-gradient-primary {
+            background: var(--gradient-primary);
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .fade-in {
+            animation: fade-in 0.4s ease-out;
+        }
+
+        .safe-area-pb {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .settings-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            background: white;
+            transition: background 0.2s;
+        }
+
+        .settings-item:active {
+            background: #f9fafb;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #e5e7eb;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        input:checked+.slider {
+            background-color: hsl(230 65% 55%);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(20px);
+        }
+    </style>
+        <style>
+        /* Hide nav and fab */
+        nav,
+        #fab-container,
+        #fab-backdrop {
+            display: none !important;
+        }
+
+        #main-content {
+            padding-bottom: 0 !important;
+        }
+
+        .login-container {
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 0 24px;
+            background: linear-gradient(180deg, #EBF0FF 0%, #FFFFFF 50%);
+        }
+
+        .brand-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo-box {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #1E3A8A, #3B82F6);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            color: white;
+            box-shadow: 0 8px 20px rgba(30, 58, 138, 0.25);
+        }
+
+        .login-title {
+            font-size: 24px;
+            font-weight: 800;
+            color: #1E3A8A;
+            letter-spacing: -0.02em;
+        }
+
+        .login-subtitle {
+            font-size: 14px;
+            color: #64748b;
+            font-weight: 500;
+            margin-top: 4px;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-field {
+            width: 100%;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #1e293b;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .input-field:focus {
+            border-color: #3B82F6;
+            background-color: white;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+        }
+
+        .remember-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .sign-in-btn {
+            background: linear-gradient(135deg, #1E3A8A, #3B82F6);
+            color: white;
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            box-shadow: 0 4px 12px rgba(30, 58, 138, 0.25);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .sign-in-btn:active {
+            transform: scale(0.98);
+        }
+
+        .register-link {
+            text-align: center;
+            margin-top: 28px;
+            font-size: 14px;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .register-link a {
+            color: #3B82F6;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .error-msg {
+            color: #ef4444;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 4px;
+            text-align: center;
+        }
+
+        /* Google Sign-In Button */
+        .btn-google-login {
+            width: 100%;
+            padding: 14px;
+            background: white;
+            color: #333;
+            border: 1px solid #dadce0;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            text-decoration: none;
+        }
+        .btn-google-login:hover, .btn-google-login:active {
+            background: #f8f9fa;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .btn-google-login img {
+            width: 20px;
+            height: 20px;
+        }
+
+        .divider-or {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: 20px 0;
+            color: #94a3b8;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+        .divider-or::before, .divider-or::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .divider-or:not(:empty)::before { margin-right: 12px; }
+        .divider-or:not(:empty)::after { margin-left: 12px; }
+    </style>
+</head>
+
+<body class="bg-gray-100">
+    <div class="mobile-container relative shadow-2xl">
+        <main id="main-content" class="h-screen overflow-y-auto pb-24 scrollbar-hide bg-white">
+                <div class="login-container">
+        <div class="brand-section">
+            <div class="logo-box">
+                <i data-lucide="layers" class="w-10 h-10 fill-white"></i>
+            </div>
+            <h1 class="login-title">Welcome Back</h1>
+            <p class="login-subtitle">Sign in to continue your designs</p>
+        </div>
+
+        
+        <a href="http://localhost/brandkit/auth/google" class="btn-google-login">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+            Sign in with Google
+        </a>
+
+        <div class="divider-or">or sign in with email</div>
+
+        
+        <form action="http://localhost/brandkit/login" method="POST">
+            <input type="hidden" name="_token" value="35ld2fDZJbRvUVVEfReWCjttaxtCs80GxxnK7ddP">            <div class="input-group">
+                <input type="email" name="email" class="input-field" placeholder="Email Address" value=""
+                    required autofocus>
+                            </div>
+
+            <div class="input-group">
+                <input type="password" name="password" class="input-field" placeholder="Password" required>
+                            </div>
+
+            <div class="remember-row">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" name="remember" style="width: 16px; height: 16px; accent-color: #3B82F6;">
+                    <span style="font-size: 14px; font-weight: 600; color: #64748b;">Remember Me</span>
+                </label>
+                <a href="http://localhost/brandkit/forgot-password" style="font-size: 14px; font-weight: 700; color: #3B82F6; text-decoration: none;">Forgot?</a>
+            </div>
+
+            <button type="submit" class="sign-in-btn">Sign In</button>
+
+            <p class="register-link">
+                Don't have an account? <a href="http://localhost/brandkit/register">Create Account</a>
+            </p>
+        </form>
+    </div>
+        </main>
+
+        
+        <!-- FAB Backdrop Blur -->
+        <div id="fab-backdrop"
+            class="hidden absolute inset-0 bg-white/20 backdrop-blur-md z-40 transition-all duration-300 animate-fade-in">
+        </div>
+
+        <!-- Magic Cloner Bottom Sheet -->
+        <div id="magic-cloner-sheet" class="hidden absolute inset-0 z-[110]">
+            <!-- Backdrop -->
+            <div id="magic-cloner-backdrop" onclick="toggleMagicCloner(false)" class="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in"></div>
+            
+            <!-- Sheet Content -->
+            <div id="magic-cloner-content" class="absolute bottom-0 left-0 right-0 bg-white rounded-t-[2rem] shadow-2xl transition-transform duration-300 translate-y-full flex flex-col p-6 items-center">
+                <!-- Inner Drag Handle -->
+                <div class="w-12 h-1.5 bg-gray-200 rounded-full mb-6"></div>
+                
+                <div class="w-16 h-16 rounded-full bg-fuchsia-100 flex items-center justify-center mb-4">
+                    <i data-lucide="wand-2" class="w-8 h-8 text-fuchsia-600"></i>
+                </div>
+                
+                <h3 class="text-xl font-black text-slate-800 mb-2">AI Magic Cloner</h3>
+                <p class="text-center text-sm font-medium text-slate-500 mb-6 px-4">Upload any inspiration image and we will extract its brand vibe, colors, and layout to generate magical templates for you.</p>
+
+                <!-- File Upload Box -->
+                <label for="magic-upload" class="w-full relative overflow-hidden rounded-2xl border-2 border-dashed border-fuchsia-300 bg-fuchsia-50/50 hover:bg-fuchsia-50 transition-colors p-8 flex flex-col items-center justify-center cursor-pointer group active:scale-[0.98]">
+                    <div class="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                        <i data-lucide="upload-cloud" class="w-6 h-6 text-fuchsia-500"></i>
+                    </div>
+                    <span class="text-sm font-bold text-fuchsia-600 mb-1">Upload Inspiration</span>
+                    <span class="text-[11px] font-semibold text-slate-400">JPG, PNG (Max. 5MB)</span>
+                    <input type="file" id="magic-upload" class="hidden" accept="image/*" onchange="startMagicCloneProcess(this)">
+                </label>
+                
+                <!-- Loading State (Hidden by Default) -->
+                <div id="magic-loading" class="hidden w-full flex-col items-center justify-center py-6">
+                    <div class="animate-spin rounded-full h-10 w-10 border-4 border-fuchsia-100 border-t-fuchsia-600 mb-4"></div>
+                    <p class="text-sm font-bold text-slate-700 animate-pulse">🪄 Extracting brand vibe...</p>
+                </div>
+
+                <!-- Results State (Hidden by Default) -->
+                <div id="magic-results" class="hidden w-full flex-col pb-4">
+                    <h4 class="font-bold text-slate-800 mb-3 text-center">🪄 Magical Templates Generated</h4>
+                    <div id="magic-templates-container" class="flex overflow-x-auto gap-4 py-2 snap-x scrollbar-hide">
+                        <!-- Templates Injected Here -->
+                    </div>
+                </div>
+
+                <div class="w-full mt-4 safe-area-pb"></div>
+            </div>
+        </div>
+
+        <!-- FAB -->
+        <div id="fab-container" class="absolute bottom-28 right-4 z-50 pointer-events-none w-full max-w-md">
+            <div class="relative w-full h-full pointer-events-auto flex justify-end pr-4">
+                <div id="fab-menu"
+                    class="hidden absolute bottom-16 right-0 flex flex-col gap-3 animate-fade-in items-end"></div>
+                <button id="fab-trigger"
+                    class="w-14 h-14 rounded-full bg-indigo-600 text-white flex items-center justify-center transition-all duration-300 shadow-[0_8px_25px_-5px_rgba(79,70,229,0.5)] hover:scale-105 active:scale-95">
+                    <i data-lucide="plus" class="w-8 h-8 transition-transform duration-300" id="fab-icon"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <nav
+            class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 backdrop-blur-md border-t border-gray-100 z-40 safe-area-pb">
+            <div class="flex items-center justify-around py-2">
+                <a href="http://localhost/brandkit/dashboard"
+                    class="nav-item group flex flex-col items-center gap-1 py-1 px-3  text-gray-400  transition-all">
+                    <div
+                        class="relative p-2 rounded-xl  transition-all group-active:scale-90">
+                        <i data-lucide="home" class="w-5.5 h-5.5"></i>
+                    </div>
+                    <span class="text-[10px] font-bold uppercase tracking-tighter">Home</span>
+                </a>
+                <a href="http://localhost/brandkit/custom"
+                    class="nav-item group flex flex-col items-center gap-1 py-1 px-3  text-gray-400  transition-all">
+                    <div
+                        class="relative p-2 rounded-xl  transition-all group-active:scale-90">
+                        <i data-lucide="image" class="w-5.5 h-5.5"></i>
+                    </div>
+                    <span class="text-[10px] font-bold uppercase tracking-tighter">Custom</span>
+                </a>
+                <a href="http://localhost/brandkit/business"
+                    class="nav-item group flex flex-col items-center gap-1 py-1 px-3  text-gray-400  transition-all">
+                    <div
+                        class="relative p-2 rounded-xl  transition-all group-active:scale-90">
+                        <i data-lucide="briefcase" class="w-5.5 h-5.5"></i>
+                    </div>
+                    <span class="text-[10px] font-bold uppercase tracking-tighter">My Business</span>
+                </a>
+                <a href="http://localhost/brandkit/aitrends"
+                    class="nav-item group flex flex-col items-center gap-1 py-1 px-3  text-gray-400  transition-all">
+                    <div
+                        class="relative p-2 rounded-xl  transition-all group-active:scale-90">
+                        <i data-lucide="sparkles" class="w-5.5 h-5.5"></i><span
+                            class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+                    </div>
+                    <span class="text-[10px] font-bold uppercase tracking-tighter">AI Trends</span>
+                </a>
+                <a href="http://localhost/brandkit/more"
+                    class="nav-item group flex flex-col items-center gap-1 py-1 px-3  text-gray-400  transition-all">
+                    <div
+                        class="relative p-2 rounded-xl  transition-all group-active:scale-90">
+                        <i data-lucide="menu" class="w-5.5 h-5.5"></i>
+                    </div>
+                    <span class="text-[10px] font-bold uppercase tracking-tighter">More</span>
+                </a>
+            </div>
+        </nav>
+    </div>
+
+    
+    <script>
+        // Initializing Lucide Icons
+        lucide.createIcons();
+
+        // FAB Menu Items
+        const fabMenuItems = [
+            { t: 'Magic Cloner', i: 'wand-2', c: 'bg-fuchsia-500', id: 'btn-magic-cloner' },
+            { t: 'AI Trends', i: 'sparkles', c: 'bg-indigo-600' },
+            { t: 'Snap Shot', i: 'camera', c: 'bg-sky-500' },
+            { t: 'Reels Maker', i: 'play', c: 'bg-rose-500' },
+            { t: 'Quotation', i: 'file-text', c: 'bg-amber-500' }
+        ];
+
+        // FAB Logic
+        const fabTrigger = document.getElementById('fab-trigger');
+        const fabMenu = document.getElementById('fab-menu');
+        const fabIcon = document.getElementById('fab-icon');
+        const fabBackdrop = document.getElementById('fab-backdrop');
+        const profileSidebar = document.getElementById('profile-sidebar');
+        const profileOverlay = document.getElementById('profile-overlay');
+
+        let isFabOpen = false;
+
+        function toggleProfileSidebar(state) {
+            if (!profileSidebar || !profileOverlay) return;
+            if (state) {
+                profileOverlay.classList.remove('hidden');
+                setTimeout(() => {
+                    profileSidebar.style.transform = 'translateX(0)';
+                }, 10);
+            } else {
+                profileSidebar.style.transform = 'translateX(-100%)';
+                setTimeout(() => {
+                    profileOverlay.classList.add('hidden');
+                }, 300);
+            }
+        }
+
+        // Close sidebar when clicking overlay
+        if (profileOverlay) {
+            profileOverlay.addEventListener('click', (e) => {
+                if (e.target === profileOverlay) toggleProfileSidebar(false);
+            });
+        }
+
+        function toggleFAB(state) {
+            isFabOpen = state !== undefined ? state : !isFabOpen;
+
+            if (fabTrigger) {
+                fabTrigger.style.backgroundColor = isFabOpen ? '#64748b' : '';
+                const icon = fabTrigger.querySelector('#fab-icon');
+                if (icon) {
+                    icon.style.transform = isFabOpen ? 'rotate(45deg)' : 'rotate(0deg)';
+                }
+            }
+
+            if (isFabOpen) {
+                fabMenu.classList.remove('hidden');
+                fabBackdrop.classList.remove('hidden');
+                fabMenu.innerHTML = fabMenuItems.map((item, i) => `
+                    <button ${item.id ? `id="${item.id}"` : ''} onclick="if(this.id === 'btn-magic-cloner') { toggleMagicCloner(true); }" class="flex items-center gap-3 animate-scale-in" style="animation-delay: ${i * 40}ms">
+                        <span class="bg-white px-5 py-2 rounded-full shadow-lg text-[15px] font-bold text-slate-800 tracking-tight border border-white whitespace-nowrap">${item.t}</span>
+                        <div class="w-12 h-12 rounded-full ${item.c} shadow-lg flex items-center justify-center text-white active:scale-90 transition-transform"><i data-lucide="${item.i}" class="w-6 h-6"></i></div>
+                    </button>
+                `).join('');
+                lucide.createIcons();
+            } else {
+                fabMenu.classList.add('hidden');
+                fabBackdrop.classList.add('hidden');
+            }
+        }
+
+        if (fabTrigger) {
+            fabTrigger.addEventListener('click', () => toggleFAB());
+        }
+
+        if (fabBackdrop) {
+            fabBackdrop.addEventListener('click', () => toggleFAB(false));
+        }
+
+        // Magic Cloner Logic
+        const magicClonerSheet = document.getElementById('magic-cloner-sheet');
+        const magicClonerContent = document.getElementById('magic-cloner-content');
+        const magicUploadInput = document.getElementById('magic-upload');
+        const magicLoadingObj = document.getElementById('magic-loading');
+        const magicResultsObj = document.getElementById('magic-results');
+        const magicTemplatesContainer = document.getElementById('magic-templates-container');
+
+        function toggleMagicCloner(show) {
+            if (show) {
+                toggleFAB(false);
+                magicClonerSheet.classList.remove('hidden');
+                setTimeout(() => {
+                    magicClonerContent.style.transform = 'translateY(0)';
+                }, 10);
+            } else {
+                magicClonerContent.style.transform = 'translateY(100%)';
+                setTimeout(() => {
+                    magicClonerSheet.classList.add('hidden');
+                    // reset form
+                    if(magicUploadInput) magicUploadInput.value = '';
+                    if(magicLoadingObj) magicLoadingObj.classList.add('hidden');
+                    if(magicResultsObj) magicResultsObj.classList.add('hidden');
+                    if(magicUploadInput) magicUploadInput.parentElement.classList.remove('hidden');
+                }, 300);
+            }
+        }
+
+        function startMagicCloneProcess(input) {
+            if (input.files && input.files[0]) {
+                // Hide upload button and show loader
+                input.parentElement.classList.add('hidden');
+                magicLoadingObj.classList.remove('hidden');
+                magicLoadingObj.classList.add('flex');
+                
+                // Construct FormData object
+                const formData = new FormData();
+                formData.append('inspiration_image', input.files[0]);
+
+                // Use the web route (session auth) with CSRF token
+                fetch('http://localhost/brandkit/magic-cloner/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '35ld2fDZJbRvUVVEfReWCjttaxtCs80GxxnK7ddP',
+                        'Accept': 'application/json'
+                    },
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    magicLoadingObj.classList.add('hidden');
+                    magicLoadingObj.classList.remove('flex');
+
+                    if(data.success && data.suggested_templates) {
+                        magicResultsObj.classList.remove('hidden');
+                        magicResultsObj.classList.add('flex');
+
+                        // Log AI detection for debugging
+                        console.log('🪄 AI Detection:', data.design_vibe_detected);
+                        console.log('📦 Matched Templates:', data.suggested_templates);
+                        
+                        // Render templates with match score
+                        magicTemplatesContainer.innerHTML = data.suggested_templates.map(t => `
+                            <div class="relative w-32 h-32 flex-shrink-0 snap-center rounded-2xl overflow-hidden shadow-lg border-2 border-fuchsia-100 cursor-pointer hover:border-fuchsia-500 transition-colors"
+                                 onclick='selectMagicTemplate(${JSON.stringify(t)})'>
+                                <img src="${t.thumb}" class="w-full h-full object-cover">
+                                <div class="absolute top-1 right-1 bg-green-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow">${t.match_score || 0}%</div>
+                                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2 text-center">
+                                    <span class="text-white text-[10px] font-bold">Use Template</span>
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        alert('Error: ' + (data.message || 'Something went wrong'));
+                        toggleMagicCloner(false);
+                    }
+                })
+                .catch(err => {
+                    console.error("Magic Cloner Error: ", err);
+                    alert("Network error. Please try again.");
+                    toggleMagicCloner(false);
+                });
+            }
+        }
+        
+        function selectMagicTemplate(template) {
+            // Save payload to localStorage so editor can pick it up
+            localStorage.setItem('magicClonerInject', JSON.stringify({
+                ai_data: template.ai_analysis_data,
+                mapping: template.frontend_mapping_rules
+            }));
+            
+            // Redirect to universal editor with the selected frame ID (using custom type)
+            // Or redirecting to create a custom post with this frame
+            window.location.href = 'http://localhost/brandkit/edit/custom/' + template.id;
+        }
+    </script>
+    </body>
+
+</html>

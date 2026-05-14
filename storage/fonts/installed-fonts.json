@@ -1,0 +1,30 @@
+{
+    "font awesome 6 brands": {
+        "normal": "font_awesome_6_brands_normal_14a348a7b8f303c720f5b71ebe104673"
+    },
+    "font awesome 6 free": {
+        "normal": "C:\\xampp\\htdocs\\Sunil\\brand_kit\\storage\\fonts\/font_awesome_6_free_normal_05a8e4157ec18d2fbe177f2c01ee2e6e",
+        "900": "font_awesome_6_free_900_5dcbce935361265a4c85924af7b00695"
+    },
+    "font awesome 5 brands": {
+        "normal": "font_awesome_5_brands_normal_14a348a7b8f303c720f5b71ebe104673"
+    },
+    "font awesome 5 free": {
+        "900": "C:\\xampp\\htdocs\\Sunil\\brand_kit\\storage\\fonts\/font_awesome_5_free_900_5dcbce935361265a4c85924af7b00695",
+        "normal": "font_awesome_5_free_normal_05a8e4157ec18d2fbe177f2c01ee2e6e"
+    },
+    "fontawesome": {
+        "normal": "fontawesome_normal_90320d6848002102ab261126e2aea574"
+    },
+    "glyphicons halflings": {
+        "normal": "glyphicons_halflings_normal_649b202ffed83c4604c4cf7c88e441bc"
+    },
+    "font awesome 5 duotone": {
+        "900": "font_awesome_5_duotone_900_846c1b8a1e30356c4578fdd1b82fdbda"
+    },
+    "font awesome 5 pro": {
+        "300": "C:\\xampp\\htdocs\\Sunil\\brand_kit\\storage\\fonts\/font_awesome_5_pro_300_03ec8c7e3d15e425515b494611e09faa",
+        "normal": "C:\\xampp\\htdocs\\Sunil\\brand_kit\\storage\\fonts\/font_awesome_5_pro_normal_ce9323a631174384fed36384a2020dde",
+        "900": "font_awesome_5_pro_900_80cab2937ff1b599c0bb933abe04fe75"
+    }
+}

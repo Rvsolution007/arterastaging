@@ -1,0 +1,53 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
+use App\Models\Traits\BelongsToCompany;
+
+class CatalogueCustomColumn extends Model
+{
+    use BelongsToCompany;
+
+    protected $fillable = [
+        'user_id', 'name', 'slug', 'type', 'options',
+        'is_required', 'is_unique', 'is_combo', 'is_variation_field',
+        'is_system', 'is_active', 'connected_modules', 'show_on_list',
+        'show_in_ai', 'sort_order', 'is_category', 'is_title',
+    ];
+
+    protected $casts = [
+        'options' => 'array',
+        'connected_modules' => 'array',
+        'is_required' => 'boolean',
+        'is_unique' => 'boolean',
+        'is_combo' => 'boolean',
+        'is_variation_field' => 'boolean',
+        'is_system' => 'boolean',
+        'is_active' => 'boolean',
+        'show_on_list' => 'boolean',
+        'show_in_ai' => 'boolean',
+        'sort_order' => 'integer',
+        'is_category' => 'boolean',
+        'is_title' => 'boolean',
+    ];
+
+    protected static function boot()
+    {
+        parent::boot();
+        static::creating(function ($column) {
+            if (empty($column->slug)) {
+                $column->slug = Str::slug($column->name, '_');
+            }
+        });
+    }
+
+    public function company(): BelongsTo { return $this->belongsTo(Company::class); }
+    public function values(): HasMany { return $this->hasMany(CatalogueCustomValue::class, 'column_id'); }
+    public function productCombos(): HasMany { return $this->hasMany(ProductCombo::class, 'column_id'); }
+    public function isSelectType(): bool { return in_array($this->type, ['select', 'multiselect']); }
+    public function getOptionsArray(): array { return $this->options ?? []; }
+}

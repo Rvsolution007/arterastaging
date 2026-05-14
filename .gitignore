@@ -1,0 +1,46 @@
+/node_modules
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/vendor
+.env
+.env.backup
+.env.production
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+auth.json
+npm-debug.log
+yarn-error.log
+/.fleet
+/.idea
+/.vscode
+
+# Laravel specific
+/bootstrap/cache/*.php
+/storage/framework/cache/data/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test/debug files
+api_test.php
+api_test_curl.php
+check_*.php
+test_*.php
+debug_*.php
+fix_*.php
+migrate_*.php
+verify_*.php
+
+# Flutter/Mobile builds
+/brandkit_mobile/build/
+/brandkit_mobile/build_old/
+/brandkit_mobile/.dart_tool/
+/flutter/
+/flutter/.dart_tool/
+/storage/app/Brand_Kit/*.zip

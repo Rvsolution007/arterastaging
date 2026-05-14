@@ -1,0 +1,2 @@
+"    @if($type == 'funnel_step2' && isset($summary))\n    <!-- Browsed Templates Summary Row -->\n    <div class=\"row mb-4\">\n        <div class=\"col-md-4\">\n            <div class=\"glass-card p-4 d-flex align-items-center\" style=\"border-left: 5px s
+<truncated 16677 bytes>

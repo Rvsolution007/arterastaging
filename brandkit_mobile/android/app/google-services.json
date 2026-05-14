@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "126045810257",
+    "project_id": "artera-ea217",
+    "storage_bucket": "artera-ea217.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:126045810257:android:87c189ba3e319c79efd270",
+        "android_client_info": {
+          "package_name": "com.brandkit.app.brandkit_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAQxS3qccotJEc-R96noUtkVs1w1Gfeyrw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

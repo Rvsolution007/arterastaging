@@ -1,0 +1,2 @@
+"        $data = [];\n        $title = \"Details\";\n        $summary = null;\n\n        if ($type == 'registrations' || $type == 'premium' || $type == 'funnel_step1') {\n            $query = User::with(['subscription'])\n                ->whereNotIn('user
+<truncated 4129 bytes>

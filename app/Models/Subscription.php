@@ -12,6 +12,7 @@ class Subscription extends Model
 
     protected $fillable = [
         'plan_name','duration','duration_type','plan_price','discount_price','status','plan_detail',
+        'monthly_price', 'monthly_discount_price', 'yearly_price', 'yearly_discount_price',
         'business_limit','custom_post_edit_limit','daily_drip_limit','magic_cloner_limit',
         'festival_post_limit','business_category_post_limit',
         'custom_post_ad_reward','daily_drip_ad_reward','magic_cloner_ad_reward',

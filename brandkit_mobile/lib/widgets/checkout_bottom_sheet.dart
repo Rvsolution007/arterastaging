@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart' if (dart.library.html) 'package:razorpay_web/razorpay_web.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../utils/app_colors.dart';
@@ -9,8 +9,9 @@ import '../controllers/subscription_controller.dart';
 
 class CheckoutBottomSheet extends StatefulWidget {
   final Map<String, dynamic> plan;
+  final String planType; // 'Monthly' or 'Yearly'
 
-  const CheckoutBottomSheet({super.key, required this.plan});
+  const CheckoutBottomSheet({super.key, required this.plan, this.planType = 'Yearly'});
 
   @override
   State<CheckoutBottomSheet> createState() => _CheckoutBottomSheetState();
@@ -33,9 +34,23 @@ class _CheckoutBottomSheetState extends State<CheckoutBottomSheet> {
   @override
   void initState() {
     super.initState();
-    final dp = widget.plan['discountPrice'] ?? 0;
-    final pp = widget.plan['planPrice'] ?? 0;
-    _basePrice = (dp > 0 && dp < pp) ? dp : pp;
+    // Determine price based on planType
+    if (widget.planType == 'Monthly') {
+      final mDiscount = (widget.plan['monthlyDiscountPrice'] ?? 0) as num;
+      final mBase = (widget.plan['monthlyPrice'] ?? 0) as num;
+      _basePrice = (mDiscount > 0 && mDiscount < mBase) ? mDiscount : mBase;
+    } else {
+      final yDiscount = (widget.plan['yearlyDiscountPrice'] ?? 0) as num;
+      final yBase = (widget.plan['yearlyPrice'] ?? 0) as num;
+      // Fallback to old columns if new ones are 0
+      if (yDiscount > 0 || yBase > 0) {
+        _basePrice = (yDiscount > 0 && yDiscount < yBase) ? yDiscount : yBase;
+      } else {
+        final dp = widget.plan['discountPrice'] ?? 0;
+        final pp = widget.plan['planPrice'] ?? 0;
+        _basePrice = (dp > 0 && dp < pp) ? dp : pp;
+      }
+    }
     
     _razorpay = Razorpay();
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
@@ -129,7 +144,8 @@ class _CheckoutBottomSheetState extends State<CheckoutBottomSheet> {
     try {
       _razorpay.open(options);
     } catch (e) {
-      debugPrint('Error: e');
+      debugPrint('Error opening Razorpay: $e');
+      Get.snackbar('Error', 'Failed to initialize Razorpay checkout. $e');
     }
   }
 
@@ -160,6 +176,7 @@ class _CheckoutBottomSheetState extends State<CheckoutBottomSheet> {
         'paymentId': paymentId,
         'paymentType': paymentType,
         'paymentAmount': finalPrice,
+        'planType': widget.planType,
         if (_appliedCouponCode != null) 'code': _appliedCouponCode,
       };
 
@@ -218,7 +235,7 @@ class _CheckoutBottomSheetState extends State<CheckoutBottomSheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(widget.plan['planName'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text('${widget.plan['duration']} Plan', style: TextStyle(color: AppColors.gray500, fontSize: 13)),
+                      Text('${widget.planType} Plan', style: TextStyle(color: AppColors.gray500, fontSize: 13)),
                     ],
                   ),
                   Text('₹$_basePrice', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),

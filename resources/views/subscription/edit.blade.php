@@ -84,12 +84,14 @@
                         </div>
                     </div>
 
+                    <hr>
+                    <h5 class="text-primary mb-3 mt-4"><i class="fas fa-calendar-alt mr-2"></i> Monthly Pricing</h5>
                     <div class="row">
                         <div class="col-12">
                             <div class="form-group row">
-                                {!! Form::label('plan_price','Plan Price', ['class' => 'col-sm-3 col-form-label']) !!}
+                                {!! Form::label('monthly_price','Monthly Base Price', ['class' => 'col-sm-3 col-form-label']) !!}
                                 <div class="col-sm-9">
-                                    {!! Form::number('plan_price',$subscription->plan_price,['class' => 'form-control','required','placeholder'=>'Enter Plan Price']) !!}
+                                    {!! Form::number('monthly_price',$subscription->monthly_price,['class' => 'form-control','required','placeholder'=>'Enter Monthly Base Price']) !!}
                                 </div>
                             </div>
                         </div>
@@ -98,9 +100,22 @@
                     <div class="row">
                         <div class="col-12">
                             <div class="form-group row">
-                                {!! Form::label('discount_price','Discount Price', ['class' => 'col-sm-3 col-form-label']) !!}
+                                {!! Form::label('monthly_discount_price','Monthly Discount Price', ['class' => 'col-sm-3 col-form-label']) !!}
                                 <div class="col-sm-9">
-                                    {!! Form::number('discount_price',$subscription->discount_price,['class' => 'form-control','required','placeholder'=>'Enter Discount Price']) !!}
+                                    {!! Form::number('monthly_discount_price',$subscription->monthly_discount_price,['class' => 'form-control','required','placeholder'=>'Enter Monthly Discount Price']) !!}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+                    <h5 class="text-primary mb-3 mt-4"><i class="fas fa-calendar-check mr-2"></i> Yearly Pricing</h5>
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="form-group row">
+                                {!! Form::label('yearly_price','Yearly Base Price', ['class' => 'col-sm-3 col-form-label']) !!}
+                                <div class="col-sm-9">
+                                    {!! Form::number('yearly_price',$subscription->yearly_price,['class' => 'form-control','required','placeholder'=>'Enter Yearly Base Price']) !!}
                                 </div>
                             </div>
                         </div>
@@ -109,22 +124,9 @@
                     <div class="row">
                         <div class="col-12">
                             <div class="form-group row">
-                                {!! Form::label('duration','Duration', ['class' => 'col-sm-3 col-form-label']) !!}
+                                {!! Form::label('yearly_discount_price','Yearly Discount Price', ['class' => 'col-sm-3 col-form-label']) !!}
                                 <div class="col-sm-9">
-                                    <div class="row">
-                                        <div class="col-6">
-                                            {!! Form::number('duration',$subscription->duration,['class' => 'form-control','required']) !!}
-                                        </div>
-                                        <div class="col-6">
-                                            <select id="duration_type" name="duration_type" class="form-control" required>
-                                                <option value="">Select Plan</option>
-                                                <option value="Day" @if($subscription->duration_type == "Day") selected @endif>Day</option>
-                                                <option value="Week" @if($subscription->duration_type == "Week") selected @endif>Week</option>
-                                                <option value="Month" @if($subscription->duration_type == "Month") selected @endif>Month</option>
-                                                <option value="Year" @if($subscription->duration_type == "Year") selected @endif>Year</option>
-                                            </select>
-                                        </div>
-                                    </div>
+                                    {!! Form::number('yearly_discount_price',$subscription->yearly_discount_price,['class' => 'form-control','required','placeholder'=>'Enter Yearly Discount Price']) !!}
                                 </div>
                             </div>
                         </div>

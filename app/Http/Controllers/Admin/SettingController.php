@@ -36,30 +36,38 @@ class SettingController extends Controller
     {
         if (AppSetting::getAppSetting('licence_active') == 0) {
             $url = URL::to('/');
-            $client = new \GuzzleHttp\Client();
-            $response = $client->request('POST', 'https://viplan.in/api/check-licence-brand-kit', [
-                'form_params' => [
-                    'url' => $url,
-                ]
-            ]);
-
-            $data = json_decode($response->getBody(), true);
-            if ($data['status'] == "failed") {
+            
+            try {
                 $client = new \GuzzleHttp\Client();
-                $store = $client->request('POST', 'https://viplan.in/api/new-licence-store-brand-kit', [
+                $response = $client->request('POST', 'https://viplan.in/api/check-licence-brand-kit', [
                     'form_params' => [
                         'url' => $url,
-                        'username' => "fake user",
-                        'licence_code' => "NO Licence Code",
-                        'version' => env('APP_VERSION'),
                     ]
                 ]);
 
-                AppSetting::where('key_name', 'licence_active')->update(['key_value' => 1]);
+                $data = json_decode($response->getBody(), true);
+                if ($data['status'] == "failed") {
+                    $client = new \GuzzleHttp\Client();
+                    $store = $client->request('POST', 'https://viplan.in/api/new-licence-store-brand-kit', [
+                        'form_params' => [
+                            'url' => $url,
+                            'username' => "fake user",
+                            'licence_code' => "NO Licence Code",
+                            'version' => env('APP_VERSION'),
+                        ]
+                    ]);
 
-                return redirect('admin/');
-            } else {
+                    AppSetting::where('key_name', 'licence_active')->update(['key_value' => 1]);
+
+                    return redirect('admin/');
+                } else {
+                    AppSetting::where('key_name', 'licence_active')->update(['key_value' => 1]);
+                }
+            } catch (\Exception $e) {
+                // Ignore external API failure and activate licence locally
                 AppSetting::where('key_name', 'licence_active')->update(['key_value' => 1]);
+            }
+
                 $index['timezone'] = Timezone::get();
                 return view('backend.setting', $index);
             }

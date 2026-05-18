@@ -1554,6 +1554,10 @@ class HomeApi extends Controller
                     "duration" => $s->duration." ".$s->duration_type,
                     "planPrice" => $s->plan_price,
                     "discountPrice" => $s->discount_price,
+                    "monthlyPrice" => $s->monthly_price ?? 0,
+                    "monthlyDiscountPrice" => $s->monthly_discount_price ?? 0,
+                    "yearlyPrice" => $s->yearly_price ?? 0,
+                    "yearlyDiscountPrice" => $s->yearly_discount_price ?? 0,
                     "planDetail" => $planDetail,
                     "businessLimit" => $s->business_limit,
                     "googleProductEnable" => $s->google_product_enable,
@@ -2111,7 +2115,9 @@ class HomeApi extends Controller
                     $user = User::find($request->get("userId"));
                     $user->subscription_id = $request->get("planId");
                     $user->subscription_start_date = date('Y-m-d');
-                    $user->subscription_end_date = date('Y-m-d', strtotime($subscription->duration." ".$subscription->duration_type));
+                    $user->subscription_end_date = ($request->get("planType") == "Monthly")
+                        ? date('Y-m-d', strtotime('+1 month'))
+                        : date('Y-m-d', strtotime('+1 year'));
                     $user->is_subscribe = 1;
                     $user->business_limit = $subscription->business_limit;
                     $user->save();

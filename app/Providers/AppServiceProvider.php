@@ -27,5 +27,12 @@ class AppServiceProvider extends ServiceProvider
     {
         Paginator::useBootstrapFour();
         Schema::defaultStringLength(191);
+        
+        // Force HTTPS for all assets and routes when behind a proxy like EasyPanel
+        if (config('app.env') !== 'local') {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        } elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        }
     }
 }

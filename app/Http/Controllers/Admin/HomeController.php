@@ -71,35 +71,44 @@ class HomeController extends Controller
         // }
         if (AppSetting::getAppSetting('licence_active') == 0) {
             $url = URL::to('/');
-            $client = new \GuzzleHttp\Client();
-            $response = $client->request('POST', 'https://viplan.in/api/check-licence-brand-kit', [
-                'form_params' => [
-                    'url' => $url,
-                ]
-            ]);
-
-            $data = json_decode($response->getBody(), true);
-            if ($data['status'] == "failed") {
+            
+            try {
                 $client = new \GuzzleHttp\Client();
-                $store = $client->request('POST', 'https://viplan.in/api/new-licence-store-brand-kit', [
+                $response = $client->request('POST', 'https://viplan.in/api/check-licence-brand-kit', [
                     'form_params' => [
                         'url' => $url,
-                        'username' => "fake user",
-                        'licence_code' => "NO Licence Code",
-                        'version' => env('APP_VERSION'),
                     ]
                 ]);
 
-                AppSetting::where('key_name', 'licence_active')->update(['key_value' => 1]);
+                $data = json_decode($response->getBody(), true);
+                if ($data['status'] == "failed") {
+                    $client = new \GuzzleHttp\Client();
+                    $store = $client->request('POST', 'https://viplan.in/api/new-licence-store-brand-kit', [
+                        'form_params' => [
+                            'url' => $url,
+                            'username' => "fake user",
+                            'licence_code' => "NO Licence Code",
+                            'version' => env('APP_VERSION'),
+                        ]
+                    ]);
 
-                return redirect('admin/');
-            } else {
+                    AppSetting::where('key_name', 'licence_active')->update(['key_value' => 1]);
+
+                    return redirect('admin/');
+                } else {
+                    AppSetting::where('key_name', 'licence_active')->update(['key_value' => 1]);
+                }
+            } catch (\Exception $e) {
+                // Ignore external API failure and activate licence locally
                 AppSetting::where('key_name', 'licence_active')->update(['key_value' => 1]);
-                $index['user_count'] = User::count();
-                $index['festivals_count'] = Festivals::count();
-                $index['category_count'] = Category::count();
-                $index['business_count'] = Business::count();
-                $index['transaction_count'] = $this->number_format_short(Transaction::where('status', 'Completed')->sum('total_paid'));
+            }
+        }
+
+        $index['user_count'] = User::count();
+        $index['festivals_count'] = Festivals::count();
+        $index['category_count'] = Category::count();
+        $index['business_count'] = Business::count();
+        $index['transaction_count'] = $this->number_format_short(Transaction::where('status', 'Completed')->sum('total_paid'));
                 $index['today_payment'] = $this->number_format_short(Transaction::where('status', 'Completed')->where('date', date('Y-m-d', strtotime('today')))->sum('total_paid'));
                 // $index['weekly_payment'] = $this->number_format_short(Transaction::whereBetween('created_at',[date('Y-m-d H:i:s',strtotime('-6 days')),date('Y-m-d H:i:s',time())])->sum('total_paid'));
                 $index['weekly_payment'] = $this->number_format_short(Transaction::where('status', 'Completed')->whereBetween('date', [date('Y-m-d', strtotime('this week')), date('Y-m-d', strtotime('today'))])->sum('total_paid'));
@@ -153,74 +162,11 @@ class HomeController extends Controller
                     $transactionArr[$i]["fullMonth"] = date("F, Y", mktime(0, 0, 0, $i, 1));
                 }
 
-                $index['user_chart'] = $userArr;
+        $index['user_chart'] = $userArr;
 
-                return view('home', $index);
-            }
-        } else {
-            $index['user_count'] = User::count();
-            $index['festivals_count'] = Festivals::count();
-            $index['category_count'] = Category::count();
-            $index['business_count'] = Business::count();
-            $index['transaction_count'] = $this->number_format_short(Transaction::where('status', 'Completed')->sum('total_paid'));
-            $index['today_payment'] = $this->number_format_short(Transaction::where('status', 'Completed')->where('date', date('Y-m-d', strtotime('today')))->sum('total_paid'));
-            // $index['weekly_payment'] = $this->number_format_short(Transaction::whereBetween('created_at',[date('Y-m-d H:i:s',strtotime('-6 days')),date('Y-m-d H:i:s',time())])->sum('total_paid'));
-            $index['weekly_payment'] = $this->number_format_short(Transaction::where('status', 'Completed')->whereBetween('date', [date('Y-m-d', strtotime('this week')), date('Y-m-d', strtotime('today'))])->sum('total_paid'));
-            $index['monthly_payment'] = $this->number_format_short(Transaction::where('status', 'Completed')->whereBetween('date', [date('Y-m-d', strtotime('first day of this month')), date('Y-m-d', strtotime('today'))])->sum('total_paid'));
-            $index['today_event'] = Festivals::where('festivals_date', date('Y-m-d', strtotime('today')))->take(12)->get();
-            $index['user'] = User::latest()->take(6)->get();
-            $index['transaction'] = Transaction::latest()->take(6)->get();
-            $index['contact_user'] = Entry::latest()->take(6)->get();
-            $index['subscription_end_user'] = User::whereBetween('subscription_end_date', [date('Y-m-d', strtotime('today')), date('Y-m-d', strtotime('+2 days'))])->get();
-            $month_payment_report = Transaction::where('status', 'Completed')->select('id', 'total_paid', DB::raw("DATE_FORMAT(created_at, '%M, %Y') as month"))->get()->groupBy('month');
-            //dd($month_payment_report);
-            $sum = [];
-            $transactionArr = [];
-
-            foreach ($month_payment_report as $key => $value) {
-                $total = 0;
-                foreach ($value as $key1 => $val) {
-                    $total = $total + $val->total_paid;
-                }
-                $sum[$key] = $total;
-            }
-
-            for ($i = 1; $i <= 12; $i++) {
-                if (!empty($sum[date("F, Y", mktime(0, 0, 0, $i, 1))])) {
-                    $transactionArr[$i]['count'] = $sum[date("F, Y", mktime(0, 0, 0, $i, 1))];
-                } else {
-                    $transactionArr[$i]['count'] = 0;
-                }
-                $transactionArr[$i]['month'] = date("M", mktime(0, 0, 0, $i, 1));
-                $transactionArr[$i]["fullMonth"] = date("F, Y", mktime(0, 0, 0, $i, 1));
-            }
-
-            $index['payment_chart'] = $transactionArr;
-
-            $user_month_report = User::select('id', DB::raw("DATE_FORMAT(created_at, '%M, %Y') as month"))->get()->groupBy('month');
-
-            $usermcount = [];
-            $userArr = [];
-
-            foreach ($user_month_report as $key => $value) {
-                $usermcount[$key] = count($value);
-            }
-
-            for ($i = 1; $i <= 12; $i++) {
-                if (!empty($usermcount[date("F, Y", mktime(0, 0, 0, $i, 1))])) {
-                    $userArr[$i]['count'] = $usermcount[date("F, Y", mktime(0, 0, 0, $i, 1))];
-                } else {
-                    $userArr[$i]['count'] = 0;
-                }
-                $userArr[$i]['month'] = date("M", mktime(0, 0, 0, $i, 1));
-                $transactionArr[$i]["fullMonth"] = date("F, Y", mktime(0, 0, 0, $i, 1));
-            }
-
-            $index['user_chart'] = $userArr;
-
-            return view('home', $index);
-        }
+        return view('home', $index);
     }
+
 
     public function userProfile()
     {

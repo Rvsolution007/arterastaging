@@ -54,10 +54,10 @@ class SubscriptionController extends Controller
     {
         $validation = Validator::make($request->all(), [
             'plan_name' => 'required',
-            'plan_price' => 'required',
-            "discount_price" => 'required',
-            'duration' => 'required|numeric',
-            "duration_type" => 'required',
+            'monthly_price' => 'required|numeric',
+            "monthly_discount_price" => 'required|numeric',
+            'yearly_price' => 'required|numeric',
+            "yearly_discount_price" => 'required|numeric',
             'business_limit' => 'required',
             'custom_post_edit_limit' => 'required|numeric',
             'daily_drip_limit' => 'required|numeric',
@@ -72,10 +72,14 @@ class SubscriptionController extends Controller
 
             $id = Subscription::create([
                 "plan_name" => $request->get("plan_name"),
-                "plan_price" => $request->get("plan_price"),
-                "discount_price" => $request->get("discount_price"),
-                "duration" => $request->get("duration"),
-                "duration_type" => $request->get("duration_type"),
+                "monthly_price" => $request->get("monthly_price"),
+                "monthly_discount_price" => $request->get("monthly_discount_price"),
+                "yearly_price" => $request->get("yearly_price"),
+                "yearly_discount_price" => $request->get("yearly_discount_price"),
+                "plan_price" => $request->get("yearly_price"),
+                "discount_price" => $request->get("yearly_discount_price"),
+                "duration" => 1,
+                "duration_type" => "Year",
                 "plan_detail" => serialize($request->get('detail')),
                 "business_limit" =>  $request->get("business_limit"),
                 "custom_post_edit_limit" => $request->get("custom_post_edit_limit", 0),
@@ -114,10 +118,10 @@ class SubscriptionController extends Controller
         //dd($request->all());
         $validation = Validator::make($request->all(), [
             'plan_name' => 'required',
-            'plan_price' => 'required',
-            "discount_price" => 'required',
-            'duration' => 'required|numeric',
-            "duration_type" => 'required',
+            'monthly_price' => 'required|numeric',
+            "monthly_discount_price" => 'required|numeric',
+            'yearly_price' => 'required|numeric',
+            "yearly_discount_price" => 'required|numeric',
         ]);
 
         if ($validation->fails()) {
@@ -125,10 +129,14 @@ class SubscriptionController extends Controller
         } else {
             $subscription = Subscription::find($request->get("id"));
             $subscription->plan_name = $request->plan_name;
-            $subscription->plan_price = $request->plan_price;
-            $subscription->discount_price = $request->discount_price;
-            $subscription->duration = $request->duration;
-            $subscription->duration_type = $request->duration_type;
+            $subscription->monthly_price = $request->monthly_price;
+            $subscription->monthly_discount_price = $request->monthly_discount_price;
+            $subscription->yearly_price = $request->yearly_price;
+            $subscription->yearly_discount_price = $request->yearly_discount_price;
+            $subscription->plan_price = $request->yearly_price;
+            $subscription->discount_price = $request->yearly_discount_price;
+            $subscription->duration = 1;
+            $subscription->duration_type = "Year";
             $subscription->plan_detail = serialize($request->detail);
             $subscription->business_limit = $request->business_limit;
             $subscription->custom_post_edit_limit = $request->get("custom_post_edit_limit", 0);

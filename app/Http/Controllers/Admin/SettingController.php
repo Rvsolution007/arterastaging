@@ -70,7 +70,6 @@ class SettingController extends Controller
 
                 $index['timezone'] = Timezone::get();
                 return view('backend.setting', $index);
-            }
         } else {
             $index['timezone'] = Timezone::get();
             return view('backend.setting', $index);

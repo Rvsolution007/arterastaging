@@ -3,10 +3,11 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
+import '../config/app_config.dart';
 
 class ApiService {
-  // Updated to Local Wi-Fi IP so physical Android device can connect
-  static const String baseUrl = 'http://localhost/Artera/123456'; 
+  // Base URL is now controlled by AppConfig (staging vs production)
+  static String get baseUrl => AppConfig.baseUrl;
 
   static Future<Map<String, String>> _getHeaders() async {
     final prefs = await SharedPreferences.getInstance();

@@ -146,6 +146,27 @@ class _DetailListScreenState extends State<DetailListScreen> {
       return;
     }
 
+    // Phase 2: Show Interstitial ad on download for premium templates
+    // when base limit is reached
+    bool isPaid = false;
+    if (activeTab == 'images') {
+      final list = filteredFrames;
+      isPaid = list.isNotEmpty && selectedIndex < list.length && (list[selectedIndex]['isPaid'] == true);
+    } else {
+      isPaid = videos.isNotEmpty && selectedIndex < videos.length && (videos[selectedIndex]['isPaid'] == true);
+    }
+
+    String featureKey = 'festival_post';
+    if (widget.type == 'category' || widget.type == 'business_custom') {
+      featureKey = 'business_category_post';
+    }
+
+    final adController = Get.find<AdController>();
+    adController.handlePremiumDownloadAd(
+      feature: featureKey,
+      isPaid: isPaid,
+    );
+
     Get.snackbar('Download', 'Downloading design...', snackPosition: SnackPosition.BOTTOM);
     
     try {

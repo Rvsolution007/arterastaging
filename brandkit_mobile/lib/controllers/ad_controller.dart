@@ -157,7 +157,15 @@ class AdController extends GetxController {
     }
   }
 
-  /// Handle access for Festival/Category posts based on free/paid status
+  /// Handle access for Festival/Category posts based on free/paid status.
+  /// 
+  /// Premium template strategy (when base limit reached):
+  ///   - First access (edit): Rewarded Ad (30s unskippable video)
+  ///   - Download time: Interstitial Ad (5s skippable) — handled by [handlePremiumDownloadAd]
+  ///
+  /// Free template strategy (when base limit reached):
+  ///   - First access (edit): Interstitial Ad only
+  ///   - Download time: No additional ad
   Future<bool> handlePostAccess({
     required BuildContext context,
     required String feature, // 'festival_post' or 'business_category_post'
@@ -185,6 +193,8 @@ class AdController extends GetxController {
       onAccessGranted();
       return true;
     } else if (flow == 'rewarded_then_interstitial') {
+      // Premium template: Show Rewarded Ad on first access (edit)
+      // The Interstitial for download will be handled by handlePremiumDownloadAd
       if (_adService.isRewardedReady) {
         _adService.showRewardedAd(
           onRewarded: (reward) {
@@ -192,12 +202,13 @@ class AdController extends GetxController {
           },
         );
       } else {
-        // Fallback
+        // Fallback to interstitial if rewarded not ready
         _adService.showInterstitialAd();
         onAccessGranted();
       }
       return true;
     } else if (flow == 'interstitial_only') {
+      // Free template: Show Interstitial Ad on first access only
       _adService.showInterstitialAd();
       onAccessGranted();
       return true;
@@ -205,6 +216,34 @@ class AdController extends GetxController {
 
     // Fallback
     onAccessGranted();
+    return true;
+  }
+
+  /// Show an Interstitial Ad during download for premium templates
+  /// when the user's base limit has been reached.
+  ///
+  /// This is Phase 2 of the premium template ad strategy:
+  ///   Phase 1 (first access): Rewarded Ad — handled by [handlePostAccess]
+  ///   Phase 2 (download):     Interstitial Ad — handled here
+  ///
+  /// Returns true if the download should proceed.
+  bool handlePremiumDownloadAd({
+    required String feature,
+    required bool isPaid,
+  }) {
+    // Only show interstitial on download for premium templates
+    // when base limit is reached (i.e., ad flow is active)
+    if (!isPaid) return true; // Free templates: no ad on download
+
+    final config = _getFeatureConfig(feature);
+    if (config == null) return true;
+    if (config.isNoAds) return true; // Within base limit, no ads needed
+
+    final flow = config.postAdFlowPaid;
+    if (flow == 'rewarded_then_interstitial') {
+      // Premium template + base limit reached → show Interstitial on download
+      _adService.showInterstitialAd();
+    }
     return true;
   }
 

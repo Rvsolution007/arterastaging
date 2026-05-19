@@ -1088,4 +1088,54 @@ class AuthApi extends Controller
 
         return response()->json(['status' => 'success']);
     }
+
+    /**
+     * Batch track ad events from the Flutter app.
+     * Accepts an array of ad events and bulk inserts them for minimal server load.
+     * 
+     * Expected payload:
+     * {
+     *   "userId": "123",
+     *   "events": [
+     *     {"ad_type": "banner", "event": "impression", "timestamp": "2026-05-19 14:00:00"},
+     *     {"ad_type": "interstitial", "event": "impression", "timestamp": "2026-05-19 14:01:00"},
+     *     {"ad_type": "rewarded", "event": "completed", "timestamp": "2026-05-19 14:02:00"}
+     *   ]
+     * }
+     */
+    public function trackAdEvents(Request $request)
+    {
+        $userId = $request->get('userId') ?? $request->get('user_id');
+        $events = $request->get('events', []);
+
+        if (empty($events) || !is_array($events)) {
+            return response()->json(['status' => 'error', 'message' => 'No events provided'], 400);
+        }
+
+        $validTypes = ['banner', 'interstitial', 'rewarded'];
+        $validEvents = ['impression', 'click', 'completed'];
+
+        $rows = [];
+        foreach ($events as $evt) {
+            $adType = $evt['ad_type'] ?? null;
+            $event = $evt['event'] ?? 'impression';
+
+            if (!$adType || !in_array($adType, $validTypes)) continue;
+            if (!in_array($event, $validEvents)) $event = 'impression';
+
+            $rows[] = [
+                'user_id' => $userId,
+                'ad_type' => $adType,
+                'event' => $event,
+                'created_at' => $evt['timestamp'] ?? now(),
+            ];
+        }
+
+        if (!empty($rows)) {
+            // Bulk insert for minimal DB overhead
+            \App\Models\AdEvent::insert($rows);
+        }
+
+        return response()->json(['status' => 'success', 'tracked' => count($rows)]);
+    }
 }

@@ -308,6 +308,115 @@
         </div>
     </div>
 
+    <!-- ═══════════════ AD ANALYTICS SECTION ═══════════════ -->
+    <div class="row mt-4" id="ad-analytics-section">
+        <div class="col-12 mb-3">
+            <h5 class="font-weight-bold" style="color: #1e293b;">
+                <i class="fas fa-ad mr-2" style="color: #6366f1;"></i> Ad Analytics
+                <small class="text-muted ml-2" style="font-size: 0.75rem; font-weight: 400;">Estimated · {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}</small>
+            </h5>
+        </div>
+
+        <!-- Ad KPI Cards -->
+        <div class="col-md-3 col-sm-6">
+            <div class="glass-card kpi-card h-100">
+                <div class="icon-box" style="background: #dbeafe; color: #1d4ed8;">
+                    <i class="fas fa-rectangle-ad"></i>
+                </div>
+                <div class="kpi-value">{{ number_format($adAnalytics['banner'] ?? 0) }}</div>
+                <div class="kpi-label">Banner Views</div>
+                <small class="text-muted" style="font-size: 0.7rem;">eCPM: ₹25/1K</small>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="glass-card kpi-card h-100">
+                <div class="icon-box" style="background: #fef3c7; color: #b45309;">
+                    <i class="fas fa-window-maximize"></i>
+                </div>
+                <div class="kpi-value">{{ number_format($adAnalytics['interstitial'] ?? 0) }}</div>
+                <div class="kpi-label">Interstitial Views</div>
+                <small class="text-muted" style="font-size: 0.7rem;">eCPM: ₹65/1K</small>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="glass-card kpi-card h-100">
+                <div class="icon-box" style="background: #dcfce7; color: #15803d;">
+                    <i class="fas fa-play-circle"></i>
+                </div>
+                <div class="kpi-value">{{ number_format($adAnalytics['rewarded'] ?? 0) }}</div>
+                <div class="kpi-label">Rewarded Views</div>
+                <small class="text-muted" style="font-size: 0.7rem;">eCPM: ₹170/1K</small>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="glass-card kpi-card h-100" style="border: 2px solid rgba(99, 102, 241, 0.2);">
+                <div class="icon-box" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white;">
+                    <i class="fas fa-rupee-sign"></i>
+                </div>
+                <div class="kpi-value" style="color: #15803d;">₹{{ number_format($adAnalytics['revenue'] ?? 0, 2) }}</div>
+                <div class="kpi-label">Est. Revenue</div>
+                <small class="text-muted" style="font-size: 0.7rem;">≈ ${{ number_format(($adAnalytics['revenue'] ?? 0) / 83.5, 2) }}</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <!-- Daily Ad Trend Chart -->
+        <div class="col-lg-7 mb-4">
+            <div class="glass-card h-100" style="padding: 1.5rem;">
+                <h6 class="font-weight-bold mb-3" style="color: #334155;">Daily Ad Impressions</h6>
+                <canvas id="adTrendChart" height="220"></canvas>
+            </div>
+        </div>
+
+        <!-- Revenue Breakdown -->
+        <div class="col-lg-5 mb-4">
+            <div class="glass-card h-100" style="padding: 1.5rem;">
+                <h6 class="font-weight-bold mb-3" style="color: #334155;">Revenue Breakdown</h6>
+                <table class="table table-borderless mb-0" style="font-size: 0.9rem;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid #f1f5f9;">
+                            <th class="py-2 text-muted small text-uppercase">Ad Type</th>
+                            <th class="py-2 text-muted small text-uppercase text-center">Views</th>
+                            <th class="py-2 text-muted small text-uppercase text-center">eCPM</th>
+                            <th class="py-2 text-muted small text-uppercase text-right">Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="py-3"><span style="display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: #3b82f6; margin-right: 8px;"></span>Banner</td>
+                            <td class="py-3 text-center font-weight-bold">{{ number_format($adAnalytics['banner'] ?? 0) }}</td>
+                            <td class="py-3 text-center">₹25</td>
+                            <td class="py-3 text-right font-weight-bold" style="color: #15803d;">₹{{ number_format(($adAnalytics['banner'] ?? 0) * 25 / 1000, 2) }}</td>
+                        </tr>
+                        <tr>
+                            <td class="py-3"><span style="display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: #f59e0b; margin-right: 8px;"></span>Interstitial</td>
+                            <td class="py-3 text-center font-weight-bold">{{ number_format($adAnalytics['interstitial'] ?? 0) }}</td>
+                            <td class="py-3 text-center">₹65</td>
+                            <td class="py-3 text-right font-weight-bold" style="color: #15803d;">₹{{ number_format(($adAnalytics['interstitial'] ?? 0) * 65 / 1000, 2) }}</td>
+                        </tr>
+                        <tr>
+                            <td class="py-3"><span style="display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: #22c55e; margin-right: 8px;"></span>Rewarded</td>
+                            <td class="py-3 text-center font-weight-bold">{{ number_format($adAnalytics['rewarded'] ?? 0) }}</td>
+                            <td class="py-3 text-center">₹170</td>
+                            <td class="py-3 text-right font-weight-bold" style="color: #15803d;">₹{{ number_format(($adAnalytics['rewarded'] ?? 0) * 170 / 1000, 2) }}</td>
+                        </tr>
+                        <tr style="border-top: 2px solid #e2e8f0;">
+                            <td class="py-3 font-weight-bold">Total</td>
+                            <td class="py-3 text-center font-weight-bold">{{ number_format(($adAnalytics['banner'] ?? 0) + ($adAnalytics['interstitial'] ?? 0) + ($adAnalytics['rewarded'] ?? 0)) }}</td>
+                            <td class="py-3 text-center">—</td>
+                            <td class="py-3 text-right font-weight-bold" style="color: #15803d; font-size: 1.1rem;">₹{{ number_format($adAnalytics['revenue'] ?? 0, 2) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="mt-3 p-2 rounded" style="background: #fefce8; border: 1px solid #fde68a;">
+                    <small style="color: #92400e;"><i class="fas fa-info-circle mr-1"></i> Revenue is estimated using India avg eCPM rates. Actual revenue may vary — check AdMob dashboard for exact figures.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ═══════════════ END AD ANALYTICS ═══════════════ -->
+
     <!-- Live Activity Log -->
     <div class="row">
         <div class="col-12">
@@ -393,6 +502,87 @@
 @endsection
 
 @section('script')
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// ── Ad Analytics Daily Trend Chart ──
+(function() {
+    const dailyData = @json($adAnalytics['daily'] ?? []);
+    const dates = Object.keys(dailyData).sort();
+
+    if (dates.length === 0) {
+        // No data — show empty state
+        const canvas = document.getElementById('adTrendChart');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.font = '14px Outfit, sans-serif';
+            ctx.fillStyle = '#94a3b8';
+            ctx.textAlign = 'center';
+            ctx.fillText('No ad data available for this date range', canvas.width / 2, canvas.height / 2);
+        }
+    } else {
+        const bannerData = dates.map(d => (dailyData[d] && dailyData[d]['banner']) || 0);
+        const interstitialData = dates.map(d => (dailyData[d] && dailyData[d]['interstitial']) || 0);
+        const rewardedData = dates.map(d => (dailyData[d] && dailyData[d]['rewarded']) || 0);
+        const labels = dates.map(d => {
+            const dt = new Date(d);
+            return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+        });
+
+        new Chart(document.getElementById('adTrendChart'), {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Banner',
+                        data: bannerData,
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 4,
+                        barPercentage: 0.7,
+                    },
+                    {
+                        label: 'Interstitial',
+                        data: interstitialData,
+                        backgroundColor: '#f59e0b',
+                        borderRadius: 4,
+                        barPercentage: 0.7,
+                    },
+                    {
+                        label: 'Rewarded',
+                        data: rewardedData,
+                        backgroundColor: '#22c55e',
+                        borderRadius: 4,
+                        barPercentage: 0.7,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { font: { family: 'Outfit', size: 12 }, usePointStyle: true, padding: 16 }
+                    }
+                },
+                scales: {
+                    x: {
+                        stacked: true,
+                        grid: { display: false },
+                        ticks: { font: { family: 'Outfit', size: 11 }, color: '#64748b' }
+                    },
+                    y: {
+                        stacked: true,
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.04)' },
+                        ticks: { font: { family: 'Outfit', size: 11 }, color: '#64748b' }
+                    }
+                }
+            }
+        });
+    }
+})();
+</script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.querySelector('input[name="search_user"]');

@@ -119,14 +119,14 @@ class _EditorScreenState extends State<EditorScreen> {
                   },
                 );
               } else {
-                await adController.handlePostAccess(
-                  context: context,
+                // For festival/category posts edited in editor:
+                // Phase 2 Interstitial ad on download for premium templates
+                final bool isPaid = widget.frameData['isPaid'] ?? false;
+                adController.handlePremiumDownloadAd(
                   feature: featureKey,
-                  isPaid: widget.frameData['isPaid'] ?? false,
-                  onAccessGranted: () async {
-                    await _saveExportedImage(dataUrl);
-                  },
+                  isPaid: isPaid,
                 );
+                await _saveExportedImage(dataUrl);
               }
             } else if (message.message.startsWith('showRewardedAd:')) {
               // Note: This block might not be triggered from webview anymore, but left for backward compatibility

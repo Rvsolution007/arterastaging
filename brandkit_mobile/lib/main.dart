@@ -113,7 +113,7 @@ class BrandkitApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
-      title: 'Brandkit Mobile',
+      title: 'Artera Pixel',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: const SplashGate(),

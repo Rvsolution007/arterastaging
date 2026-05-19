@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'ad_tracker_service.dart';
 
 /// Central AdMob Service — Handles initialization, loading, caching, and
 /// displaying all 4 ad formats: Banner, Interstitial, Rewarded, Native.
@@ -13,11 +14,14 @@ class AdService {
   factory AdService() => _instance;
   AdService._internal();
 
+  // ── Ad Event Tracker ──
+  final AdTrackerService _tracker = AdTrackerService();
+
   // ── TEST Ad Unit IDs (Replace with production IDs before release) ──
   static String get bannerAdUnitId {
     if (kIsWeb) return '';
     if (Platform.isAndroid) {
-      return 'ca-app-pub-3940256099942544/6300978111'; // Android Test Banner
+      return 'ca-app-pub-8529977313104602/7464924603'; // Android Production Banner
     } else if (Platform.isIOS) {
       return 'ca-app-pub-3940256099942544/2934735716'; // iOS Test Banner
     }
@@ -27,7 +31,7 @@ class AdService {
   static String get interstitialAdUnitId {
     if (kIsWeb) return '';
     if (Platform.isAndroid) {
-      return 'ca-app-pub-3940256099942544/1033173712'; // Android Test Interstitial
+      return 'ca-app-pub-8529977313104602/8311102418'; // Android Production Interstitial
     } else if (Platform.isIOS) {
       return 'ca-app-pub-3940256099942544/4411468910'; // iOS Test Interstitial
     }
@@ -37,7 +41,7 @@ class AdService {
   static String get rewardedAdUnitId {
     if (kIsWeb) return '';
     if (Platform.isAndroid) {
-      return 'ca-app-pub-3940256099942544/5224354917'; // Android Test Rewarded
+      return 'ca-app-pub-8529977313104602/9789350989'; // Android Production Rewarded
     } else if (Platform.isIOS) {
       return 'ca-app-pub-3940256099942544/1712485313'; // iOS Test Rewarded
     }
@@ -47,7 +51,7 @@ class AdService {
   static String get nativeAdUnitId {
     if (kIsWeb) return '';
     if (Platform.isAndroid) {
-      return 'ca-app-pub-3940256099942544/2247696110'; // Android Test Native
+      return 'ca-app-pub-8529977313104602/3983197572'; // Android Production Native
     } else if (Platform.isIOS) {
       return 'ca-app-pub-3940256099942544/3986624511'; // iOS Test Native
     }
@@ -67,6 +71,7 @@ class AdService {
   // ── Initialize the SDK ──
   Future<void> initialize() async {
     await MobileAds.instance.initialize();
+    _tracker.init(); // Start ad event tracking
     debugPrint('[AdService] MobileAds SDK initialized.');
     // Pre-load ads immediately so they're ready when needed
     loadInterstitialAd();
@@ -87,6 +92,7 @@ class AdService {
       listener: BannerAdListener(
         onAdLoaded: (ad) {
           debugPrint('[AdService] Banner ad loaded.');
+          _tracker.trackImpression('banner');
           onAdLoaded?.call(ad);
         },
         onAdFailedToLoad: (ad, error) {
@@ -148,6 +154,7 @@ class AdService {
 
     if (_isInterstitialReady && _interstitialAd != null) {
       _lastInterstitialShown = DateTime.now();
+      _tracker.trackImpression('interstitial');
       _interstitialAd!.show();
       return true;
     } else {
@@ -197,6 +204,7 @@ class AdService {
       );
       _rewardedAd!.show(onUserEarnedReward: (ad, reward) {
         debugPrint('[AdService] User earned reward: ${reward.amount} ${reward.type}');
+        _tracker.trackCompleted('rewarded');
         onRewarded(reward);
       });
     } else {
@@ -210,6 +218,7 @@ class AdService {
 
   // ─────────────────── CLEANUP ───────────────────
   void dispose() {
+    _tracker.dispose(); // Final flush of queued events
     _interstitialAd?.dispose();
     _rewardedAd?.dispose();
   }

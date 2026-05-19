@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\UserActivity;
+use App\Models\AdEvent;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\DB;
 
@@ -105,6 +106,46 @@ class UserPerformanceController extends Controller
                 ->count(),
         ];
 
+        // ── Ad Analytics (from ad_events table) ──
+        $adAnalytics = ['banner' => 0, 'interstitial' => 0, 'rewarded' => 0, 'daily' => [], 'revenue' => 0];
+        if (\Schema::hasTable('ad_events')) {
+            $adCounts = AdEvent::whereDate('created_at', '>=', $startDate)
+                ->whereDate('created_at', '<=', $endDate)
+                ->select('ad_type', DB::raw('count(*) as count'))
+                ->groupBy('ad_type')
+                ->get();
+            foreach ($adCounts as $ac) {
+                $adAnalytics[$ac->ad_type] = $ac->count;
+            }
+
+            // Daily trend for chart (last 14 days or date range)
+            $adDaily = AdEvent::whereDate('created_at', '>=', $startDate)
+                ->whereDate('created_at', '<=', $endDate)
+                ->select(
+                    DB::raw('DATE(created_at) as date'),
+                    'ad_type',
+                    DB::raw('count(*) as count')
+                )
+                ->groupBy(DB::raw('DATE(created_at)'), 'ad_type')
+                ->orderBy('date')
+                ->get();
+
+            $dailyMap = [];
+            foreach ($adDaily as $d) {
+                $dailyMap[$d->date][$d->ad_type] = $d->count;
+            }
+            $adAnalytics['daily'] = $dailyMap;
+
+            // Estimated Revenue (India eCPM rates in INR)
+            // Banner: ₹25/1000, Interstitial: ₹65/1000, Rewarded: ₹170/1000
+            $adAnalytics['revenue'] = round(
+                ($adAnalytics['banner'] * 25 / 1000) +
+                ($adAnalytics['interstitial'] * 65 / 1000) +
+                ($adAnalytics['rewarded'] * 170 / 1000),
+                2
+            );
+        }
+
         // Detailed Activity Log (Excluding Admins)
         $userId = $request->input('user_id');
         $trackedUser = null;
@@ -143,12 +184,12 @@ class UserPerformanceController extends Controller
         // AJAX handling for live search
         if ($request->ajax()) {
             return view('backend.user_performance', compact(
-                'users', 'totalRegistered', 'totalPurchased', 'totalBusinesses', 'businessStats', 'usageStats', 'funnel', 'activityLogs', 'startDate', 'endDate', 'userId', 'trackedUser', 'searchUser'
+                'users', 'totalRegistered', 'totalPurchased', 'totalBusinesses', 'businessStats', 'usageStats', 'funnel', 'activityLogs', 'startDate', 'endDate', 'userId', 'trackedUser', 'searchUser', 'adAnalytics'
             ))->render();
         }
 
         return view('backend.user_performance', compact(
-            'users', 'totalRegistered', 'totalPurchased', 'totalBusinesses', 'businessStats', 'usageStats', 'funnel', 'activityLogs', 'startDate', 'endDate', 'userId', 'trackedUser', 'searchUser'
+            'users', 'totalRegistered', 'totalPurchased', 'totalBusinesses', 'businessStats', 'usageStats', 'funnel', 'activityLogs', 'startDate', 'endDate', 'userId', 'trackedUser', 'searchUser', 'adAnalytics'
         ));
     }
 

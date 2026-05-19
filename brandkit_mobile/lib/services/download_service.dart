@@ -12,7 +12,7 @@ class DownloadService {
     
     try {
       final directory = await getApplicationDocumentsDirectory();
-      final downloadsDir = Directory('${directory.path}/brandkit_downloads');
+      final downloadsDir = Directory('${directory.path}/artera_downloads');
       if (!await downloadsDir.exists()) {
         await downloadsDir.create(recursive: true);
       }

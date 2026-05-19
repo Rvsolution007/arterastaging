@@ -104,11 +104,11 @@ void main() async {
     return true;
   };
 
-  runApp(const BrandkitApp());
+  runApp(const ArteraApp());
 }
 
-class BrandkitApp extends StatelessWidget {
-  const BrandkitApp({super.key});
+class ArteraApp extends StatelessWidget {
+  const ArteraApp({super.key});
 
   @override
   Widget build(BuildContext context) {

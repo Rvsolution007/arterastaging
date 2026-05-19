@@ -1,6 +1,6 @@
 @extends('landing.layout')
 
-@section('title', 'BrandKit - Register Business')
+@section('title', 'Artera - Register Business')
 
 @section('extra_css')
 <style>
@@ -44,7 +44,7 @@
 <section class="section section-alt" style="padding: 40px 0;">
     <div class="container">
         <div class="text-center" data-aos="fade-up" style="margin-bottom: 20px;">
-            <h2 class="section-title">Join <span class="text-gradient">BrandKit</span></h2>
+            <h2 class="section-title">Join <span class="text-gradient">Artera</span></h2>
         </div>
 
         <div class="auth-container" data-aos="fade-up" data-aos-delay="100">
@@ -87,7 +87,7 @@
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <div class="form-group">
                             <label class="form-label">Business Name <span style="color:red">*</span></label>
-                            <input type="text" name="name" value="{{ old('name') }}" class="form-control" placeholder="BrandKit Store" required>
+                            <input type="text" name="name" value="{{ old('name') }}" class="form-control" placeholder="Artera Store" required>
                             @error('name')<div class="error-msg">{{ $message }}</div>@enderror
                         </div>
                         

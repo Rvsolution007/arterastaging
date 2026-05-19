@@ -1,6 +1,6 @@
 @extends('landing.layout')
 
-@section('title', 'BrandKit - Reviews')
+@section('title', 'Artera - Reviews')
 
 @section('extra_css')
 <style>
@@ -33,7 +33,7 @@
                 <div class="review-stars">
                     <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
                 </div>
-                <p class="review-text">"The daily automation feature is a lifesaver. I used to spend hours figuring out what to put on my WhatsApp status for my boutique. Now BrandKit does it for me every morning."</p>
+                <p class="review-text">"The daily automation feature is a lifesaver. I used to spend hours figuring out what to put on my WhatsApp status for my boutique. Now Artera does it for me every morning."</p>
                 <div class="reviewer-info">
                     <div class="reviewer-img" style="background-color: #EC4899;">P</div>
                     <div class="reviewer-details">

@@ -1,6 +1,6 @@
 @extends('landing.layout')
 
-@section('title', 'BrandKit - Features')
+@section('title', 'Artera - Features')
 
 @section('extra_css')
 <style>
@@ -30,7 +30,7 @@
         <div class="text-center" data-aos="fade-up" style="margin-bottom: 80px;">
             <div style="color: var(--primary-light); font-weight: 700; text-transform: uppercase; letter-spacing: 2px; font-size: 14px; margin-bottom: 10px;">Deep Dive</div>
             <h2 class="section-title">Powerful Features <span class="text-gradient">Explained</span></h2>
-            <p class="section-desc">Discover how each component of BrandKit works together to amplify your digital presence.</p>
+            <p class="section-desc">Discover how each component of Artera works together to amplify your digital presence.</p>
         </div>
 
         <!-- Feature 1: AI Magic Cloner -->

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'BrandKit - AI-Powered Digital Marketing')</title>
+    <title>@yield('title', 'Artera - AI-Powered Digital Marketing')</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -96,7 +96,7 @@
     <!-- Navigation -->
     <nav class="navbar" id="navbar">
         <div class="container nav-container">
-            <a href="{{ route('landing.home') }}" class="logo"><i class="fa-solid fa-layer-group"></i> BrandKit</a>
+            <a href="{{ route('landing.home') }}" class="logo"><i class="fa-solid fa-layer-group"></i> Artera</a>
             
             <ul class="nav-links" id="navLinks">
                 <li><a href="{{ route('landing.home') }}" class="{{ request()->routeIs('landing.home') ? 'active' : '' }}">Home</a></li>
@@ -127,7 +127,7 @@
         <div class="container">
             <div class="footer-grid">
                 <div>
-                    <a href="{{ route('landing.home') }}" class="footer-logo"><i class="fa-solid fa-layer-group"></i> BrandKit</a>
+                    <a href="{{ route('landing.home') }}" class="footer-logo"><i class="fa-solid fa-layer-group"></i> Artera</a>
                     <p class="footer-desc">The ultimate AI-powered poster maker and marketing automation tool for small and medium businesses.</p>
                     <div style="margin-top: 20px;">
                         <a href="#" class="btn btn-primary" style="padding: 10px 20px;"><i class="fa-brands fa-google-play mr-2"></i> Download App</a>
@@ -165,7 +165,7 @@
             </div>
             
             <div class="footer-bottom">
-                <p>&copy; 2026 BrandKit Inc. All rights reserved.</p>
+                <p>&copy; 2026 Artera Inc. All rights reserved.</p>
                 <div style="display: flex; gap: 20px;">
                     <a href="#" style="color: #94a3b8;"><i class="fa-brands fa-facebook-f"></i></a>
                     <a href="#" style="color: #94a3b8;"><i class="fa-brands fa-instagram"></i></a>

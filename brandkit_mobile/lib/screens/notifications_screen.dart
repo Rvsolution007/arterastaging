@@ -42,7 +42,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       setState(() {
         _notifications = [
           {
-            'title': 'Welcome to Brandkit!',
+            'title': 'Welcome to Artera!',
             'message': 'Create your first custom post today.',
             'created_at': '2 hours ago',
           },

@@ -1,6 +1,6 @@
 @extends('landing.layout')
 
-@section('title', 'BrandKit - Home')
+@section('title', 'Artera - Home')
 
 @section('extra_css')
 <style>
@@ -70,7 +70,7 @@
                 <div class="hero-content">
                     <div class="hero-text" data-aos="fade-right">
                         <h1>Create Stunning Marketing Posts in Seconds</h1>
-                        <p>BrandKit uses advanced AI to instantly generate professional festival posters, business templates, and custom social media content for your brand.</p>
+                        <p>Artera uses advanced AI to instantly generate professional festival posters, business templates, and custom social media content for your brand.</p>
                         <div class="hero-actions">
                             <a href="#" class="play-store-btn">
                                 <i class="fa-brands fa-google-play"></i>
@@ -83,7 +83,7 @@
                         </div>
                     </div>
                     <div class="hero-image" data-aos="fade-left">
-                        <img src="{{ asset('landing/images/hero-phone.png') }}" alt="BrandKit App Interface" class="hero-img-element" onerror="this.src='https://placehold.co/400x800/1E3A8A/FFFFFF?text=App+Mockup'">
+                        <img src="{{ asset('landing/images/hero-phone.png') }}" alt="Artera App Interface" class="hero-img-element" onerror="this.src='https://placehold.co/400x800/1E3A8A/FFFFFF?text=App+Mockup'">
                     </div>
                 </div>
             </div>

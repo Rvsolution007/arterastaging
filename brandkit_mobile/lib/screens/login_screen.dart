@@ -38,7 +38,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 10),
               const Text(
-                'Sign in to continue to Brandkit',
+                'Sign in to continue to Artera',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
               ),

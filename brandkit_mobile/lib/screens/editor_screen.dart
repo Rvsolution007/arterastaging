@@ -219,7 +219,7 @@ class _EditorScreenState extends State<EditorScreen> {
       final base64Str = dataUrl.split(',').last;
       final bytes = base64Decode(base64Str);
 
-      final fileName = "brandkit_design_${DateTime.now().millisecondsSinceEpoch}";
+      final fileName = "artera_design_${DateTime.now().millisecondsSinceEpoch}";
       await Gal.putImageBytes(
         Uint8List.fromList(bytes),
         name: fileName,

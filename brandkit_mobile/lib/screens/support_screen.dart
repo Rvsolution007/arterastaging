@@ -45,7 +45,7 @@ class _SupportScreenState extends State<SupportScreen> {
       _appSettings = {
         'whatsapp_number': '+919876543210',
         'contact': '+91 98765 43210',
-        'email': 'support@brandkit.com',
+        'email': 'support@artera.app',
       };
       _isLoading = false;
     });

@@ -136,7 +136,7 @@ class _CheckoutBottomSheetState extends State<CheckoutBottomSheet> {
     var options = {
       'key': razorpayKey,
       'amount': (finalPrice * 100).toInt(),
-      'name': 'Brandkit Subscription',
+      'name': 'Artera Subscription',
       'description': widget.plan['planName'],
       'prefill': {'email': userEmail},
     };

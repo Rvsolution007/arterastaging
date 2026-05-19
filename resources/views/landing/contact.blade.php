@@ -1,6 +1,6 @@
 @extends('landing.layout')
 
-@section('title', 'BrandKit - Contact Us')
+@section('title', 'Artera - Contact Us')
 
 @section('extra_css')
 <style>
@@ -63,7 +63,7 @@
                     <i class="fa-solid fa-envelope"></i>
                     <div>
                         <h4>Email Us</h4>
-                        <p>support@brandkit.app</p>
+                        <p>support@artera.app</p>
                     </div>
                 </div>
                 

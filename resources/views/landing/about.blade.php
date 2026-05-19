@@ -1,6 +1,6 @@
 @extends('landing.layout')
 
-@section('title', 'BrandKit - About Us')
+@section('title', 'Artera - About Us')
 
 @section('extra_css')
 <style>
@@ -32,12 +32,12 @@
         </div>
         <div class="about-content">
             <div class="about-image" data-aos="fade-right">
-                <img src="{{ asset('landing/images/about-illustration.png') }}" alt="About BrandKit" onerror="this.src='https://placehold.co/600x500/F0F7FF/1E3A8A?text=Team+Illustration'">
+                <img src="{{ asset('landing/images/about-illustration.png') }}" alt="About Artera" onerror="this.src='https://placehold.co/600x500/F0F7FF/1E3A8A?text=Team+Illustration'">
             </div>
             <div class="about-text" data-aos="fade-left">
                 <div style="color: var(--primary-light); font-weight: 700; text-transform: uppercase; letter-spacing: 2px; font-size: 14px; margin-bottom: 10px;">Our Mission</div>
                 <h3>Empowering Businesses with Smart Marketing</h3>
-                <p>BrandKit was founded with a single mission: to make professional digital marketing accessible to every small and medium business owner. We merge cutting-edge Artificial Intelligence with intuitive design tools.</p>
+                <p>Artera was founded with a single mission: to make professional digital marketing accessible to every small and medium business owner. We merge cutting-edge Artificial Intelligence with intuitive design tools.</p>
                 <p>With our robust platform spanning a Cloud backend and a seamless mobile experience, we help you maintain a consistent, beautiful brand identity across WhatsApp, Instagram, and Facebook without hiring an expensive design agency.</p>
                 
                 <div class="stats-grid" id="stats">

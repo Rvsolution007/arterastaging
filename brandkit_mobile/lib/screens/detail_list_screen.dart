@@ -172,7 +172,7 @@ class _DetailListScreenState extends State<DetailListScreen> {
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
-        final fileName = "brandkit_design_${DateTime.now().millisecondsSinceEpoch}";
+        final fileName = "artera_design_${DateTime.now().millisecondsSinceEpoch}";
         final isVideo = url.toLowerCase().endsWith('.mp4');
         if (isVideo) {
           final tempDir = await getTemporaryDirectory();

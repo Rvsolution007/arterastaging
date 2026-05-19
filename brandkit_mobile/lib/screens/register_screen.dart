@@ -34,7 +34,7 @@ class RegisterScreen extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               const Text(
-                'Join Brandkit to create stunning posts',
+                'Join Artera to create stunning posts',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16, color: AppColors.textSecondary),
               ),

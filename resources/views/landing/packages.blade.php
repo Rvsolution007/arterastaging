@@ -1,6 +1,6 @@
 @extends('landing.layout')
 
-@section('title', 'BrandKit - Packages')
+@section('title', 'Artera - Packages')
 
 @section('extra_css')
 <style>

@@ -173,6 +173,18 @@
 
                     <div class="row">
                         <div class="col-12 mb-4">
+                            <label class="form-label-premium" for="is_ai">Is AI Template?</label>
+                            <div class="d-flex align-items-center" style="margin-top: 5px;">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" name="is_ai" value="1" class="custom-control-input" id="is_ai" @if($categoryPost->is_ai == 1) checked @endif>
+                                    <label class="custom-control-label" for="is_ai" style="font-weight: 500; color: #475569;">Yes, this is an AI template</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12 mb-4">
                             <label class="form-label-premium">Update Frame Image</label>
                             <div class="custom-file">
                                 <input type="file" class="custom-file-input" id="frame_image" name="frame_image" accept=".jpg, .png, jpeg, .PNG, .JPG, .JPEG">

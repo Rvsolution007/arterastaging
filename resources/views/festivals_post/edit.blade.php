@@ -62,6 +62,20 @@
     <div class="row">
         <div class="col-12">
             <div class="form-group row">
+                <label class="col-sm-3 col-form-label" for="is_ai">Is AI Template?</label>
+                <div class="col-sm-4 d-flex align-items-center" style="margin-top: 7px;">
+                    <div class="custom-control custom-checkbox">
+                        <input type="checkbox" name="is_ai" value="1" class="custom-control-input" id="is_ai" @if($festivalsFrame->is_ai == 1) checked @endif>
+                        <label class="custom-control-label" for="is_ai">Yes, this is an AI template</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="form-group row">
                 {!! Form::label('frame_image',' Select Frame Image', ['class' => 'col-sm-3 col-form-label']) !!}
                 <div class="col-sm-4">
                     <input class="form-control" type="file" id="frame_image" name="frame_image">

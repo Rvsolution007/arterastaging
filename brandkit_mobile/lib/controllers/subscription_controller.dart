@@ -103,11 +103,11 @@ class SubscriptionController extends GetxController {
 
     final features = <FeatureUsageInfo>[];
     final featureMap = {
-      'custom_post': {'name': 'Custom Posts', 'icon': Icons.edit_outlined},
-      'festival_post': {'name': 'Festival Posts', 'icon': Icons.celebration_outlined},
-      'business_category_post': {'name': 'Category Posts', 'icon': Icons.category_outlined},
-      'magic_cloner': {'name': 'Magic Cloner', 'icon': Icons.auto_awesome_outlined},
-      'daily_drip': {'name': 'Daily Drip', 'icon': Icons.water_drop_outlined},
+      'custom_post': {'name': 'custom_posts'.tr, 'icon': Icons.edit_outlined},
+      'festival_post': {'name': 'festival_posts'.tr, 'icon': Icons.celebration_outlined},
+      'business_category_post': {'name': 'category_posts'.tr, 'icon': Icons.category_outlined},
+      'magic_cloner': {'name': 'magic_cloner'.tr, 'icon': Icons.auto_awesome_outlined},
+      'daily_drip': {'name': 'daily_drip'.tr, 'icon': Icons.water_drop_outlined},
     };
 
     featureMap.forEach((key, meta) {

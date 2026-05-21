@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../services/ad_service.dart';
 import '../services/download_service.dart';
@@ -38,6 +39,43 @@ class _DetailListScreenState extends State<DetailListScreen> {
   String itemName = '';
   String itemImage = '';
   String activeTab = 'images'; // 'images' or 'videos'
+  String imageFilter = 'Normal'; // 'Normal' or 'AI'
+  List<String> preferredLanguages = [];
+
+  Future<void> _loadPreferredLanguages() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getStringList('selectedLanguages');
+      if (saved != null) {
+        setState(() {
+          preferredLanguages = saved;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading preferred languages: $e');
+    }
+  }
+
+  List<dynamic> get currentFrames {
+    if (activeTab == 'images') {
+      return frames.where((f) {
+        bool isAiFrame = f['isAi'] == true;
+        bool matchesAi = imageFilter == 'AI' ? isAiFrame : !isAiFrame;
+        if (!matchesAi) return false;
+
+        // Language filtering:
+        if (preferredLanguages.isNotEmpty) {
+          final frameLang = (f['language'] ?? '').toString().trim().toLowerCase();
+          if (frameLang != 'all' && frameLang.isNotEmpty) {
+            bool match = preferredLanguages.any((pref) => pref.trim().toLowerCase() == frameLang);
+            if (!match) return false;
+          }
+        }
+        return true;
+      }).toList();
+    }
+    return videos;
+  }
 
   // ── Native Ad for template list ──
   NativeAd? _nativeAd;
@@ -46,7 +84,9 @@ class _DetailListScreenState extends State<DetailListScreen> {
   @override
   void initState() {
     super.initState();
-    fetchFrames();
+    _loadPreferredLanguages().then((_) {
+      fetchFrames();
+    });
     _loadNativeAd();
     ApiService.trackActivity(
       action: 'select_template',
@@ -127,13 +167,14 @@ class _DetailListScreenState extends State<DetailListScreen> {
   }
 
   String get selectedImageUrl {
+    final list = currentFrames;
     if (activeTab == 'images') {
-      if (frames.isNotEmpty && selectedIndex < frames.length) {
-        return frames[selectedIndex]['image'] ?? '';
+      if (list.isNotEmpty && selectedIndex < list.length) {
+        return list[selectedIndex]['image'] ?? '';
       }
     } else {
-      if (videos.isNotEmpty && selectedIndex < videos.length) {
-        return videos[selectedIndex]['videoUrl'] ?? '';
+      if (list.isNotEmpty && selectedIndex < list.length) {
+        return list[selectedIndex]['videoUrl'] ?? '';
       }
     }
     return itemImage;
@@ -149,11 +190,9 @@ class _DetailListScreenState extends State<DetailListScreen> {
     // Phase 2: Show Interstitial ad on download for premium templates
     // when base limit is reached
     bool isPaid = false;
-    if (activeTab == 'images') {
-      final list = filteredFrames;
-      isPaid = list.isNotEmpty && selectedIndex < list.length && (list[selectedIndex]['isPaid'] == true);
-    } else {
-      isPaid = videos.isNotEmpty && selectedIndex < videos.length && (videos[selectedIndex]['isPaid'] == true);
+    final list = currentFrames;
+    if (list.isNotEmpty && selectedIndex < list.length) {
+      isPaid = list[selectedIndex]['isPaid'] == true;
     }
 
     String featureKey = 'festival_post';
@@ -211,7 +250,7 @@ class _DetailListScreenState extends State<DetailListScreen> {
     List<Widget> items = [];
     int nativeAdInsertIndex = 6; // Insert native ad after 6th frame
     
-    final currentList = activeTab == 'images' ? frames : videos;
+    final currentList = currentFrames;
 
     for (int i = 0; i < currentList.length; i++) {
       // Insert native ad at the designated position
@@ -407,8 +446,9 @@ class _DetailListScreenState extends State<DetailListScreen> {
                             }
 
                             Map<String, dynamic>? frameData;
-                            if (frames.isNotEmpty && selectedIndex < frames.length) {
-                              frameData = frames[selectedIndex];
+                            final list = currentFrames;
+                            if (activeTab == 'images' && list.isNotEmpty && selectedIndex < list.length) {
+                              frameData = list[selectedIndex];
                             } else if (itemImage.isNotEmpty) {
                               // Fallback to the category image if no frames are available
                               frameData = {
@@ -429,10 +469,8 @@ class _DetailListScreenState extends State<DetailListScreen> {
                               final AdController adController = Get.find<AdController>();
                               
                               bool isPaid = false;
-                              if (activeTab == 'images') {
-                                isPaid = frames.isNotEmpty && selectedIndex < frames.length && (frames[selectedIndex]['isPaid'] == true);
-                              } else {
-                                isPaid = videos.isNotEmpty && selectedIndex < videos.length && (videos[selectedIndex]['isPaid'] == true);
+                              if (list.isNotEmpty && selectedIndex < list.length) {
+                                isPaid = list[selectedIndex]['isPaid'] == true;
                               }
                               
                               // Map widget.type to feature key
@@ -588,9 +626,36 @@ class _DetailListScreenState extends State<DetailListScreen> {
                         ),
                       ),
 
+                      // AI Filter (Only for Images)
+                      if (activeTab == 'images')
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border(bottom: BorderSide(color: const Color(0xFFF8FAFC))),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Row(
+                            children: [
+                              _buildFilterChip('Normal', imageFilter == 'Normal', () {
+                                setState(() {
+                                  imageFilter = 'Normal';
+                                  selectedIndex = 0;
+                                });
+                              }),
+                              const SizedBox(width: 8),
+                              _buildFilterChip('AI', imageFilter == 'AI', () {
+                                setState(() {
+                                  imageFilter = 'AI';
+                                  selectedIndex = 0;
+                                });
+                              }),
+                            ],
+                          ),
+                        ),
+
                       // Frames Grid (with Native Ad injected)
                       Expanded(
-                        child: (activeTab == 'images' && frames.isEmpty) || (activeTab == 'videos' && videos.isEmpty)
+                        child: currentFrames.isEmpty
                             ? Center(
                                 child: activeTab == 'images'
                                     ? Column(
@@ -636,6 +701,28 @@ class _DetailListScreenState extends State<DetailListScreen> {
                 ),
               ],
             ),
+    );
+  }
+
+  Widget _buildFilterChip(String label, bool isSelected, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: isSelected ? AppColors.primary : Colors.grey.shade300, width: 1.5),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+            color: isSelected ? AppColors.primary : Colors.grey.shade600,
+          ),
+        ),
+      ),
     );
   }
 

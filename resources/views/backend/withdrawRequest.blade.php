@@ -31,8 +31,9 @@
             <tr>
               <th>#</th>
               <th>User</th>
-              <th>UPI Id</th>
+              <th>UPI Id / Method</th>
               <th>Withdraw Amount</th>
+              <th>Date requested</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -40,21 +41,33 @@
           @foreach($data as $row)
             <tr>
               <td class="align-middle">{{$row->id}}</td>
-              <td class="align-middle">{{$row->user->name}}</td>
-              <td class="align-middle">{{$row->upi_id}}</td>
-              <td class="align-middle">{{$row->withdraw_amount}}</td>
+              <td class="align-middle">
+                  <strong>{{$row->user->name}}</strong><br>
+                  <small>{{$row->user->email}}</small>
+              </td>
+              <td class="align-middle">
+                  @if($row->upi_id == 'Auto-Generated')
+                    <span class="badge badge-info">Auto-Generated (Manual Transfer Needed)</span>
+                  @else
+                    {{$row->upi_id}}
+                  @endif
+              </td>
+              <td class="align-middle font-weight-bold text-success">${{ number_format($row->withdraw_amount, 2) }}</td>
+              <td class="align-middle">{{$row->created_at->format('d M, Y')}}</td>
               <td>
                 <div class="btn-group">
                   @if($row->status == 1)
-                  Success
+                  <span class="badge badge-success px-3 py-2"><i class="fa fa-check mr-1"></i> Paid</span>
                   @else
                   <form method="post" action="{{url('admin/withdraw-request')}}">
                     @csrf
                     <input type="hidden" name="id" value="{{$row->id}}">
                     @if(optional(Auth::user())->user_type == "Demo")
-                    <button type="button" class="btn btn-success ToastrButton">Pending</button>
+                    <button type="button" class="btn btn-warning ToastrButton"><i class="fa fa-clock"></i> Pending (Demo)</button>
                     @else
-                    <button type="submit" class="btn btn-danger ml-2">Pending</button>
+                    <button type="submit" class="btn btn-primary" onclick="return confirm('Are you sure you have manually transferred the amount? This will mark the request as Paid.')">
+                        <i class="fa fa-money-bill-wave"></i> Mark as Paid
+                    </button>
                     @endif
                   </form>
                   @endif

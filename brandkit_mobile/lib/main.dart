@@ -18,6 +18,7 @@ import 'screens/notifications_screen.dart';
 import 'screens/editor_screen.dart';
 import 'screens/detail_list_screen.dart';
 import 'controllers/home_controller.dart';
+import 'services/translation_service.dart';
 
 import 'package:flutter/foundation.dart';
 import 'widgets/error_submission_dialog.dart';
@@ -38,69 +39,17 @@ void main() async {
   Get.put(SubscriptionController(), permanent: true);
   Get.put(HomeController(), permanent: true);
 
+  // Initialize Translations
+  await TranslationService.init();
+
   // Global Error Handler
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
     debugPrint('Global Flutter Error: ${details.exceptionAsString()}');
-
-    // Show a non-intrusive snackbar instead of an instant dialog
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (Get.context != null && !Get.isSnackbarOpen) {
-        Get.snackbar(
-          "Something went wrong",
-          "A small issue was detected. Tap here to report it to our team.",
-          mainButton: TextButton(
-            onPressed: () {
-              Get.back(); // close snackbar
-              Get.dialog(
-                ErrorSubmissionDialog(
-                  errorCode: 'ERR_FLUTTER',
-                  errorMessage: details.exceptionAsString(),
-                ),
-              );
-            },
-            child: const Text("REPORT", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-          backgroundColor: Colors.black87,
-          colorText: Colors.white,
-          duration: const Duration(seconds: 5),
-          snackPosition: SnackPosition.BOTTOM,
-          margin: const EdgeInsets.all(12),
-          borderRadius: 16,
-        );
-      }
-    });
   };
 
   PlatformDispatcher.instance.onError = (error, stack) {
     debugPrint('Global Platform Error: $error');
-    // Same for platform errors
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (Get.context != null && !Get.isSnackbarOpen) {
-        Get.snackbar(
-          "App Encountered an Issue",
-          "Would you like to report this problem to our admin?",
-          mainButton: TextButton(
-            onPressed: () {
-              Get.back();
-              Get.dialog(
-                ErrorSubmissionDialog(
-                  errorCode: 'ERR_PLATFORM',
-                  errorMessage: error.toString(),
-                ),
-              );
-            },
-            child: const Text("REPORT", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-          backgroundColor: Colors.black87,
-          colorText: Colors.white,
-          duration: const Duration(seconds: 5),
-          snackPosition: SnackPosition.BOTTOM,
-          margin: const EdgeInsets.all(12),
-          borderRadius: 16,
-        );
-      }
-    });
     return true;
   };
 
@@ -113,9 +62,13 @@ class ArteraApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetMaterialApp(
-      title: 'Artera Pixel',
-      debugShowCheckedModeBanner: false,
+      title: 'Festival Post Maker',
       theme: AppTheme.lightTheme,
+      debugShowCheckedModeBanner: false,
+      translations: TranslationService(),
+      locale: Locale(TranslationService.savedLangCode ?? 'en'),
+      fallbackLocale: const Locale('en'),
+      defaultTransition: Transition.cupertino,
       home: const SplashGate(),
       getPages: [
         GetPage(name: '/', page: () => const SplashGate()),
@@ -140,7 +93,7 @@ class ArteraApp extends StatelessWidget {
             type: getValue('type') ?? 'business_custom_frame',
             id: id,
             designUrl: getValue('designUrl') ?? '',
-            frameData: args['frameData'] ?? {},
+            frameData: args['frameData'] ?? <String, dynamic>{},
             aiAnalysisData: args['aiAnalysisData'],
             mappingRules: args['mappingRules'],
           );

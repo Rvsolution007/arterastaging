@@ -16,10 +16,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'partner_dashboard_screen.dart';
 import '../widgets/error_submission_dialog.dart';
 import 'referral_screen.dart';
+import '../services/translation_service.dart';
 
-class MoreScreen extends StatelessWidget {
+class MoreScreen extends StatefulWidget {
   const MoreScreen({super.key});
 
+  @override
+  State<MoreScreen> createState() => _MoreScreenState();
+}
+
+class _MoreScreenState extends State<MoreScreen> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -60,7 +66,7 @@ class MoreScreen extends StatelessWidget {
   Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-      child: Text('Settings', style: AppTextStyles.heading2),
+      child: Text('settings'.tr, style: AppTextStyles.heading2),
     );
   }
 
@@ -94,23 +100,30 @@ class MoreScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Business Settings'),
+        _buildSectionTitle('business_settings'.tr),
         _buildSectionContainer(
           children: [
             SettingsItem(
               icon: Icons.translate_rounded,
-              title: 'Preferred Languages',
-              subtitle: 'Select languages', // Would be reactive in real app
+              title: 'preferred_languages'.tr,
               iconColor: AppColors.gray500,
               iconBgColor: Colors.transparent,
-              onTap: () => _openLanguageDrawer(context),
-            ),
-            SettingsItem(
-              icon: Icons.alternate_email_rounded,
-              title: 'Add Watermark',
-              iconColor: AppColors.gray500,
-              iconBgColor: Colors.transparent,
-              trailing: CustomSwitch(value: false, onChanged: (v) {}),
+              trailing: Row(
+                children: [
+                  Text(
+                    TranslationService.availableLanguages.isEmpty 
+                      ? 'English' 
+                      : TranslationService.availableLanguages.firstWhere(
+                          (l) => l['code'] == TranslationService.savedLangCode, 
+                          orElse: () => {'title': 'English'}
+                        )['title'], 
+                    style: AppTextStyles.settingsSubtitle
+                  ),
+                  AppSpacing.gapH4,
+                  Icon(Icons.chevron_right, color: AppColors.gray300, size: 22),
+                ],
+              ),
+              onTap: () => _showLanguageBottomSheet(context),
             ),
           ],
         ),
@@ -131,13 +144,13 @@ class MoreScreen extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionTitle('Partner Program'),
+            _buildSectionTitle('partner_program'.tr),
             _buildSectionContainer(
               children: [
                 SettingsItem(
                   icon: Icons.monetization_on_outlined,
-                  title: 'Partner Dashboard',
-                  subtitle: 'View earnings & request withdrawal',
+                  title: 'partner_dashboard'.tr,
+                  subtitle: 'view_earnings'.tr,
                   iconColor: AppColors.success,
                   iconBgColor: Colors.transparent,
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PartnerDashboardScreen())),
@@ -155,49 +168,20 @@ class MoreScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('App Preferences'),
+        _buildSectionTitle('app_preferences'.tr),
         _buildSectionContainer(
           children: [
             Obx(() {
               final hc = Get.find<HomeController>();
               return SettingsItem(
                 icon: Icons.notifications_none_rounded,
-                title: 'Notifications',
+                title: 'notifications'.tr,
                 badgeCount: hc.notifications.length,
                 iconColor: AppColors.gray500,
                 iconBgColor: Colors.transparent,
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen())),
               );
             }),
-            SettingsItem(
-              icon: Icons.dark_mode_outlined,
-              title: 'Dark Mode',
-              iconColor: AppColors.gray500,
-              iconBgColor: Colors.transparent,
-              trailing: CustomSwitch(value: false, onChanged: (v) {}),
-            ),
-            SettingsItem(
-              icon: Icons.language_rounded,
-              title: 'App Language',
-              iconColor: AppColors.gray500,
-              iconBgColor: Colors.transparent,
-              trailing: Row(
-                children: [
-                  Text('English', style: AppTextStyles.settingsSubtitle),
-                  AppSpacing.gapH4,
-                  Icon(Icons.chevron_right, color: AppColors.gray300, size: 22),
-                ],
-              ),
-              onTap: () {},
-            ),
-            SettingsItem(
-              icon: Icons.share_outlined,
-              title: 'Add Share Text',
-              subtitle: 'Include share text when sharing',
-              iconColor: AppColors.gray500,
-              iconBgColor: Colors.transparent,
-              trailing: CustomSwitch(value: true, onChanged: (v) {}),
-            ),
           ],
         ),
       ],
@@ -208,15 +192,15 @@ class MoreScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('About App'),
+        _buildSectionTitle('about_app'.tr),
         _buildSectionContainer(
           children: [
-            SettingsItem(icon: Icons.help_outline, title: 'Help & Support', iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen()))),
-            SettingsItem(icon: Icons.chat_bubble_outline, title: 'FAQs', iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FaqsScreen()))),
-            SettingsItem(icon: Icons.rss_feed, title: 'Blog', iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
+            SettingsItem(icon: Icons.help_outline, title: 'help_support'.tr, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen()))),
+            SettingsItem(icon: Icons.chat_bubble_outline, title: 'faqs'.tr, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FaqsScreen()))),
+            SettingsItem(icon: Icons.rss_feed, title: 'blog'.tr, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
             SettingsItem(
               icon: Icons.bug_report_outlined,
-              title: 'Report a Problem',
+              title: 'report_problem'.tr,
               iconColor: AppColors.gray500,
               iconBgColor: Colors.transparent,
               onTap: () {
@@ -228,9 +212,9 @@ class MoreScreen extends StatelessWidget {
                 );
               },
             ),
-            SettingsItem(icon: Icons.lock_outline, title: 'Privacy Policy', iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
-            SettingsItem(icon: Icons.description_outlined, title: 'Terms & Conditions', iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
-            SettingsItem(icon: Icons.credit_card_outlined, title: 'Refund Policy', iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
+            SettingsItem(icon: Icons.lock_outline, title: 'privacy_policy'.tr, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
+            SettingsItem(icon: Icons.description_outlined, title: 'terms_conditions'.tr, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
+            SettingsItem(icon: Icons.credit_card_outlined, title: 'refund_policy'.tr, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
           ],
         ),
       ],
@@ -326,6 +310,52 @@ class MoreScreen extends StatelessWidget {
     );
   }
 
+  void _showLanguageBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text('select_language'.tr, style: AppTextStyles.heading3),
+              ),
+              const Divider(height: 1),
+              StatefulBuilder(
+                builder: (BuildContext context, StateSetter setModalState) {
+                  String currentLang = TranslationService.savedLangCode ?? 'en';
+                  
+                  return Column(
+                    children: TranslationService.availableLanguages.map((lang) {
+                      bool isSelected = currentLang == lang['code'];
+                      return RadioListTile<String>(
+                        activeColor: AppColors.primary,
+                        title: Text(lang['title'], style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                        value: lang['code'],
+                        groupValue: currentLang,
+                        onChanged: (String? value) {
+                          if (value != null) {
+                            TranslationService.changeLanguage(value);
+                            setState(() {});
+                            Navigator.pop(context);
+                          }
+                        },
+                      );
+                    }).toList(),
+                  );
+                }
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildFooter() {
     return Padding(
       padding: const EdgeInsets.only(top: 32, bottom: 48),
@@ -374,19 +404,54 @@ class LanguageSelectionDrawer extends StatefulWidget {
 }
 
 class _LanguageSelectionDrawerState extends State<LanguageSelectionDrawer> {
-  final List<String> allLanguages = [
-    'Hindi', 'English', 'Gujarati', 'Marathi', 'Telugu', 'Tamil', 'Bengali',
-    'Punjabi', 'Kannada', 'Malayalam', 'Urdu', 'Odia', 'Assamese', 'Maithili',
-    'Sanskrit', 'Konkani', 'Manipuri'
-  ];
-  final Set<String> selectedLanguages = {'English'}; // Example default
+  final Set<String> selectedLanguages = {};
   String searchQuery = '';
+  final HomeController homeController = Get.find<HomeController>();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSelectedLanguages();
+  }
+
+  Future<void> _loadSelectedLanguages() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getStringList('selectedLanguages');
+    if (saved != null && saved.isNotEmpty) {
+      setState(() {
+        selectedLanguages.addAll(saved);
+      });
+    } else {
+      // Default to English if nothing saved and it exists in the list
+      setState(() {
+        selectedLanguages.add('English');
+      });
+    }
+  }
+
+  Future<void> _saveSelectedLanguages() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('selectedLanguages', selectedLanguages.toList());
+  }
 
   @override
   Widget build(BuildContext context) {
-    final filteredLanguages = allLanguages
-        .where((lang) => lang.toLowerCase().contains(searchQuery.toLowerCase()))
-        .toList();
+    return Obx(() {
+      final allLanguagesData = homeController.languages;
+      final List<String> allLanguages = allLanguagesData
+          .map((e) => (e['title'] ?? '').toString())
+          .where((title) => title.isNotEmpty)
+          .toList();
+      
+      // Capitalize first letter for display
+      final formattedLanguages = allLanguages.map((title) {
+        if (title.isEmpty) return title;
+        return title[0].toUpperCase() + title.substring(1).toLowerCase();
+      }).toList();
+
+      final filteredLanguages = formattedLanguages
+          .where((lang) => lang.toLowerCase().contains(searchQuery.toLowerCase()))
+          .toList();
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.85,
@@ -535,8 +600,13 @@ class _LanguageSelectionDrawerState extends State<LanguageSelectionDrawer> {
                       elevation: 10,
                       shadowColor: AppColors.blue200,
                     ),
-                    onPressed: () {
+                    onPressed: () async {
                       // Apply changes
+                      await _saveSelectedLanguages();
+                      Get.snackbar('Success', 'Preferred languages updated successfully',
+                          snackPosition: SnackPosition.BOTTOM, 
+                          backgroundColor: AppColors.success, 
+                          colorText: Colors.white);
                       Navigator.pop(context);
                     },
                     child: Row(
@@ -555,5 +625,6 @@ class _LanguageSelectionDrawerState extends State<LanguageSelectionDrawer> {
         ],
       ),
     );
+    });
   }
 }

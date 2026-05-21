@@ -389,6 +389,10 @@
                                 <span class="switch-label">Premium</span>
                                 <input class="form-check-input checkbox2" type="checkbox" data-id="{{$frame->id}}" value="1" @if($frame->paid==1) checked @endif>
                             </div>
+                            <div class="text-center">
+                                <span class="switch-label">AI</span>
+                                <input class="form-check-input ai-switch-ajax" type="checkbox" data-id="{{$frame->id}}" value="1" @if($frame->is_ai==1) checked @endif>
+                            </div>
                         </div>
 
                         <div class="action-icons">
@@ -571,6 +575,7 @@
       $('[data-toggle="tooltip"]').tooltip();
       $('#category').select2();
       $.switcher('.checkbox2');
+      $.switcher('.ai-switch-ajax');
     
       // $('#category').on('change', function () {
       //   var id = $(this).val();
@@ -640,6 +645,25 @@
             new PNotify({
               title: 'Success!',
               text: "Category Post Status Has Been Changed.",
+              type: 'success'
+            });
+          },
+        });
+      });
+
+      $(".ai-switch-ajax").change(function(){
+        var checked = $(this).is(':checked');
+        var id = $(this).data("id");
+        
+        $.ajax({
+          type: "POST",
+          url: "{{url('admin/category-post-ai')}}",
+          data: { checked : checked , id : id},
+          headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+          success: function(data) {
+            new PNotify({
+              title: 'Success!',
+              text: "AI Status Has Been Changed.",
               type: 'success'
             });
           },

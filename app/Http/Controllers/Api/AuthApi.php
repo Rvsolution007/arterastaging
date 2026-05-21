@@ -127,15 +127,20 @@ class AuthApi extends Controller
 
                 $referral_user = User::where('referral_code',$request->get('referralCode'))->first();
                 if($referral_user) {
-                    $referral_user->current_balance = $referral_user->current_balance + ReferralSystem::getReferralSystem('register_point');
-                    $referral_user->total_balance = $referral_user->total_balance + ReferralSystem::getReferralSystem('register_point');
-                    $referral_user->save();
+                    $isFraud = \App\Services\FraudDetectionService::isFraudulentSignup($request, $request->get('email'));
+
+                    if (!$isFraud) {
+                        $referral_user->current_balance = $referral_user->current_balance + ReferralSystem::getReferralSystem('register_point');
+                        $referral_user->total_balance = $referral_user->total_balance + ReferralSystem::getReferralSystem('register_point');
+                        $referral_user->save();
+                    }
 
                     EarningHistory::create([
                         "user_id" => $referral_user->id,
                         "amount" => ReferralSystem::getReferralSystem('register_point'),
                         "amount_type" => 1,
                         "refer_user" => $id,
+                        "status" => $isFraud ? 'fraud' : 'pending' // Set status to fraud or pending
                     ]);
 
                     // B2C Package Reward Logic
@@ -596,15 +601,21 @@ class AuthApi extends Controller
                                         ]);
 
                                         $referral_user = User::where('referral_code',$request->get('referralCode'))->first();
-                                        $referral_user->current_balance = $referral_user->current_balance + ReferralSystem::getReferralSystem('register_point');
-                                        $referral_user->total_balance = $referral_user->total_balance + ReferralSystem::getReferralSystem('register_point');
-                                        $referral_user->save();
+                                        
+                                        $isFraud = \App\Services\FraudDetectionService::isFraudulentSignup($request, $request->get('email'));
+
+                                        if (!$isFraud) {
+                                            $referral_user->current_balance = $referral_user->current_balance + ReferralSystem::getReferralSystem('register_point');
+                                            $referral_user->total_balance = $referral_user->total_balance + ReferralSystem::getReferralSystem('register_point');
+                                            $referral_user->save();
+                                        }
 
                                         EarningHistory::create([
                                             "user_id" => $referral_user->id,
                                             "amount" => ReferralSystem::getReferralSystem('register_point'),
                                             "amount_type" => 1,
                                             "refer_user" => $request->id,
+                                            "status" => $isFraud ? 'fraud' : 'pending'
                                         ]);
 
                                         // B2C Package Reward Logic
@@ -1064,6 +1075,8 @@ class AuthApi extends Controller
             'user_agent' => $request->header('User-Agent'),
         ]);
 
+        $this->checkMilestoneBadges($userId);
+
         // ── Consume subscription feature limit on download ──
         if ($action === 'download_template' && $itemType) {
             $user = User::find($userId);
@@ -1137,5 +1150,50 @@ class AuthApi extends Controller
         }
 
         return response()->json(['status' => 'success', 'tracked' => count($rows)]);
+    }
+
+    private function checkMilestoneBadges($userId)
+    {
+        $postCount = \App\Models\UserActivity::where('user_id', $userId)
+            ->whereIn('action', ['download_template', 'create_custom_post', 'create_festival_post', 'magic_cloner_use'])
+            ->count();
+
+        $milestones = [
+            10 => ['name' => '10 Posts Created!', 'icon' => 'fa-star'],
+            50 => ['name' => '50 Posts Created!', 'icon' => 'fa-medal'],
+            100 => ['name' => '100 Posts Created!', 'icon' => 'fa-crown'],
+            500 => ['name' => '500 Posts Created!', 'icon' => 'fa-trophy'],
+        ];
+
+        if (array_key_exists($postCount, $milestones)) {
+            $badge = $milestones[$postCount];
+            
+            $exists = \Illuminate\Support\Facades\DB::table('user_achievements')
+                ->where('user_id', $userId)
+                ->where('badge_name', $badge['name'])
+                ->exists();
+
+            if (!$exists) {
+                \Illuminate\Support\Facades\DB::table('user_achievements')->insert([
+                    'user_id' => $userId,
+                    'badge_name' => $badge['name'],
+                    'badge_icon' => $badge['icon'],
+                    'description' => 'Awarded for creating ' . $postCount . ' posts/designs.',
+                    'earned_at' => now(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                \Illuminate\Support\Facades\DB::table('user_notifications')->insert([
+                    'user_id' => $userId,
+                    'title' => 'Achievement Unlocked: ' . $badge['name'],
+                    'message' => 'Congratulations! You have unlocked the ' . $badge['name'] . ' badge.',
+                    'action_url' => '',
+                    'status' => 'unread',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        }
     }
 }

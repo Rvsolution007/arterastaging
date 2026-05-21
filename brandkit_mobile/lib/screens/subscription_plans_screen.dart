@@ -108,17 +108,22 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
                       ),
                       AppSpacing.gapV16,
 
-                      // ── Plans Vertical List ──
-                      ListView.builder(
-                        physics: const NeverScrollableScrollPhysics(),
-                        shrinkWrap: true,
-                        itemCount: _plans.length,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        itemBuilder: (context, index) {
-                          final plan = _plans[index];
-                          final isCurrentPlan = sc.planName.value == plan['planName'];
-                          return _buildPlanCard(plan, isCurrentPlan, sc);
-                        },
+                      // ── Plans Horizontal List ──
+                      SizedBox(
+                        height: 650, // Premium horizontal layout height constraint
+                        child: PageView.builder(
+                          controller: PageController(viewportFraction: 0.88),
+                          physics: const BouncingScrollPhysics(),
+                          itemCount: _plans.length,
+                          itemBuilder: (context, index) {
+                            final plan = _plans[index];
+                            final isCurrentPlan = sc.planName.value == plan['planName'];
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+                              child: _buildPlanCard(plan, isCurrentPlan, sc),
+                            );
+                          },
+                        ),
                       ),
                       const SizedBox(height: 40),
                     ],
@@ -469,7 +474,7 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
     };
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(28),

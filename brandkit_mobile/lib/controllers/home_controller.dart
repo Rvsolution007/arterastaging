@@ -19,6 +19,8 @@ class HomeController extends GetxController {
   var news = [].obs;
   var videos = [].obs;
   var notifications = [].obs;
+  var languages = [].obs;
+
   
   // Business info
   var businessName = ''.obs;
@@ -275,6 +277,18 @@ class HomeController extends GetxController {
         }
       } catch (e) {
         // Notifications fetch failed
+      }
+      // 9. Fetch languages
+      try {
+        final langResponse = await ApiService.get('/language');
+        if (langResponse.statusCode == 200) {
+          final langData = jsonDecode(langResponse.body);
+          if (langData is List) {
+            languages.value = langData;
+          }
+        }
+      } catch (e) {
+        // Languages fetch failed
       }
     } catch (e) {
       Get.snackbar('Error', 'An error occurred while fetching data');

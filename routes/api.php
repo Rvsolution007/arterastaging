@@ -36,14 +36,14 @@ Route::
             Route::post('/track-ad-events', 'AuthApi@trackAdEvents')->name('api.track-ad-events');
 
             Route::get('/get-home-data', 'HomeApi@getHomeData');
-            Route::get('/story', 'HomeApi@getStory');
-            Route::get('/festival', 'HomeApi@getFestival');
-            Route::get('/category', 'HomeApi@getCategory');
+            Route::get('/story', 'ContentApiController@getStory');
+            Route::get('/festival', 'ContentApiController@getFestival');
+            Route::get('/category', 'ContentApiController@getCategory');
             Route::get('/custom-post', 'HomeApi@customPost');
             Route::get('/personal', 'HomeApi@personal');
             Route::post('/search', 'HomeApi@search');
 
-            Route::get('/news', 'HomeApi@getNews');
+            Route::get('/news', 'ContentApiController@getNews');
             Route::get('/business', 'HomeApi@getBusiness');
             Route::post('/add-business', 'HomeApi@addBusiness');
             Route::post('/update-business', 'HomeApi@updateBusiness');
@@ -51,6 +51,7 @@ Route::
             Route::get('/get-post', 'HomeApi@getPost');
 
             Route::get('/language', 'HomeApi@getLanguage');
+            Route::get('/app-translations', 'HomeApi@getAppTranslations');
             Route::get('/subscription-plan', 'HomeApi@getSubscriptionplan');
 
             Route::post('/create-payment', 'HomeApi@addPayment');
@@ -103,6 +104,10 @@ Route::
             // AI Magic Cloner Integration (Phase 7 SaaS Blueprint)
             Route::post('ai-magic-cloner', 'AiMagicClonerController@cloneVibe')->middleware('saas.limit:magic_cloner');
 
+            // Gamification & Challenges
+            Route::get('design-challenges', 'DesignChallengeApiController@getActiveChallenges');
+            Route::post('design-challenges/submit', 'DesignChallengeApiController@submitChallenge');
+
             // Native App: Get frames for a specific festival/category/custom post
             Route::get('/get-frames', 'HomeApi@getFrames');
             // Setup Wizard Endpoints
@@ -140,6 +145,14 @@ Route::
             // Notifications
             Route::get('/notifications', 'HomeApi@getNotifications');
 
+            // AI Knowledge Base Endpoints (RAG)
+            Route::post('/knowledge-base/ingest', [\App\Http\Controllers\KnowledgeBaseController::class, 'ingest']);
+            Route::post('/knowledge-base/search', [\App\Http\Controllers\KnowledgeBaseController::class, 'search']);
+
+            // AI Customer Support Chat Endpoints
+            Route::post('/ai-chat/send', [\App\Http\Controllers\Api\AiChatController::class, 'sendMessage']);
+            Route::post('/ai-chat/history', [\App\Http\Controllers\Api\AiChatController::class, 'getHistory']);
+
             // Partner System
             Route::post('/get-partner-dashboard', 'HomeApi@getPartnerDashboard');
             Route::post('/partner-withdraw-request', 'HomeApi@partnerWithdrawRequest');
@@ -147,4 +160,15 @@ Route::
 
 Route::middleware('auth:api')->post('/user', function (Request $request) {
     return $request->user();
+});
+
+// Task 12: Dunning Webhook
+Route::post('webhooks/payment/failed', 'Api\PaymentWebhookController@handle');
+
+
+// Phase 3 Remaining Endpoints
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('onboarding/step', 'Api\OnboardingController@completeStep');
+    Route::get('feedback/check-eligibility', 'Api\FeedbackController@checkEligibility');
+    Route::post('feedback/submit', 'Api\FeedbackController@submit');
 });

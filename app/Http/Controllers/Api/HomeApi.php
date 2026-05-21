@@ -1505,6 +1505,27 @@ class HomeApi extends Controller
         }
     }
 
+    public function getAppTranslations()
+    {
+        $languages = \App\Models\AppTranslation::where('status', 1)->get();
+        if ($languages->isEmpty()) {
+            return response()->json([
+                'status' => "Error",
+                'message' => "No Translations Found",
+            ], 404);
+        }
+        $data = [];
+        foreach ($languages as $lang) {
+            $data[] = [
+                'language_code' => $lang->language_code,
+                'title' => $lang->title,
+                'translations' => $lang->translations ?? [],
+            ];
+        }
+        return response()->json($data);
+    }
+
+
     public function getLanguage()
     {
         $language = Language::where("status",1)->get();
@@ -3537,6 +3558,7 @@ class HomeApi extends Controller
                     'language' => $f->language ? $f->language->title : 'All',
                     'languageId' => $f->language_id,
                     'isPaid' => ($f->paid == 1) ? true : false,
+                    'isAi' => ($f->is_ai == 1) ? true : false,
                     'height' => $f->height,
                     'width' => $f->width,
                     'imageType' => $f->image_type,
@@ -3560,6 +3582,7 @@ class HomeApi extends Controller
                     'language' => $c->language ? $c->language->title : 'All',
                     'languageId' => $c->language_id,
                     'isPaid' => ($c->paid == 1) ? true : false,
+                    'isAi' => ($c->is_ai == 1) ? true : false,
                     'height' => $c->height,
                     'width' => $c->width,
                     'imageType' => $c->image_type,

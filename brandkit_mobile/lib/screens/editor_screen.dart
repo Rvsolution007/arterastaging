@@ -16,6 +16,7 @@ import '../controllers/ad_controller.dart';
 import '../controllers/auth_controller.dart';
 import '../controllers/subscription_controller.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../widgets/web_editor_stub.dart' if (dart.library.html) '../widgets/web_editor_impl.dart';
 
 class EditorScreen extends StatefulWidget {
   final String type;
@@ -50,9 +51,40 @@ class _EditorScreenState extends State<EditorScreen> {
     if (!kIsWeb) {
       _initWebView();
     } else {
-      _handleWebRedirect();
+      _initWebIframe();
     }
   }
+
+  String _webEditorUrl = '';
+
+  Future<void> _initWebIframe() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId') ?? '';
+    final baseUrl = ApiService.baseUrl.replaceAll('/123456', '');
+    final targetUrl = '/edit/${widget.type}/${widget.id}?design=${Uri.encodeComponent(widget.designUrl)}';
+    
+    // Check if we need to pass AI data and mapping
+    String aiParam = '';
+    if (widget.aiAnalysisData != null) {
+      final injectData = {
+        'ai_data': widget.aiAnalysisData,
+        'mapping': widget.mappingRules ?? [],
+      };
+      final jsonStr = Uri.encodeComponent(jsonEncode(injectData));
+      aiParam = '&ai_inject=$jsonStr'; // Backend needs to support this or Editor JS reads it from URL
+    }
+
+    final editorUrl = '$baseUrl/webview-login?user_id=$userId&redirect=${Uri.encodeComponent(targetUrl)}$aiParam';
+    
+    if (mounted) {
+      setState(() {
+        _webEditorUrl = editorUrl;
+        isControllerInitialized = true;
+        isLoading = false;
+      });
+    }
+  }
+
   Future<void> _initWebView() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -263,49 +295,22 @@ class _EditorScreenState extends State<EditorScreen> {
     if (kIsWeb) {
       return Scaffold(
         backgroundColor: Colors.white,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const CircularProgressIndicator(),
-                const SizedBox(height: 32),
-                Text(
-                  'Redirecting to Editor...',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'We are opening the web editor in this window.\nIf it doesn\'t load, click the button below.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
-                ),
-                const SizedBox(height: 32),
-                ElevatedButton.icon(
-                  onPressed: _handleWebRedirect,
-                  icon: const Icon(Icons.open_in_new),
-                  label: const Text('Launch Editor Manually'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: () => Get.back(),
-                  child: Text('Cancel and Go Back', style: TextStyle(color: AppColors.gray500)),
-                ),
-              ],
-            ),
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0.5,
+          leading: IconButton(
+            icon: const Icon(Icons.close, color: Color(0xFF334155)),
+            onPressed: () => Navigator.pop(context),
           ),
+          title: Text(
+            'Edit Design',
+            style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 18),
+          ),
+          centerTitle: true,
         ),
+        body: _webEditorUrl.isNotEmpty 
+            ? getWebEditor(_webEditorUrl)
+            : const Center(child: CircularProgressIndicator()),
       );
     }
 

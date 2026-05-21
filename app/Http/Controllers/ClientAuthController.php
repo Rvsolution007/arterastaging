@@ -31,6 +31,7 @@ class ClientAuthController extends Controller
 
         if (Auth::attempt($credentials, $request->remember)) {
             $request->session()->regenerate();
+            $this->updateUserStreak(Auth::user());
             return redirect()->intended('/dashboard');
         }
 
@@ -97,6 +98,7 @@ class ClientAuthController extends Controller
         ]);
 
         Auth::login($user);
+        $this->updateUserStreak($user);
 
         // If registration came from landing site auth-gate, show app-gateway
         if ($request->has('from_landing') && $request->from_landing == '1') {
@@ -134,6 +136,7 @@ class ClientAuthController extends Controller
         if ($existingUser) {
             // Existing user → just log them in
             Auth::login($existingUser, true);
+            $this->updateUserStreak($existingUser);
             return redirect('/app-gateway');
         }
 
@@ -163,6 +166,7 @@ class ClientAuthController extends Controller
         ]);
 
         Auth::login($user, true);
+        $this->updateUserStreak($user);
 
         return redirect('/app-gateway');
     }
@@ -288,6 +292,7 @@ class ClientAuthController extends Controller
 
         if ($user) {
             Auth::login($user, true);
+            $this->updateUserStreak($user);
             return redirect($redirectUrl);
         }
 
@@ -300,5 +305,26 @@ class ClientAuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
         return redirect('/login');
+    }
+
+    private function updateUserStreak($user)
+    {
+        $today = now()->startOfDay();
+        $lastLogin = $user->last_login_date ? \Carbon\Carbon::parse($user->last_login_date)->startOfDay() : null;
+
+        if (!$lastLogin) {
+            $user->current_streak = 1;
+        } elseif ($lastLogin->equalTo($today->copy()->subDay())) {
+            $user->current_streak += 1;
+        } elseif ($lastLogin->lessThan($today->copy()->subDay())) {
+            $user->current_streak = 1;
+        }
+        
+        if ($user->current_streak > $user->max_streak) {
+            $user->max_streak = $user->current_streak;
+        }
+
+        $user->last_login_date = now()->toDateString();
+        $user->save();
     }
 }

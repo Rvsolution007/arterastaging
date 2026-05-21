@@ -68,6 +68,7 @@ class CategoryPostController extends Controller
                         "height" => $size[1],
                         "width" => $size[0],
                         "image_type" => $type,
+                        "is_ai" => $request->has("is_ai") ? 1 : 0,
                         "aspect_ratio" => $this->getAspectRatio($size[0], $size[1]),
                     ])->id;
 
@@ -93,6 +94,13 @@ class CategoryPostController extends Controller
     {
         $category = CategoryPost::find($request->get("id"));
         $category->status = ($request->get("checked") == "true") ? 1 : 0;
+        $category->save();
+    }
+
+    public function category_post_ai(Request $request)
+    {
+        $category = CategoryPost::find($request->get("id"));
+        $category->is_ai = ($request->get("checked") == "true") ? 1 : 0;
         $category->save();
     }
 
@@ -224,6 +232,7 @@ class CategoryPostController extends Controller
             $category = CategoryPost::find($request->get("id"));
             $category->category_id = $request->get("category_id");
             $category->language_id = $request->get("language_id");
+            $category->is_ai = $request->has("is_ai") ? 1 : 0;
             $category->save();
 
             if ($request->file("frame_image") && $request->file('frame_image')->isValid()) {

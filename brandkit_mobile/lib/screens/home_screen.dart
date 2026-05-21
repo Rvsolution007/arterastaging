@@ -101,12 +101,12 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Obx(() => Text(
-                    hc.businessName.value.isNotEmpty ? hc.businessName.value : 'Update Business',
+                    hc.businessName.value.isNotEmpty ? hc.businessName.value : 'update_business'.tr,
                     style: AppTextStyles.cardTitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   )),
-                  Text('Business', style: AppTextStyles.cardSubtitle),
+                  Text('business'.tr, style: AppTextStyles.cardSubtitle),
                 ]),
               ),
             ]),
@@ -116,7 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
             // ── Subscription Badge ──
             Obx(() {
               final sc = Get.find<SubscriptionController>();
-              final planLabel = sc.planName.value.isNotEmpty ? sc.planName.value : 'Free';
+              final planLabel = sc.planName.value.isNotEmpty ? sc.planName.value : 'free'.tr;
               final isFree = !sc.hasActivePlan;
               return GestureDetector(
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubscriptionPlansScreen())),
@@ -165,7 +165,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Row(children: [
                   Icon(Icons.rocket_launch, color: Colors.white, size: 14),
                   const SizedBox(width: 4),
-                  Text('Quick Start', style: AppTextStyles.buttonPrimary.copyWith(fontSize: 11)),
+                  Text('quick_start'.tr, style: AppTextStyles.buttonPrimary.copyWith(fontSize: 11)),
                 ]),
               ),
             ),
@@ -190,7 +190,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         children: [
           Expanded(
-            child: SearchBarWidget(hintText: 'Search categories, festivals...'),
+            child: SearchBarWidget(hintText: 'search_categories_festivals'.tr),
           ),
           const SizedBox(width: 12),
           GestureDetector(
@@ -254,7 +254,7 @@ class _HomeScreenState extends State<HomeScreen> {
           itemBuilder: (context, i) {
             final story = hc.stories[i];
             final img = story['image'] ?? story['storyImage'] ?? '';
-            final label = story['story_type'] ?? story['storyType'] ?? 'Story';
+            final label = story['story_type'] ?? story['storyType'] ?? 'story'.tr;
             final images = <String>[];
             if (story['story_images'] is List) {
               for (var si in story['story_images']) {
@@ -315,7 +315,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(children: [
             Icon(Icons.calendar_today_outlined, color: AppColors.gray400, size: 24),
             AppSpacing.gapH12,
-            Text('Upcoming Festivals ${now.year}', style: AppTextStyles.heading3),
+            Text('${'upcoming_festivals'.tr} ${now.year}', style: AppTextStyles.heading3),
           ]),
           Text(DateFormat('MMMM').format(now), style: AppTextStyles.sectionSubtitle),
         ]),
@@ -324,7 +324,6 @@ class _HomeScreenState extends State<HomeScreen> {
       SizedBox(
         height: 96,
         child: Obx(() {
-          // Track the observable outside the lazy builder to satisfy GetX
           final selectedIdx = hc.selectedDateIndex.value;
           
           return ListView.builder(
@@ -380,7 +379,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                 Icon(Icons.celebration_outlined, size: 48, color: AppColors.gray300),
                 AppSpacing.gapV8,
-                Text('No festivals found', style: TextStyle(color: AppColors.gray400, fontWeight: FontWeight.w500)),
+                Text('no_festivals_found'.tr, style: TextStyle(color: AppColors.gray400, fontWeight: FontWeight.w500)),
               ])
             );
           } else {
@@ -400,7 +399,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onTap: () => Get.toNamed('/details', arguments: {
                     'type': 'festival',
                     'id': f['festivalId'] ?? f['id'] ?? 0,
-                    'title': f['festivalTitle'] ?? f['title'] ?? 'Festival',
+                    'title': f['festivalTitle'] ?? f['title'] ?? 'festival'.tr,
                   }),
                   child: Container(
                     width: 155, margin: const EdgeInsets.only(right: 16),
@@ -441,12 +440,12 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── 5. Categories ──
   Widget _buildCategorySection(HomeController hc) {
     return Column(children: [
-      SectionHeader(icon: Icons.layers_outlined, title: 'Category Posts'),
+      SectionHeader(icon: Icons.layers_outlined, title: 'category_posts'.tr),
       AppSpacing.gapV16,
       SizedBox(
         child: Obx(() {
           if (hc.isLoading.value) return const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()));
-          if (hc.categories.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No categories found')));
+          if (hc.categories.isEmpty) return Center(child: Padding(padding: EdgeInsets.all(32), child: Text('no_categories_found'.tr)));
           return GridView.builder(
             physics: const NeverScrollableScrollPhysics(),
             shrinkWrap: true,
@@ -466,7 +465,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () => Get.toNamed('/details', arguments: {
                   'type': 'category',
                   'id': cat['categoryId'] ?? cat['id'] ?? 0,
-                  'title': cat['categoryName'] ?? cat['name'] ?? 'Category',
+                  'title': cat['categoryName'] ?? cat['name'] ?? 'category'.tr,
                 }),
                 child: Column(
                   children: [
@@ -515,8 +514,8 @@ class _HomeScreenState extends State<HomeScreen> {
       return Column(children: [
         SectionHeader(
           icon: Icons.work_outline, 
-          title: 'New Custom Posts', 
-          actionText: 'View All', 
+          title: 'new_custom_posts'.tr, 
+          actionText: 'view_all'.tr, 
           onAction: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomPostsScreen()))
         ),
         AppSpacing.gapV16,
@@ -567,8 +566,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       final fc = adController.adConfig.value?.features['custom_post'];
                       if (fc != null && fc.baseLimit > 0) {
                         Get.snackbar(
-                          'Usage Update', 
-                          '${fc.used}/${fc.baseLimit} Custom Posts used.',
+                          'usage_update'.tr, 
+                          '${fc.used}/${fc.baseLimit} ${'custom_posts_used'.tr}',
                           snackPosition: SnackPosition.BOTTOM,
                           backgroundColor: Colors.black87,
                           colorText: Colors.white,
@@ -616,7 +615,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Obx(() {
       if (hc.news.isEmpty) return const SizedBox.shrink();
       return Column(children: [
-        SectionHeader(icon: Icons.newspaper_outlined, title: 'News Updates'),
+        SectionHeader(icon: Icons.newspaper_outlined, title: 'news_updates'.tr),
         AppSpacing.gapV16,
         SizedBox(
           height: 230,

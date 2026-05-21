@@ -149,7 +149,7 @@ class FcmService
 
     private function generateAccessToken(): string
     {
-        $now = time();
+        $now = time() - 900; // Subtract 15 mins to fix local clock sync issues
         $header = base64url_encode(json_encode(['alg' => 'RS256', 'typ' => 'JWT']));
 
         $claimSet = [

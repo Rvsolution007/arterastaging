@@ -81,10 +81,10 @@ class AiTrendsScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Obx(() => Text(
-                        hc.businessName.value.isNotEmpty ? hc.businessName.value : 'Business',
+                        hc.businessName.value.isNotEmpty ? hc.businessName.value : 'business'.tr,
                         style: AppTextStyles.cardTitle,
                       )),
-                  Text('Business', style: AppTextStyles.cardSubtitle),
+                  Text('business'.tr, style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
                 ],
               ),
             ],
@@ -112,7 +112,7 @@ class AiTrendsScreen extends StatelessWidget {
                   children: [
                     Icon(Icons.bolt, color: Colors.white, size: 16),
                     const SizedBox(width: 4),
-                    Text('Quick', style: AppTextStyles.buttonPrimary),
+                    Text('quick'.tr, style: AppTextStyles.buttonPrimary.copyWith(fontSize: 12)),
                   ],
                 ),
               ),
@@ -143,7 +143,7 @@ class AiTrendsScreen extends StatelessWidget {
         SectionHeader(
           icon: Icons.auto_awesome_rounded,
           iconColor: AppColors.indigo500,
-          title: 'AI Trends',
+          title: 'ai_trends'.tr,
           actionText: 'View All',
           trailing: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -185,12 +185,8 @@ class AiTrendsScreen extends StatelessWidget {
                   ),
                   child: Center(
                     child: Text(
-                      hc.customPosts[i]['customCategoryName'] ?? 'Category',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: isSelected ? Colors.white : AppColors.gray500,
-                      ),
+                      hc.customPosts[i]['customCategoryName'] ?? 'category'.tr,
+                      style: TextStyle(color: isSelected ? Colors.white : AppColors.gray800, fontWeight: FontWeight.w600, fontSize: 13),
                     ),
                   ),
                 );
@@ -219,7 +215,7 @@ class AiTrendsScreen extends StatelessWidget {
                     builder: (_) => DetailListScreen(
                       type: 'custom',
                       id: post['customCategoryId'] ?? 0,
-                      title: post['customCategoryName'] ?? 'Custom',
+                      title: post['customCategoryName'] ?? 'custom'.tr,
                     ),
                   )),
                   child: Container(
@@ -270,7 +266,7 @@ class AiTrendsScreen extends StatelessWidget {
         SectionHeader(
           icon: Icons.business_center,
           iconColor: Colors.teal,
-          title: 'Business Special',
+          title: 'business_special'.tr,
           actionText: 'View All',
           onAction: () {},
         ),
@@ -314,7 +310,7 @@ class AiTrendsScreen extends StatelessWidget {
         SectionHeader(
           icon: Icons.play_circle_filled,
           iconColor: AppColors.sky500,
-          title: 'Reels Maker',
+          title: 'reels_maker'.tr,
           actionText: 'View All',
           onAction: () {},
           trailing: Container(

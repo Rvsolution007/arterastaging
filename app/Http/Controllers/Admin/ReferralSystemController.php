@@ -63,4 +63,14 @@ class ReferralSystemController extends Controller
 
         return redirect('admin/withdraw-request');
     }
+
+    public function leaderboard()
+    {
+        $topPartners = User::where('total_balance', '>', 0)
+                           ->orderBy('total_balance', 'desc')
+                           ->take(10)
+                           ->get();
+
+        return view('backend.partnerLeaderboard', compact('topPartners'));
+    }
 }

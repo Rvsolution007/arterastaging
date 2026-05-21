@@ -45,10 +45,10 @@ class TemplateGridScreen extends StatelessWidget {
                           Text(
                             homeController.businessName.value.isNotEmpty 
                                 ? homeController.businessName.value.toUpperCase() 
-                                : 'BUSINESS',
+                                : 'business'.tr,
                             style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                           ),
-                          Text('Custom Templates', style: TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
+                          Text('custom_templates'.tr, style: TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
                         ],
                       )),
                     ],
@@ -69,10 +69,10 @@ class TemplateGridScreen extends StatelessWidget {
                           boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
                         ),
                         child: Row(
-                          children: const [
-                            Icon(Icons.bolt, color: Colors.white, size: 16),
-                            SizedBox(width: 4),
-                            Text('Quick', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                          children: [
+                            const Icon(Icons.bolt, color: Colors.white, size: 16),
+                            const SizedBox(width: 4),
+                            Text('quick'.tr, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
@@ -98,10 +98,10 @@ class TemplateGridScreen extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: TextField(
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           border: InputBorder.none,
-                          hintText: 'Search templates, categories...',
-                          hintStyle: TextStyle(fontSize: 14, color: Colors.grey),
+                          hintText: 'search_templates_categories'.tr,
+                          hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
                         ),
                       ),
                     ),
@@ -127,7 +127,7 @@ class TemplateGridScreen extends StatelessWidget {
                     child: Icon(Icons.auto_awesome, color: AppColors.primary, size: 16),
                   ),
                   const SizedBox(width: 12),
-                  Text('Create Something New', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                  Text('create_something_new'.tr, style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                 ],
               ),
             ),
@@ -144,7 +144,7 @@ class TemplateGridScreen extends StatelessWidget {
                       gradient: const [Color(0xFFDAE0EB), Color(0xFFE4D6EB)],
                       icon: Icons.grid_view,
                       iconColor: const Color(0xFF4B5563),
-                      label: 'Post',
+                      label: 'post'.tr,
                       size: '2000×2000',
                       aspectRatio: 1.0,
                     ),
@@ -155,7 +155,7 @@ class TemplateGridScreen extends StatelessWidget {
                       gradient: const [Color(0xFFFCE4E6), Color(0xFFF4F3CA)],
                       icon: Icons.movie_creation_outlined,
                       iconColor: const Color(0xFF7C2D3D),
-                      label: 'Story',
+                      label: 'story'.tr,
                       size: '1080×1920',
                       aspectRatio: 9 / 16,
                     ),
@@ -166,7 +166,7 @@ class TemplateGridScreen extends StatelessWidget {
                       gradient: const [Color(0xFFD5EFED), Color(0xFFE4EEF1)],
                       icon: Icons.image_outlined,
                       iconColor: const Color(0xFF1E3A8A),
-                      label: 'Ads/Infographics',
+                      label: 'ads_infographics'.tr,
                       size: '2000×2500',
                       aspectRatio: 9 / 16,
                     ),
@@ -181,7 +181,7 @@ class TemplateGridScreen extends StatelessWidget {
               icon: Icons.fiber_new_rounded,
               iconBgColor: Colors.green.shade50,
               iconColor: Colors.green.shade600,
-              title: 'New Posts',
+              title: 'new_posts'.tr,
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -193,7 +193,7 @@ class TemplateGridScreen extends StatelessWidget {
                     return const Center(child: CircularProgressIndicator());
                   }
                   return Center(
-                    child: Text('No templates yet', style: TextStyle(color: Colors.grey.shade400)),
+                    child: Text('no_templates_yet'.tr, style: TextStyle(color: Colors.grey.shade400)),
                   );
                 }
                 return ListView.builder(
@@ -221,7 +221,7 @@ class TemplateGridScreen extends StatelessWidget {
               }
               return Column(
                 children: purposes.map<Widget>((purpose) {
-                  final purposeName = purpose['customCategoryName'] ?? 'Templates';
+                  final purposeName = purpose['customCategoryName'] ?? 'templates'.tr;
                   final purposeId = purpose['customCategoryId'];
                   final posts = (purpose['posts'] as List<dynamic>?) ?? [];
 
@@ -270,7 +270,7 @@ class TemplateGridScreen extends StatelessWidget {
                                 },
                                 child: Row(
                                   children: [
-                                    Text('View All', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14)),
+                                    Text('view_all'.tr, style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14)),
                                     Icon(Icons.chevron_right, color: AppColors.primary, size: 18),
                                   ],
                                 ),

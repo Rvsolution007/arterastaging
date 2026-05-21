@@ -68,6 +68,7 @@ class FestivalsPostController extends Controller
                         "height" => $size[1],
                         "width" => $size[0],
                         "image_type" => $type,
+                        "is_ai" => $request->has("is_ai") ? 1 : 0,
                         "aspect_ratio" => $this->getAspectRatio($size[0], $size[1]),
                     ])->id;
 
@@ -93,6 +94,13 @@ class FestivalsPostController extends Controller
     {
         $festivals = FestivalsPost::find($request->get("id"));
         $festivals->status = ($request->get("checked") == "true") ? 1 : 0;
+        $festivals->save();
+    }
+
+    public function festivals_post_ai(Request $request)
+    {
+        $festivals = FestivalsPost::find($request->get("id"));
+        $festivals->is_ai = ($request->get("checked") == "true") ? 1 : 0;
         $festivals->save();
     }
 
@@ -170,6 +178,7 @@ class FestivalsPostController extends Controller
             $festivals = FestivalsPost::find($request->get("id"));
             $festivals->festivals_id = $request->get("festivals_id");
             $festivals->language_id = $request->get("language_id");
+            $festivals->is_ai = $request->has("is_ai") ? 1 : 0;
             $festivals->save();
 
             if ($request->file("frame_image") && $request->file('frame_image')->isValid()) {

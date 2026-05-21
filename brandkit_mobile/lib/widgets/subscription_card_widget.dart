@@ -17,7 +17,7 @@ class SubscriptionCardWidget extends StatelessWidget {
 
     return Obx(() {
       final features = sc.getFeatureUsageList();
-      final planLabel = sc.planName.value.isNotEmpty ? sc.planName.value : 'Free';
+      final planLabel = sc.planName.value.isNotEmpty ? sc.planName.value : 'free'.tr;
       final hasActivePlan = sc.hasActivePlan;
 
       return Container(
@@ -98,7 +98,7 @@ class SubscriptionCardWidget extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        '${sc.daysRemaining}d left',
+                        '${sc.daysRemaining}d ${'days_left'.tr}',
                         style: TextStyle(
                           color: sc.isExpiringSoon ? Colors.red.shade100 : Colors.white,
                           fontSize: 12,
@@ -145,7 +145,7 @@ class SubscriptionCardWidget extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'USAGE THIS MONTH',
+                      'usage_this_month'.tr.toUpperCase(),
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.6),
                         fontSize: 10,
@@ -184,7 +184,7 @@ class SubscriptionCardWidget extends StatelessWidget {
                       Icon(Icons.auto_awesome, color: AppColors.indigo600, size: 18),
                       const SizedBox(width: 8),
                       Text(
-                        hasActivePlan ? 'View Plans' : 'Upgrade Plan',
+                        hasActivePlan ? 'view_plans'.tr : 'upgrade_plan'.tr,
                         style: TextStyle(
                           color: AppColors.indigo600,
                           fontSize: 15,

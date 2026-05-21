@@ -101,6 +101,14 @@ Route::group(['middleware' => ['auth']], function () {
 
     // Photoroom Background Removal API Endpoint (Web Session)
     Route::post('/remove-background', [\App\Http\Controllers\Api\BackgroundRemovalController::class, 'removeBackground'])->name('remove-background');
+
+    // Partner Portal
+    Route::prefix('partner')->name('partner.')->group(function () {
+        Route::get('/toolkit', 'Partner\ToolkitController@index')->name('toolkit');
+        Route::post('/toolkit/generate', 'Partner\ToolkitController@generate')->name('toolkit.generate');
+        Route::get('/profile', 'Partner\ProfileController@index')->name('profile');
+        Route::post('/profile', 'Partner\ProfileController@update')->name('profile.update');
+    });
 });
 
 // Shared UI routes

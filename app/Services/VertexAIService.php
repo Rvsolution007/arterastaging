@@ -86,15 +86,19 @@ class VertexAIService
             $retryCount = 0;
             
             while ($retryCount <= $maxRetries) {
-                // Determine endpoint inside loop so it refreshes if model falls back
+                // Check if provider switched to gemini during token fetch
                 $endpoint = $this->getEndpoint();
+                if ($this->isUsingGeminiStudio() && isset($headers['Authorization'])) {
+                    unset($headers['Authorization']); // Remove token if switched to Gemini
+                }
                 $response = Http::withHeaders($headers)->timeout(120)->post($endpoint, $requestBody);
 
                 if ($response->status() === 429 && $retryCount < $maxRetries) {
                     $responseBody = $response->body();
                     if (str_contains(strtolower($responseBody), 'quota exceeded') || str_contains($responseBody, 'limit: 0')) {
-                        Log::warning("VertexAI: Hard Quota Limit detected for {$this->model}. Automatically switching to gemini-2.0-flash!");
-                        $this->model = 'gemini-2.0-flash';
+                        $fallbackModel = $this->isUsingGeminiStudio() ? 'gemini-1.5-flash' : 'gemini-1.5-flash-002';
+                        Log::warning("VertexAI: Hard Quota Limit detected for {$this->model}. Automatically switching to {$fallbackModel}!");
+                        $this->model = $fallbackModel;
                         $retryCount++;
                         continue; // instantly retry with new model
                     }
@@ -223,8 +227,9 @@ class VertexAIService
                 if ($response->status() === 429 && $retryCount < $maxRetries) {
                     $responseBody = $response->body();
                     if (str_contains(strtolower($responseBody), 'quota exceeded') || str_contains($responseBody, 'limit: 0')) {
-                        Log::warning("VertexAI: Hard Quota Limit detected for {$this->model}. Automatically switching to gemini-2.0-flash!");
-                        $this->model = 'gemini-2.0-flash';
+                        $fallbackModel = $this->isUsingGeminiStudio() ? 'gemini-1.5-flash' : 'gemini-1.5-flash-002';
+                        Log::warning("VertexAI: Hard Quota Limit detected for {$this->model}. Automatically switching to {$fallbackModel}!");
+                        $this->model = $fallbackModel;
                         $retryCount++;
                         continue;
                     }
@@ -267,7 +272,7 @@ class VertexAIService
     {
         if ($this->isUsingGeminiStudio()) {
             $cleanModel = preg_replace('/^models\//', '', $this->model);
-            $apiVersion = $needsBeta ? 'v1beta' : 'v1';
+            $apiVersion = 'v1beta'; // Always use v1beta for Gemini to support systemInstruction
             return "https://generativelanguage.googleapis.com/{$apiVersion}/models/" . urlencode($cleanModel) . ":generateContent?key=" . $this->apiKey;
         }
 
@@ -304,9 +309,15 @@ class VertexAIService
     private function getAccessToken(): string
     {
         $cacheKey = 'vertex_ai_token_' . md5($this->projectId);
-        return Cache::remember($cacheKey, 3300, function () {
-            return $this->generateAccessToken();
-        });
+        try {
+            return Cache::remember($cacheKey, 3300, function () {
+                return $this->generateAccessToken();
+            });
+        } catch (\Exception $e) {
+            Log::warning("VertexAI: Access token failed, falling back to Gemini Studio. Error: " . $e->getMessage());
+            $this->provider = 'gemini';
+            return '';
+        }
     }
 
     private function generateAccessToken(): string
@@ -461,8 +472,9 @@ class VertexAIService
 
                 if ($httpCode === 429 && $retryCount < $maxRetries) {
                     if (str_contains(strtolower($responseBody), 'quota exceeded') || str_contains($responseBody, 'limit: 0')) {
-                        Log::warning("VertexAI PDF: Hard Quota Limit detected for {$this->model}. Automatically switching to gemini-2.0-flash!");
-                        $this->model = 'gemini-2.0-flash';
+                        $fallbackModel = $this->isUsingGeminiStudio() ? 'gemini-1.5-flash' : 'gemini-1.5-flash-002';
+                        Log::warning("VertexAI PDF: Hard Quota Limit detected for {$this->model}. Automatically switching to {$fallbackModel}!");
+                        $this->model = $fallbackModel;
                         $retryCount++;
                         continue; // silently swap and instantly retry
                     }

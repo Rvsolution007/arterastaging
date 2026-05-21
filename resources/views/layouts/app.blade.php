@@ -235,16 +235,23 @@
 
 
             <li class="nav-item">
-              <a href="{{ url('admin/')}}"
-                class="nav-link @if(Request::is('admin') || Request::is('admin/user-profile')) active @endif"
-                style="color: white;">
-                <i class="nav-icon fas fa-tachometer-alt"></i>
-                <p>
+            <a href="{{url('admin/dashboard')}}" class="nav-link {{ (Request::is('admin/dashboard*')) ? 'active' : '' }}" style="color: white;">
+              <i class="nav-icon fas fa-tachometer-alt" style="color: white;"></i>
+              <p style="color: white; font-weight: 500;">
                   Dashboard
-                  <span class="right badge badge-danger"></span>
-                </p>
-              </a>
-            </li>
+              </p>
+            </a>
+          </li>
+
+          <!-- The God View -->
+          <li class="nav-item">
+            <a href="{{ route('admin.god_view') }}" class="nav-link {{ (Request::is('admin/god-view*')) ? 'active' : '' }}" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(79, 70, 229, 0.4) 100%); border-radius: 8px;">
+              <i class="nav-icon fa-solid fa-eye" style="color: #818cf8; text-shadow: 0 0 8px rgba(129, 140, 248, 0.5);"></i>
+              <p style="color: white; font-weight: 700; letter-spacing: 0.5px;">
+                  God View <span class="right badge badge-danger" style="background: #ef4444; font-size: 0.6rem; padding: 3px 5px;">LIVE</span>
+              </p>
+            </a>
+          </li>
 
             <!-- @if(Request::is('admin/members*'))
               @php($class="menu-open")
@@ -605,6 +612,41 @@
               </li>
             @endcanany
 
+                  @php($marketingClass = (Request::is('admin/blogs*') || Request::is('admin/leads*') || Request::is('admin/marketing-settings*') || Request::is('admin/ai-campaigns*')) ? "menu-open" : "")
+                  @php($marketingActive = (Request::is('admin/blogs*') || Request::is('admin/leads*') || Request::is('admin/marketing-settings*') || Request::is('admin/ai-campaigns*')) ? "active" : "")
+                  
+                  <li class="nav-item has-treeview {{$marketingClass}}">
+                    <a href="#" class="nav-link {{$marketingActive}}" style="color: white;">
+                      <i class="nav-icon fa fa-bullhorn text-warning"></i>
+                      <p>
+                        Marketing
+                        <i class="right fa fa-angle-right"></i>
+                      </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                      <li class="nav-item">
+                        <a href="{{ url('admin/blogs') }}" class="nav-link @if(Request::is('admin/blogs*')) active @endif" style="color: white;">
+                          <p><i class="fa fa-angle-right ml-3 mr-1"></i> AI Blogs</p>
+                        </a>
+                      </li>
+                      <li class="nav-item">
+                        <a href="{{ route('admin.leads') }}" class="nav-link @if(Request::is('admin/leads*')) active @endif" style="color: white;">
+                          <p><i class="fa fa-angle-right ml-3 mr-1"></i> Lead Management</p>
+                        </a>
+                      </li>
+                      <li class="nav-item">
+                        <a href="{{ route('admin.marketing_settings') }}" class="nav-link @if(Request::is('admin/marketing-settings*')) active @endif" style="color: white;">
+                          <p><i class="fa fa-angle-right ml-3 mr-1"></i> Campaign Settings</p>
+                        </a>
+                      </li>
+                      <li class="nav-item">
+                        <a href="{{ route('admin.ai_campaigns') }}" class="nav-link @if(Request::is('admin/ai-campaigns*')) active @endif" style="color: white;">
+                          <p><i class="fa fa-angle-right ml-3 mr-1"></i> Smart Campaigns</p>
+                        </a>
+                      </li>
+                    </ul>
+                  </li>
+
             @if(Request::is('admin/poster-category*') || Request::is('admin/poster-maker*'))
             @php($class = "menu-open")
             @php($active = "active")
@@ -915,7 +957,7 @@
               </li>
             @endcan
 
-            @if(Request::is('admin/settings*') || Request::is('admin/ai-monitor*') || Request::is('admin/ai-analytics*'))
+            @if(Request::is('admin/settings*') || Request::is('admin/app-language*'))
             @php($class = "menu-open")
             @php($active = "active")
             @else
@@ -939,18 +981,65 @@
                     </a>
                   </li>
                   <li class="nav-item">
-                    <a href="{{ route('admin.ai_analytics') }}" class="nav-link @if(Request::is('admin/ai-analytics*')) active @endif" style="color: white;">
-                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> AI Token Analytics</p>
-                    </a>
-                  </li>
-                  <li class="nav-item">
-                    <a href="{{ route('admin.ai_monitor') }}" class="nav-link @if(Request::is('admin/ai-monitor*')) active @endif" style="color: white;">
-                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> AI Monitor</p>
+                    <a href="{{ route('app-language.index') }}" class="nav-link @if(Request::is('admin/app-language*')) active @endif" style="color: white;">
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> App Language</p>
                     </a>
                   </li>
                 </ul>
               </li>
             @endcan
+
+            @php($analyticsClass = (Request::is('admin/payment-analytics*') || Request::is('admin/churn*') || Request::is('admin/journey*') || Request::is('admin/ai-analytics*')) ? "menu-open" : "")
+            @php($analyticsActive = (Request::is('admin/payment-analytics*') || Request::is('admin/churn*') || Request::is('admin/journey*') || Request::is('admin/ai-analytics*')) ? "active" : "")
+            <li class="nav-item has-treeview {{$analyticsClass}}">
+                <a href="#" class="nav-link {{$analyticsActive}}" style="color: white;">
+                  <i class="nav-icon fa-solid fa-chart-line text-info"></i>
+                  <p>Analytics & Insights<i class="right fa fa-angle-right"></i></p>
+                </a>
+                <ul class="nav nav-treeview">
+                  <li class="nav-item">
+                    <a href="{{ route('admin.payment_analytics') }}" class="nav-link @if(Request::is('admin/payment-analytics*')) active @endif" style="color: white;">
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> Payment Analytics</p>
+                    </a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="{{ route('admin.churn_analytics') }}" class="nav-link @if(Request::is('admin/churn*')) active @endif" style="color: white;">
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> Churn Analytics</p>
+                    </a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="{{ route('admin.journey') }}" class="nav-link @if(Request::is('admin/journey*')) active @endif" style="color: white;">
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> Customer Journey</p>
+                    </a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="{{ route('admin.ai_analytics') }}" class="nav-link @if(Request::is('admin/ai-analytics*')) active @endif" style="color: white;">
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> AI Token Analytics</p>
+                    </a>
+                  </li>
+                </ul>
+            </li>
+
+            @php($opsClass = (Request::is('admin/ai-monitor*') || Request::is('admin/tickets*')) ? "menu-open" : "")
+            @php($opsActive = (Request::is('admin/ai-monitor*') || Request::is('admin/tickets*')) ? "active" : "")
+            <li class="nav-item has-treeview {{$opsClass}}">
+                <a href="#" class="nav-link {{$opsActive}}" style="color: white;">
+                  <i class="nav-icon fa-solid fa-headset text-danger"></i>
+                  <p>Support & Ops<i class="right fa fa-angle-right"></i></p>
+                </a>
+                <ul class="nav nav-treeview">
+                  <li class="nav-item">
+                    <a href="{{ route('admin.ai_monitor') }}" class="nav-link @if(Request::is('admin/ai-monitor*')) active @endif" style="color: white;">
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> AI Monitor</p>
+                    </a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="{{ route('admin.tickets') }}" class="nav-link @if(Request::is('admin/tickets*')) active @endif" style="color: white;">
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> Support Tickets <span class="right badge badge-danger">AI</span></p>
+                    </a>
+                  </li>
+                </ul>
+              </li>
 
             @if(Request::is('admin/backup*'))
             @php($class = "menu-open")
@@ -959,6 +1048,32 @@
             @php($class = "")
             @php($active = "")
             @endif
+
+            @php($partnerClass = (Request::is('partner*') || Request::is('admin/partner-leaderboard*')) ? "menu-open" : "")
+            @php($partnerActive = (Request::is('partner*') || Request::is('admin/partner-leaderboard*')) ? "active" : "")
+            <li class="nav-item has-treeview {{$partnerClass}}">
+                <a href="#" class="nav-link {{$partnerActive}}" style="color: white;">
+                  <i class="nav-icon fa-solid fa-handshake text-warning"></i>
+                  <p>Partner Portal<i class="right fa fa-angle-right"></i></p>
+                </a>
+                <ul class="nav nav-treeview">
+                  <li class="nav-item">
+                    <a href="{{ route('admin.partner_leaderboard') }}" class="nav-link @if(Request::is('admin/partner-leaderboard*')) active @endif" style="color: white;">
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> Leaderboard</p>
+                    </a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="{{ route('partner.toolkit') }}" class="nav-link @if(Request::is('partner/toolkit*')) active @endif" style="color: white;">
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> AI Marketing Toolkit</p>
+                    </a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="{{ route('partner.profile') }}" class="nav-link @if(Request::is('partner/profile*')) active @endif" style="color: white;">
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> Compliance Profile</p>
+                    </a>
+                  </li>
+                </ul>
+            </li>
 
             @if(optional(Auth::user())->user_type == "Super Admin" || optional(Auth::user())->user_type == "Demo")
               <li class="nav-item has-treeview {{$class}}">
@@ -970,6 +1085,22 @@
                 </a>
               </li>
             @endif
+
+              <!-- Missing Phase 7: Gamification -->
+              <li class="nav-item">
+                <a href="{{ route('admin.challenges') }}" class="nav-link @if(Request::is('admin/challenges*')) active @endif" style="color: white;">
+                  <i class="nav-icon fa-solid fa-trophy text-warning"></i>
+                  <p>Design Challenges</p>
+                </a>
+              </li>
+
+              <li class="nav-header">SYSTEM DOCUMENTATION</li>
+              <li class="nav-item mb-4">
+                <a href="{{ route('admin.documentation') }}" class="nav-link @if(Request::is('admin/documentation*')) active @endif" style="background: rgba(255, 255, 255, 0.1); border-left: 3px solid #10b981; color: white;">
+                  <i class="nav-icon fa-solid fa-book-open"></i>
+                  <p>Master SaaS Docs</p>
+                </a>
+              </li>
           </ul>
         </nav>
         <!-- /.sidebar-menu -->

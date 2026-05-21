@@ -116,6 +116,7 @@ Route::
             Route::post('referral-system', 'ReferralSystemController@post_referral_system');
             Route::get('withdraw-request', 'ReferralSystemController@withdraw_request');
             Route::post('withdraw-request', 'ReferralSystemController@post_withdraw_request');
+            Route::get('partner-leaderboard', 'ReferralSystemController@leaderboard')->name('admin.partner_leaderboard');
 
             Route::resource('video', 'VideoController');
             Route::Post('video-status', 'VideoController@video_status');
@@ -223,5 +224,35 @@ Route::
             Route::resource('roles', 'UserAccessController');
             Route::get('create-permission', 'UserAccessController@create_permission');
             Route::get('generat-code', 'UserController@generat_code');
-        });
 
+            // Phase 4 & 5 Missing Routes
+            Route::get('leads', 'LeadController@index')->name('admin.leads');
+            Route::post('leads/draft-email/{id}', 'LeadController@draftEmail')->name('admin.leads.draft_email');
+            
+            Route::get('blogs', 'BlogController@index')->name('admin.blogs');
+            Route::get('marketing-settings', 'MarketingSettingsController@index')->name('admin.marketing_settings');
+            Route::get('ai-campaigns', 'AiSmartCampaignController@index')->name('admin.ai_campaigns');
+            
+            Route::get('tickets', 'TicketController@index')->name('admin.tickets');
+            Route::get('tickets/{id}', 'TicketController@show')->name('admin.tickets.show');
+            Route::post('tickets/{id}/reply', 'TicketController@reply')->name('admin.tickets.reply');
+            
+            Route::get('churn-analytics', 'ChurnController@index')->name('admin.churn_analytics');
+            Route::get('journey', 'JourneyController@index')->name('admin.journey');
+            Route::get('payment-analytics', 'PaymentAnalyticsController@index')->name('admin.payment_analytics');
+
+            Route::resource('app-language', 'AppLanguageController');
+            Route::get('app-language', 'AppLanguageController@index')->name('app-language.index');
+
+            // Phase 7 Design Challenges
+            Route::get('challenges', 'DesignChallengeController@index')->name('admin.challenges');
+            Route::post('challenges', 'DesignChallengeController@store')->name('admin.challenges.store');
+            Route::get('challenges/{id}/toggle', 'DesignChallengeController@toggleStatus')->name('admin.challenges.toggle');
+
+            // Phase 8 God View
+            Route::get('god-view', 'GodViewController@index')->name('admin.god_view');
+            Route::get('god-view/resolve/{id}', 'GodViewController@resolveAlert')->name('admin.god_view.resolve');
+
+            // Documentation
+            Route::get('documentation', 'DocumentationController@index')->name('admin.documentation');
+        });

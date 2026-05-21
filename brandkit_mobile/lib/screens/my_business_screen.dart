@@ -10,14 +10,12 @@ import '../widgets/common/settings_item.dart';
 import 'ai_setup_wizard_screen.dart';
 import 'products_screen.dart';
 import 'business_profile_screen.dart';
-import 'notifications_screen.dart';
-import 'support_screen.dart';
-import 'faqs_screen.dart';
+import 'products_screen.dart';
+import 'business_profile_screen.dart';
 import 'catalogue_columns_screen.dart';
 import 'frames_screen.dart';
 import 'business_list_screen.dart';
 import 'downloads_screen.dart';
-import '../widgets/error_submission_dialog.dart';
 
 class MyBusinessScreen extends StatelessWidget {
   const MyBusinessScreen({super.key});
@@ -36,9 +34,6 @@ class MyBusinessScreen extends StatelessWidget {
             children: [
               _buildProfileHeader(context, hc),
               _buildActionGrid(context),
-              _buildSettingsList(context, hc),
-              _buildHelpSupportTitle(),
-              _buildSupportList(context),
               const SizedBox(height: 100),
             ],
           ),
@@ -85,7 +80,7 @@ class MyBusinessScreen extends StatelessWidget {
               }),
               AppSpacing.gapH20,
               Obx(() => Text(
-                hc.businessName.value.isNotEmpty ? hc.businessName.value : 'Business',
+                hc.businessName.value.isNotEmpty ? hc.businessName.value : 'business'.tr,
                 style: AppTextStyles.heading2,
               )),
             ],
@@ -93,7 +88,7 @@ class MyBusinessScreen extends StatelessWidget {
           GestureDetector(
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BusinessProfileScreen())),
             child: Text(
-              'EDIT',
+              'edit'.tr,
               style: TextStyle(
                 color: AppColors.indigo600,
                 fontWeight: FontWeight.w700,
@@ -122,7 +117,7 @@ class MyBusinessScreen extends StatelessWidget {
         runSpacing: 16,
         children: [
           _buildActionCard(
-            title: 'AI Setup',
+            title: 'ai_setup'.tr,
             icon: Icons.smart_toy_outlined,
             iconBg: AppColors.primary,
             iconColor: Colors.white,
@@ -130,35 +125,35 @@ class MyBusinessScreen extends StatelessWidget {
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AiSetupWizardScreen())),
           ),
           _buildActionCard(
-            title: 'Products',
+            title: 'products'.tr,
             icon: Icons.inventory_2_outlined,
             iconBg: AppColors.slate100,
             iconColor: AppColors.slate600,
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductsScreen())),
           ),
           _buildActionCard(
-            title: 'Catalogue Setting',
+            title: 'catalogue_setting'.tr,
             icon: Icons.list_alt_outlined,
             iconBg: AppColors.slate100,
             iconColor: AppColors.slate600,
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CatalogueColumnsScreen())),
           ),
           _buildActionCard(
-            title: 'Frames',
+            title: 'frames'.tr,
             icon: Icons.filter_frames_outlined,
             iconBg: AppColors.slate100,
             iconColor: AppColors.slate600,
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FramesScreen())),
           ),
           _buildActionCard(
-            title: 'My Businesses',
+            title: 'my_businesses'.tr,
             icon: Icons.business_center_outlined,
             iconBg: AppColors.indigo50,
             iconColor: AppColors.indigo500,
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BusinessListScreen())),
           ),
           _buildActionCard(
-            title: 'Downloads',
+            title: 'downloads'.tr,
             icon: Icons.download_outlined,
             iconBg: AppColors.indigo50,
             iconColor: AppColors.indigo500,
@@ -221,107 +216,4 @@ class MyBusinessScreen extends StatelessWidget {
     );
   }
 
-  // ── 3. Settings List ──
-  Widget _buildSettingsList(BuildContext context, HomeController hc) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 24),
-      child: Column(
-        children: [
-          Obx(() {
-            final hc = Get.find<HomeController>();
-            return SettingsItem(
-              icon: Icons.notifications_none_rounded,
-              title: 'Notifications',
-              iconColor: AppColors.red400,
-              iconBgColor: AppColors.slate50,
-              badgeCount: hc.notifications.length,
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen())),
-            );
-          }),
-          SettingsItem(
-            icon: Icons.logout,
-            title: 'Logout',
-            iconColor: AppColors.red500,
-            iconBgColor: AppColors.red50,
-            onTap: () {
-              Get.dialog(
-                AlertDialog(
-                  title: const Text('Logout', style: TextStyle(fontWeight: FontWeight.w800)),
-                  content: const Text('Are you sure you want to logout?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Get.back(),
-                      child: Text('Cancel', style: TextStyle(color: AppColors.gray500)),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        Get.back();
-                        Get.find<AuthController>().logout();
-                      },
-                      child: Text('Logout', style: TextStyle(color: AppColors.red500, fontWeight: FontWeight.w700)),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── 4. Help & Support Title ──
-  Widget _buildHelpSupportTitle() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-      child: Text(
-        'Help & Support',
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w700,
-          color: AppColors.gray600,
-          letterSpacing: -0.2,
-        ),
-      ),
-    );
-  }
-
-  // ── 5. Support List ──
-  Widget _buildSupportList(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Column(
-        children: [
-          SettingsItem(
-            icon: Icons.chat_bubble_outline_rounded,
-            title: 'Help & Support',
-            iconColor: AppColors.gray400,
-            iconBgColor: AppColors.slate50,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen())),
-          ),
-          SettingsItem(
-            icon: Icons.help_outline_rounded,
-            title: 'FAQs',
-            iconColor: AppColors.gray400,
-            iconBgColor: AppColors.slate50,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FaqsScreen())),
-          ),
-          SettingsItem(
-            icon: Icons.bug_report_outlined,
-            title: 'Report a Problem',
-            iconColor: AppColors.gray400,
-            iconBgColor: AppColors.slate50,
-            onTap: () {
-              Get.dialog(
-                const ErrorSubmissionDialog(
-                  errorCode: 'MANUAL_REPORT',
-                  errorMessage: 'User reporting a problem manually from My Business Support.',
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
 }

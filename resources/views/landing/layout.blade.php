@@ -148,9 +148,9 @@
                 <div>
                     <h4 class="footer-title">Legal</h4>
                     <ul class="footer-links">
-                        <li><a href="/privacy-policy">Privacy Policy</a></li>
-                        <li><a href="/terms-condition">Terms & Conditions</a></li>
-                        <li><a href="/refund-policy">Refund Policy</a></li>
+                        <li><a href="{{ url('/privacy-policy') }}">Privacy Policy</a></li>
+                        <li><a href="{{ url('/terms-condition') }}">Terms & Conditions</a></li>
+                        <li><a href="{{ url('/refund-policy') }}">Refund Policy</a></li>
                     </ul>
                 </div>
                 

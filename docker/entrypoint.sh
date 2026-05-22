@@ -3,6 +3,11 @@ set -e
 
 echo "=== Artera Container Starting ==="
 
+# Fix .env: wrap values with spaces in double quotes
+if [ -f /var/www/html/.env ]; then
+    sed -i 's/^\([A-Za-z_]*\)=\([^"'"'"'].*[[:space:]].*\)$/\1="\2"/' /var/www/html/.env
+fi
+
 # Wait for MySQL to be ready (retry up to 30 times)
 echo "Waiting for database connection..."
 MAX_RETRIES=30

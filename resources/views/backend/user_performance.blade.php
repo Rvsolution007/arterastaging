@@ -363,9 +363,11 @@
     <div class="row mt-4">
         <!-- Daily Ad Trend Chart -->
         <div class="col-lg-7 mb-4">
-            <div class="glass-card h-100" style="padding: 1.5rem;">
+            <div class="glass-card h-100 d-flex flex-column" style="padding: 1.5rem;">
                 <h6 class="font-weight-bold mb-3" style="color: #334155;">Daily Ad Impressions</h6>
-                <canvas id="adTrendChart" height="220"></canvas>
+                <div style="position: relative; flex-grow: 1; min-height: 250px; width: 100%;">
+                    <canvas id="adTrendChart"></canvas>
+                </div>
             </div>
         </div>
 

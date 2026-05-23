@@ -225,7 +225,7 @@ class SubscriptionCardWidget extends StatelessWidget {
                 ],
               ),
               Text(
-                f.limit > 0 ? '${f.used}/${f.limit}' : '${f.used}/∞',
+                f.limit > 0 ? '${f.used}/${f.limit}' : '${f.used} (Ad Based)',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.7),
                   fontSize: 11,

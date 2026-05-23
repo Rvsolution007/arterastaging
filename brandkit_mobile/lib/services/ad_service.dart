@@ -17,11 +17,35 @@ class AdService {
   // ── Ad Event Tracker ──
   final AdTrackerService _tracker = AdTrackerService();
 
-  // ── TEST Ad Unit IDs (Replace with production IDs before release) ──
+  // ── Dynamic Ad Unit IDs ──
+  static String _dynamicBannerId = '';
+  static String _dynamicInterstitialId = '';
+  static String _dynamicRewardedId = '';
+  static String _dynamicNativeId = '';
+
+  static void updateIds({
+    String? bannerId,
+    String? interstitialId,
+    String? rewardedId,
+    String? nativeId,
+  }) {
+    if (bannerId != null && bannerId.isNotEmpty) _dynamicBannerId = bannerId;
+    if (interstitialId != null && interstitialId.isNotEmpty) _dynamicInterstitialId = interstitialId;
+    if (rewardedId != null && rewardedId.isNotEmpty) _dynamicRewardedId = rewardedId;
+    if (nativeId != null && nativeId.isNotEmpty) _dynamicNativeId = nativeId;
+
+    // Pre-load ads now that we have the dynamic IDs
+    if (!kIsWeb) {
+      AdService().loadInterstitialAd();
+      AdService().loadRewardedAd();
+    }
+  }
+
   static String get bannerAdUnitId {
     if (kIsWeb) return '';
+    if (_dynamicBannerId.isNotEmpty) return _dynamicBannerId;
     if (Platform.isAndroid) {
-      return 'ca-app-pub-8529977313104602/7464924603'; // Android Production Banner
+      return 'ca-app-pub-3940256099942544/6300978111'; // Android Test Banner
     } else if (Platform.isIOS) {
       return 'ca-app-pub-3940256099942544/2934735716'; // iOS Test Banner
     }
@@ -30,8 +54,9 @@ class AdService {
 
   static String get interstitialAdUnitId {
     if (kIsWeb) return '';
+    if (_dynamicInterstitialId.isNotEmpty) return _dynamicInterstitialId;
     if (Platform.isAndroid) {
-      return 'ca-app-pub-8529977313104602/8311102418'; // Android Production Interstitial
+      return 'ca-app-pub-3940256099942544/1033173712'; // Android Test Interstitial
     } else if (Platform.isIOS) {
       return 'ca-app-pub-3940256099942544/4411468910'; // iOS Test Interstitial
     }
@@ -40,8 +65,9 @@ class AdService {
 
   static String get rewardedAdUnitId {
     if (kIsWeb) return '';
+    if (_dynamicRewardedId.isNotEmpty) return _dynamicRewardedId;
     if (Platform.isAndroid) {
-      return 'ca-app-pub-8529977313104602/9789350989'; // Android Production Rewarded
+      return 'ca-app-pub-3940256099942544/5224354917'; // Android Test Rewarded
     } else if (Platform.isIOS) {
       return 'ca-app-pub-3940256099942544/1712485313'; // iOS Test Rewarded
     }
@@ -50,8 +76,9 @@ class AdService {
 
   static String get nativeAdUnitId {
     if (kIsWeb) return '';
+    if (_dynamicNativeId.isNotEmpty) return _dynamicNativeId;
     if (Platform.isAndroid) {
-      return 'ca-app-pub-8529977313104602/3983197572'; // Android Production Native
+      return 'ca-app-pub-3940256099942544/2247696110'; // Android Test Native
     } else if (Platform.isIOS) {
       return 'ca-app-pub-3940256099942544/3986624511'; // iOS Test Native
     }
@@ -73,9 +100,6 @@ class AdService {
     await MobileAds.instance.initialize();
     _tracker.init(); // Start ad event tracking
     debugPrint('[AdService] MobileAds SDK initialized.');
-    // Pre-load ads immediately so they're ready when needed
-    loadInterstitialAd();
-    loadRewardedAd();
   }
 
   // ─────────────────── BANNER ADS ───────────────────

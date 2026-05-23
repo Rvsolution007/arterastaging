@@ -168,5 +168,14 @@ Route::get('/about', 'LandingController@about')->name('landing.about');
 Route::get('/features', 'LandingController@features')->name('landing.features');
 Route::get('/packages', 'LandingController@packages')->name('landing.packages');
 Route::get('/reviews', 'LandingController@reviews')->name('landing.reviews');
+Route::get('/blogs', 'LandingController@blogs')->name('landing.blogs');
+Route::get('/blog/{slug}', 'LandingController@blogDetails')->name('landing.blog_details');
 Route::get('/contact', 'LandingController@contact')->name('landing.contact');
+
+// New Public Pages
+Route::get('/templates', 'LandingController@templates')->name('landing.templates');
+Route::get('/category/{slug}', 'LandingController@category')->name('landing.category');
+Route::get('/digital-business-cards', 'LandingController@digitalBusinessCards')->name('landing.digital_business_cards');
+Route::get('/logo-maker', 'LandingController@logoMaker')->name('landing.logo_maker');
+Route::get('/video-maker', 'LandingController@videoMaker')->name('landing.video_maker');
 Route::post('/client-log', function(Illuminate\Http\Request $request) { Illuminate\Support\Facades\Log::info('ClientJS Log: ' . $request->message); return response()->json(['status' => 'ok']); });

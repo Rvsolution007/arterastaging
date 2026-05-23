@@ -394,7 +394,7 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
                       style: TextStyle(color: f.color, fontSize: 15, fontWeight: FontWeight.w900),
                     ),
                     TextSpan(
-                      text: '/ ${f.limit}',
+                      text: f.limit > 0 ? '/ ${f.limit}' : ' (Ad Based)',
                       style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                   ],
@@ -466,7 +466,6 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
 
     final featureDisplayNames = {
       'custom_post': {'name': 'Custom Posts', 'icon': Icons.edit_note_rounded},
-      'daily_drip': {'name': 'Daily Drip', 'icon': Icons.water_drop_rounded},
       'magic_cloner': {'name': 'Magic Cloner', 'icon': Icons.auto_awesome_rounded},
       'festival_post': {'name': 'Festival Posts', 'icon': Icons.celebration_rounded},
       'business_category_post': {'name': 'Category Posts', 'icon': Icons.category_rounded},

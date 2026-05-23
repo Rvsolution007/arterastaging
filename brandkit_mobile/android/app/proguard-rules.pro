@@ -33,3 +33,6 @@
 -keepattributes Signature
 -keepattributes *Annotation*
 -keep class * extends android.app.Activity
+
+# slf4j fix
+-dontwarn org.slf4j.**

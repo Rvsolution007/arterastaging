@@ -1588,10 +1588,7 @@ class HomeApi extends Controller
                             "base_limit" => $s->custom_post_edit_limit ?? 0,
                             "ad_reward_limit" => $s->custom_post_ad_reward_limit ?? 0,
                         ],
-                        "daily_drip" => [
-                            "base_limit" => $s->daily_drip_limit ?? 0,
-                            "ad_reward_limit" => $s->daily_drip_ad_reward_limit ?? 0,
-                        ],
+
                         "magic_cloner" => [
                             "base_limit" => $s->magic_cloner_limit ?? 0,
                             "ad_reward_limit" => $s->magic_cloner_ad_reward_limit ?? 0,
@@ -3434,7 +3431,7 @@ class HomeApi extends Controller
         }
 
         $feature = $request->get('feature');
-        $validFeatures = ['custom_post', 'daily_drip', 'magic_cloner', 'festival_post', 'business_category_post'];
+        $validFeatures = ['custom_post', 'magic_cloner', 'festival_post', 'business_category_post'];
 
         if (!$feature || !in_array($feature, $validFeatures)) {
             return response()->json(['success' => false, 'message' => 'Invalid feature key.'], 422);
@@ -3452,7 +3449,7 @@ class HomeApi extends Controller
                 // Grant +1 usage by NOT checking limit, just consuming directly
                 $fieldMap = [
                     'custom_post'            => 'custom_post_used',
-                    'daily_drip'             => 'daily_drip_used',
+
                     'magic_cloner'           => 'magic_cloner_used',
                     'festival_post'          => 'festival_post_used',
                     'business_category_post' => 'business_category_post_used',

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import 'subscription_controller.dart';
 
 class HomeController extends GetxController {
   var isLoading = true.obs;
@@ -158,6 +159,15 @@ class HomeController extends GetxController {
         upcomingFestivals.value = data['Festival'] ?? [];
         customCategories.value = data['BusinessCategory'] ?? [];
         profileCategories.value = data['ProfileBusinessCategory'] ?? [];
+      }
+      
+      // Also refresh subscription and limits silently
+      try {
+        if (Get.isRegistered<SubscriptionController>()) {
+          Get.find<SubscriptionController>().refreshFromApi();
+        }
+      } catch (e) {
+        debugPrint('[HomeCtrl] Failed to refresh subscription: $e');
       }
       
       // 2. If festivals are empty from home data, try dedicated /festival endpoint

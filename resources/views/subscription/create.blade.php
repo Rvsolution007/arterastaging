@@ -193,27 +193,7 @@
                         </div>
                     </div>
 
-                    <!-- Daily Drip Limit -->
-                    <div class="row mb-3">
-                        <div class="col-12">
-                            <div class="feature-card p-3">
-                                <div class="feature-header">
-                                    <h6 class="font-weight-bold text-dark mb-0">Daily Drip Post</h6>
-                                    <small class="text-muted">Max automated posts</small>
-                                </div>
-                                <div class="row align-items-center">
-                                    <div class="col-sm-6">
-                                        <label class="small text-muted font-weight-bold mb-1">Base Limit</label>
-                                        {!! Form::number('daily_drip_limit', 15,['class' => 'form-control form-control-sm','required','min'=>0]) !!}
-                                    </div>
-                                    <div class="col-sm-6">
-                                        <label class="small text-muted font-weight-bold mb-1">Max Ad Uses</label>
-                                        {!! Form::number('daily_drip_ad_reward_limit', 5, ['class' => 'form-control form-control-sm', 'min'=>0]) !!}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+
 
                     <!-- Magic Cloner Limit -->
                     <div class="row mb-3">

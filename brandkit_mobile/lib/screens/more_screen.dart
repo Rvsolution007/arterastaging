@@ -12,6 +12,7 @@ import 'support_screen.dart';
 import 'subscription_plans_screen.dart';
 import 'faqs_screen.dart';
 import '../controllers/home_controller.dart';
+import '../controllers/subscription_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'partner_dashboard_screen.dart';
 import '../widgets/error_submission_dialog.dart';
@@ -26,6 +27,14 @@ class MoreScreen extends StatefulWidget {
 }
 
 class _MoreScreenState extends State<MoreScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Get.find<SubscriptionController>().refreshFromApi();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(

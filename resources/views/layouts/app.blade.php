@@ -164,10 +164,114 @@
     .wrapper, body, html {
         pointer-events: auto !important;
     }
+    /* ULTRA-MODERN SIDEBAR Redesign */
+    /* ULTRA-MODERN SIDEBAR Redesign V2 */
+    .main-sidebar, .brand-link {
+        background-color: #0f172a !important;
+        border-right: 1px solid #1e293b;
+    }
+    .brand-link {
+        border-bottom: 1px solid #1e293b !important;
+        color: #f8fafc !important;
+    }
+    .nav-sidebar .nav-item {
+        margin-bottom: 2px;
+    }
+    .nav-sidebar .nav-header {
+        color: #64748b !important;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        padding: 15px 14px 5px 14px;
+    }
+    .nav-sidebar .nav-link {
+        color: #94a3b8 !important; /* Subtle gray */
+        border-radius: 6px !important;
+        margin: 2px 10px;
+        padding: 10px 14px !important;
+        transition: all 0.2s ease !important;
+        border-left: 3px solid transparent;
+        display: block;
+    }
+    .nav-sidebar .nav-link i.nav-icon, 
+    .nav-sidebar .nav-link p i.right {
+        color: #64748b !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    /* Hover State */
+    .nav-sidebar .nav-link:hover {
+        color: #f8fafc !important;
+        background: rgba(255, 255, 255, 0.04) !important;
+    }
+    .nav-sidebar .nav-link:hover i.nav-icon,
+    .nav-sidebar .nav-link:hover p i.right {
+        color: #f8fafc !important;
+    }
+
+    /* Active State (Main Links) */
+    .nav-sidebar .nav-link.active {
+        background: rgba(56, 189, 248, 0.1) !important; /* Soft blue glass */
+        color: #38bdf8 !important; /* Bright blue text */
+        border-left: 3px solid #38bdf8;
+        font-weight: 500;
+        box-shadow: inset 0 0 10px rgba(56,189,248,0.05);
+    }
+    .nav-sidebar .nav-link.active i.nav-icon,
+    .nav-sidebar .nav-link.active p i.right {
+        color: #38bdf8 !important;
+    }
+    
+    /* Sub-menu (Treeview) Styling */
+    .nav-sidebar .nav-treeview {
+        background: rgba(0, 0, 0, 0.25);
+        border-radius: 0;
+        margin: 0;
+        padding: 5px 0;
+    }
+    .nav-sidebar .nav-treeview > .nav-item {
+        margin-bottom: 0;
+    }
+    .nav-sidebar .nav-treeview > .nav-item > .nav-link {
+        margin: 1px 10px;
+        padding: 8px 10px 8px 18px !important;
+        border-radius: 4px !important;
+        border-left: none; 
+        width: calc(100% - 20px) !important;
+    }
+    .nav-sidebar .nav-treeview > .nav-item > .nav-link:hover {
+        background: rgba(255, 255, 255, 0.08) !important;
+    }
+    /* Sub-menu Active */
+    .nav-sidebar .nav-treeview > .nav-item > .nav-link.active {
+        background: rgba(255, 255, 255, 0.06) !important;
+        color: #e2e8f0 !important;
+        box-shadow: none;
+        border-left: none;
+    }
+    .nav-sidebar .nav-treeview > .nav-item > .nav-link.active i.nav-icon {
+        color: #e2e8f0 !important;
+    }
+    
+    /* Better Scrollbar for Sidebar */
+    .main-sidebar ::-webkit-scrollbar {
+        width: 6px;
+    }
+    .main-sidebar ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .main-sidebar ::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 4px;
+    }
+    .main-sidebar ::-webkit-scrollbar-thumb:hover {
+        background: #475569;
+    }
   </style>
 </head>
 
-<body class="hold-transition sidebar-mini layout-navbar-fixed">
+<body class="hold-transition sidebar-mini layout-navbar-fixed layout-fixed">
   <div class="wrapper">
     <!-- Navbar -->
     <nav class="main-header navbar navbar-expand bg-white navbar-light border-bottom">
@@ -206,10 +310,9 @@
     <!-- /.navbar -->
 
     <!-- Main Sidebar Container -->
-    <aside class="main-sidebar elevation-4" style="background-color: #056FED;">
+    <aside class="main-sidebar elevation-4">
       <!-- Brand Logo -->
-      <a href="{{ url('admin/')}}" class="brand-link text-center"
-        style="color: white;background-color: #056FED;height: 60px;">
+      <a href="{{ url('admin/')}}" class="brand-link text-center" style="height: 60px;">
         <h3>{{App\Models\AppSetting::getAppSetting('app_title')}}</h3>
         <!-- <img src="{{asset('uploads/'.App\Models\AppSetting::getAppSetting('app_logo'))}}" class="mt-2" width="50px" height="50px"> -->
       </a>
@@ -227,8 +330,7 @@
 
         <!-- Sidebar Menu -->
         <nav class="mt-2">
-          <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false"
-            style="color: white;">
+          <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
             <!-- Add icons to the links using the .nav-icon class
                with font-awesome or any other icon font library -->
             <!-- user-type S or O -->
@@ -1020,8 +1122,8 @@
                 </ul>
             </li>
 
-            @php($opsClass = (Request::is('admin/ai-monitor*') || Request::is('admin/tickets*')) ? "menu-open" : "")
-            @php($opsActive = (Request::is('admin/ai-monitor*') || Request::is('admin/tickets*')) ? "active" : "")
+            @php($opsClass = (Request::is('*ai-monitor*') || Request::is('*tickets*')) ? "menu-open" : "")
+            @php($opsActive = (Request::is('*ai-monitor*') || Request::is('*tickets*')) ? "active" : "")
             <li class="nav-item has-treeview {{$opsClass}}">
                 <a href="#" class="nav-link {{$opsActive}}" style="color: white;">
                   <i class="nav-icon fa-solid fa-headset text-danger"></i>
@@ -1029,12 +1131,12 @@
                 </a>
                 <ul class="nav nav-treeview">
                   <li class="nav-item">
-                    <a href="{{ route('admin.ai_monitor') }}" class="nav-link @if(Request::is('admin/ai-monitor*')) active @endif" style="color: white;">
+                    <a href="{{ route('admin.ai_monitor') }}" class="nav-link @if(Request::is('*ai-monitor*')) active @endif" style="color: white;">
                       <p><i class="fa fa-angle-right ml-3 mr-1"></i> AI Monitor</p>
                     </a>
                   </li>
                   <li class="nav-item">
-                    <a href="{{ route('admin.tickets') }}" class="nav-link @if(Request::is('admin/tickets*')) active @endif" style="color: white;">
+                    <a href="{{ route('admin.tickets') }}" class="nav-link @if(Request::is('*tickets*')) active @endif" style="color: white;">
                       <p><i class="fa fa-angle-right ml-3 mr-1"></i> Support Tickets <span class="right badge badge-danger">AI</span></p>
                     </a>
                   </li>
@@ -1049,8 +1151,8 @@
             @php($active = "")
             @endif
 
-            @php($partnerClass = (Request::is('partner*') || Request::is('admin/partner-leaderboard*')) ? "menu-open" : "")
-            @php($partnerActive = (Request::is('partner*') || Request::is('admin/partner-leaderboard*')) ? "active" : "")
+            @php($partnerClass = (Request::is('*partner-leaderboard*') || Request::is('*partner/toolkit*') || Request::is('*partner/profile*')) ? "menu-open" : "")
+            @php($partnerActive = (Request::is('*partner-leaderboard*') || Request::is('*partner/toolkit*') || Request::is('*partner/profile*')) ? "active" : "")
             <li class="nav-item has-treeview {{$partnerClass}}">
                 <a href="#" class="nav-link {{$partnerActive}}" style="color: white;">
                   <i class="nav-icon fa-solid fa-handshake text-warning"></i>
@@ -1058,17 +1160,17 @@
                 </a>
                 <ul class="nav nav-treeview">
                   <li class="nav-item">
-                    <a href="{{ route('admin.partner_leaderboard') }}" class="nav-link @if(Request::is('admin/partner-leaderboard*')) active @endif" style="color: white;">
+                    <a href="{{ route('admin.partner_leaderboard') }}" class="nav-link @if(Request::is('*partner-leaderboard*')) active @endif" style="color: white;">
                       <p><i class="fa fa-angle-right ml-3 mr-1"></i> Leaderboard</p>
                     </a>
                   </li>
                   <li class="nav-item">
-                    <a href="{{ route('partner.toolkit') }}" class="nav-link @if(Request::is('partner/toolkit*')) active @endif" style="color: white;">
+                    <a href="{{ route('partner.toolkit') }}" class="nav-link @if(Request::is('*partner/toolkit*')) active @endif" style="color: white;">
                       <p><i class="fa fa-angle-right ml-3 mr-1"></i> AI Marketing Toolkit</p>
                     </a>
                   </li>
                   <li class="nav-item">
-                    <a href="{{ route('partner.profile') }}" class="nav-link @if(Request::is('partner/profile*')) active @endif" style="color: white;">
+                    <a href="{{ route('partner.profile') }}" class="nav-link @if(Request::is('*partner/profile*')) active @endif" style="color: white;">
                       <p><i class="fa fa-angle-right ml-3 mr-1"></i> Compliance Profile</p>
                     </a>
                   </li>
@@ -1235,6 +1337,17 @@
   <script type="text/javascript" src="{{asset('assets/js/pnotify.custom.min.js')}}"></script>
   <!-- AdminLTE for demo purposes -->
   <!-- <script src="{{ asset('assets/js/demo.js') }}"></script> -->
+  <script>
+    // Auto-scroll sidebar to the active menu item so it's always visible
+    $(document).ready(function() {
+      setTimeout(function() {
+        var activeLink = document.querySelector('.nav-sidebar .nav-link.active');
+        if (activeLink) {
+          activeLink.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 300); // Slight delay to let AdminLTE treeview initialize
+    });
+  </script>
   @yield('script')
 </body>
 

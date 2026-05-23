@@ -122,6 +122,49 @@
     .select2-container--default .select2-selection--single .select2-selection__arrow {
         height: 40px !important;
     }
+
+    /* Drag and Drop Zone */
+    .upload-zone {
+        border: 2px dashed #cbd5e1;
+        border-radius: 12px;
+        padding: 2.5rem 1rem;
+        text-align: center;
+        background-color: #f8fafc;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+
+    .upload-zone:hover, .upload-zone.dragover {
+        border-color: #6366f1;
+        background-color: #eef2ff;
+    }
+
+    .upload-zone-icon {
+        font-size: 2.5rem;
+        color: #94a3b8;
+        margin-bottom: 1rem;
+    }
+
+    .upload-zone:hover .upload-zone-icon, .upload-zone.dragover .upload-zone-icon {
+        color: #6366f1;
+    }
+
+    .upload-zone-text {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 0.25rem;
+    }
+
+    .upload-zone-subtext {
+        font-size: 0.8rem;
+        color: #94a3b8;
+    }
+
+    #frame_image {
+        display: none;
+    }
 </style>
 @endsection
 
@@ -189,9 +232,12 @@
                     <div class="row">
                         <div class="col-12 mb-4">
                             <label class="form-label-premium">Upload Frame Images</label>
-                            <div class="custom-file">
-                                <input type="file" class="custom-file-input" id="frame_image" name="frame_image[]" onchange="imagePreview()" accept=".jpg, .png, jpeg, .PNG, .JPG, .JPEG" multiple required>
-                                <label class="custom-file-label form-control-premium" for="frame_image">Choose files (multiple allowed)</label>
+                            
+                            <div class="upload-zone" id="uploadZone">
+                                <i class="fa fa-cloud-upload-alt upload-zone-icon"></i>
+                                <div class="upload-zone-text">Drag & Drop your images here</div>
+                                <div class="upload-zone-subtext">or click to browse (multiple allowed)</div>
+                                <input type="file" id="frame_image" name="frame_image[]" accept=".jpg, .png, jpeg, .PNG, .JPG, .JPEG" multiple required>
                             </div>
                         </div>
                     </div>
@@ -238,24 +284,46 @@
             $('#category_id').select2();
             $('#language_id').select2();
             
-            // Custom file input label update
-            $('#frame_image').on('change', function() {
-                var fileName = $(this).val().split('\\').pop();
-                var count = this.files.length;
-                if(count > 1) {
-                    $(this).next('.custom-file-label').addClass("selected").html(count + ' files selected');
-                } else {
-                    $(this).next('.custom-file-label').addClass("selected").html(fileName);
+            // Drag and drop upload zone script
+            const uploadZone = document.getElementById('uploadZone');
+            const fileInput = document.getElementById('frame_image');
+
+            uploadZone.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            uploadZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadZone.classList.add('dragover');
+            });
+
+            uploadZone.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                uploadZone.classList.remove('dragover');
+            });
+
+            uploadZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadZone.classList.remove('dragover');
+                
+                if (e.dataTransfer.files.length > 0) {
+                    fileInput.files = e.dataTransfer.files;
+                    imagePreview();
                 }
+            });
+
+            $(fileInput).change(function () {
+                imagePreview();
             });
         });
 
         function imagePreview() {
-            var total_file = document.getElementById("frame_image").files.length;
+            var fileInput = document.getElementById("frame_image");
+            var total_file = fileInput.files.length;
             $('#preview').empty();
 
             for (var i = 0; i < total_file; i++) {
-                var url = URL.createObjectURL(event.target.files[i]);
+                var url = URL.createObjectURL(fileInput.files[i]);
                 $('#preview').append("<div class='preview-item'><img src='" + url + "'></div>");
             }
         }

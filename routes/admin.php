@@ -232,6 +232,8 @@ Route::
             Route::get('blogs', 'BlogController@index')->name('admin.blogs');
             Route::get('marketing-settings', 'MarketingSettingsController@index')->name('admin.marketing_settings');
             Route::get('ai-campaigns', 'AiSmartCampaignController@index')->name('admin.ai_campaigns');
+            Route::post('ai-campaigns/generate', 'AiSmartCampaignController@generateCopy')->name('admin.ai_campaigns.generate');
+            Route::post('ai-campaigns/send', 'AiSmartCampaignController@sendCampaign')->name('admin.ai_campaigns.send');
             
             Route::get('tickets', 'TicketController@index')->name('admin.tickets');
             Route::get('tickets/{id}', 'TicketController@show')->name('admin.tickets.show');

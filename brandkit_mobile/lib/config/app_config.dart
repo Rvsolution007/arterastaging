@@ -20,7 +20,7 @@ class AppConfig {
       case AppEnvironment.local:
         return 'http://192.168.1.41/Artera/123456';
       case AppEnvironment.staging:
-        return 'https://staging.arterapixel.com/123456';
+        return 'https://stagingartera.arterapixel.com/123456';
       case AppEnvironment.production:
         return 'https://arterapixel.com/123456';
     }

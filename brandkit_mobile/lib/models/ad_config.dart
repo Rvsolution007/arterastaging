@@ -1,10 +1,12 @@
 class AdConfig {
   final bool showGlobalAds;
   final Map<String, FeatureAdConfig> features;
+  final AdmobConfig? admob;
 
   AdConfig({
     required this.showGlobalAds,
     required this.features,
+    this.admob,
   });
 
   factory AdConfig.fromJson(Map<String, dynamic> json) {
@@ -19,6 +21,30 @@ class AdConfig {
     return AdConfig(
       showGlobalAds: json['show_global_ads'] ?? false,
       features: featuresMap,
+      admob: json['admob'] != null ? AdmobConfig.fromJson(json['admob']) : null,
+    );
+  }
+}
+
+class AdmobConfig {
+  final String bannerAdsId;
+  final String interstitialAdsId;
+  final String rewardedAdsId;
+  final String nativeAdsId;
+
+  AdmobConfig({
+    required this.bannerAdsId,
+    required this.interstitialAdsId,
+    required this.rewardedAdsId,
+    required this.nativeAdsId,
+  });
+
+  factory AdmobConfig.fromJson(Map<String, dynamic> json) {
+    return AdmobConfig(
+      bannerAdsId: json['banner_ads_id'] ?? '',
+      interstitialAdsId: json['interstitial_ads_id'] ?? '',
+      rewardedAdsId: json['rewarded_ads_id'] ?? '',
+      nativeAdsId: json['native_ads_id'] ?? '',
     );
   }
 }

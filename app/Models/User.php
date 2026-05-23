@@ -139,7 +139,6 @@ class User extends Authenticatable
 
         $limitMap = [
             'custom_post'            => ['used' => 'custom_post_used',            'limit' => 'custom_post_edit_limit'],
-            'daily_drip'             => ['used' => 'daily_drip_used',             'limit' => 'daily_drip_limit'],
             'magic_cloner'           => ['used' => 'magic_cloner_used',           'limit' => 'magic_cloner_limit'],
             'festival_post'          => ['used' => 'festival_post_used',          'limit' => 'festival_post_limit'],
             'business_category_post' => ['used' => 'business_category_post_used', 'limit' => 'business_category_post_limit'],
@@ -165,7 +164,6 @@ class User extends Authenticatable
 
         $fieldMap = [
             'custom_post'            => 'custom_post_used',
-            'daily_drip'             => 'daily_drip_used',
             'magic_cloner'           => 'magic_cloner_used',
             'festival_post'          => 'festival_post_used',
             'business_category_post' => 'business_category_post_used',
@@ -192,7 +190,6 @@ class User extends Authenticatable
 
         $limitMap = [
             'custom_post'            => ['used' => 'custom_post_used',            'limit' => 'custom_post_edit_limit'],
-            'daily_drip'             => ['used' => 'daily_drip_used',             'limit' => 'daily_drip_limit'],
             'magic_cloner'           => ['used' => 'magic_cloner_used',           'limit' => 'magic_cloner_limit'],
             'festival_post'          => ['used' => 'festival_post_used',          'limit' => 'festival_post_limit'],
             'business_category_post' => ['used' => 'business_category_post_used', 'limit' => 'business_category_post_limit'],
@@ -220,7 +217,6 @@ class User extends Authenticatable
 
         $adMap = [
             'custom_post'            => ['enabled' => 'custom_post_ad_reward',       'limit' => 'custom_post_ad_reward_limit',       'used' => 'custom_post_ad_used'],
-            'daily_drip'             => ['enabled' => 'daily_drip_ad_reward',        'limit' => 'daily_drip_ad_reward_limit',        'used' => 'daily_drip_ad_used'],
             'magic_cloner'           => ['enabled' => 'magic_cloner_ad_reward',      'limit' => 'magic_cloner_ad_reward_limit',      'used' => 'magic_cloner_ad_used'],
             'festival_post'          => ['enabled' => 'festival_post_ad_reward',     'limit' => 'festival_post_ad_reward_limit',     'used' => 'festival_post_ad_used'],
             'business_category_post' => ['enabled' => 'business_category_ad_reward', 'limit' => 'business_category_ad_reward_limit', 'used' => 'business_category_ad_used'],
@@ -248,7 +244,6 @@ class User extends Authenticatable
 
         $adMap = [
             'custom_post'            => 'custom_post_ad_used',
-            'daily_drip'             => 'daily_drip_ad_used',
             'magic_cloner'           => 'magic_cloner_ad_used',
             'festival_post'          => 'festival_post_ad_used',
             'business_category_post' => 'business_category_ad_used',
@@ -272,7 +267,6 @@ class User extends Authenticatable
 
         $limits = [
             'custom_post'            => ['base' => 'custom_post_edit_limit',       'used' => 'custom_post_used',            'ad_limit' => 'custom_post_ad_reward_limit',       'ad_used' => 'custom_post_ad_used'],
-            'daily_drip'             => ['base' => 'daily_drip_limit',             'used' => 'daily_drip_used',             'ad_limit' => 'daily_drip_ad_reward_limit',        'ad_used' => 'daily_drip_ad_used'],
             'magic_cloner'           => ['base' => 'magic_cloner_limit',           'used' => 'magic_cloner_used',           'ad_limit' => 'magic_cloner_ad_reward_limit',      'ad_used' => 'magic_cloner_ad_used'],
             'festival_post'          => ['base' => 'festival_post_limit',          'used' => 'festival_post_used',          'ad_limit' => 'festival_post_ad_reward_limit',     'ad_used' => 'festival_post_ad_used'],
             'business_category_post' => ['base' => 'business_category_post_limit', 'used' => 'business_category_post_used', 'ad_limit' => 'business_category_ad_reward_limit', 'ad_used' => 'business_category_ad_used'],
@@ -318,7 +312,6 @@ class User extends Authenticatable
         if (!$plan) return false;
 
         return $plan->custom_post_edit_limit == 0 &&
-               $plan->daily_drip_limit == 0 &&
                $plan->magic_cloner_limit == 0 &&
                $plan->festival_post_limit == 0 &&
                $plan->business_category_post_limit == 0;
@@ -353,8 +346,18 @@ class User extends Authenticatable
             $plan = \App\Models\Subscription::where('plan_price', 0)->first();
         }
         
+        $settings = \Illuminate\Support\Arr::pluck(
+            \App\Models\AdsSetting::all()->toArray(), 'key_value', 'key_name'
+        );
+        
         return [
             'show_global_ads' => $this->shouldShowGlobalAds(),
+            'admob' => [
+                'banner_ads_id' => $settings['banner_ads_id'] ?? '',
+                'interstitial_ads_id' => $settings['interstitial_ads_id'] ?? '',
+                'rewarded_ads_id' => $settings['rewarded_ads_id'] ?? '',
+                'native_ads_id' => $settings['native_ads_id'] ?? '',
+            ],
             'features' => [
                 'custom_post' => [
                     'base_limit' => $plan ? $plan->custom_post_edit_limit : 0,
@@ -364,14 +367,7 @@ class User extends Authenticatable
                     'state' => $this->getAdState('custom_post'),
                     'max_ad_uses' => $plan ? $plan->custom_post_ad_reward : 0,
                 ],
-                'daily_drip' => [
-                    'base_limit' => $plan ? $plan->daily_drip_limit : 0,
-                    'used' => $this->daily_drip_used,
-                    'ad_limit' => $plan ? $plan->daily_drip_ad_reward_limit : 0,
-                    'ad_used' => $this->daily_drip_ad_used,
-                    'state' => $this->getAdState('daily_drip'),
-                    'max_ad_uses' => $plan ? $plan->daily_drip_ad_reward : 0,
-                ],
+
                 'magic_cloner' => [
                     'base_limit' => $plan ? $plan->magic_cloner_limit : 0,
                     'used' => $this->magic_cloner_used,

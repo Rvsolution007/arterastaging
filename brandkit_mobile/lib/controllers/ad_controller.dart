@@ -52,7 +52,16 @@ class AdController extends GetxController {
   /// Update the ad config when user logs in or fetches profile
   void updateAdConfig(Map<String, dynamic>? configData) {
     if (configData != null) {
-      adConfig.value = AdConfig.fromJson(configData);
+      final newConfig = AdConfig.fromJson(configData);
+      if (newConfig.admob != null) {
+        AdService.updateIds(
+          bannerId: newConfig.admob!.bannerAdsId,
+          interstitialId: newConfig.admob!.interstitialAdsId,
+          rewardedId: newConfig.admob!.rewardedAdsId,
+          nativeId: newConfig.admob!.nativeAdsId,
+        );
+      }
+      adConfig.value = newConfig;
     }
   }
 

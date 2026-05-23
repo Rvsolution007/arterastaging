@@ -65,6 +65,14 @@
             .nav-links.active { display: flex; flex-direction: column; position: absolute; top: 70px; left: 0; width: 100%; background: white; padding: 20px; box-shadow: 0 10px 10px rgba(0,0,0,0.1); }
         }
 
+        /* Dropdown */
+        .dropdown { position: relative; display: inline-block; }
+        .dropdown-content { display: none; position: absolute; background-color: white; min-width: 200px; box-shadow: var(--shadow-md); z-index: 1001; border-radius: 8px; top: 100%; left: 0; padding: 10px 0; }
+        .dropdown-content a { color: var(--text-dark); padding: 12px 20px; text-decoration: none; display: block; transition: 0.3s; font-weight: 500; }
+        .dropdown-content a::after { display: none; }
+        .dropdown-content a:hover { background-color: var(--bg-alt); color: var(--primary); }
+        .dropdown:hover .dropdown-content { display: block; }
+
         /* Footer */
         .footer { background: var(--text-dark); color: white; padding: 80px 0 30px; margin-top: 50px; }
         .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr; gap: 40px; margin-bottom: 50px; }
@@ -100,10 +108,18 @@
             
             <ul class="nav-links" id="navLinks">
                 <li><a href="{{ route('landing.home') }}" class="{{ request()->routeIs('landing.home') ? 'active' : '' }}">Home</a></li>
-                <li><a href="{{ route('landing.about') }}" class="{{ request()->routeIs('landing.about') ? 'active' : '' }}">About Us</a></li>
+                <li><a href="{{ route('landing.templates') }}" class="{{ request()->routeIs('landing.templates') ? 'active' : '' }}">Templates</a></li>
+                <li class="dropdown">
+                    <a href="#" class="dropbtn">Tools <i class="fa-solid fa-chevron-down" style="font-size:12px;"></i></a>
+                    <div class="dropdown-content">
+                        <a href="{{ route('landing.logo_maker') }}">Logo Maker</a>
+                        <a href="{{ route('landing.digital_business_cards') }}">Digital Business Cards</a>
+                        <a href="{{ route('landing.video_maker') }}">Video Maker</a>
+                    </div>
+                </li>
                 <li><a href="{{ route('landing.features') }}" class="{{ request()->routeIs('landing.features') ? 'active' : '' }}">Features</a></li>
                 <li><a href="{{ route('landing.packages') }}" class="{{ request()->routeIs('landing.packages') ? 'active' : '' }}">Packages</a></li>
-                <li><a href="{{ route('landing.reviews') }}" class="{{ request()->routeIs('landing.reviews') ? 'active' : '' }}">Reviews</a></li>
+                <li><a href="{{ route('landing.blogs') }}" class="{{ request()->routeIs('landing.blogs', 'landing.blog_details') ? 'active' : '' }}">Blog</a></li>
                 <li><a href="{{ route('landing.contact') }}" class="{{ request()->routeIs('landing.contact') ? 'active' : '' }}">Contact Us</a></li>
             </ul>
             
@@ -125,7 +141,7 @@
     <!-- Footer -->
     <footer class="footer">
         <div class="container">
-            <div class="footer-grid">
+            <div class="footer-grid" style="grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr;">
                 <div>
                     <a href="{{ route('landing.home') }}" class="footer-logo"><i class="fa-solid fa-layer-group"></i> Artera</a>
                     <p class="footer-desc">The ultimate AI-powered poster maker and marketing automation tool for small and medium businesses.</p>
@@ -138,10 +154,23 @@
                     <h4 class="footer-title">Quick Links</h4>
                     <ul class="footer-links">
                         <li><a href="{{ route('landing.home') }}">Home</a></li>
-                        <li><a href="{{ route('landing.about') }}">About Us</a></li>
+                        <li><a href="{{ route('landing.templates') }}">Templates</a></li>
                         <li><a href="{{ route('landing.features') }}">Features</a></li>
                         <li><a href="{{ route('landing.packages') }}">Pricing Plans</a></li>
+                        <li><a href="{{ route('landing.blogs') }}">Blog</a></li>
                         <li><a href="{{ route('landing.contact') }}">Contact</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 class="footer-title">Explore Categories</h4>
+                    <ul class="footer-links">
+                        <li><a href="{{ route('landing.category', 'real-estate') }}">Real Estate</a></li>
+                        <li><a href="{{ route('landing.category', 'doctors') }}">Doctors</a></li>
+                        <li><a href="{{ route('landing.category', 'politicians') }}">Politicians</a></li>
+                        <li><a href="{{ route('landing.category', 'education') }}">Education</a></li>
+                        <li><a href="{{ route('landing.category', 'restaurants') }}">Restaurants</a></li>
+                        <li><a href="{{ route('landing.category', 'jewellery') }}">Jewellery</a></li>
                     </ul>
                 </div>
                 

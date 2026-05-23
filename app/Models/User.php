@@ -311,10 +311,18 @@ class User extends Authenticatable
         }
         if (!$plan) return false;
 
-        return $plan->custom_post_edit_limit == 0 &&
-               $plan->magic_cloner_limit == 0 &&
-               $plan->festival_post_limit == 0 &&
-               $plan->business_category_post_limit == 0;
+        $settings = \Illuminate\Support\Arr::pluck(
+            \App\Models\AdsSetting::all()->toArray(), 'key_value', 'key_name'
+        );
+
+        $adsGlobalEnable = $settings['ads_enable'] ?? '0';
+        $bannerEnable = $settings['banner_ads_enable'] ?? '0';
+
+        if ($adsGlobalEnable != '1' || $bannerEnable != '1') {
+            return false;
+        }
+
+        return $plan->plan_price == 0;
     }
 
     /**

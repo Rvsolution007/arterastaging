@@ -3696,17 +3696,17 @@ class HomeApi extends Controller
 
         return response()->json([
             'admob' => [
-                'enabled'               => $settings['admob_enable'] ?? '0',
-                'app_id_android'        => $settings['admob_app_id_android'] ?? '',
-                'app_id_ios'            => $settings['admob_app_id_ios'] ?? '',
-                'banner_id_android'     => $settings['admob_banner_android'] ?? '',
-                'banner_id_ios'         => $settings['admob_banner_ios'] ?? '',
-                'interstitial_id_android' => $settings['admob_interstitial_android'] ?? '',
-                'interstitial_id_ios'   => $settings['admob_interstitial_ios'] ?? '',
-                'rewarded_id_android'   => $settings['admob_rewarded_android'] ?? '',
-                'rewarded_id_ios'       => $settings['admob_rewarded_ios'] ?? '',
-                'native_id_android'     => $settings['admob_native_android'] ?? '',
-                'native_id_ios'         => $settings['admob_native_ios'] ?? '',
+                'enabled'               => $settings['ads_enable'] ?? '0',
+                'app_id_android'        => $settings['publisher_id'] ?? '',
+                'app_id_ios'            => $settings['publisher_id'] ?? '',
+                'banner_id_android'     => $settings['banner_ads_id'] ?? '',
+                'banner_id_ios'         => $settings['banner_ads_id'] ?? '',
+                'interstitial_id_android' => $settings['interstitial_ads_id'] ?? '',
+                'interstitial_id_ios'   => $settings['interstitial_ads_id'] ?? '',
+                'rewarded_id_android'   => $settings['rewarded_ads_id'] ?? '',
+                'rewarded_id_ios'       => $settings['rewarded_ads_id'] ?? '',
+                'native_id_android'     => $settings['native_ads_id'] ?? '',
+                'native_id_ios'         => $settings['native_ads_id'] ?? '',
             ],
             'meta_audience' => [
                 'enabled'    => $settings['meta_ads_enable'] ?? '0',

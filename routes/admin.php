@@ -238,7 +238,16 @@ Route::
             Route::get('tickets', 'TicketController@index')->name('admin.tickets');
             Route::get('tickets/{id}', 'TicketController@show')->name('admin.tickets.show');
             Route::post('tickets/{id}/reply', 'TicketController@reply')->name('admin.tickets.reply');
-            
+            Route::post('tickets/{id}/status', 'TicketController@updateStatus')->name('admin.tickets.updateStatus');
+
+            // Support & Ops - Knowledge Base (AI Training)
+            Route::get('knowledge-base', 'AdminKnowledgeBaseController@index')->name('admin.knowledge_base');
+            Route::get('knowledge-base/create', 'AdminKnowledgeBaseController@create')->name('admin.knowledge_base.create');
+            Route::post('knowledge-base', 'AdminKnowledgeBaseController@store')->name('admin.knowledge_base.store');
+            Route::get('knowledge-base/{id}/edit', 'AdminKnowledgeBaseController@edit')->name('admin.knowledge_base.edit');
+            Route::post('knowledge-base/{id}', 'AdminKnowledgeBaseController@update')->name('admin.knowledge_base.update');
+            Route::get('knowledge-base/{id}/delete', 'AdminKnowledgeBaseController@destroy')->name('admin.knowledge_base.delete');
+
             Route::get('churn-analytics', 'ChurnController@index')->name('admin.churn_analytics');
             Route::get('journey', 'JourneyController@index')->name('admin.journey');
             Route::get('payment-analytics', 'PaymentAnalyticsController@index')->name('admin.payment_analytics');

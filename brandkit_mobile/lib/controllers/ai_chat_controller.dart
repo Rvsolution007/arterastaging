@@ -18,24 +18,42 @@ class AiChatController extends GetxController {
   var ticketId = 0.obs;
   PusherChannelsFlutter pusher = PusherChannelsFlutter.getInstance();
 
+  AiChatController({int initialTicketId = 0}) {
+    ticketId.value = initialTicketId;
+  }
+
   @override
   void onInit() {
     super.onInit();
-    loadHistory();
+    if (ticketId.value > 0) {
+      loadHistory();
+    } else {
+      // New chat greeting
+      messages.add(ChatMessage(
+        text: "Hi there! I'm your AI Support Assistant. How can I help you today?",
+        isMe: false,
+        timestamp: DateTime.now(),
+      ));
+    }
   }
 
   Future<void> loadHistory() async {
+    if (ticketId.value == 0) return;
+    
     try {
       isLoading(true);
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('userId');
       if (userId == null) return;
 
-      final response = await ApiService.post('/ai-chat/history', {'user_id': userId});
+      final response = await ApiService.post('/ai-chat/history', {
+        'user_id': userId,
+        'ticket_id': ticketId.value
+      });
+      
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success']) {
-          ticketId.value = data['ticket_id'] ?? 0;
           final List msgList = data['messages'] ?? [];
           messages.value = msgList.map((m) {
             return ChatMessage(
@@ -50,19 +68,7 @@ class AiChatController extends GetxController {
       print("Chat history error: $e");
     } finally {
       isLoading(false);
-      
-      // If no history, add a greeting message
-      if (messages.isEmpty) {
-        messages.add(ChatMessage(
-          text: "Hi there! I'm your AI Support Assistant. How can I help you today?",
-          isMe: false,
-          timestamp: DateTime.now(),
-        ));
-      }
-
-      if (ticketId.value > 0) {
-        _initPusher();
-      }
+      _initPusher();
     }
   }
 
@@ -83,7 +89,6 @@ class AiChatController extends GetxController {
   void _onPusherEvent(PusherEvent event) {
     if (event.eventName == "message.created") {
       final data = jsonDecode(event.data);
-      // Ensure we don't duplicate the user's own message
       if (data['sender_type'] == 'user') return;
       
       messages.add(ChatMessage(
@@ -97,7 +102,6 @@ class AiChatController extends GetxController {
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
-    // Add user message instantly for UI responsiveness
     messages.add(ChatMessage(
       text: text,
       isMe: true,
@@ -109,10 +113,15 @@ class AiChatController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('userId');
 
-      final response = await ApiService.post('/ai-chat/send', {
+      Map<String, dynamic> body = {
         'user_id': userId,
         'message': text,
-      });
+      };
+      if (ticketId.value > 0) {
+        body['ticket_id'] = ticketId.value;
+      }
+
+      final response = await ApiService.post('/ai-chat/send', body);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -122,8 +131,6 @@ class AiChatController extends GetxController {
             _initPusher();
           }
           
-          // Re-enabling the immediate local append so that the chat functions perfectly 
-          // even if local WebSockets fail to connect via Pusher SDK
           messages.add(ChatMessage(
             text: data['reply'],
             isMe: false,

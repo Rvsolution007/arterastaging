@@ -5,12 +5,15 @@ import '../utils/app_colors.dart';
 import 'package:intl/intl.dart';
 
 class AiChatScreen extends StatelessWidget {
-  const AiChatScreen({Key? key}) : super(key: key);
+  final int ticketId;
+  const AiChatScreen({Key? key, this.ticketId = 0}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    // Inject the controller
-    final controller = Get.put(AiChatController());
+    // Initialize controller with the specific ticket ID
+    // We use a tag so GetX can manage multiple instances if needed, or simply delete the old one.
+    Get.delete<AiChatController>(); 
+    final controller = Get.put(AiChatController(initialTicketId: ticketId));
     final TextEditingController textController = TextEditingController();
     final ScrollController scrollController = ScrollController();
 
@@ -54,9 +57,9 @@ class AiChatScreen extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Artera Support',
-                  style: TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.bold),
+                Text(
+                  ticketId > 0 ? 'Ticket #$ticketId' : 'New Support Chat',
+                  style: const TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 Obx(() => Text(
                   controller.isLoading.value ? 'Typing...' : 'Online',

@@ -150,6 +150,7 @@ Route::
             Route::post('/knowledge-base/search', [\App\Http\Controllers\KnowledgeBaseController::class, 'search']);
 
             // AI Customer Support Chat Endpoints
+            Route::get('/tickets', [\App\Http\Controllers\Api\AiChatController::class, 'getTickets']);
             Route::post('/ai-chat/send', [\App\Http\Controllers\Api\AiChatController::class, 'sendMessage']);
             Route::post('/ai-chat/history', [\App\Http\Controllers\Api\AiChatController::class, 'getHistory']);
 

@@ -17,17 +17,26 @@ class AiChatController extends Controller
     {
         $request->validate([
             'message' => 'required|string',
-            'user_id' => 'required|integer' // Ideally authenticated via auth:api
+            'user_id' => 'required|integer',
+            'ticket_id' => 'nullable|integer'
         ]);
 
         $userId = $request->user_id;
         $userMessageText = $request->message;
+        $ticketId = $request->ticket_id;
 
-        // 1. Find an open ticket or create a new one
-        $ticket = Ticket::firstOrCreate(
-            ['user_id' => $userId, 'status' => 'open'],
-            ['subject' => substr($userMessageText, 0, 50) . '...', 'priority' => 'low', 'sentiment_score' => 5.0]
-        );
+        // 1. Find the specific ticket or create a new one
+        if ($ticketId) {
+            $ticket = Ticket::where('id', $ticketId)->where('user_id', $userId)->firstOrFail();
+        } else {
+            $ticket = Ticket::create([
+                'user_id' => $userId,
+                'status' => 'open',
+                'subject' => substr($userMessageText, 0, 50) . '...',
+                'priority' => 'low',
+                'sentiment_score' => 5.0
+            ]);
+        }
 
         // 2. Save User Message
         $userMsg = TicketMessage::create([
@@ -37,9 +46,9 @@ class AiChatController extends Controller
             'message' => $userMessageText
         ]);
 
+        $ticket->touch(); // Update updated_at
+
         // 3. Simple AI RAG Logic (Search Knowledge Base)
-        // In a full n8n setup, this would dispatch a Job or Webhook. 
-        // Here we give an immediate response using the KB we built in Task 4.
         $kbResult = KnowledgeBase::where('status', 1)
             ->where(function($q) use ($userMessageText) {
                 // Split words to find rough keyword matches
@@ -54,7 +63,11 @@ class AiChatController extends Controller
 
         if ($kbResult) {
             $aiReplyText = $kbResult->answer;
+            // Optionally set ticket to resolved if AI answers
+            // $ticket->update(['status' => 'ai_resolved']);
         } else {
+            // Human escalation required
+            $ticket->update(['status' => 'open']);
             $aiReplyText = "I couldn't find an automatic answer for that. I have assigned Ticket #{$ticket->id} to our human support team. They will review this shortly!";
         }
 
@@ -67,8 +80,12 @@ class AiChatController extends Controller
         ]);
 
         // Fire Broadcast Events
-        broadcast(new \App\Events\TicketMessageCreated($userMsg));
-        broadcast(new \App\Events\TicketMessageCreated($aiMsg));
+        try {
+            broadcast(new \App\Events\TicketMessageCreated($userMsg));
+            broadcast(new \App\Events\TicketMessageCreated($aiMsg));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Broadcasting failed: " . $e->getMessage());
+        }
 
         return response()->json([
             'success' => true,
@@ -79,16 +96,33 @@ class AiChatController extends Controller
     }
 
     /**
-     * Get chat history for a user
+     * Get all tickets for a user
      */
-    public function getHistory(Request $request)
+    public function getTickets(Request $request)
     {
         $userId = $request->user_id;
         if (!$userId) return response()->json(['success' => false, 'message' => 'user_id required'], 400);
 
-        $ticket = Ticket::where('user_id', $userId)->orderBy('created_at', 'desc')->first();
+        $tickets = Ticket::where('user_id', $userId)->orderBy('updated_at', 'desc')->get();
+        return response()->json([
+            'success' => true,
+            'tickets' => $tickets
+        ]);
+    }
+
+    /**
+     * Get chat history for a specific ticket
+     */
+    public function getHistory(Request $request)
+    {
+        $userId = $request->user_id;
+        $ticketId = $request->ticket_id;
+        
+        if (!$userId || !$ticketId) return response()->json(['success' => false, 'message' => 'user_id and ticket_id required'], 400);
+
+        $ticket = Ticket::where('id', $ticketId)->where('user_id', $userId)->first();
         if (!$ticket) {
-            return response()->json(['success' => true, 'messages' => []]);
+            return response()->json(['success' => false, 'message' => 'Ticket not found'], 404);
         }
 
         $messages = TicketMessage::where('ticket_id', $ticket->id)
@@ -99,6 +133,7 @@ class AiChatController extends Controller
         return response()->json([
             'success' => true,
             'ticket_id' => $ticket->id,
+            'status' => $ticket->status,
             'messages' => $messages
         ]);
     }

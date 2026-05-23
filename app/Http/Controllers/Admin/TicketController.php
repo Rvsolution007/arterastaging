@@ -66,7 +66,12 @@ class TicketController extends Controller
         $ticket->touch(); // Update updated_at
 
         if (!$request->is_internal) {
-            broadcast(new TicketMessageCreated($msg));
+            try {
+                broadcast(new TicketMessageCreated($msg));
+            } catch (\Exception $e) {
+                // Ignore Pusher/WebSockets broadcasting errors
+                \Illuminate\Support\Facades\Log::warning("Failed to broadcast ticket message: " . $e->getMessage());
+            }
         }
 
         return response()->json(['success' => true, 'message' => $msg]);

@@ -1122,8 +1122,8 @@
                 </ul>
             </li>
 
-            @php($opsClass = (Request::is('*ai-monitor*') || Request::is('*tickets*')) ? "menu-open" : "")
-            @php($opsActive = (Request::is('*ai-monitor*') || Request::is('*tickets*')) ? "active" : "")
+            @php($opsClass = (Request::is('*ai-monitor*') || Request::is('*tickets*') || Request::is('*knowledge-base*')) ? "menu-open" : "")
+            @php($opsActive = (Request::is('*ai-monitor*') || Request::is('*tickets*') || Request::is('*knowledge-base*')) ? "active" : "")
             <li class="nav-item has-treeview {{$opsClass}}">
                 <a href="#" class="nav-link {{$opsActive}}" style="color: white;">
                   <i class="nav-icon fa-solid fa-headset text-danger"></i>
@@ -1138,6 +1138,11 @@
                   <li class="nav-item">
                     <a href="{{ route('admin.tickets') }}" class="nav-link @if(Request::is('*tickets*')) active @endif" style="color: white;">
                       <p><i class="fa fa-angle-right ml-3 mr-1"></i> Support Tickets <span class="right badge badge-danger">AI</span></p>
+                    </a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="{{ route('admin.knowledge_base') }}" class="nav-link @if(Request::is('*knowledge-base*')) active @endif" style="color: white;">
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> AI Knowledge Base</p>
                     </a>
                   </li>
                 </ul>

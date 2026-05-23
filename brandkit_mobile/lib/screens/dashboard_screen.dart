@@ -9,6 +9,7 @@ import 'more_screen.dart';
 import '../widgets/magic_cloner_sheet.dart';
 import '../controllers/ad_controller.dart';
 import 'ai_chat_screen.dart';
+import 'support_tickets_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -40,7 +41,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           FloatingActionButton(
             heroTag: 'ai_support',
-            onPressed: () => Get.to(() => const AiChatScreen()),
+            onPressed: () => Get.to(() => const SupportTicketsScreen()),
             backgroundColor: const Color(0xFF667EEA),
             child: const Icon(Icons.smart_toy, color: Colors.white, size: 28),
           ),

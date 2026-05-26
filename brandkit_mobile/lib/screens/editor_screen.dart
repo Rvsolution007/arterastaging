@@ -17,6 +17,7 @@ import '../controllers/auth_controller.dart';
 import '../controllers/subscription_controller.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../widgets/web_editor_stub.dart' if (dart.library.html) '../widgets/web_editor_impl.dart';
+import 'ai_chat_screen.dart';
 
 class EditorScreen extends StatefulWidget {
   final String type;
@@ -307,6 +308,26 @@ class _EditorScreenState extends State<EditorScreen> {
             style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 18),
           ),
           centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.help_outline, color: Color(0xFF334155)),
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (context) => ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    child: Container(
+                      height: MediaQuery.of(context).size.height * 0.75,
+                      color: Colors.white,
+                      child: const AiChatScreen(),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
         body: _webEditorUrl.isNotEmpty 
             ? getWebEditor(_webEditorUrl)
@@ -328,6 +349,26 @@ class _EditorScreenState extends State<EditorScreen> {
           style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 18),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline, color: Color(0xFF334155)),
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  child: Container(
+                    height: MediaQuery.of(context).size.height * 0.75,
+                    color: Colors.white,
+                    child: const AiChatScreen(),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: Stack(
         children: [

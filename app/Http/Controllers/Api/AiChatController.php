@@ -48,28 +48,35 @@ class AiChatController extends Controller
 
         $ticket->touch(); // Update updated_at
 
-        // 3. Simple AI RAG Logic (Search Knowledge Base)
-        $kbResult = KnowledgeBase::where('status', 1)
-            ->where(function($q) use ($userMessageText) {
-                // Split words to find rough keyword matches
-                $words = explode(' ', $userMessageText);
-                foreach($words as $word) {
-                    if (strlen($word) > 3) {
-                        $q->orWhere('keywords', 'LIKE', "%{$word}%");
-                        $q->orWhere('question', 'LIKE', "%{$word}%");
-                    }
-                }
-            })->first();
-
-        if ($kbResult) {
-            $aiReplyText = $kbResult->answer;
-            // Optionally set ticket to resolved if AI answers
-            // $ticket->update(['status' => 'ai_resolved']);
-        } else {
-            // Human escalation required
-            $ticket->update(['status' => 'open']);
-            $aiReplyText = "I couldn't find an automatic answer for that. I have assigned Ticket #{$ticket->id} to our human support team. They will review this shortly!";
+        // 3. AI LLM Logic (Search Knowledge Base & Translate)
+        $allKb = KnowledgeBase::where('status', 1)->get();
+        $faqContext = "";
+        foreach ($allKb as $kb) {
+            $faqContext .= "FAQ ID: {$kb->id}\nQuestion: {$kb->question}\nAnswer: {$kb->answer}\nKeywords: {$kb->keywords}\n\n";
         }
+
+        $systemPrompt = "You are a helpful customer support AI agent for an application. 
+Your task is to answer the user's question by matching their intent with one of the provided FAQs.
+Here is the Knowledge Base (list of FAQs):
+-----
+{$faqContext}
+-----
+Instructions:
+1. Understand the user's question, no matter what language they use (English, Hindi, Gujarati, etc.).
+2. Find the FAQ that best matches their question.
+3. If a matching FAQ is found, you MUST return the EXACT ANSWER from that FAQ, but TRANSLATED into the EXACT same language the user used.
+4. Do NOT add any extra conversational text like 'Sure, here is the answer'. ONLY output the translated answer.
+5. If the user's question does NOT match ANY of the provided FAQs, then reply with exactly this message, but translated into the user's language: 'I couldn't find an automatic answer for that. I have assigned Ticket #{$ticket->id} to our human support team. They will review this shortly!'";
+
+        $aiService = new \App\Services\VertexAIService($userId);
+        $aiResponse = $aiService->generateContent($systemPrompt, [
+            ['role' => 'user', 'text' => $userMessageText]
+        ]);
+
+        $aiReplyText = $aiResponse['text'];
+
+        // If the AI generated the fallback message (translated or not), ensure ticket remains open
+        // (Ticket is already open by default, so we don't strictly need to do anything here)
 
         // 4. Save AI Reply
         $aiMsg = TicketMessage::create([

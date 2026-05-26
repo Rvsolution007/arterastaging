@@ -53,8 +53,12 @@ class AuthController extends GetxController {
         // Navigate to Dashboard
         Get.offAll(() => const DashboardScreen());
       } else {
-        final errorData = jsonDecode(response.body);
-        Get.snackbar('Error', errorData['message'] ?? 'Invalid login credentials', backgroundColor: Colors.redAccent, colorText: Colors.white);
+        try {
+          final errorData = jsonDecode(response.body);
+          Get.snackbar('Error', errorData['message'] ?? 'Invalid login credentials', backgroundColor: Colors.redAccent, colorText: Colors.white);
+        } catch (_) {
+          Get.snackbar('Error', 'Server Error (${response.statusCode}). Please check staging config.', backgroundColor: Colors.redAccent, colorText: Colors.white);
+        }
       }
     } catch (e) {
       Get.snackbar('Error', 'Failed to connect to the server. $e', backgroundColor: Colors.redAccent, colorText: Colors.white);
@@ -110,8 +114,12 @@ class AuthController extends GetxController {
         // Auto-login and navigate to Dashboard
         Get.offAll(() => const DashboardScreen());
       } else {
-        final errorData = jsonDecode(response.body);
-        Get.snackbar('Error', errorData['message'].toString(), backgroundColor: Colors.redAccent, colorText: Colors.white);
+        try {
+          final errorData = jsonDecode(response.body);
+          Get.snackbar('Error', errorData['message'].toString(), backgroundColor: Colors.redAccent, colorText: Colors.white);
+        } catch (_) {
+          Get.snackbar('Error', 'Server Error (${response.statusCode}). Please check staging config.', backgroundColor: Colors.redAccent, colorText: Colors.white);
+        }
       }
     } catch (e) {
       Get.snackbar('Error', 'Failed to register. $e', backgroundColor: Colors.redAccent, colorText: Colors.white);
@@ -140,8 +148,12 @@ class AuthController extends GetxController {
         Get.snackbar('Success', 'Password reset email sent!', backgroundColor: Colors.green, colorText: Colors.white);
         Get.back();
       } else {
-        final errorData = jsonDecode(response.body);
-        Get.snackbar('Error', errorData['message'].toString(), backgroundColor: Colors.redAccent, colorText: Colors.white);
+        try {
+          final errorData = jsonDecode(response.body);
+          Get.snackbar('Error', errorData['message'].toString(), backgroundColor: Colors.redAccent, colorText: Colors.white);
+        } catch (_) {
+          Get.snackbar('Error', 'Server Error (${response.statusCode}).', backgroundColor: Colors.redAccent, colorText: Colors.white);
+        }
       }
     } catch (e) {
       Get.snackbar('Error', 'Failed to send reset email. $e', backgroundColor: Colors.redAccent, colorText: Colors.white);

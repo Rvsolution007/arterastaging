@@ -32,7 +32,8 @@ RUN mkdir -p storage/framework/cache/data \
     storage/framework/sessions \
     storage/framework/views \
     storage/logs \
-    bootstrap/cache
+    bootstrap/cache \
+    public/uploads
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html \

@@ -8,6 +8,8 @@ import '../utils/app_spacing.dart';
 import '../controllers/home_controller.dart';
 import '../widgets/product_picker_sheet.dart';
 import '../services/api_service.dart';
+import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
+import 'dart:convert';
 
 class CustomPostsScreen extends StatefulWidget {
   final int? initialCategoryId;
@@ -24,6 +26,9 @@ class _CustomPostsScreenState extends State<CustomPostsScreen> {
   bool _isLoading = false;
   String? _currentProductName;
 
+  final PagingController<int, dynamic> _pagingController =
+      PagingController(firstPageKey: 1);
+
   @override
   void initState() {
     super.initState();
@@ -32,12 +37,48 @@ class _CustomPostsScreenState extends State<CustomPostsScreen> {
     } else if (hc.customPosts.isNotEmpty) {
       _selectedCategoryId = hc.customPosts.first['customCategoryId'] ?? 0;
     }
+    
+    _pagingController.addPageRequestListener((pageKey) {
+      _fetchPage(pageKey);
+    });
+  }
+
+  Future<void> _fetchPage(int pageKey) async {
+    try {
+      if (_selectedCategoryId == 0 && hc.customPosts.isNotEmpty) {
+        _selectedCategoryId = hc.customPosts.first['customCategoryId'] ?? 0;
+      }
+      
+      final response = await ApiService.get('/custom-post-paginated?category_id=$_selectedCategoryId&page=$pageKey&limit=20');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List newItems = data['data'] ?? [];
+        final currentPage = data['current_page'] ?? 1;
+        final lastPage = data['last_page'] ?? 1;
+        
+        final isLastPage = currentPage >= lastPage;
+        
+        if (isLastPage) {
+          _pagingController.appendLastPage(newItems);
+        } else {
+          final nextPageKey = pageKey + 1;
+          _pagingController.appendPage(newItems, nextPageKey);
+        }
+      } else {
+        _pagingController.error = 'Failed to load custom posts';
+      }
+    } catch (error) {
+      _pagingController.error = error;
+    }
   }
 
   void _onCategorySelected(int categoryId) {
-    setState(() {
-      _selectedCategoryId = categoryId;
-    });
+    if (_selectedCategoryId != categoryId) {
+      setState(() {
+        _selectedCategoryId = categoryId;
+      });
+      _pagingController.refresh();
+    }
   }
 
   void _showProductPicker() {
@@ -54,9 +95,16 @@ class _CustomPostsScreenState extends State<CustomPostsScreen> {
           });
           // Trigger a full refresh of custom posts from the server
           hc.fetchCustomPosts();
+          _pagingController.refresh();
         },
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _pagingController.dispose();
+    super.dispose();
   }
 
   @override
@@ -99,7 +147,6 @@ class _CustomPostsScreenState extends State<CustomPostsScreen> {
           (c) => c['customCategoryId'] == _selectedCategoryId,
           orElse: () => hc.customPosts.first,
         );
-        final posts = selectedCategory['posts'] ?? [];
 
         return Column(
           children: [
@@ -143,109 +190,141 @@ class _CustomPostsScreenState extends State<CustomPostsScreen> {
             
             // Grid
             Expanded(
-              child: posts.isEmpty
-                  ? _buildEmptyState()
-                  : GridView.builder(
-                      padding: const EdgeInsets.all(16),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                        childAspectRatio: 0.75,
-                      ),
-                      itemCount: posts.length,
-                      itemBuilder: (context, index) {
-                        final post = posts[index];
-                        final imgUrl = post['image'] ?? '';
+              child: PagedGridView<int, dynamic>(
+                pagingController: _pagingController,
+                padding: const EdgeInsets.all(16),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: 0.75,
+                ),
+                builderDelegate: PagedChildBuilderDelegate<dynamic>(
+                  noItemsFoundIndicatorBuilder: (context) => _buildEmptyState(),
+                  firstPageProgressIndicatorBuilder: (context) => _buildSkeletonGrid(),
+                  newPageProgressIndicatorBuilder: (context) => const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                  itemBuilder: (context, post, index) {
+                    final imgUrl = post['image'] ?? '';
 
-                        return GestureDetector(
-                          onTap: () async {
-                            if (kIsWeb) {
-                              final editorUrl = await ApiService.getWebEditorUrl(
-                                type: post['type'] ?? 'business_custom_frame',
-                                id: post['id'].toString(),
-                                designUrl: imgUrl,
-                              );
-                              final uri = Uri.parse(editorUrl);
-                              if (await canLaunchUrl(uri)) {
-                                await launchUrl(uri, webOnlyWindowName: '_self');
-                              }
-                              return;
-                            }
+                    return GestureDetector(
+                      onTap: () async {
+                        if (kIsWeb) {
+                          final editorUrl = await ApiService.getWebEditorUrl(
+                            type: post['type'] ?? 'business_custom_frame',
+                            id: post['id'].toString(),
+                            designUrl: imgUrl,
+                          );
+                          final uri = Uri.parse(editorUrl);
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(uri, webOnlyWindowName: '_self');
+                          }
+                          return;
+                        }
 
-                            final editorQuery = Uri(queryParameters: {
-                              'type': post['type'] ?? 'business_custom_frame',
-                              'id': post['id'].toString(),
-                              'designUrl': imgUrl,
-                            }).query;
-                            Get.toNamed(
-                              '/editor?$editorQuery',
-                              arguments: {
-                                'frameData': post,
-                              },
-                            );
+                        final editorQuery = Uri(queryParameters: {
+                          'type': post['type'] ?? 'business_custom_frame',
+                          'id': post['id'].toString(),
+                          'designUrl': imgUrl,
+                        }).query;
+                        Get.toNamed(
+                          '/editor?$editorQuery',
+                          arguments: {
+                            'frameData': post,
                           },
-                          child: Stack(
-                            children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: AppColors.gray200,
-                                  borderRadius: BorderRadius.circular(20),
-                                  boxShadow: AppColors.cardShadow,
-                                ),
-                                clipBehavior: Clip.antiAlias,
-                                child: imgUrl.isNotEmpty
-                                    ? Image.network(imgUrl, fit: BoxFit.cover,
-                                        width: double.infinity, height: double.infinity,
-                                        errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.image_outlined, color: Colors.grey, size: 36)),
-                                      )
-                                    : const Center(child: Icon(Icons.image_outlined, color: Colors.grey, size: 36)),
-                              ),
-                              // Swap Product icon overlay
-                              Positioned(
-                                bottom: 8,
-                                right: 8,
-                                child: GestureDetector(
-                                  onTap: () {
-                                    final frameId = post['id']?.toString() ?? '';
-                                    showModalBottomSheet(
-                                      context: context,
-                                      isScrollControlled: true,
-                                      backgroundColor: Colors.transparent,
-                                      builder: (ctx) => ProductPickerSheet(
-                                        frameId: frameId,
-                                        onProductSwapped: (swapResult) {
-                                          // Update this specific template's JSON with new AI content
-                                          if (swapResult['json'] != null) {
-                                            setState(() {
-                                              post['json'] = swapResult['json'];
-                                              _currentProductName = swapResult['product_name'];
-                                            });
-                                          }
-                                        },
-                                      ),
-                                    );
-                                  },
-                                  child: Container(
-                                    width: 32,
-                                    height: 32,
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.6),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: const Icon(Icons.swap_horiz, color: Colors.white, size: 18),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
                         );
                       },
-                    ),
+                      child: Stack(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.gray200,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: AppColors.cardShadow,
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: imgUrl.isNotEmpty
+                                ? Image.network(imgUrl, fit: BoxFit.cover,
+                                    width: double.infinity, height: double.infinity,
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return _buildSkeletonItem();
+                                    },
+                                    errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.image_outlined, color: Colors.grey, size: 36)),
+                                  )
+                                : const Center(child: Icon(Icons.image_outlined, color: Colors.grey, size: 36)),
+                          ),
+                          // Swap Product icon overlay
+                          Positioned(
+                            bottom: 8,
+                            right: 8,
+                            child: GestureDetector(
+                              onTap: () {
+                                final frameId = post['id']?.toString() ?? '';
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (ctx) => ProductPickerSheet(
+                                    frameId: frameId,
+                                    onProductSwapped: (swapResult) {
+                                      // Update this specific template's JSON with new AI content
+                                      if (swapResult['json'] != null) {
+                                        setState(() {
+                                          post['json'] = swapResult['json'];
+                                          _currentProductName = swapResult['product_name'];
+                                        });
+                                      }
+                                    },
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.6),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(Icons.swap_horiz, color: Colors.white, size: 18),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
             ),
           ],
         );
       }),
+    );
+  }
+
+  Widget _buildSkeletonGrid() {
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 0.75,
+      ),
+      itemCount: 8,
+      itemBuilder: (context, index) => _buildSkeletonItem(),
+    );
+  }
+
+  Widget _buildSkeletonItem() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(20),
+      ),
     );
   }
 

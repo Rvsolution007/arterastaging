@@ -361,7 +361,7 @@ class HomeApi extends Controller
 
         foreach ($customCategory as $c)
         {
-            $custom_frame = \App\Models\BusinessCustomFrame::where("custom_frame_purpose_id",$c->id)->where("status", 1)->inRandomOrder()->get();
+            $custom_frame = \App\Models\BusinessCustomFrame::where("custom_frame_purpose_id",$c->id)->where("status", 1)->orderBy('id', 'desc')->take(10)->get();
             $posts = [];
 
             foreach ($custom_frame as $frame) 
@@ -495,6 +495,128 @@ class HomeApi extends Controller
                 "data" => $data,
                 "recent_posts" => $allPosts,
             ], 200);
+    }
+
+    public function customPostPaginated(Request $request)
+    {
+        $categoryId = $request->get('category_id');
+        $limit = $request->get('limit', 20);
+        $page = $request->get('page', 1);
+
+        $custom_frame_paginator = \App\Models\BusinessCustomFrame::where("custom_frame_purpose_id", $categoryId)
+            ->where("status", 1)
+            ->orderBy('id', 'desc')
+            ->paginate($limit);
+
+        $posts = [];
+        $isDigitalOcean = StorageSetting::getStorageSetting('storage') == 'DigitalOcean';
+        $c = \App\Models\CustomFramePurpose::find($categoryId);
+
+        foreach ($custom_frame_paginator as $frame) 
+        {
+            $zip_name = pathinfo($frame->zip_file_path, PATHINFO_FILENAME);
+            $json_data = "";
+
+            if($zip_name)
+            {
+                $json_data = Cache::remember("template_json:{$zip_name}", 3600, function () use ($zip_name, $isDigitalOcean) {
+                    if($isDigitalOcean)
+                    {
+                        $file = Storage::disk('spaces')->allFiles('uploads/template/'.$zip_name.'/json/');
+                        if(!empty($file)) {
+                            return file_get_contents(Storage::disk('spaces')->url($file[0]));
+                        }
+                    }
+                    else
+                    {
+                        if(is_dir('./uploads/template/'.$zip_name.'/json/')) {
+                            $file = scandir('./uploads/template/'.$zip_name.'/json/', 1);
+                            if(isset($file[0]) && $file[0] != '.' && $file[0] != '..') {
+                                return file_get_contents(public_path('uploads/template/'.$zip_name.'/json/'.$file[0]));
+                            }
+                        }
+                    }
+                    return "";
+                });
+            }
+
+            $preview_img = "";
+            if($isDigitalOcean) {
+                $preview_img = Storage::disk('spaces')->url('uploads/template/'.$zip_name.'/preview.jpg');
+            } else {
+                $dir = public_path('uploads/template/'.$zip_name.'/');
+                if (is_dir($dir)) {
+                    if (file_exists($dir.'preview.jpg')) {
+                        $preview_img = asset('uploads/template/'.$zip_name.'/preview.jpg');
+                    } elseif (file_exists($dir.'preview.png')) {
+                        $preview_img = asset('uploads/template/'.$zip_name.'/preview.png');
+                    } else {
+                        $files = glob($dir . '*.{jpg,jpeg,png}', GLOB_BRACE);
+                        if (!empty($files)) {
+                            $preview_img = asset('uploads/template/'.$zip_name.'/'.basename($files[0]));
+                        }
+                    }
+                }
+            }
+
+            $token = request()->bearerToken();
+            $sanctumId = null;
+            try { $sanctumId = auth('sanctum')->id(); } catch (\Exception $e) {}
+            $userId = request('userId') ?? request('user_id') ?? request()->header('user-id') ?? $sanctumId;
+            
+            if (!$userId && $token) {
+                $userByToken = \App\Models\User::where('api_token', $token)->first();
+                if ($userByToken) {
+                    $userId = $userByToken->id;
+                }
+            }
+
+            if ($userId && !empty($json_data)) {
+                $aiContent = \App\Models\UserCustomFrameContent::where('user_id', $userId)
+                    ->where('business_custom_frame_id', $frame->id)
+                    ->first();
+                    
+                if ($aiContent) {
+                    if (!empty($aiContent->generated_content)) {
+                        $parsedJson = json_decode($json_data, true);
+                        if ($parsedJson && isset($parsedJson['layers'])) {
+                            foreach ($parsedJson['layers'] as &$layer) {
+                                if (isset($layer['type']) && $layer['type'] === 'text' && isset($layer['name'])) {
+                                    if (isset($aiContent->generated_content[$layer['name']])) {
+                                        $layer['text'] = $aiContent->generated_content[$layer['name']];
+                                    }
+                                }
+                            }
+                            $json_data = json_encode($parsedJson);
+                        }
+                    }
+                }
+            }
+
+            $posts[] = array(
+                "postId" => ($c ? $c->name : "")."".$frame->id,
+                "id" => $frame->id,
+                "type" => "business_custom_frame",
+                "is_template" => true,
+                "language" => "All",
+                "image" => $preview_img,
+                "is_paid" => false,
+                "height" => $frame->height ?? 1080,
+                "width" => $frame->width ?? 1080,
+                "image_type" => $frame->imageType->name ?? "square",
+                "aspect_ratio" => $frame->aspect_ratio ?? "1:1",
+                "name" => ($zip_name)?$zip_name:"",
+                "json" => ($zip_name)?$json_data:"",
+                "created_at" => $frame->created_at ? $frame->created_at->toISOString() : null,
+            );
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $posts,
+            'current_page' => $custom_frame_paginator->currentPage(),
+            'last_page' => $custom_frame_paginator->lastPage(),
+        ]);
     }
 
     public function getCategory()

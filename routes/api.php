@@ -40,6 +40,7 @@ Route::
             Route::get('/festival', 'ContentApiController@getFestival');
             Route::get('/category', 'ContentApiController@getCategory');
             Route::get('/custom-post', 'HomeApi@customPost');
+            Route::get('/custom-post-paginated', 'HomeApi@customPostPaginated');
             Route::get('/personal', 'HomeApi@personal');
             Route::post('/search', 'HomeApi@search');
 

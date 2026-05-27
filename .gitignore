@@ -84,3 +84,4 @@ verify_*.php
 /flutter/.dart_tool/
 /storage/app/Brand_Kit/*.zip* . s q l  
 /uploads/
+/public/uploads/

@@ -149,18 +149,18 @@ class LanguageController extends Controller
         }
         else
         {
-            unlink('./uploads/'.$language->image);
+            unlink(public_path('uploads/').$language->image);
             foreach($festivalsFrame as $frame)
             {
-                unlink('./uploads/'.$frame->frame_image);
+                unlink(public_path('uploads/').$frame->frame_image);
             }
             foreach($categoryPost as $cat)
             {
-                unlink('./uploads/'.$cat->frame_image);
+                unlink(public_path('uploads/').$cat->frame_image);
             }
             foreach($customPostFrame as $catPost)
             {
-                unlink('./uploads/'.$catPost->frame_image);
+                unlink(public_path('uploads/').$catPost->frame_image);
             }
             foreach($video as $v)
             {
@@ -179,7 +179,7 @@ class LanguageController extends Controller
 
     private function upload_image($file,$field,$id)
     {
-        $destinationPath = './uploads';
+        $destinationPath = public_path('uploads');
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);

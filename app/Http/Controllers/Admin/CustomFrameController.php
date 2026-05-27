@@ -148,7 +148,7 @@ class CustomFrameController extends Controller
         if (StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
             Storage::disk('spaces')->delete('uploads/' . $customFrame->frame_image);
         } else {
-            unlink('./uploads/' . $customFrame->frame_image);
+            unlink(public_path('uploads/') . $customFrame->frame_image);
         }
 
         CustomFrame::find($id)->delete();
@@ -157,7 +157,7 @@ class CustomFrameController extends Controller
 
     private function upload_image($file, $field, $id)
     {
-        $destinationPath = './uploads';
+        $destinationPath = public_path('uploads');
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);

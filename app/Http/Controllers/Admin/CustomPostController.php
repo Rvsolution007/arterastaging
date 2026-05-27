@@ -158,14 +158,14 @@ class CustomPostController extends Controller
         }
         else
         {
-            unlink('./uploads/'.$customPost->icon);
+            unlink(public_path('uploads/').$customPost->icon);
             foreach($customPostFrame as $frame)
             {
-                unlink('./uploads/'.$frame->frame_image);
+                unlink(public_path('uploads/').$frame->frame_image);
             }
             foreach($story as $s)
             {
-                unlink('./uploads/'.$s->image);
+                unlink(public_path('uploads/').$s->image);
             }
         }
 
@@ -178,7 +178,7 @@ class CustomPostController extends Controller
 
     private function upload_image($file,$field,$id)
     {
-        $destinationPath = './uploads';
+        $destinationPath = public_path('uploads');
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);

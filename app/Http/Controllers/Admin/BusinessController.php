@@ -210,7 +210,7 @@ class BusinessController extends Controller
             }
             else
             {
-                $filePath = './uploads/'.$business->logo;
+                $filePath = public_path('uploads/').$business->logo;
                 if (file_exists($filePath)) {
                     unlink($filePath);
                 }
@@ -223,7 +223,7 @@ class BusinessController extends Controller
 
     private function upload_image($file,$field,$id)
     {
-        $destinationPath = './uploads';
+        $destinationPath = public_path('uploads');
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);

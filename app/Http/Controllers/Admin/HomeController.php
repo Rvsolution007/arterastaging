@@ -365,7 +365,7 @@ class HomeController extends Controller
                         Storage::disk('spaces')->put('uploads/' . $fileName, file_get_contents($image), 'public');
                     }
                 } else {
-                    $destinationPath = './uploads';
+                    $destinationPath = public_path('uploads');
                     $extension = $request->image->getClientOriginalExtension();
                     $fileName = Str::uuid() . '.' . $extension;
                     $request->image->move($destinationPath, $fileName);
@@ -546,7 +546,7 @@ class HomeController extends Controller
 
     private function upload_image($file, $field, $id)
     {
-        $destinationPath = './uploads';
+        $destinationPath = public_path('uploads');
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);
@@ -558,7 +558,7 @@ class HomeController extends Controller
 
     private function user_upload_image($file, $field, $id)
     {
-        $destinationPath = './uploads';
+        $destinationPath = public_path('uploads');
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);

@@ -201,7 +201,7 @@ class CustomPostFrameController extends Controller
                         }
                     } else {
                         $file = $request->file('post_thumb');
-                        $destinationPath = './uploads';
+                        $destinationPath = public_path('uploads');
                         $extension = $file->getClientOriginalExtension();
                         $fileName = Str::uuid() . '.' . $extension;
                         $file->move($destinationPath, $fileName);
@@ -331,7 +331,7 @@ class CustomPostFrameController extends Controller
                                 }
                             } else {
                                 $file = $request->file('post_thumb' . $tt);
-                                $destinationPath = './uploads';
+                                $destinationPath = public_path('uploads');
                                 $extension = $file->getClientOriginalExtension();
                                 $fileName = Str::uuid() . '.' . $extension;
                                 $file->move($destinationPath, $fileName);
@@ -579,7 +579,7 @@ class CustomPostFrameController extends Controller
                         }
                     } else {
                         $file = $request->file('post_thumb');
-                        $destinationPath = './uploads';
+                        $destinationPath = public_path('uploads');
                         $extension = $file->getClientOriginalExtension();
                         $fileName = Str::uuid() . '.' . $extension;
                         $file->move($destinationPath, $fileName);
@@ -618,7 +618,7 @@ class CustomPostFrameController extends Controller
 
     private function upload_image($file, $field, $id)
     {
-        $destinationPath = './uploads';
+        $destinationPath = public_path('uploads');
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);

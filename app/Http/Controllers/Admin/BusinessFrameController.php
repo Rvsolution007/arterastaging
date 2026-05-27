@@ -244,7 +244,7 @@ class BusinessFrameController extends Controller
         if (StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
             Storage::disk('spaces')->delete('uploads/' . $businessFrame->frame_image);
         } else {
-            unlink('./uploads/' . $businessFrame->frame_image);
+            unlink(public_path('uploads/') . $businessFrame->frame_image);
         }
 
         BusinessFrame::find($id)->delete();
@@ -253,7 +253,7 @@ class BusinessFrameController extends Controller
 
     private function upload_image($file, $field, $id)
     {
-        $destinationPath = './uploads';
+        $destinationPath = public_path('uploads');
         $fileName = Str::uuid() . '.webp';
         
         $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver());

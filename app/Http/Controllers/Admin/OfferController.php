@@ -173,8 +173,8 @@ class OfferController extends Controller
         }
         else
         {
-            unlink('./uploads/'.$offer->image);
-            unlink('./uploads/'.$offer->banner);
+            unlink(public_path('uploads/').$offer->image);
+            unlink(public_path('uploads/').$offer->banner);
         }
 
         Offer::find($id)->delete();
@@ -184,7 +184,7 @@ class OfferController extends Controller
 
     private function upload_image($file,$field,$id)
     {
-        $destinationPath = './uploads';
+        $destinationPath = public_path('uploads');
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);

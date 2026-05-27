@@ -128,7 +128,7 @@ class NewsController extends Controller
         }
         else
         {
-            unlink('./uploads/'.$news->image);
+            unlink(public_path('uploads/').$news->image);
         }
 
         News::find($id)->delete();
@@ -137,7 +137,7 @@ class NewsController extends Controller
 
     private function upload_image($file,$field,$id)
     {
-        $destinationPath = './uploads';
+        $destinationPath = public_path('uploads');
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);

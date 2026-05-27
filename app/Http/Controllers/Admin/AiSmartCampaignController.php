@@ -73,7 +73,7 @@ class AiSmartCampaignController extends Controller
                 $fileName = Str::uuid() . '.' . $image->getClientOriginalExtension();
                 Storage::disk('spaces')->put('uploads/' . $fileName, file_get_contents($image), 'public');
             } else {
-                $destinationPath = './uploads';
+                $destinationPath = public_path('uploads');
                 $extension = $request->file('image')->getClientOriginalExtension();
                 $fileName = Str::uuid() . '.' . $extension;
                 $request->file('image')->move($destinationPath, $fileName);

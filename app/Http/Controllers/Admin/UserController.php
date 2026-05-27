@@ -386,14 +386,14 @@ class UserController extends Controller
         {
             foreach($business as $b)
             {
-                if ($b->logo && file_exists('./uploads/'.$b->logo)) {
-                    unlink('./uploads/'.$b->logo);
+                if ($b->logo && file_exists(public_path('uploads/').$b->logo)) {
+                    unlink(public_path('uploads/').$b->logo);
                 }
             }
             foreach($customFrame as $frame)
             {
-                if ($frame->frame_image && file_exists('./uploads/'.$frame->frame_image)) {
-                    unlink('./uploads/'.$frame->frame_image);
+                if ($frame->frame_image && file_exists(public_path('uploads/').$frame->frame_image)) {
+                    unlink(public_path('uploads/').$frame->frame_image);
                 }
             }
         }
@@ -411,7 +411,7 @@ class UserController extends Controller
 
     private function upload_image($file,$field,$id)
     {
-        $destinationPath = './uploads';
+        $destinationPath = public_path('uploads');
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);

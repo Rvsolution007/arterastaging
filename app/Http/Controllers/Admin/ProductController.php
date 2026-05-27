@@ -149,7 +149,7 @@ class ProductController extends Controller
         }
         else
         {
-            unlink('./uploads/'.$product->image);
+            unlink(public_path('uploads/').$product->image);
         }
 
         Inquiry::where('product_id',$id)->delete();
@@ -160,7 +160,7 @@ class ProductController extends Controller
 
     private function upload_image($file, $field, $id)
     {
-        $destinationPath = './uploads';
+        $destinationPath = public_path('uploads');
         $fileName = Str::uuid() . '.webp';
         
         // Hostinger Storage Optimization: Compress to WebP (Phase 5 of SaaS Plan)

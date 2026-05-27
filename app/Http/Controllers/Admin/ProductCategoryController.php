@@ -133,10 +133,10 @@ class ProductCategoryController extends Controller
         }
         else
         {
-            unlink('./uploads/'.$productCategory->image);
+            unlink(public_path('uploads/').$productCategory->image);
             foreach($product as $p)
             {
-                unlink('./uploads/'.$p->image);
+                unlink(public_path('uploads/').$p->image);
             }
         }
 
@@ -152,7 +152,7 @@ class ProductCategoryController extends Controller
 
     private function upload_image($file,$field,$id)
     {
-        $destinationPath = './uploads';
+        $destinationPath = public_path('uploads');
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);

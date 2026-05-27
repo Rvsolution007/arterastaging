@@ -1241,7 +1241,7 @@ SPACES_ENDPOINT="' . $endpoint . '"
 
     private function upload_image($file, $field)
     {
-        $destinationPath = './uploads';
+        $destinationPath = public_path('uploads');
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);
@@ -1278,7 +1278,7 @@ SPACES_ENDPOINT="' . $endpoint . '"
 
     public function move_local_to_digitalOcean()
     {
-        $local = File::files('./uploads/');
+        $local = File::files(public_path('uploads/'));
         foreach ($local as $l) {
             Storage::disk('spaces')->put('/uploads/' . $l->getrelativePathname(), file_get_contents($l), 'public');
         }

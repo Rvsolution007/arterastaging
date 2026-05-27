@@ -305,8 +305,8 @@ class PosterMakerController extends Controller
             if (StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
                 Storage::disk('spaces')->delete('uploads/' . $posterMaker->post_thumb);
             } else {
-                if (file_exists('./uploads/' . $posterMaker->post_thumb)) {
-                    unlink('./uploads/' . $posterMaker->post_thumb);
+                if (file_exists(public_path('uploads/') . $posterMaker->post_thumb)) {
+                    unlink(public_path('uploads/') . $posterMaker->post_thumb);
                 }
             }
         }
@@ -322,7 +322,7 @@ class PosterMakerController extends Controller
 
     private function upload_image($file, $field, $id)
     {
-        $destinationPath = './uploads';
+        $destinationPath = public_path('uploads');
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);
@@ -373,8 +373,8 @@ class PosterMakerController extends Controller
                 if (StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
                     Storage::disk('spaces')->delete('uploads/' . $posterMaker->post_thumb);
                 } else {
-                    if (file_exists('./uploads/' . $posterMaker->post_thumb)) {
-                        unlink('./uploads/' . $posterMaker->post_thumb);
+                    if (file_exists(public_path('uploads/') . $posterMaker->post_thumb)) {
+                        unlink(public_path('uploads/') . $posterMaker->post_thumb);
                     }
                 }
                 

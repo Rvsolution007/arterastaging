@@ -280,7 +280,7 @@ class CategoryPostController extends Controller
         if (StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
             Storage::disk('spaces')->delete('uploads/' . $categoryPost->frame_image);
         } else {
-            unlink('./uploads/' . $categoryPost->frame_image);
+            unlink(public_path('uploads/') . $categoryPost->frame_image);
         }
 
         CategoryPost::find($id)->delete();
@@ -289,7 +289,7 @@ class CategoryPostController extends Controller
 
     private function upload_image($file, $field, $id)
     {
-        $destinationPath = './uploads';
+        $destinationPath = public_path('uploads');
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);

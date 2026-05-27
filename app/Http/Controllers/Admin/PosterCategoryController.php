@@ -94,7 +94,7 @@ class PosterCategoryController extends Controller
         {
             foreach($posterMaker as $frame)
             {
-                unlink('./uploads/'.$frame->post_thumb);
+                unlink(public_path('uploads/').$frame->post_thumb);
             }
         }
 

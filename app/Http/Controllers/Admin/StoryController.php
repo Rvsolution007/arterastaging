@@ -156,8 +156,8 @@ class StoryController extends Controller
             if(StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
                 Storage::disk('spaces')->delete('uploads/'.$img);
             } else {
-                if(file_exists('./uploads/'.$img)) {
-                    unlink('./uploads/'.$img);
+                if(file_exists(public_path('uploads/').$img)) {
+                    unlink(public_path('uploads/').$img);
                 }
             }
         }
@@ -178,7 +178,7 @@ class StoryController extends Controller
                     if(StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
                         Storage::disk('spaces')->put('uploads/'.$file, file_get_contents($image),'public');
                     } else {
-                        $image->move('./uploads', $file);
+                        $image->move(public_path('uploads'), $file);
                     }
                     $images_array[] = $file;
                 }

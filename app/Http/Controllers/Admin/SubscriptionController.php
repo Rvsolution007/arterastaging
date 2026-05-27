@@ -170,7 +170,7 @@ class SubscriptionController extends Controller
         {
             foreach($story as $s)
             {
-                unlink('./uploads/'.$s->image);
+                unlink(public_path('uploads/').$s->image);
             }
         }
 
@@ -199,11 +199,11 @@ class SubscriptionController extends Controller
                 {
                     foreach($business as $b)
                     {
-                        unlink('./uploads/'.$b->logo);
+                        unlink(public_path('uploads/').$b->logo);
                     }
                     foreach($customFrame as $frame)
                     {
-                        unlink('./uploads/'.$frame->frame_image);
+                        unlink(public_path('uploads/').$frame->frame_image);
                     }
                 }
                 User::find($u->id)->delete();
@@ -221,7 +221,7 @@ class SubscriptionController extends Controller
 
     private function upload_image($file,$field,$id)
     {
-        $destinationPath = './uploads';
+        $destinationPath = public_path('uploads');
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);

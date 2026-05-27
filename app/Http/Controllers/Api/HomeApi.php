@@ -660,7 +660,7 @@ class HomeApi extends Controller
         }
         else
         {
-            $destinationPath = './uploads';
+            $destinationPath = public_path('uploads');
             $extension = $request->file("profile_image")->getClientOriginalExtension();
             $fileName = Str::uuid() . '.' . $extension;
             $request->file("profile_image")->move($destinationPath, $fileName);
@@ -3517,7 +3517,7 @@ class HomeApi extends Controller
 
     private function upload_image($file,$field,$id)
     {
-        $destinationPath = './uploads';
+        $destinationPath = public_path('uploads');
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);

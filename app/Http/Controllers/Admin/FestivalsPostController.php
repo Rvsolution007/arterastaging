@@ -226,7 +226,9 @@ class FestivalsPostController extends Controller
         if (StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
             Storage::disk('spaces')->delete('uploads/' . $festivalsFrame->frame_image);
         } else {
-            unlink('./uploads/' . $festivalsFrame->frame_image);
+            if ($festivalsFrame->frame_image && file_exists(public_path('uploads/' . $festivalsFrame->frame_image))) {
+                unlink(public_path('uploads/' . $festivalsFrame->frame_image));
+            }
         }
 
         FestivalsPost::find($id)->delete();
@@ -235,7 +237,10 @@ class FestivalsPostController extends Controller
 
     private function upload_image($file, $field, $id)
     {
-        $destinationPath = './uploads';
+        $destinationPath = public_path('uploads');
+        if (!file_exists($destinationPath)) {
+            mkdir($destinationPath, 0777, true);
+        }
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);

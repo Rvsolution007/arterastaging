@@ -142,10 +142,10 @@ class BusinessSubCategoryController extends Controller
         }
         else
         {
-            unlink('./uploads/'.$businessSubCategory->icon);
+            unlink(public_path('uploads/').$businessSubCategory->icon);
             foreach($businessFrame as $frame)
             {
-                unlink('./uploads/'.$frame->frame_image);
+                unlink(public_path('uploads/').$frame->frame_image);
             }
         }
 
@@ -157,7 +157,7 @@ class BusinessSubCategoryController extends Controller
 
     private function upload_image($file,$field,$id)
     {
-        $destinationPath = './uploads';
+        $destinationPath = public_path('uploads');
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);

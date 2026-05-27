@@ -90,7 +90,7 @@ class StickerCategoryController extends Controller
         {
             foreach($sticker as $s)
             {
-                unlink('./uploads/'.$s->image);
+                unlink(public_path('uploads/').$s->image);
             }
         }
 

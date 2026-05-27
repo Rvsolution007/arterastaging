@@ -164,14 +164,14 @@ class CategoryController extends Controller
         }
         else
         {
-            unlink('./uploads/'.$category->icon);
+            unlink(public_path('uploads/').$category->icon);
             foreach($categoryPost as $cat)
             {
-                unlink('./uploads/'.$cat->frame_image);
+                unlink(public_path('uploads/').$cat->frame_image);
             }
             foreach($story as $s)
             {
-                unlink('./uploads/'.$s->image);
+                unlink(public_path('uploads/').$s->image);
             }
             foreach($video as $v)
             {
@@ -190,7 +190,7 @@ class CategoryController extends Controller
 
     private function upload_image($file,$field,$id)
     {
-        $destinationPath = './uploads';
+        $destinationPath = public_path('uploads');
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);

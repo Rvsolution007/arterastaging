@@ -200,17 +200,17 @@ class FestivalsController extends Controller
                 Storage::disk('spaces')->delete('uploads/video/' . $v->video);
             }
         } else {
-            if ($festivals->image && file_exists('./uploads/' . $festivals->image)) {
-                unlink('./uploads/' . $festivals->image);
+            if ($festivals->image && file_exists(public_path('uploads/') . $festivals->image)) {
+                unlink(public_path('uploads/') . $festivals->image);
             }
             foreach ($festivalsFrame as $frame) {
-                if ($frame->frame_image && file_exists('./uploads/' . $frame->frame_image)) {
-                    unlink('./uploads/' . $frame->frame_image);
+                if ($frame->frame_image && file_exists(public_path('uploads/') . $frame->frame_image)) {
+                    unlink(public_path('uploads/') . $frame->frame_image);
                 }
             }
             foreach ($story as $s) {
-                if ($s->image && file_exists('./uploads/' . $s->image)) {
-                    unlink('./uploads/' . $s->image);
+                if ($s->image && file_exists(public_path('uploads/') . $s->image)) {
+                    unlink(public_path('uploads/') . $s->image);
                 }
             }
             foreach ($video as $v) {
@@ -231,7 +231,7 @@ class FestivalsController extends Controller
 
     private function upload_image($file, $field, $id)
     {
-        $destinationPath = './uploads';
+        $destinationPath = public_path('uploads');
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);

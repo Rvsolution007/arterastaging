@@ -8,6 +8,25 @@ if [ -f /var/www/html/.env ]; then
     sed -i 's/^\([A-Za-z_]*\)=\([^"'"'"'].*[[:space:]].*\)$/\1="\2"/' /var/www/html/.env
 fi
 
+# Ensure persistent uploads directory exists (Easypanel volume at public/uploads)
+mkdir -p /var/www/html/public/uploads
+chown www-data:www-data /var/www/html/public/uploads
+
+# Create symlink: /var/www/html/uploads -> /var/www/html/public/uploads
+# This makes both ./uploads and public/uploads point to the same persistent volume
+# So images survive deploys and are accessible via the /uploads/ URL
+if [ -L /var/www/html/uploads ]; then
+    rm /var/www/html/uploads
+elif [ -d /var/www/html/uploads ]; then
+    # If old uploads dir exists with files, move them to persistent volume first
+    if [ "$(ls -A /var/www/html/uploads 2>/dev/null)" ]; then
+        cp -a /var/www/html/uploads/. /var/www/html/public/uploads/ 2>/dev/null || true
+    fi
+    rm -rf /var/www/html/uploads
+fi
+ln -s /var/www/html/public/uploads /var/www/html/uploads
+echo "Uploads symlink created: /var/www/html/uploads -> /var/www/html/public/uploads"
+
 # Wait for MySQL to be ready (retry up to 30 times)
 echo "Waiting for database connection..."
 MAX_RETRIES=30

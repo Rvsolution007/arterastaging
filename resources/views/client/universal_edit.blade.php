@@ -993,25 +993,7 @@ var extractedTemplateAccentColor = null;
 var templateIsDark = {{ $phpTemplateIsDark ? 'true' : 'false' }};
 var phpBrightnessValue = {{ $phpBrightnessValue }};
 
-// ── DEBUG BANNER: Show detection result on screen ──
-(function() {
-    var banner = document.createElement('div');
-    banner.id = 'themingDebugBanner';
-    banner.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:99999;padding:8px 20px;border-radius:20px;font-size:14px;font-weight:bold;font-family:sans-serif;box-shadow:0 2px 12px rgba(0,0,0,0.3);pointer-events:none;';
-    if (templateIsDark) {
-        banner.style.background = '#1a1a2e';
-        banner.style.color = '#00ff88';
-        banner.textContent = '🌙 DARK Template (brightness: ' + phpBrightnessValue + '/255) → Text will be WHITE';
-    } else {
-        banner.style.background = '#fffde7';
-        banner.style.color = '#e65100';
-        banner.textContent = '☀️ LIGHT Template (brightness: ' + phpBrightnessValue + '/255) → Text will be BLACK';
-    }
-    document.body.appendChild(banner);
-    // Auto-hide after 8 seconds
-    setTimeout(function() { if (banner.parentNode) banner.style.opacity = '0'; banner.style.transition = 'opacity 1s'; }, 8000);
-    setTimeout(function() { if (banner.parentNode) banner.parentNode.removeChild(banner); }, 9000);
-})();
+
 
 // --- DYNAMIC THEMING HELPERS ---
 function getContrastColor(hexColor) {
@@ -1289,6 +1271,24 @@ function initCanvas() {
     fCanvas.on('object:moving', () => updateImageActionPosition());
     fCanvas.on('object:scaling', () => updateImageActionPosition());
 
+    // ── WORKAROUND: Fabric.js findTarget misses objects when canvas has zoom + iframe embed ──
+    // Manual fallback using containsPoint which correctly handles viewport-transformed coordinates.
+    fCanvas.on('mouse:down', function(opt) {
+        if (!opt.target) {
+            const ptr = fCanvas.getPointer(opt.e, true);
+            const objects = fCanvas.getObjects();
+            for (let i = objects.length - 1; i >= 0; i--) {
+                const obj = objects[i];
+                if (obj.selectable && obj.evented && obj.visible && obj.containsPoint(ptr)) {
+                    fCanvas.setActiveObject(obj);
+                    fCanvas.requestRenderAll();
+                    break;
+                }
+            }
+        }
+    });
+    // ── END WORKAROUND ──
+
     // Undo/Redo tracking hooks
     fCanvas.on('object:modified', saveCanvasState);
     fCanvas.on('object:added', saveCanvasState);
@@ -1431,20 +1431,20 @@ function addBusinessElements() {
         }, { crossOrigin: 'anonymous' });
     }
 
-    // Name
+    // Name - hidden by default
     const nameObj = new fabric.Textbox("{{ $business->name ?? '' }}", {
         left: cW * 0.08, top: cH * 0.82, width: cW * 0.6,
         fontSize: 36, fontWeight: '900', fontFamily: 'Inter', fill: '#000000',
-        editable: true, _objectType: 'text', _label: 'Business Name', _businessKey: 'name',
+        visible: false, editable: true, _objectType: 'text', _label: 'Business Name', _businessKey: 'name',
     });
     fCanvas.add(nameObj);
     businessObjects.name = nameObj;
 
-    // Phone
+    // Phone - hidden by default
     const phoneObj = new fabric.Textbox("{{ $business->mobile_no ?? '' }}", {
         left: cW * 0.08, top: cH * 0.88, width: cW * 0.4,
         fontSize: 22, fontWeight: '700', fontFamily: 'Inter', fill: '#000000',
-        editable: true, _objectType: 'text', _label: 'Phone', _businessKey: 'phone',
+        visible: false, editable: true, _objectType: 'text', _label: 'Phone', _businessKey: 'phone',
     });
     fCanvas.add(phoneObj);
     businessObjects.phone = phoneObj;
@@ -2070,6 +2070,10 @@ function changeFrame(url, element) {
         const ca = element.getAttribute('data-config');
         
         let isBase = false;
+        
+        console.log('[FRAME] changeFrame called. URL:', url);
+        console.log('[FRAME] data-config value:', ca ? (ca.substring(0, 100) + '...') : 'NULL/EMPTY');
+        console.log('[FRAME] Rendering mode:', (!ca || ca === 'null' || ca === 'undefined' || ca === '') ? '🖼️ PNG OVERLAY (no JSON config)' : '📦 ZIP/JSON CONFIG (full layer rendering)');
 
         // ── KEY FIX: For JSON-based PosterMaker frames, we MUST use applyFrameConfig to render the layers.
         // For simple PNG frames (CustomFrame, BusinessFrame), they won't have a config, so we load them as PNG overlays.
@@ -2258,21 +2262,13 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
         for (const key in frameProvides) {
             const btn = document.getElementById('toggle-' + key);
             
-            if (isOverlay) {
-                if (frameProvides[key]) {
-                    if (businessObjects[key]) businessObjects[key].set('visible', false);
-                    if (btn) btn.classList.remove('inactive');
-                } else {
-                    if (businessObjects[key]) businessObjects[key].set('visible', true);
-                    if (btn) btn.classList.remove('inactive');
-                }
+            // USER REQUEST: Always hide the floating fallback texts by default. 
+            // Only show frame-provided text slots.
+            if (businessObjects[key]) businessObjects[key].set('visible', false);
+            if (frameProvides[key]) {
+                if (btn) btn.classList.remove('inactive');
             } else {
-                if (businessObjects[key]) businessObjects[key].set('visible', false);
-                if (frameProvides[key]) {
-                    if (btn) btn.classList.remove('inactive');
-                } else {
-                    if (btn) btn.classList.add('inactive');
-                }
+                if (btn) btn.classList.add('inactive');
             }
         }
 
@@ -2299,6 +2295,7 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
 
         // Render layers
         let textGroups = {}; // Used for Grouped Auto-Scaling
+        let iconsToProcess = []; // Used for post-processing icon colors to match text
         
         // When overlaying, calculate scale factor to map frame dimensions onto the base canvas
         let overlayScaleX = 1, overlayScaleY = 1;
@@ -2463,11 +2460,34 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
                                 }
                             }
 
-                            // --- DYNAMIC THEMING FOR SHAPES ---
+                            // --- DYNAMIC THEMING FOR SHAPES AND ICONS ---
                             if (isOverlay) {
-                                let isDecorative = !lname.toLowerCase().includes('logo') && !isFrameSlot;
-                                if (isDecorative) {
-                                    img._isDecorativeShape = true; // Mark for text contrast logic
+                                let isContactIcon = false;
+                                let textKey = null;
+                                let nLow = lname.toLowerCase();
+                                
+                                if (nLow.includes('phone') || nLow.includes('call') || nLow.includes('mobile') || nLow.includes('contact') || nLow.includes('whatsapp') || nLow.includes('tel') || nLow.includes('ph')) {
+                                    isContactIcon = true; textKey = 'phone';
+                                } else if (nLow.includes('email') || nLow.includes('mail')) {
+                                    isContactIcon = true; textKey = 'email';
+                                } else if (nLow.includes('website') || nLow.includes('web') || nLow.includes('url')) {
+                                    isContactIcon = true; textKey = 'website';
+                                } else if (nLow.includes('address') || nLow.includes('location')) {
+                                    isContactIcon = true; textKey = 'address';
+                                } else if (nLow.includes('icon') || nLow.includes('facebook') || nLow.includes('instagram') || nLow.includes('twitter') || nLow.includes('youtube') || nLow.includes('social') || nLow.includes('linkedin')) {
+                                    isContactIcon = true; textKey = 'social';
+                                }
+
+                                // Only the full-canvas bg/background layer should be non-selectable
+                                // (it covers everything and would block all clicks).
+                                // Other shapes (footer bars, colored strips) should remain selectable.
+                                let isBgLayer = (nLow === 'bg' || nLow === 'background');
+                                if (isBgLayer) {
+                                    img._isDecorativeShape = true;
+                                }
+                                                    
+                                if (isContactIcon && !nLow.includes('logo') && !isFrameSlot) {
+                                    iconsToProcess.push({ img: img, layer: layer, lx: lx, ly: ly, lw: lw, lh: lh, textKey: textKey, lname: lname });
                                 }
                             }
                             // ----------------------------------
@@ -2503,6 +2523,13 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
                                     lockScalingX: false, lockScalingY: false, lockRotation: false,
                                     hasControls: true
                                 });
+                            }
+
+                            // Decorative shapes (footer bars, background strips) must NOT block
+                            // clicks on text/icons that sit on top of them.
+                            // This MUST be set AFTER the main img.set() to avoid being overridden.
+                            if (img._isDecorativeShape) {
+                                img.set({ selectable: false, evented: false, hasControls: false });
                             }
 
                             const idx = config.layers.indexOf(layer);
@@ -2562,14 +2589,17 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
                     // Smart detection: Only apply dynamic text color if the text does NOT sit on top of a decorative shape.
                     // If the text is on top of a decorative shape, we trust the JSON's original color choice for that shape.
                     let overlapsShape = false;
+                    let shapeColor = null;
                     frameOverlayObjects.forEach(obj => {
-                        if (obj._isDecorativeShape) {
+                        // Check colored shape layers (footer bars, strips, etc.) — NOT bg, NOT text
+                        const objLabel = (obj._label || '').toLowerCase();
+                        const isBg = (objLabel === 'bg' || objLabel === 'background');
+                        const isTextObj = (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text');
+                        if (!isBg && !isTextObj && obj.type === 'image') {
                             let sl = obj.left;
                             let st = obj.top;
                             let sr = sl + (obj.width * obj.scaleX);
                             let sb = st + (obj.height * obj.scaleY);
-                            // Simple AABB collision check between the text (lx, ly, lw, lh) and the shape
-                            // We use a small margin (e.g. center of text must be inside shape) to be more accurate
                             let textCenterX = lx + (lw / 2);
                             let textCenterY = ly + (lh / 2);
                             if (textCenterX >= sl && textCenterX <= sr && textCenterY >= st && textCenterY <= sb) {
@@ -2784,6 +2814,62 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
             }
         }
 
+        // --- POST-PROCESS ICON COLORS ---
+        // We do this after all images AND text are loaded into frameOverlayObjects
+        if (iconsToProcess && iconsToProcess.length > 0) {
+            console.log('[THEMING] Processing ' + iconsToProcess.length + ' contact icons for dynamic color matching...');
+            iconsToProcess.forEach(iconData => {
+                let matchingTextLayer = null;
+                if (iconData.textKey && iconData.textKey !== 'social') {
+                    matchingTextLayer = frameOverlayObjects.find(obj => obj._objectType === 'text' && obj._businessKey === iconData.textKey);
+                }
+
+                let targetColor = null;
+
+                if (matchingTextLayer) {
+                    // Match the icon color EXACTLY to what the text color ended up being
+                    targetColor = matchingTextLayer.fill;
+                } else {
+                    // Social icons or no matching text found
+                    let iconOverlapsShape = false;
+                    let iconCenterX = iconData.lx + (iconData.lw / 2);
+                    let iconCenterY = iconData.ly + (iconData.lh / 2);
+                    
+                    frameOverlayObjects.forEach(obj => {
+                        const objLabel = (obj._label || '').toLowerCase();
+                        const isBg = (objLabel === 'bg' || objLabel === 'background');
+                        const isTextObj = (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text');
+                        if (!isBg && !isTextObj && obj.type === 'image') {
+                            let sl = obj.left;
+                            let st = obj.top;
+                            let sr = sl + (obj.width * obj.scaleX);
+                            let sb = st + (obj.height * obj.scaleY);
+                            if (iconCenterX >= sl && iconCenterX <= sr && iconCenterY >= st && iconCenterY <= sb) {
+                                iconOverlapsShape = true;
+                            }
+                        }
+                    });
+
+                    if (!iconOverlapsShape) {
+                        targetColor = templateIsDark ? '#FFFFFF' : '#000000';
+                    } else {
+                        let layerColor = iconData.layer.color || iconData.layer.fill;
+                        if (layerColor) targetColor = String(layerColor).replace('0x', '#');
+                    }
+                }
+
+                if (targetColor) {
+                    console.log('[THEMING] Icon "' + iconData.lname + '" → matched color=' + targetColor);
+                    iconData.img.filters.push(new fabric.Image.filters.BlendColor({
+                        color: targetColor,
+                        mode: 'tint',
+                        alpha: 1
+                    }));
+                    iconData.img.applyFilters();
+                }
+            });
+        }
+
         // Check if frame has a logo and hide base logo if needed
         let handledByFrame = false;
         fCanvas.getObjects().forEach(o => {
@@ -2804,6 +2890,14 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
         console.log('[DIAG] Final renderAll. isBaseTemplate:', isBaseTemplate, 'Total objects:', fCanvas.getObjects().length);
         fCanvas.renderOnAddRemove = prevRenderOnAdd;
         fCanvas.renderAll();
+        
+        // Recalculate canvas offsets — critical for iframe embeds (Flutter WebView)
+        if (fCanvas.calcOffset) fCanvas.calcOffset();
+        
+        // Debug: Log selection state of all objects
+        fCanvas.getObjects().forEach((obj, i) => {
+            console.log('[DIAG] Object #' + i + ':', obj._label || obj.type, '| selectable:', obj.selectable, '| evented:', obj.evented, '| visible:', obj.visible, '| _isDecorativeShape:', !!obj._isDecorativeShape);
+        });
         
         // Start history tracking if this is the base template
         if (isBaseTemplate) {

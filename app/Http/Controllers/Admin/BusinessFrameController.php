@@ -89,8 +89,10 @@ class BusinessFrameController extends Controller
                     ])->id;
 
                     if (StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
-                        $file = Str::uuid() . '.' . $image->getClientOriginalExtension();
-                        $path = Storage::disk('spaces')->put('uploads/' . $file, file_get_contents($image), 'public');
+                        $file = Str::uuid() . '.webp';
+                        $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver());
+                        $img = $manager->read($image->getPathname())->toWebp(75);
+                        $path = Storage::disk('spaces')->put('uploads/' . $file, (string) $img, 'public');
 
                         $f = BusinessFrame::find($id);
                         $f->frame_image = $file;
@@ -217,9 +219,11 @@ class BusinessFrameController extends Controller
                 if (StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
                     if ($request->file("frame_image")) {
                         $image = $request->file('frame_image');
-                        $file = Str::uuid() . '.' . $image->getClientOriginalExtension();
+                        $file = Str::uuid() . '.webp';
+                        $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver());
+                        $img = $manager->read($image->getPathname())->toWebp(75);
 
-                        $path = Storage::disk('spaces')->put('uploads/' . $file, file_get_contents($image), 'public');
+                        $path = Storage::disk('spaces')->put('uploads/' . $file, (string) $img, 'public');
 
                         $f = BusinessFrame::find($request->get("id"));
                         $f->frame_image = $file;
@@ -250,13 +254,15 @@ class BusinessFrameController extends Controller
     private function upload_image($file, $field, $id)
     {
         $destinationPath = './uploads';
-        $extension = $file->getClientOriginalExtension();
-        $fileName = Str::uuid() . '.' . $extension;
-        $file->move($destinationPath, $fileName);
+        $fileName = Str::uuid() . '.webp';
+        
+        $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver());
+        $image = $manager->read($file->getPathname());
+        $image->toWebp(75)->save($destinationPath . '/' . $fileName);
 
-        $image = BusinessFrame::find($id);
-        $image->$field = $fileName;
-        $image->save();
+        $imageRecord = BusinessFrame::find($id);
+        $imageRecord->$field = $fileName;
+        $imageRecord->save();
     }
 
     public function getAspectRatio(int $width, int $height)

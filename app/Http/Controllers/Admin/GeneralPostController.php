@@ -81,11 +81,17 @@ class GeneralPostController extends Controller
                 $fileList = is_array($files) ? $files : [$files];
                 foreach ($fileList as $file) {
                     if ($file instanceof \Illuminate\Http\UploadedFile) {
-                        $fileName = Str::uuid() . '.' . $file->getClientOriginalExtension();
+                        $fileName = Str::uuid() . '.webp';
+                        $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver());
+                        $img = $manager->read($file->getPathname())->toWebp(75);
+                        
                         if (StorageSetting::getStorageSetting('storage') == 'DigitalOcean') {
-                            Storage::disk('spaces')->put('uploads/' . $fileName, file_get_contents($file), 'public');
+                            Storage::disk('spaces')->put('uploads/' . $fileName, (string) $img, 'public');
                         } else {
-                            $file->move(public_path('uploads'), $fileName);
+                            if (!file_exists(public_path('uploads'))) {
+                                mkdir(public_path('uploads'), 0777, true);
+                            }
+                            $img->save(public_path('uploads/' . $fileName));
                         }
                         $urls[] = $fileName;
                     }
@@ -355,10 +361,12 @@ class GeneralPostController extends Controller
                 "process_status" => 'success',
             ]);
 
-            $fileName = Str::uuid() . '.' . $extension;
+            $fileName = Str::uuid() . '.webp';
+            $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver());
+            $img = $manager->read($filePath)->toWebp(75);
 
             if (StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
-                Storage::disk('spaces')->put('uploads/' . $fileName, file_get_contents($filePath), 'public');
+                Storage::disk('spaces')->put('uploads/' . $fileName, (string) $img, 'public');
                 $post->frame_image = $fileName;
                 $post->save();
             } else {
@@ -366,11 +374,7 @@ class GeneralPostController extends Controller
                 if (!file_exists($destinationPath)) {
                     mkdir($destinationPath, 0777, true);
                 }
-                if ($isUploadedFile) {
-                    $file->move($destinationPath, $fileName);
-                } else {
-                    File::copy($filePath, $destinationPath . '/' . $fileName);
-                }
+                $img->save($destinationPath . '/' . $fileName);
                 $post->frame_image = $fileName;
                 $post->save();
             }
@@ -510,17 +514,19 @@ class GeneralPostController extends Controller
             $post->image_type = $type;
             $post->aspect_ratio = $this->getAspectRatio($size[0], $size[1]);
 
-            $fileName = Str::uuid() . '.' . $image->getClientOriginalExtension();
+            $fileName = Str::uuid() . '.webp';
+            $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver());
+            $img = $manager->read($image->getPathname())->toWebp(75);
 
             if (StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
                 Storage::disk('spaces')->delete('uploads/' . $post->frame_image);
-                Storage::disk('spaces')->put('uploads/' . $fileName, file_get_contents($image), 'public');
+                Storage::disk('spaces')->put('uploads/' . $fileName, (string) $img, 'public');
                 $post->frame_image = $fileName;
             } else {
                 if ($post->frame_image && file_exists(public_path('uploads/' . $post->frame_image))) {
                     unlink(public_path('uploads/' . $post->frame_image));
                 }
-                $image->move(public_path('uploads'), $fileName);
+                $img->save(public_path('uploads/' . $fileName));
                 $post->frame_image = $fileName;
             }
             $post->save();

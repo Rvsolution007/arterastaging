@@ -200,15 +200,23 @@ class FestivalsController extends Controller
                 Storage::disk('spaces')->delete('uploads/video/' . $v->video);
             }
         } else {
-            unlink('./uploads/' . $festivals->image);
+            if ($festivals->image && file_exists('./uploads/' . $festivals->image)) {
+                unlink('./uploads/' . $festivals->image);
+            }
             foreach ($festivalsFrame as $frame) {
-                unlink('./uploads/' . $frame->frame_image);
+                if ($frame->frame_image && file_exists('./uploads/' . $frame->frame_image)) {
+                    unlink('./uploads/' . $frame->frame_image);
+                }
             }
             foreach ($story as $s) {
-                unlink('./uploads/' . $s->image);
+                if ($s->image && file_exists('./uploads/' . $s->image)) {
+                    unlink('./uploads/' . $s->image);
+                }
             }
             foreach ($video as $v) {
-                unlink('./uploads/video/' . $v->video);
+                if ($v->video && file_exists('./uploads/video/' . $v->video)) {
+                    unlink('./uploads/video/' . $v->video);
+                }
             }
         }
 

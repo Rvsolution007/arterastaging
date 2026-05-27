@@ -498,12 +498,17 @@ class _DetailListScreenState extends State<DetailListScreen> {
                                     );
                                   }
 
-                                  Get.toNamed('/editor', arguments: {
+                                  final editorQuery = Uri(queryParameters: {
                                     'type': widget.type,
-                                    'id': widget.id,
-                                    'frameData': frameData!,
+                                    'id': widget.id.toString(),
                                     'designUrl': selectedImageUrl.isNotEmpty ? selectedImageUrl : itemImage,
-                                  });
+                                  }).query;
+                                  Get.toNamed(
+                                    '/editor?$editorQuery',
+                                    arguments: {
+                                      'frameData': frameData!,
+                                    },
+                                  );
                                 }
                               );
                             } else {

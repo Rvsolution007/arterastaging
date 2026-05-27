@@ -351,12 +351,17 @@ class TemplateGridScreen extends StatelessWidget {
               return;
             }
 
-            Get.to(() => EditorScreen(
-              type: post['type'] ?? 'business_custom_frame',
-              id: post['id'],
-              designUrl: imgUrl,
-              frameData: post,
-            ));
+            final editorQuery = Uri(queryParameters: {
+              'type': post['type'] ?? 'business_custom_frame',
+              'id': post['id'].toString(),
+              'designUrl': imgUrl,
+            }).query;
+            Get.toNamed(
+              '/editor?$editorQuery',
+              arguments: {
+                'frameData': post,
+              },
+            );
           },
         );
       },

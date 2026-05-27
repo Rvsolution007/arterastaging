@@ -309,22 +309,27 @@ class ClientAuthController extends Controller
 
     private function updateUserStreak($user)
     {
-        $today = now()->startOfDay();
-        $lastLogin = $user->last_login_date ? \Carbon\Carbon::parse($user->last_login_date)->startOfDay() : null;
+        try {
+            $today = now()->startOfDay();
+            $lastLogin = $user->last_login_date ? \Carbon\Carbon::parse($user->last_login_date)->startOfDay() : null;
 
-        if (!$lastLogin) {
-            $user->current_streak = 1;
-        } elseif ($lastLogin->equalTo($today->copy()->subDay())) {
-            $user->current_streak += 1;
-        } elseif ($lastLogin->lessThan($today->copy()->subDay())) {
-            $user->current_streak = 1;
-        }
-        
-        if ($user->current_streak > $user->max_streak) {
-            $user->max_streak = $user->current_streak;
-        }
+            if (!$lastLogin) {
+                $user->current_streak = 1;
+            } elseif ($lastLogin->equalTo($today->copy()->subDay())) {
+                $user->current_streak += 1;
+            } elseif ($lastLogin->lessThan($today->copy()->subDay())) {
+                $user->current_streak = 1;
+            }
+            
+            if ($user->current_streak > $user->max_streak) {
+                $user->max_streak = $user->current_streak;
+            }
 
-        $user->last_login_date = now()->toDateString();
-        $user->save();
+            $user->last_login_date = now()->toDateString();
+            $user->save();
+        } catch (\Exception $e) {
+            // Ignore exception to prevent login crash if gamification migration hasn't been run
+            \Log::error('Streak update failed: ' . $e->getMessage());
+        }
     }
 }

@@ -577,12 +577,17 @@ class _HomeScreenState extends State<HomeScreen> {
                         );
                       }
                       
-                      Get.toNamed('/editor', arguments: {
+                      final editorQuery = Uri(queryParameters: {
                         'type': template['type'] ?? 'business_custom_frame',
-                        'id': template['id'],
+                        'id': template['id'].toString(),
                         'designUrl': imgUrl,
-                        'frameData': template,
-                      });
+                      }).query;
+                      Get.toNamed(
+                        '/editor?$editorQuery',
+                        arguments: {
+                          'frameData': template,
+                        },
+                      );
                     }
                   );
                 },

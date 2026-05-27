@@ -523,6 +523,85 @@
         $hideBranding = ($type == 'post' || $type == 'custom');
         $imgName = $item_frames->first()->frame_image ?? ($item->display_image ?? '');
         $designUrl = request()->query('design') ?? ($imgName ? asset('uploads/' . $imgName) : '');
+
+        // ══ SERVER-SIDE BRIGHTNESS DETECTION (PHP GD) ══
+        // Analyze the bottom 30% of the template image to detect dark/light footer
+        $phpTemplateIsDark = false;
+        $phpBrightnessValue = 128;
+        try {
+            $imgPath = '';
+            // Convert URL to local file path
+            if ($designUrl) {
+                $parsed = parse_url($designUrl);
+                $urlPath = $parsed['path'] ?? '';
+                // Clean the path to get the relative path to the public directory
+                $urlPath = str_replace(['/Artera/public/', '/Artera/'], '/', $urlPath);
+                $urlPath = ltrim($urlPath, '/');
+                $imgPath = public_path($urlPath);
+                
+                // Fallback for XAMPP setups where public_path might not match URL perfectly
+                if (!file_exists($imgPath)) {
+                    $imgPath = base_path($urlPath);
+                }
+            }
+            
+            // Temporary debug file to verify path resolution
+            @file_put_contents(storage_path('logs/theming_debug.log'), "URL: $designUrl\nPath: $imgPath\nExists: " . (file_exists($imgPath)?'Y':'N') . "\n", FILE_APPEND);
+            
+            if ($imgPath && file_exists($imgPath)) {
+                $cacheKey = 'img_bright_' . md5($imgPath);
+                
+                $cachedResult = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addDays(30), function() use ($imgPath) {
+                    $res = ['isDark' => false, 'brightness' => 128];
+                    $info = @getimagesize($imgPath);
+                    if ($info) {
+                        $mime = $info['mime'] ?? '';
+                        $srcImg = null;
+                        if ($mime === 'image/jpeg' || $mime === 'image/jpg') {
+                            $srcImg = @imagecreatefromjpeg($imgPath);
+                        } elseif ($mime === 'image/png') {
+                            $srcImg = @imagecreatefrompng($imgPath);
+                        } elseif ($mime === 'image/webp') {
+                            $srcImg = @imagecreatefromwebp($imgPath);
+                        }
+                        if ($srcImg) {
+                            $w = imagesx($srcImg);
+                            $h = imagesy($srcImg);
+                            // Sample the bottom 30% of the image
+                            $sampleStartY = (int)($h * 0.7);
+                            $totalR = 0; $totalG = 0; $totalB = 0; $count = 0;
+                            // Sample every 5th pixel for speed
+                            for ($y = $sampleStartY; $y < $h; $y += 5) {
+                                for ($x = 0; $x < $w; $x += 5) {
+                                    $rgb = imagecolorat($srcImg, $x, $y);
+                                    $r = ($rgb >> 16) & 0xFF;
+                                    $g = ($rgb >> 8) & 0xFF;
+                                    $b = $rgb & 0xFF;
+                                    $totalR += $r; $totalG += $g; $totalB += $b;
+                                    $count++;
+                                }
+                            }
+                            if ($count > 0) {
+                                $avgR = $totalR / $count;
+                                $avgG = $totalG / $count;
+                                $avgB = $totalB / $count;
+                                $res['brightness'] = round(($avgR * 299 + $avgG * 587 + $avgB * 114) / 1000);
+                                $res['isDark'] = ($res['brightness'] < 128);
+                            }
+                            imagedestroy($srcImg);
+                        }
+                    }
+                    return $res;
+                });
+                
+                $phpTemplateIsDark = $cachedResult['isDark'];
+                $phpBrightnessValue = $cachedResult['brightness'];
+            }
+        } catch (\Exception $e) {
+            // Fallback: assume light template
+            $phpTemplateIsDark = false;
+            $phpBrightnessValue = 128;
+        }
     @endphp
 
     <div class="editor-container">
@@ -670,14 +749,8 @@
                             <option value="light">Light Theme</option>
                         </select>
                     </div>
-                    <button class="icon-btn-small" onclick="toggleFramePanel()"><i data-lucide="x" style="width:16px;height:16px;"></i></button>
                 </div>
-                <!-- Image Type Filter -->
-                <div class="image-type-filter">
-                    <button class="image-type-filter-btn active" onclick="setImageTypeFilter('all', this)">All</button>
-                    <button class="image-type-filter-btn" onclick="setImageTypeFilter('full', this)">🖼️ Full Image</button>
-                    <button class="image-type-filter-btn" onclick="setImageTypeFilter('transparent', this)">✂️ Product Cut</button>
-                </div>
+                <!-- Image Type Filter Removed as per request -->
                 <div class="frames-grid">
                     @php $basePosterUrl = $designUrl; @endphp
                     @forelse($frames as $index => $frame)
@@ -763,12 +836,31 @@
             <input type="range" id="fontSizeSlider" min="10" max="200" value="24" style="width:100%;height:6px;appearance:none;background:#e2e8f0;border-radius:3px;outline:none;" oninput="changeFontSize(this.value)">
         </div>
 
+        <div id="nudgeControl" class="tool-sub-panel" style="display:none; flex-direction:column; align-items:center;">
+            <div style="font-size:14px;font-weight:800;color:#1e293b;margin-bottom:12px;">Nudge Position</div>
+            <div style="display:grid; grid-template-columns: 48px 48px 48px; grid-template-rows: 48px 48px; gap:8px;">
+                <div style="grid-column: 2; grid-row: 1;">
+                    <button onclick="nudgeObject('up')" style="width:100%;height:100%;background:#f1f5f9;border:none;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><i data-lucide="arrow-up" style="width:20px;height:20px;color:#475569;"></i></button>
+                </div>
+                <div style="grid-column: 1; grid-row: 2;">
+                    <button onclick="nudgeObject('left')" style="width:100%;height:100%;background:#f1f5f9;border:none;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><i data-lucide="arrow-left" style="width:20px;height:20px;color:#475569;"></i></button>
+                </div>
+                <div style="grid-column: 2; grid-row: 2;">
+                    <button onclick="nudgeObject('down')" style="width:100%;height:100%;background:#f1f5f9;border:none;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><i data-lucide="arrow-down" style="width:20px;height:20px;color:#475569;"></i></button>
+                </div>
+                <div style="grid-column: 3; grid-row: 2;">
+                    <button onclick="nudgeObject('right')" style="width:100%;height:100%;background:#f1f5f9;border:none;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;"><i data-lucide="arrow-right" style="width:20px;height:20px;color:#475569;"></i></button>
+                </div>
+            </div>
+        </div>
+
         <div style="position:relative; display:flex; align-items:center; width:100%; max-width:100%; overflow:hidden;">
             <button id="scrollLeftBtn" onclick="scrollContextualBar(-1)" style="position:absolute; left:0; z-index:10; background:linear-gradient(to right, white 60%, transparent); border:none; padding:10px 15px 10px 5px; cursor:pointer; color:#475569; display:none; height:100%;">
                 <i data-lucide="chevron-left"></i>
             </button>
             <div id="contextualBarScroll" class="bar-scroll" style="flex:1;" onscroll="updateContextualScrollArrows()">
             <div id="editTool" class="tool-btn" onclick="triggerEdit()" style="display:none;"><div class="tool-btn-icon"><i data-lucide="edit-3"></i></div><span class="tool-btn-label">Edit</span></div>
+            <div id="nudgeTool" class="tool-btn" onclick="toggleNudgePanel()"><div class="tool-btn-icon"><i data-lucide="move"></i></div><span class="tool-btn-label">Nudge</span></div>
             <div id="fontTool" class="tool-btn" onclick="toggleFontList()" style="display:none;"><div class="tool-btn-icon"><i data-lucide="type"></i></div><span class="tool-btn-label">Font</span></div>
             <div id="sizeTool" class="tool-btn" onclick="toggleSizePanel()" style="display:none;"><div class="tool-btn-icon"><i data-lucide="maximize"></i></div><span class="tool-btn-label">Size</span></div>
             <div id="boldTool" class="tool-btn" onclick="toggleBold()" style="display:none;"><div class="tool-btn-icon"><i data-lucide="bold"></i></div><span class="tool-btn-label">Bold</span></div>
@@ -892,19 +984,230 @@ var POST_AI_DATA = @json(
         : null
 );
 
-let fCanvas = null;
-let activeObject = null;
-let isFrameHidden = false;
-let currentFrameConfig = null;
-let frameOverlayObjects = [];
-let frameImageObjects = [];
-let businessObjects = {}; // { name, logo, phone, email, address, website }
+var fCanvas = null;
+var activeObject = null;
+var isFrameHidden = false;
+var globalBaseImageElement = null;
+var extractedTemplateAccentColor = null;
+// SERVER-SIDE DETECTED (PHP GD) — 100% reliable, no CORS/canvas issues
+var templateIsDark = {{ $phpTemplateIsDark ? 'true' : 'false' }};
+var phpBrightnessValue = {{ $phpBrightnessValue }};
+
+// ── DEBUG BANNER: Show detection result on screen ──
+(function() {
+    var banner = document.createElement('div');
+    banner.id = 'themingDebugBanner';
+    banner.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:99999;padding:8px 20px;border-radius:20px;font-size:14px;font-weight:bold;font-family:sans-serif;box-shadow:0 2px 12px rgba(0,0,0,0.3);pointer-events:none;';
+    if (templateIsDark) {
+        banner.style.background = '#1a1a2e';
+        banner.style.color = '#00ff88';
+        banner.textContent = '🌙 DARK Template (brightness: ' + phpBrightnessValue + '/255) → Text will be WHITE';
+    } else {
+        banner.style.background = '#fffde7';
+        banner.style.color = '#e65100';
+        banner.textContent = '☀️ LIGHT Template (brightness: ' + phpBrightnessValue + '/255) → Text will be BLACK';
+    }
+    document.body.appendChild(banner);
+    // Auto-hide after 8 seconds
+    setTimeout(function() { if (banner.parentNode) banner.style.opacity = '0'; banner.style.transition = 'opacity 1s'; }, 8000);
+    setTimeout(function() { if (banner.parentNode) banner.parentNode.removeChild(banner); }, 9000);
+})();
+
+// --- DYNAMIC THEMING HELPERS ---
+function getContrastColor(hexColor) {
+    if (!hexColor) return '#000000';
+    let hex = hexColor.replace('#', '');
+    if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+    if (hex.length !== 6) return '#000000';
+    let r = parseInt(hex.substr(0, 2), 16);
+    let g = parseInt(hex.substr(2, 2), 16);
+    let b = parseInt(hex.substr(4, 2), 16);
+    let yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+    return (yiq >= 128) ? '#000000' : '#FFFFFF';
+}
+
+function extractDominantColor(imgElement) {
+    let canvas = document.createElement('canvas');
+    let ctx = canvas.getContext('2d');
+    canvas.width = imgElement.naturalWidth || imgElement.width;
+    canvas.height = imgElement.naturalHeight || imgElement.height;
+    if(canvas.width === 0 || canvas.height === 0) return null;
+    ctx.drawImage(imgElement, 0, 0);
+    try {
+        let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        let colorCounts = {};
+        let maxCount = 0;
+        let dominantRgb = null;
+        // Sample every 50th pixel for performance
+        for (let i = 0; i < imageData.length; i += 4 * 50) {
+            let r = imageData[i], g = imageData[i+1], b = imageData[i+2], a = imageData[i+3];
+            if (a < 128) continue; // Skip transparent
+            // Skip pure grays/whites/blacks to find a vibrant accent
+            let maxC = Math.max(r,g,b), minC = Math.min(r,g,b);
+            let diff = maxC - minC;
+            if (diff < 15) continue; // Too gray
+            if (maxC < 30 || maxC > 240) continue; // Too dark or too bright
+
+            // Quantize colors (group nearby colors)
+            let qR = Math.round(r / 20) * 20;
+            let qG = Math.round(g / 20) * 20;
+            let qB = Math.round(b / 20) * 20;
+            let rgb = `${qR},${qG},${qB}`;
+            colorCounts[rgb] = (colorCounts[rgb] || 0) + 1;
+            if (colorCounts[rgb] > maxCount) {
+                maxCount = colorCounts[rgb];
+                dominantRgb = {r: qR, g: qG, b: qB};
+            }
+        }
+        if (!dominantRgb) return null;
+        
+        let toHex = (c) => {
+            let hex = c.toString(16);
+            return hex.length == 1 ? "0" + hex : hex;
+        };
+        return "#" + toHex(dominantRgb.r) + toHex(dominantRgb.g) + toHex(dominantRgb.b);
+    } catch (e) {
+        console.warn("Could not extract dominant color", e);
+        return null;
+    }
+}
+
+// Calculate overall average brightness of the template image (0=black, 255=white)
+function getImageBrightness(imgElement) {
+    try {
+        let canvas = document.createElement('canvas');
+        let ctx = canvas.getContext('2d');
+        // Use small size for speed (100x100 is enough for brightness)
+        canvas.width = 100;
+        canvas.height = 100;
+        ctx.drawImage(imgElement, 0, 0, 100, 100);
+        let imageData = ctx.getImageData(0, 0, 100, 100).data;
+        let rSum = 0, gSum = 0, bSum = 0, count = 0;
+        for (let i = 0; i < imageData.length; i += 4 * 4) { // Sample every 4th pixel
+            if (imageData[i+3] < 128) continue;
+            rSum += imageData[i];
+            gSum += imageData[i+1];
+            bSum += imageData[i+2];
+            count++;
+        }
+        if (count === 0) return 128; // neutral fallback
+        let avgR = rSum / count, avgG = gSum / count, avgB = bSum / count;
+        // YIQ brightness formula
+        return ((avgR * 299) + (avgG * 587) + (avgB * 114)) / 1000;
+    } catch(e) {
+        console.warn('getImageBrightness failed:', e);
+        return 128; // neutral fallback
+    }
+}
+
+function tintImageObject(fabricImg, hexColor) {
+    try {
+        let imgEl = fabricImg.getElement();
+        let w = imgEl ? (imgEl.naturalWidth || imgEl.width) : 0;
+        let h = imgEl ? (imgEl.naturalHeight || imgEl.height) : 0;
+        
+        if (!imgEl || w === 0 || h === 0) return;
+        
+        let canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        let ctx = canvas.getContext('2d');
+        
+        // Draw original
+        ctx.drawImage(imgEl, 0, 0, w, h);
+        
+        // Apply tint
+        ctx.globalCompositeOperation = 'source-in';
+        ctx.fillStyle = hexColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Update fabric image
+        fabricImg.setSrc(canvas.toDataURL('image/png'), () => {
+            if (fabricImg.canvas) fabricImg.canvas.renderAll();
+        });
+    } catch(e) {
+        console.warn('Tinting failed', e);
+    }
+}
+
+function isPixelTransparent(fabricImg, canvasX, canvasY) {
+    try {
+        let imgEl = fabricImg.getElement();
+        let w = imgEl ? (imgEl.naturalWidth || imgEl.width) : 0;
+        let h = imgEl ? (imgEl.naturalHeight || imgEl.height) : 0;
+        
+        if (!imgEl || w === 0 || h === 0) return true;
+        
+        // Map canvas coordinates to image coordinates
+        let localX = (canvasX - fabricImg.left) / fabricImg.scaleX;
+        let localY = (canvasY - fabricImg.top) / fabricImg.scaleY;
+        
+        if (localX < 0 || localY < 0 || localX >= w || localY >= h) return true;
+        
+        let canvas = document.createElement('canvas');
+        canvas.width = 1;
+        canvas.height = 1;
+        let ctx = canvas.getContext('2d');
+        // scale correctly
+        ctx.drawImage(imgEl, -localX, -localY, w, h);
+        
+        let alpha = ctx.getImageData(0, 0, 1, 1).data[3];
+        return alpha < 128;
+    } catch(e) {
+        return false; // Assume not transparent if CORS blocks it
+    }
+}
+
+function getRegionAverageColor(baseImgElement, x, y, width, height, canvasW, canvasH) {
+    if (!baseImgElement) return null;
+    let canvas = document.createElement('canvas');
+    let ctx = canvas.getContext('2d');
+    canvas.width = canvasW || 1080;
+    canvas.height = canvasH || 1080;
+    if(canvas.width === 0 || canvas.height === 0 || !width || !height) return null;
+    
+    // Draw the image exactly as it is scaled on the fabric canvas
+    ctx.drawImage(baseImgElement, 0, 0, canvas.width, canvas.height);
+    
+    // Safety clamp
+    x = Math.max(0, x);
+    y = Math.max(0, y);
+    width = Math.min(canvas.width - x, width);
+    height = Math.min(canvas.height - y, height);
+    if (width <= 0 || height <= 0) return null;
+
+    try {
+        let imageData = ctx.getImageData(x, y, width, height).data;
+        let rSum = 0, gSum = 0, bSum = 0, count = 0;
+        for (let i = 0; i < imageData.length; i += 4 * 5) { // Sample every 5th pixel
+            if (imageData[i+3] < 128) continue;
+            rSum += imageData[i];
+            gSum += imageData[i+1];
+            bSum += imageData[i+2];
+            count++;
+        }
+        if (count === 0) return null;
+        let r = Math.round(rSum / count);
+        let g = Math.round(gSum / count);
+        let b = Math.round(bSum / count);
+        let toHex = (c) => { let hex = c.toString(16); return hex.length == 1 ? "0" + hex : hex; };
+        return "#" + toHex(r) + toHex(g) + toHex(b);
+    } catch(e) {
+        console.warn("getRegionAverageColor CORS/Canvas error:", e);
+        return null;
+    }
+}
+// -------------------------------
+var currentFrameConfig = null;
+var frameOverlayObjects = [];
+var frameImageObjects = [];
+var businessObjects = {}; // { name, logo, phone, email, address, website }
 
 // ── Global Canvas Undo/Redo ──
-let globalCanvasHistory = [];
-let globalHistoryStep = -1;
-let isHistoryTracking = false;
-let isUndoRedoProcessing = false;
+var globalCanvasHistory = [];
+var globalHistoryStep = -1;
+var isHistoryTracking = false;
+var isUndoRedoProcessing = false;
 
 function saveCanvasState() {
     if (!isHistoryTracking || isUndoRedoProcessing || !fCanvas) return;
@@ -960,10 +1263,10 @@ function redoCanvas() {
 }
 
 var CANVAS_W = 1080;
-var CANVAS_H = 1350;
+var CANVAS_H = 1080;
 
 // ── Canvas Init ──
-let currentZoom = 1;
+var currentZoom = 1;
 
 function initCanvas() {
     fCanvas = new fabric.Canvas('fabric-canvas', {
@@ -1062,20 +1365,21 @@ function loadBackgroundImage(url) {
     fabric.Image.fromURL(url, (img) => {
         if (!img) return;
         
-        // 2. Resize Canvas to match exact base template aspect ratio
+        // 2. Keep Canvas Square as requested (1080x1080)
         let newW = 1080;
-        let ratio = img.width / img.height;
-        let newH = 1080 / ratio;
+        let newH = 1080;
         resizeCanvas(newW, newH);
 
         // 3. Lock Frame Categories
         autoFilterCategories(img.width, img.height);
 
-        // 4. Set Background
+        // 4. Set Background - using cover to ensure it fits the square without stretching
+        let scale = Math.max(newW / img.width, newH / img.height);
         fCanvas.setBackgroundImage(img, fCanvas.renderAll.bind(fCanvas), {
-            originX: 'left', originY: 'top',
-            scaleX: newW / img.width,
-            scaleY: newH / img.height,
+            originX: 'center', originY: 'center',
+            left: newW / 2, top: newH / 2,
+            scaleX: scale,
+            scaleY: scale,
         });
     }, { crossOrigin: 'anonymous' });
 }
@@ -1208,8 +1512,8 @@ function toggleBusinessElement(key, btn) {
 }
 
 // ── Alignment Guides ──
-let alignGuidelines = [];
-const SNAP_THRESHOLD = 8;
+var alignGuidelines = [];
+var SNAP_THRESHOLD = 8;
 
 // Helper: get internal (unzoomed) canvas dimensions
 function getInternalSize() {
@@ -1340,7 +1644,7 @@ function triggerProductSelection() {
 }
 
 // ── Background Removal (Smart: Photoroom API → Client-side Fallback) ──
-let _bgRemovalModule = null;
+var _bgRemovalModule = null;
 
 async function removeBackgroundFromActiveObject() {
     if (!activeObject || activeObject.type !== 'image') return;
@@ -1577,9 +1881,26 @@ function changeColor(v) {
     }
 }
 function toggleSizePanel() { const p = document.getElementById('fontSizeControl'); p.style.display = p.style.display === 'block' ? 'none' : 'block'; }
+function toggleNudgePanel() { 
+    const p = document.getElementById('nudgeControl'); 
+    p.style.display = p.style.display === 'flex' ? 'none' : 'flex';
+}
+function nudgeObject(direction) {
+    if (!activeObject) return;
+    const step = 2; // move by 2 pixels per click
+    if (direction === 'up') activeObject.set('top', activeObject.top - step);
+    else if (direction === 'down') activeObject.set('top', activeObject.top + step);
+    else if (direction === 'left') activeObject.set('left', activeObject.left - step);
+    else if (direction === 'right') activeObject.set('left', activeObject.left + step);
+    activeObject.setCoords();
+    fCanvas.renderAll();
+    if (typeof saveCanvasState === 'function' && typeof isHistoryTracking !== 'undefined' && isHistoryTracking) {
+        saveCanvasState();
+    }
+}
 
 // ── Sticker ──
-const allStickers = @json($stickers);
+var allStickers = @json($stickers);
 function addSticker() { fCanvas.discardActiveObject(); document.getElementById('stickerModal').style.display = 'flex'; const f = document.querySelector('.sticker-cat-btn'); if (f) f.click(); }
 function closeStickerModal() { document.getElementById('stickerModal').style.display = 'none'; }
 function filterStickers(catId, btn) {
@@ -1631,7 +1952,7 @@ function removeActiveElement() {
 // ── Panels ──
 function toggleFontList() { const p = document.getElementById('fontPanel'); p.style.display = p.style.display === 'flex' ? 'none' : 'flex'; }
 function closeAllPanels() {
-    ['framePanel','frameColorPanel','fontPanel','fontSizeControl'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+    ['framePanel','frameColorPanel','fontPanel','fontSizeControl','nudgeControl'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
 }
 function toggleFilterMenu() { fCanvas.discardActiveObject(); fCanvas.renderAll(); document.getElementById('filterMenu').classList.toggle('active'); }
 function filterFrames(catId, label, el) {
@@ -1898,6 +2219,15 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
             await new Promise(resolve => {
                 fabric.Image.fromURL(DESIGN_URL, (img) => {
                     if (!img) { resolve(); return; }
+                    
+                    // --- DYNAMIC THEMING ---
+                    globalBaseImageElement = img.getElement();
+                    extractedTemplateAccentColor = extractDominantColor(globalBaseImageElement) || '#1e88e5';
+                    let brightness = getImageBrightness(globalBaseImageElement);
+                    templateIsDark = (brightness < 128);
+                    console.log("[THEMING] Accent:", extractedTemplateAccentColor, "| Brightness:", Math.round(brightness), "| isDark:", templateIsDark);
+                    // -----------------------
+
                     fCanvas.setBackgroundImage(img, () => { resolve(); }, {
                         originX: 'left', originY: 'top',
                         scaleX: dW / img.width, scaleY: dH / img.height,
@@ -2071,7 +2401,8 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
 
                 // Business logo substitution
                 @if($business ?? false)
-                    if (lname.includes('logo') && "{{ $business->logo ?? '' }}" !== '') {
+                    let isBusinessLogo = lname.includes('logo') && !lname.includes('email') && !lname.includes('call') && !lname.includes('phone') && !lname.includes('web');
+                    if (isBusinessLogo && "{{ $business->logo ?? '' }}" !== '') {
                         src = "{{ asset('uploads/' . ($business->logo ?? '')) }}";
                         isAIMapped = true; // Prevents the path resolver from messing with this absolute URL
                     }
@@ -2095,6 +2426,12 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
                                 console.error("Failed to load image layer: " + lname, imgUrl);
                                 resolve(); 
                                 return; 
+                            }
+                            
+                            // Prevent CORS tainting for local or external assets
+                            let imgEl = img.getElement();
+                            if (imgEl && !imgEl.crossOrigin) {
+                                imgEl.crossOrigin = "Anonymous";
                             }
 
                             let sX, sY, objLeft, objTop;
@@ -2126,6 +2463,16 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
                                 }
                             }
 
+                            // --- DYNAMIC THEMING FOR SHAPES ---
+                            if (isOverlay) {
+                                let isDecorative = !lname.toLowerCase().includes('logo') && !isFrameSlot;
+                                if (isDecorative) {
+                                    img._isDecorativeShape = true; // Mark for text contrast logic
+                                }
+                            }
+                            // ----------------------------------
+                            // ----------------------------------
+
                             const rad = layer.radius || 0;
                             const isRotated = (layer.angle && layer.angle !== 0);
 
@@ -2139,7 +2486,7 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
                                 selectable: true, evented: true,
                                 _isFrameLayer: isOverlay, _isFrameImage: isFrameSlot,
                                 _isPlaceholder: false, _label: layerOrigName || 'Component', _originalSrc: src,
-                                _businessKey: (lname.toLowerCase().includes('logo')) ? 'logo' : null,
+                                _businessKey: (lname.toLowerCase().includes('logo') && !lname.toLowerCase().includes('email') && !lname.toLowerCase().includes('call') && !lname.toLowerCase().includes('phone') && !lname.toLowerCase().includes('web')) ? 'logo' : null,
                             });
                             
                             if (isFrameSlot) {
@@ -2205,8 +2552,42 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
 
                 if (!displayText) continue;
 
-                let color = layer.color ? layer.color.replace('0x','#') : '#000000';
+                let rawColor = layer.font_color || layer.color;
+                let color = rawColor ? String(rawColor).replace('0x','#') : '#000000';
                 
+                // --- DYNAMIC THEMING FOR TEXT ---
+                // Uses pre-computed template brightness (calculated at load time)
+                // No canvas pixel reading at runtime = no CORS issues, guaranteed to work
+                if (isOverlay) {
+                    // Smart detection: Only apply dynamic text color if the text does NOT sit on top of a decorative shape.
+                    // If the text is on top of a decorative shape, we trust the JSON's original color choice for that shape.
+                    let overlapsShape = false;
+                    frameOverlayObjects.forEach(obj => {
+                        if (obj._isDecorativeShape) {
+                            let sl = obj.left;
+                            let st = obj.top;
+                            let sr = sl + (obj.width * obj.scaleX);
+                            let sb = st + (obj.height * obj.scaleY);
+                            // Simple AABB collision check between the text (lx, ly, lw, lh) and the shape
+                            // We use a small margin (e.g. center of text must be inside shape) to be more accurate
+                            let textCenterX = lx + (lw / 2);
+                            let textCenterY = ly + (lh / 2);
+                            if (textCenterX >= sl && textCenterX <= sr && textCenterY >= st && textCenterY <= sb) {
+                                overlapsShape = true;
+                            }
+                        }
+                    });
+
+                    if (!overlapsShape) {
+                        if (templateIsDark) {
+                            color = '#FFFFFF';
+                        } else {
+                            color = '#000000';
+                        }
+                    }
+                    console.log('[THEMING] Text "' + lname + '" → color=' + color + ' (templateIsDark=' + templateIsDark + ', overlapsShape=' + overlapsShape + ')');
+                }
+                // --------------------------------
                 // Determine the primary template font to use as a smart fallback 
                 // instead of dropping to an ugly generic 'sans-serif' if the JSON omitted it.
                 let primaryFontFallback = 'sans-serif';
@@ -2287,12 +2668,21 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
                     }
                 }
 
+                let tOriginY = isRotatedText ? 'center' : 'top';
+                let tTop = isRotatedText ? (ly + lh / 2) : ly;
+
+                // Center the address vertically to accommodate 1 or 2 lines perfectly
+                if (textBKey === 'address' && !isRotatedText) {
+                    tOriginY = 'center';
+                    tTop = ly + (lh / 2);
+                }
+
                 // Create text at ORIGINAL Photoshop font size
                 const t = new fabric.Textbox(displayText, {
                     left: tLeft, 
-                    top: isRotatedText ? (ly + lh / 2) : ly,
+                    top: tTop,
                     originX: tOriginX,
-                    originY: isRotatedText ? 'center' : 'top',
+                    originY: tOriginY,
                     angle: layer.angle || 0,
                     fontSize: origSize,
                     fontFamily: fFamily, fill: color,
@@ -2317,10 +2707,13 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
                 // (e.g. all layers named "Text 1", "Text 2") from shrinking headings to match list items.
                 let groupKey = baseName + '_' + Math.round(origSize);
 
+                let maxUpscalePx = 1 * (docPPI / 72) * overlayScaleY;
                 if (!textGroups[groupKey]) textGroups[groupKey] = [];
                 textGroups[groupKey].push({
                     t: t,
                     lh: lh,
+                    lw: lw,
+                    maxFontSize: origSize + maxUpscalePx,
                     origSize: origSize,
                     minFontSize: Math.max(8, origSize * 0.4)
                 });
@@ -2341,13 +2734,34 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
             
             let requiredFontSizes = [];
             
-            // 1. Simulate shrinking for each item in the group
+            // 1. Simulate shrinking/upscaling for each item in the group
             for (let item of group) {
                 let currentSize = item.origSize;
+                
+                // Define safe margins (10% vertical padding, 5% horizontal padding)
+                let safeHeight = item.lh * 0.90;
+                let safeWidth = item.lw * 0.95;
+
+                // Auto-upscale slightly if text is smaller than safe box
+                if (item.t.height <= safeHeight) {
+                    while (currentSize < item.maxFontSize) {
+                        currentSize += 0.5;
+                        item.t.set('fontSize', currentSize);
+                        item.t.initDimensions();
+                        let textW = item.t.calcTextWidth();
+                        if (item.t.height > safeHeight || textW > safeWidth) {
+                            currentSize -= 0.5;
+                            item.t.set('fontSize', currentSize);
+                            item.t.initDimensions();
+                            break;
+                        }
+                    }
+                }
+
                 let needed = false;
-                if (item.lh && item.t.height > item.lh) {
+                if (item.lh && (item.t.height > safeHeight || item.t.calcTextWidth() > safeWidth)) {
                     needed = true;
-                    while (item.t.height > item.lh && currentSize > item.minFontSize) {
+                    while ((item.t.height > safeHeight || item.t.calcTextWidth() > safeWidth) && currentSize > item.minFontSize) {
                         currentSize -= 1;
                         item.t.set('fontSize', currentSize);
                         item.t.initDimensions();
@@ -2367,6 +2781,22 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
                     item.t.set('fontSize', groupMinSize);
                     item.t.initDimensions();
                 }
+            }
+        }
+
+        // Check if frame has a logo and hide base logo if needed
+        let handledByFrame = false;
+        fCanvas.getObjects().forEach(o => {
+            if (o._isFrameLayer && o._businessKey === 'logo') {
+                handledByFrame = true;
+            }
+        });
+        if (businessObjects && businessObjects.logo) {
+            const btn = document.getElementById('toggle-logo');
+            if (handledByFrame || (btn && btn.classList.contains('inactive'))) {
+                businessObjects.logo.set('visible', false);
+            } else {
+                businessObjects.logo.set('visible', true);
             }
         }
 
@@ -2767,7 +3197,7 @@ function detachImage() {
 }
 
 // ── Frame Color ──
-let selectedLayerIndex = 0, colorHistory = [], historyIndex = -1;
+var selectedLayerIndex = 0, colorHistory = [], historyIndex = -1;
 function openFrameColorPanel() {
     if (frameOverlayObjects.length === 0) return;
     const p = document.getElementById('frameColorPanel');
@@ -3425,7 +3855,7 @@ function markProductAsUsed(productId) {
 }
 
 // ── Product Search (Client-Side, Debounced) ──
-let productSearchTimer = null;
+var productSearchTimer = null;
 
 function filterProducts(query) {
     clearTimeout(productSearchTimer);

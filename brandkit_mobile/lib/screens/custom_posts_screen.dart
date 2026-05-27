@@ -173,12 +173,17 @@ class _CustomPostsScreenState extends State<CustomPostsScreen> {
                               return;
                             }
 
-                            Get.toNamed('/editor', arguments: {
+                            final editorQuery = Uri(queryParameters: {
                               'type': post['type'] ?? 'business_custom_frame',
-                              'id': post['id'],
+                              'id': post['id'].toString(),
                               'designUrl': imgUrl,
-                              'frameData': post,
-                            });
+                            }).query;
+                            Get.toNamed(
+                              '/editor?$editorQuery',
+                              arguments: {
+                                'frameData': post,
+                              },
+                            );
                           },
                           child: Stack(
                             children: [

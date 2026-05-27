@@ -156,11 +156,36 @@ class _SplashGateState extends State<SplashGate> {
         debugPrint('Failed to sync user data on splash: $e');
       }
 
-      // User is already logged in — go directly to Dashboard
-      Get.offAll(() => const DashboardScreen());
+      // User is already logged in
+      // On Web, read the actual browser URL to detect deep links (e.g. /#/editor?type=...)
+      String? deepLinkFragment;
+
+      if (kIsWeb) {
+        final fragment = Uri.base.fragment; // e.g. "/editor?type=festival&id=5&designUrl=..."
+        if (fragment.isNotEmpty) {
+          final path = Uri.parse(fragment).path;
+          // Only treat as deep link if it's NOT a root/dashboard/login route
+          if (path != '/' &&
+              path != '/DashboardScreen' &&
+              path != '/LoginScreen' &&
+              path != '/SplashGate' &&
+              path.isNotEmpty) {
+            deepLinkFragment = fragment; // Store the FULL fragment with query params
+            debugPrint('[SplashGate] Deep link detected: $fragment');
+          }
+        }
+      }
+
+      Get.offAllNamed('/DashboardScreen');
+
+      // If we detected a deep link (e.g. /editor?type=...&id=...), navigate there
+      if (deepLinkFragment != null) {
+        await Future.delayed(const Duration(milliseconds: 200)); // Let Dashboard settle
+        Get.toNamed(deepLinkFragment!);
+      }
     } else {
       // Not logged in — show login screen
-      Get.offAll(() => const LoginScreen());
+      Get.offAllNamed('/LoginScreen');
     }
   }
 

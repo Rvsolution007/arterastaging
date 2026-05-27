@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
 import '../utils/app_colors.dart';
 import '../screens/editor_screen.dart';
+import 'package:get/get.dart';
 
 class MagicClonerSheet extends StatefulWidget {
   const MagicClonerSheet({super.key});
@@ -67,16 +68,19 @@ class _MagicClonerSheetState extends State<MagicClonerSheet> {
     Navigator.pop(context); // Close the sheet
     
     // We treat this as a 'custom' template type to open in the editor
-    Navigator.push(context, MaterialPageRoute(
-      builder: (_) => EditorScreen(
-        type: 'custom', 
-        id: template['id'],
-        frameData: template,
-        designUrl: template['thumb'] ?? '',
-        aiAnalysisData: template['ai_analysis_data'],
-        mappingRules: template['frontend_mapping_rules'],
-      ),
-    ));
+    final editorQuery = Uri(queryParameters: {
+      'type': 'custom',
+      'id': template['id'].toString(),
+      'designUrl': template['thumb'] ?? '',
+    }).query;
+    Get.toNamed(
+      '/editor?$editorQuery',
+      arguments: {
+        'frameData': template,
+        'aiAnalysisData': template['ai_analysis_data'],
+        'mappingRules': template['frontend_mapping_rules'],
+      },
+    );
   }
 
   @override

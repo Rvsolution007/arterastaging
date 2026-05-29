@@ -918,12 +918,15 @@ class AuthApi extends Controller
         } else {
             $user = User::find($request->userId);
             if (!empty($user)){
-                $id = AndroidLogin::create([
+                // Remove any existing entries with this fcmToken (could belong to old user/device)
+                AndroidLogin::where('fcmToken', $request->get('fcmToken'))->delete();
+
+                // Create fresh entry for this user+token
+                AndroidLogin::create([
                     'userId' => $request->get('userId'),
                     'fcmToken' => $request->get('fcmToken'), 
                     'deviceId' => $request->get('deviceId'), 
-                ])->id;
-
+                ]);
 
                 $data['status'] = 0;
                 $data['message'] = "FCM Token Register Successfully!";

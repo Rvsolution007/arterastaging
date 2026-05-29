@@ -69,74 +69,112 @@ class FcmService
             $accessToken = $this->getAccessToken();
             $endpoint = "https://fcm.googleapis.com/v1/projects/{$this->projectId}/messages:send";
 
-            $messagePayload = [
-                'message' => [
-                    'topic' => $topic,
-                    'notification' => [
-                        'title' => $title,
-                        'body' => $message,
-                    ],
-                ]
+            // Build the common notification parts
+            $notificationBlock = [
+                'title' => $title,
+                'body' => $message,
             ];
 
-            if (!empty($data)) {
-                $messagePayload['message']['data'] = array_map('strval', $data);
-            }
+            $dataBlock = !empty($data) ? array_map('strval', $data) : [];
 
             if ($image) {
-                // General notification image (FCM v1)
-                $messagePayload['message']['notification']['image'] = $image;
-                
-                // Android-specific configuration
-                $messagePayload['message']['android'] = [
-                    'priority' => 'high',
-                    'notification' => [
-                        'image' => $image,
-                        'notification_priority' => 'PRIORITY_MAX',
-                        'channel_id' => 'high_importance_channel',
-                        'default_sound' => true,
-                        'default_vibrate_timings' => true,
-                    ]
-                ];
-                
-                // Also include in data for manual handling if needed
-                $messagePayload['message']['data']['image'] = $image;
-            } else {
-                $messagePayload['message']['android'] = [
-                    'priority' => 'high',
-                    'notification' => [
-                        'notification_priority' => 'PRIORITY_MAX',
-                        'channel_id' => 'high_importance_channel',
-                        'default_sound' => true,
-                        'default_vibrate_timings' => true,
-                    ]
-                ];
+                $notificationBlock['image'] = $image;
+                $dataBlock['image'] = $image;
             }
 
-            // Web/iOS priority hints
-            $messagePayload['message']['apns'] = [
+            $androidBlock = [
+                'priority' => 'high',
+                'notification' => [
+                    'notification_priority' => 'PRIORITY_MAX',
+                    'channel_id' => 'high_importance_channel',
+                    'default_sound' => true,
+                    'default_vibrate_timings' => true,
+                ],
+            ];
+            if ($image) {
+                $androidBlock['notification']['image'] = $image;
+            }
+
+            $apnsBlock = [
                 'payload' => [
                     'aps' => [
                         'content-available' => 1,
                     ],
                 ],
                 'headers' => [
-                    'apns-priority' => '10', // 10 is high, 5 is normal
+                    'apns-priority' => '10',
                 ],
             ];
 
-            $response = Http::withHeaders([
+            // --- Strategy: Send to ALL registered device tokens for guaranteed delivery ---
+            $allTokens = \App\Models\AndroidLogin::whereNotNull('fcmToken')
+                ->where('fcmToken', '!=', '')
+                ->pluck('fcmToken')
+                ->unique()
+                ->values()
+                ->all();
+
+            $sentCount = 0;
+            $failedCount = 0;
+            $unregisteredTokenIds = [];
+
+            foreach ($allTokens as $token) {
+                $messagePayload = [
+                    'message' => [
+                        'token' => $token,
+                        'notification' => $notificationBlock,
+                        'android' => $androidBlock,
+                        'apns' => $apnsBlock,
+                    ]
+                ];
+                if (!empty($dataBlock)) {
+                    $messagePayload['message']['data'] = $dataBlock;
+                }
+
+                $response = Http::withHeaders([
+                    'Authorization' => "Bearer {$accessToken}",
+                    'Content-Type' => 'application/json',
+                ])->post($endpoint, $messagePayload);
+
+                if ($response->successful()) {
+                    $sentCount++;
+                } else {
+                    $failedCount++;
+                    // Clean up unregistered tokens
+                    $body = $response->json();
+                    $errorCode = $body['error']['details'][0]['errorCode'] ?? ($body['error']['status'] ?? '');
+                    if (in_array($errorCode, ['UNREGISTERED', 'NOT_FOUND'])) {
+                        $unregisteredTokenIds[] = $token;
+                    }
+                    Log::warning('FCM: Failed to send to token', ['status' => $response->status(), 'body' => $response->body()]);
+                }
+            }
+
+            // Clean up invalid tokens from DB
+            if (!empty($unregisteredTokenIds)) {
+                \App\Models\AndroidLogin::whereIn('fcmToken', $unregisteredTokenIds)->delete();
+                Log::info('FCM: Cleaned up ' . count($unregisteredTokenIds) . ' unregistered tokens');
+            }
+
+            // Also send via topic as a safety net (catches devices that registered but haven't logged in)
+            $topicPayload = [
+                'message' => [
+                    'topic' => $topic,
+                    'notification' => $notificationBlock,
+                    'android' => $androidBlock,
+                    'apns' => $apnsBlock,
+                ]
+            ];
+            if (!empty($dataBlock)) {
+                $topicPayload['message']['data'] = $dataBlock;
+            }
+            Http::withHeaders([
                 'Authorization' => "Bearer {$accessToken}",
                 'Content-Type' => 'application/json',
-            ])->post($endpoint, $messagePayload);
+            ])->post($endpoint, $topicPayload);
 
-            if ($response->successful()) {
-                Log::info('FCM: Successfully sent notification', ['response' => $response->json()]);
-                return ['status' => 'success', 'response' => $response->json()];
-            } else {
-                Log::error('FCM: API error', ['status' => $response->status(), 'body' => $response->body()]);
-                return ['status' => 'error', 'message' => $response->body()];
-            }
+            Log::info("FCM: Broadcast complete. Sent to {$sentCount} tokens, {$failedCount} failed, topic '{$topic}' also sent.");
+            return ['status' => 'success', 'message' => "Sent to {$sentCount} devices."];
 
         } catch (\Exception $e) {
             Log::error('FCM: Exception - ' . $e->getMessage());
@@ -233,8 +271,16 @@ class FcmService
         $hasSent = false;
         foreach ($logins as $login) {
             if (!empty($login->fcmToken)) {
-                $this->sendNotificationToToken($login->fcmToken, $title, $message, $image, $data);
-                $hasSent = true;
+                $result = $this->sendNotificationToToken($login->fcmToken, $title, $message, $image, $data);
+                if ($result['status'] === 'success') {
+                    $hasSent = true;
+                } else {
+                    // Auto-clean unregistered/invalid tokens
+                    if (str_contains($result['message'] ?? '', 'UNREGISTERED') || str_contains($result['message'] ?? '', 'NOT_FOUND')) {
+                        $login->delete();
+                        Log::info("FCM: Cleaned up unregistered token for user {$userId}");
+                    }
+                }
             }
         }
         

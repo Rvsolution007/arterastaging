@@ -164,6 +164,21 @@
                         <label>Notification Message</label>
                         <textarea name="message" id="final-message" class="form-control" rows="3" required placeholder="Message..."></textarea>
                     </div>
+
+                    <div class="form-group">
+                        <label>Type</label>
+                        <select id="type" name="type" class="form-control" required style="font-family: 'Poppins', sans-serif; height: calc(2.25rem + 2px);">
+                            <option value="">Select Type</option>
+                            <option value="category">Category</option>
+                            <option value="festival">Festival</option>
+                            <option value="custom">Custom</option>
+                            <option value="externalLink">External Link</option>
+                            <option value="subscriptionPlan">Subscription Plan</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" id="otherText">
+                    </div>
                     
                     <div class="form-group">
                         <label>Attach Image (Optional)</label>
@@ -232,6 +247,31 @@ $(document).ready(function() {
     $('#campaignImage').on('change', function() {
         let fileName = $(this).val().split('\\').pop();
         $(this).next('.custom-file-label').addClass("selected").html(fileName || 'Choose file...');
+    });
+
+    // Handle Type Selection
+    $('#type').select2();
+    $("#type").change(function () {
+        $('#otherText').empty();
+        if ($(this).find("option:selected").text() == "Category") {
+            $('#otherText').append('<label class="col-form-label">Select Category</label><select id="category_id" name="category_id" class="form-control" required style="font-family: \'Poppins\', sans-serif;"><option value="">Select Category</option>@foreach($category as $c)<option value="{{$c->id}}">{{$c->name}}</option>@endforeach</select>');
+        }
+        if ($(this).find("option:selected").text() == "Festival") {
+            $('#otherText').append('<label class="col-form-label">Select Festival</label><select id="festival_id" name="festival_id" class="form-control" required style="font-family: \'Poppins\', sans-serif;"><option value="">Select Festival</option>@foreach($festival as $f)<option value="{{$f->id}}">{{$f->title}}</option>@endforeach</select>');
+        }
+        if ($(this).find("option:selected").text() == "Custom") {
+            $('#otherText').append('<label class="col-form-label">Select Custom Category</label><select id="custom_category_id" name="custom_category_id" class="form-control" required style="font-family: \'Poppins\', sans-serif;"><option value="">Select Custom Category</option>@foreach($custom as $c)<option value="{{$c->id}}">{{$c->name}}</option>@endforeach</select>');
+        }
+        if ($(this).find("option:selected").text() == "External Link") {
+            $('#otherText').append('<label class="col-form-label">External Link (Optional)</label><input type="text" id="external_link" class="form-control" name="external_link" placeholder="http://www.google.com" style="font-family: \'Poppins\', sans-serif;">');
+        }
+        if ($(this).find("option:selected").text() == "Subscription Plan") {
+            $('#otherText').append('<label class="col-form-label">Subscription Plan</label><select id="plan_id" name="subscription_id" class="form-control" required style="font-family: \'Poppins\', sans-serif;"><option value="">Select Subscription Plan</option>@foreach($plan as $p)<option value="{{$p->id}}">{{$p->plan_name}}</option>@endforeach</select>');
+        }
+        if($('#category_id').length) $('#category_id').select2();
+        if($('#festival_id').length) $('#festival_id').select2();
+        if($('#custom_category_id').length) $('#custom_category_id').select2();
+        if($('#plan_id').length) $('#plan_id').select2();
     });
 });
 </script>

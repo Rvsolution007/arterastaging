@@ -396,11 +396,33 @@ function generateStrategy(userId, btn) {
             });
             html += '</ul>';
             
-            html += '<div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.2rem;">';
-            html += '<h6 class="font-weight-bold mb-3" style="color: #0ea5e9;"><i class="fa-regular fa-envelope mr-2"></i> Suggested Outreach Email</h6>';
+            // Email Section
+            let encodedSubject = encodeURIComponent(data.data.email_subject);
+            let encodedBody = encodeURIComponent(data.data.email_body);
+
+            html += '<div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.2rem; margin-bottom: 1rem;">';
+            html += '<div class="d-flex justify-content-between align-items-center mb-3">';
+            html += '<h6 class="font-weight-bold mb-0" style="color: #0ea5e9;"><i class="fa-regular fa-envelope mr-2"></i> Suggested Outreach Email</h6>';
+            html += `<button class="btn btn-sm btn-primary" onclick="sendMail(${userId}, decodeURIComponent('${encodedSubject}'), decodeURIComponent('${encodedBody}'), this)"><i class="fa-regular fa-paper-plane mr-1"></i> Send Mail</button>`;
+            html += '</div>';
             html += '<div class="mb-2"><span class="badge-soft" style="background:#f1f5f9;">Subject:</span> <strong class="text-dark">' + data.data.email_subject + '</strong></div>';
             html += '<div class="text-dark mt-3" style="white-space: pre-wrap; font-size: 0.9rem;">' + data.data.email_body + '</div>';
             html += '</div>';
+
+            // Push Notification Section
+            if (data.data.push_title && data.data.push_message) {
+                let encodedPushTitle = encodeURIComponent(data.data.push_title);
+                let encodedPushMsg = encodeURIComponent(data.data.push_message);
+
+                html += '<div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.2rem;">';
+                html += '<div class="d-flex justify-content-between align-items-center mb-3">';
+                html += '<h6 class="font-weight-bold mb-0" style="color: #f59e0b;"><i class="fa-regular fa-bell mr-2"></i> Suggested Push Notification</h6>';
+                html += `<button class="btn btn-sm btn-warning text-white" onclick="sendPushNotification(${userId}, decodeURIComponent('${encodedPushTitle}'), decodeURIComponent('${encodedPushMsg}'), this)"><i class="fa-solid fa-mobile-screen-button mr-1"></i> Send Notification</button>`;
+                html += '</div>';
+                html += '<div class="mb-2"><span class="badge-soft" style="background:#f1f5f9;">Title:</span> <strong class="text-dark">' + data.data.push_title + '</strong></div>';
+                html += '<div class="text-dark mt-2" style="font-size: 0.9rem;">' + data.data.push_message + '</div>';
+                html += '</div>';
+            }
             
             box.innerHTML = html;
         } else {
@@ -412,6 +434,70 @@ function generateStrategy(userId, btn) {
         console.error(error);
     })
     .finally(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}
+
+function sendMail(userId, subject, body, btn) {
+    let originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Sending...';
+    btn.disabled = true;
+
+    fetch(`{{ url('admin/churn/send-mail') }}/${userId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ subject: subject, body: body })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.status === 'success') {
+            alert("Success: " + data.message);
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> Sent';
+            btn.classList.replace('btn-primary', 'btn-success');
+        } else {
+            alert("Error: " + data.message);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    })
+    .catch(err => {
+        alert("Error: Failed to send mail.");
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}
+
+function sendPushNotification(userId, title, message, btn) {
+    let originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Sending...';
+    btn.disabled = true;
+
+    fetch(`{{ url('admin/churn/send-notification') }}/${userId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ title: title, message: message })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.status === 'success') {
+            alert("Success: " + data.message);
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> Sent';
+            btn.classList.replace('btn-warning', 'btn-success');
+        } else {
+            alert("Error: " + data.message);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    })
+    .catch(err => {
+        alert("Error: Failed to send notification.");
         btn.innerHTML = originalText;
         btn.disabled = false;
     });

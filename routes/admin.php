@@ -256,6 +256,9 @@ Route::
             Route::get('knowledge-base/{id}/delete', 'AdminKnowledgeBaseController@destroy')->name('admin.knowledge_base.delete');
 
             Route::get('churn-analytics', 'ChurnController@index')->name('admin.churn_analytics');
+            Route::post('churn/generate-strategy/{id}', 'ChurnController@generateStrategy')->name('admin.churn.generate_strategy');
+            Route::post('churn/send-mail/{id}', 'ChurnController@sendMail')->name('admin.churn.send_mail');
+            Route::post('churn/send-notification/{id}', 'ChurnController@sendNotification')->name('admin.churn.send_notification');
             Route::get('journey', 'JourneyController@index')->name('admin.journey');
             Route::get('payment-analytics', 'PaymentAnalyticsController@index')->name('admin.payment_analytics');
 

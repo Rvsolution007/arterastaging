@@ -10,6 +10,53 @@ Route::post('/client-debug-log', function(Illuminate\Http\Request $request) {
     return response()->json(['success' => true]);
 });
 
+// FCM DEBUG - check token status and test send
+Route::get('/fcm-debug', function() {
+    $tokens = \App\Models\AndroidLogin::whereNotNull('fcmToken')
+        ->where('fcmToken', '!=', '')
+        ->get(['id', 'userId', 'fcmToken', 'deviceId', 'created_at']);
+    
+    $tokenSummary = $tokens->map(function($t) {
+        return [
+            'id' => $t->id,
+            'userId' => $t->userId,
+            'token_preview' => substr($t->fcmToken, 0, 30) . '...',
+            'deviceId' => $t->deviceId,
+            'created_at' => $t->created_at,
+        ];
+    });
+
+    $fcm = new \App\Services\FcmService();
+    
+    return response()->json([
+        'fcm_configured' => $fcm->isConfigured(),
+        'total_tokens' => $tokens->count(),
+        'tokens' => $tokenSummary,
+        'topic_subscribed' => 'all',
+        'hint' => 'If total_tokens is 0, the app has not registered its FCM token on this server.',
+    ]);
+});
+
+Route::get('/fcm-test-send', function() {
+    $fcm = new \App\Services\FcmService();
+    if (!$fcm->isConfigured()) {
+        return response()->json(['error' => 'FCM not configured']);
+    }
+    
+    $result = $fcm->sendNotification(
+        'Test Notification 🔔',
+        'This is a test from FCM debug endpoint',
+        null,
+        ['type' => 'ai_campaign'],
+        'all'
+    );
+    
+    return response()->json([
+        'result' => $result,
+        'token_count' => \App\Models\AndroidLogin::whereNotNull('fcmToken')->where('fcmToken', '!=', '')->count(),
+    ]);
+});
+
 Route::
         namespace('Api')->middleware(['throttle'])->group(function () {
             Route::post('/login', 'AuthApi@login');

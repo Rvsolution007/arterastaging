@@ -37,7 +37,7 @@ class NotificationService {
 
       // 3. Initialize flutter_local_notifications
       const AndroidInitializationSettings androidSettings =
-          AndroidInitializationSettings('ic_launcher');
+          AndroidInitializationSettings('@mipmap/ic_launcher');
       const DarwinInitializationSettings iosSettings =
           DarwinInitializationSettings();
       const InitializationSettings initSettings = InitializationSettings(
@@ -53,7 +53,7 @@ class NotificationService {
         },
       );
 
-      // 4. Create high importance notification channel
+      // 4. Create high importance notification channel AND request permission
       if (Platform.isAndroid) {
         const AndroidNotificationChannel channel = AndroidNotificationChannel(
           'high_importance_channel',
@@ -65,11 +65,23 @@ class NotificationService {
           showBadge: true,
         );
 
-        await _localNotifications
+        final androidPlugin = _localNotifications
             .resolvePlatformSpecificImplementation<
-                AndroidFlutterLocalNotificationsPlugin>()
-            ?.createNotificationChannel(channel);
-        debugPrint("Notification channel created: high_importance_channel");
+                AndroidFlutterLocalNotificationsPlugin>();
+
+        if (androidPlugin != null) {
+          await androidPlugin.createNotificationChannel(channel);
+          debugPrint("Notification channel created: high_importance_channel");
+
+          // CRITICAL: Request POST_NOTIFICATIONS permission for Android 13+ (API 33+)
+          // Without this, notifications silently fail - they don't show in shutter
+          final bool? permissionGranted = await androidPlugin.requestNotificationsPermission();
+          debugPrint("Android notification permission granted: $permissionGranted");
+          
+          if (permissionGranted != true) {
+            debugPrint("WARNING: Notification permission NOT granted! Notifications will NOT show in shutter.");
+          }
+        }
       }
 
       // 5. Subscribe to 'all' topic
@@ -91,6 +103,17 @@ class NotificationService {
         debugPrint("Data: ${message.data}");
         debugPrint("Image (android): ${message.notification?.android?.imageUrl}");
         debugPrint("Image (data): ${message.data['image']}");
+
+        // Show visible snackbar so user knows FCM message arrived
+        try {
+          Get.snackbar(
+            '📩 FCM Received',
+            '${message.notification?.title ?? "No title"} - showing in shutter now...',
+            snackPosition: SnackPosition.TOP,
+            duration: const Duration(seconds: 3),
+          );
+        } catch (_) {}
+
         _showLocalNotification(message);
       });
 
@@ -155,7 +178,7 @@ class NotificationService {
               channelDescription: 'This channel is used for important notifications.',
               importance: Importance.max,
               priority: Priority.high,
-              icon: 'ic_launcher',
+              icon: '@mipmap/ic_launcher',
               largeIcon: FilePathAndroidBitmap(imgPath),
               styleInformation: BigPictureStyleInformation(
                 FilePathAndroidBitmap(imgPath),
@@ -235,7 +258,7 @@ class NotificationService {
       channelDescription: 'This channel is used for important notifications.',
       importance: Importance.max,
       priority: Priority.high,
-      icon: 'ic_launcher',
+      icon: '@mipmap/ic_launcher',
     );
   }
 
@@ -323,5 +346,40 @@ class NotificationService {
   /// Get FCM token
   Future<String?> getToken() async {
     return await _fcm.getToken();
+  }
+
+  /// TEST: Fire a local notification directly (no FCM involved)
+  /// Call this from a button to verify flutter_local_notifications works
+  Future<void> testLocalNotification() async {
+    try {
+      debugPrint("=== TEST LOCAL NOTIFICATION ===");
+      final int notifId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
+      
+      await _localNotifications.show(
+        notifId,
+        'Test Local Notification 🔔',
+        'If you see this in shutter, local notifications work!',
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'high_importance_channel',
+            'High Importance Notifications',
+            channelDescription: 'This channel is used for important notifications.',
+            importance: Importance.max,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+        payload: '{"type":"test"}',
+      );
+      debugPrint("=== TEST LOCAL NOTIFICATION FIRED ===");
+    } catch (e, stack) {
+      debugPrint("TEST NOTIFICATION ERROR: $e");
+      debugPrint("Stack: $stack");
+    }
   }
 }

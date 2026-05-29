@@ -11,6 +11,15 @@
     min-height: 100vh;
 }
 
+.table-panel {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.03);
+    padding: 24px;
+    margin-top: 20px;
+}
+
 .page-title {
     font-weight: 700;
     color: #1e293b;
@@ -197,6 +206,72 @@
             </div>
         </div>
     </div>
+
+    <!-- History Panel -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="table-panel">
+                <h5 class="panel-title"><i class="fa-solid fa-clock-rotate-left text-info"></i> Recent Campaigns History</h5>
+                <p class="text-muted text-sm mb-4">View and manage your previously sent AI and standard broadcast campaigns.</p>
+                
+                <form action="{{ route('admin.ai_campaigns.bulk_delete') }}" method="POST" id="bulk-delete-form">
+                    @csrf
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped table-hover" id="historyTable" style="width: 100%;">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th style="width: 40px; text-align: center;">
+                                        <input type="checkbox" id="selectAll">
+                                    </th>
+                                    <th>Image</th>
+                                    <th>Title</th>
+                                    <th>Message</th>
+                                    <th>Type</th>
+                                    <th>Sent Date</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($notifications as $n)
+                                <tr>
+                                    <td style="text-align: center;">
+                                        <input type="checkbox" name="ids[]" class="row-checkbox" value="{{ $n->id }}">
+                                    </td>
+                                    <td>
+                                        @if($n->image)
+                                            <img src="{{ asset('uploads/' . $n->image) }}" width="45" height="45" class="rounded shadow-sm" style="object-fit: cover;">
+                                        @else
+                                            <div style="width:45px; height:45px; background:#e2e8f0; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#94a3b8;">
+                                                <i class="fa-solid fa-image"></i>
+                                            </div>
+                                        @endif
+                                    </td>
+                                    <td style="font-weight: 500;">{{ Str::limit($n->title, 30) }}</td>
+                                    <td class="text-muted" style="font-size: 0.9rem;">{{ Str::limit($n->message, 50) }}</td>
+                                    <td>
+                                        <span class="badge badge-light border">{{ ucfirst($n->type) }}</span>
+                                    </td>
+                                    <td style="font-size: 0.9rem;">{{ $n->created_at->format('d M, Y h:i A') }}</td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-outline-danger single-delete" data-id="{{ $n->id }}">
+                                            <i class="fa-solid fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-danger" id="btn-bulk-delete" disabled>
+                            <i class="fa-solid fa-trash-can mr-1"></i> Delete Selected
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection
 
@@ -272,6 +347,58 @@ $(document).ready(function() {
         if($('#festival_id').length) $('#festival_id').select2();
         if($('#custom_category_id').length) $('#custom_category_id').select2();
         if($('#plan_id').length) $('#plan_id').select2();
+    });
+
+    // History Table JS
+    let historyTable = $('#historyTable').DataTable({
+        "order": [[ 5, "desc" ]],
+        "columnDefs": [
+            { "orderable": false, "targets": [0, 1, 6] }
+        ]
+    });
+
+    // Select All
+    $('#selectAll').change(function() {
+        $('.row-checkbox').prop('checked', $(this).prop('checked'));
+        toggleBulkDeleteBtn();
+    });
+
+    $('.row-checkbox').change(function() {
+        if (!$(this).prop('checked')) {
+            $('#selectAll').prop('checked', false);
+        }
+        if ($('.row-checkbox:checked').length === $('.row-checkbox').length) {
+            $('#selectAll').prop('checked', true);
+        }
+        toggleBulkDeleteBtn();
+    });
+
+    function toggleBulkDeleteBtn() {
+        if ($('.row-checkbox:checked').length > 0) {
+            $('#btn-bulk-delete').prop('disabled', false);
+        } else {
+            $('#btn-bulk-delete').prop('disabled', true);
+        }
+    }
+
+    // Bulk Delete Action
+    $('#btn-bulk-delete').click(function() {
+        if(confirm('Are you sure you want to delete all selected notifications?')) {
+            $('#bulk-delete-form').submit();
+        }
+    });
+
+    // Single Delete Action via Bulk Form
+    $('.single-delete').click(function() {
+        if(confirm('Are you sure you want to delete this notification?')) {
+            // Uncheck all first
+            $('.row-checkbox').prop('checked', false);
+            // Check only this one
+            let id = $(this).data('id');
+            $('.row-checkbox[value="' + id + '"]').prop('checked', true);
+            // Submit form
+            $('#bulk-delete-form').submit();
+        }
     });
 });
 </script>

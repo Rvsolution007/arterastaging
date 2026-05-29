@@ -20,7 +20,18 @@ class AiSmartCampaignController extends Controller
         $index['category'] = \App\Models\Category::get();
         $index['plan'] = \App\Models\Subscription::get();
         $index['custom'] = \App\Models\CustomPost::get();
+        $index['notifications'] = \App\Models\UserNotification::orderBy('created_at', 'desc')->get();
         return view('admin.ai_campaigns.index', $index);
+    }
+
+    public function bulkDelete(Request $request)
+    {
+        $ids = $request->ids;
+        if($ids && is_array($ids)) {
+            \App\Models\UserNotification::whereIn('id', $ids)->delete();
+            return back()->with('message', 'Selected notifications deleted successfully.');
+        }
+        return back()->with('error', 'No notifications selected.');
     }
 
     public function generateCopy(Request $request)

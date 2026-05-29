@@ -47,7 +47,6 @@
                         </div>
                         Seasonal Push Campaigns
                     </div>
-                    <a href="{{ url('/admin/festivals/create') }}" class="btn-ai"><i class="fa fa-plus mr-1"></i> Add Festival Date</a>
                 </div>
                 <div class="table-responsive">
                     <div class="px-4 py-3 bg-light border-bottom text-muted" style="font-size: 0.85rem;">

@@ -20,6 +20,40 @@
     margin-top: 20px;
 }
 
+.drag-drop-zone {
+    border: 2px dashed #cbd5e1;
+    border-radius: 10px;
+    padding: 30px 20px;
+    text-align: center;
+    background-color: #f8fafc;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: 'Poppins', sans-serif;
+}
+.drag-drop-zone.dragover {
+    background-color: #e2e8f0;
+    border-color: #a855f7;
+}
+.drag-drop-zone input[type="file"] {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2;
+}
+.drag-drop-text {
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 500;
+    pointer-events: none;
+    position: relative;
+    z-index: 1;
+}
+
 .page-title {
     font-weight: 700;
     color: #1e293b;
@@ -191,9 +225,15 @@
                     
                     <div class="form-group">
                         <label>Attach Image (Optional)</label>
-                        <div class="custom-file">
-                            <input type="file" class="custom-file-input" name="image" id="campaignImage" accept="image/*">
-                            <label class="custom-file-label" for="campaignImage" style="font-family: 'Poppins', sans-serif;">Choose file...</label>
+                        <div class="drag-drop-zone" id="dragDropZone">
+                            <div class="drag-drop-text" id="dragDropText">
+                                <i class="fa-solid fa-cloud-arrow-up" style="font-size: 30px; color: #a855f7; margin-bottom: 10px; display: block;"></i>
+                                <span>Drag and drop an image here or click to select</span>
+                            </div>
+                            <input type="file" id="campaignImage" name="image" accept="image/*">
+                            <div id="preview" style="display: none; margin-top: 15px; position: relative; z-index: 1;">
+                                <img class="shadow bg-white rounded" src="" alt="Image Preview" style="max-height: 150px; max-width: 100%; border-radius: 8px;" />
+                            </div>
                         </div>
                     </div>
                     
@@ -318,10 +358,42 @@ $(document).ready(function() {
         });
     });
 
-    // Update custom file input label on selection
-    $('#campaignImage').on('change', function() {
-        let fileName = $(this).val().split('\\').pop();
-        $(this).next('.custom-file-label').addClass("selected").html(fileName || 'Choose file...');
+    // Image Preview and Drag/Drop Handlers
+    function imagePreview(fileInput) {
+        if (fileInput.files && fileInput.files[0]) {
+            var fileReader = new FileReader();
+            fileReader.onload = function (event) {
+                $('#preview').show();
+                $('#preview img').attr('src', event.target.result);
+                $('#dragDropText').hide();
+            };
+            fileReader.readAsDataURL(fileInput.files[0]);
+        } else {
+            $('#preview').hide();
+            $('#dragDropText').show();
+        }
+    }
+
+    $("#campaignImage").change(function () {
+        imagePreview(this);
+    });
+
+    var dragDropZone = document.getElementById('dragDropZone');
+    dragDropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('dragover');
+    });
+    dragDropZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+    });
+    dragDropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+        if(e.dataTransfer.files.length) {
+            document.getElementById('campaignImage').files = e.dataTransfer.files;
+            imagePreview(document.getElementById('campaignImage'));
+        }
     });
 
     // Handle Type Selection

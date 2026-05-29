@@ -739,12 +739,12 @@
                       </li>
                       <li class="nav-item">
                         <a href="{{ route('admin.marketing_settings') }}" class="nav-link @if(Request::is('admin/marketing-settings*')) active @endif" style="color: white;">
-                          <p><i class="fa fa-angle-right ml-3 mr-1"></i> Campaign Settings</p>
+                          <p><i class="fa fa-angle-right ml-3 mr-1"></i> Auto Notification</p>
                         </a>
                       </li>
                       <li class="nav-item">
                         <a href="{{ route('admin.ai_campaigns') }}" class="nav-link @if(Request::is('admin/ai-campaigns*')) active @endif" style="color: white;">
-                          <p><i class="fa fa-angle-right ml-3 mr-1"></i> Smart Campaigns</p>
+                          <p><i class="fa fa-angle-right ml-3 mr-1"></i> Manual Notification</p>
                         </a>
                       </li>
                     </ul>

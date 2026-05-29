@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import 'subscription_controller.dart';
+import '../services/notification_service.dart';
 
 class HomeController extends GetxController {
   var isLoading = true.obs;
@@ -64,6 +65,27 @@ class HomeController extends GetxController {
     super.onInit();
     fetchHomeData();
     loadBusinessInfo();
+    _refreshFcmToken();
+  }
+
+  Future<void> _refreshFcmToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('userId');
+      if (userId != null && userId.isNotEmpty) {
+        final token = await NotificationService().getToken();
+        if (token != null) {
+          debugPrint("[HomeCtrl] Refreshing FCM Token on startup");
+          await ApiService.post('/register-fcm', {
+            'userId': userId,
+            'fcmToken': token,
+            'deviceId': 'flutter_device',
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint("[HomeCtrl] Failed to refresh FCM Token: $e");
+    }
   }
 
   void clearData() {

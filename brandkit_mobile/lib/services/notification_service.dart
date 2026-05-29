@@ -7,6 +7,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../screens/detail_list_screen.dart';
 
 class NotificationService {
@@ -15,185 +16,230 @@ class NotificationService {
   NotificationService._internal();
 
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
 
   Future<void> initialize() async {
     try {
-      debugPrint("Initializing Firebase Messaging...");
-      
-      // Request permissions (especially for iOS)
+      debugPrint("=== NotificationService.initialize() START ===");
+
+      // 1. Request permissions
       NotificationSettings settings = await _fcm.requestPermission(
         alert: true,
         badge: true,
         sound: true,
       );
+      debugPrint('Notification permission: ${settings.authorizationStatus}');
 
-      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-        debugPrint('User granted notification permissions');
-      }
-
-      // Get token for debugging
+      // 2. Get FCM token
       String? token = await _fcm.getToken();
       debugPrint("FCM Token: $token");
 
-      // Initialize local notifications for foreground display
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('ic_launcher');
-    const DarwinInitializationSettings initializationSettingsIOS = DarwinInitializationSettings();
-    const InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsIOS,
-    );
-
-    await _localNotifications.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
-        // Handle notification tap
-        _handleNotificationTap(response.payload);
-      },
-    );
-
-    // Create High Importance Channel for Android
-    if (Platform.isAndroid) {
-      const AndroidNotificationChannel channel = AndroidNotificationChannel(
-        'high_importance_channel', // id
-        'High Importance Notifications', // title
-        description: 'This channel is used for important notifications.', // description
-        importance: Importance.max,
+      // 3. Initialize flutter_local_notifications
+      const AndroidInitializationSettings androidSettings =
+          AndroidInitializationSettings('ic_launcher');
+      const DarwinInitializationSettings iosSettings =
+          DarwinInitializationSettings();
+      const InitializationSettings initSettings = InitializationSettings(
+        android: androidSettings,
+        iOS: iosSettings,
       );
 
-      final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-          FlutterLocalNotificationsPlugin();
+      await _localNotifications.initialize(
+        initSettings,
+        onDidReceiveNotificationResponse: (NotificationResponse response) {
+          debugPrint("Notification tapped, payload: ${response.payload}");
+          _handleNotificationTap(response.payload);
+        },
+      );
 
-      await flutterLocalNotificationsPlugin
-          .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(channel);
-    }
+      // 4. Create high importance notification channel
+      if (Platform.isAndroid) {
+        const AndroidNotificationChannel channel = AndroidNotificationChannel(
+          'high_importance_channel',
+          'High Importance Notifications',
+          description: 'This channel is used for important notifications.',
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+          showBadge: true,
+        );
 
-    // Subscribe to 'all' topic (matching the backend)
-    await _fcm.subscribeToTopic('all');
+        await _localNotifications
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>()
+            ?.createNotificationChannel(channel);
+        debugPrint("Notification channel created: high_importance_channel");
+      }
 
-    // Handle foreground messages
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      debugPrint("Foreground message received: ${message.notification?.title}");
-      _showLocalNotification(message);
-    });
+      // 5. Subscribe to 'all' topic
+      await _fcm.subscribeToTopic('all');
+      debugPrint("Subscribed to topic: all");
 
-    // Handle app opening from background/terminated state via notification
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      debugPrint("App opened via notification: ${message.notification?.title}");
-      try {
+      // 6. Set foreground notification presentation (iOS mainly, but good practice)
+      await _fcm.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      // 7. Listen for foreground messages - THIS is the key handler for shutter notifications
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        debugPrint("=== FOREGROUND MESSAGE RECEIVED ===");
+        debugPrint("Title: ${message.notification?.title}");
+        debugPrint("Body: ${message.notification?.body}");
+        debugPrint("Data: ${message.data}");
+        debugPrint("Image (android): ${message.notification?.android?.imageUrl}");
+        debugPrint("Image (data): ${message.data['image']}");
+        _showLocalNotification(message);
+      });
+
+      // 8. Handle notification tap when app is opened from background
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        debugPrint("App opened from background notification: ${message.data}");
         _handleNotificationTap(jsonEncode(message.data));
-      } catch (e) {
-        debugPrint("Error encoding onMessageOpenedApp payload: $e");
-        _handleNotificationTap(message.data.toString());
+      });
+
+      // 9. Handle notification tap when app was terminated
+      RemoteMessage? initialMessage = await _fcm.getInitialMessage();
+      if (initialMessage != null) {
+        debugPrint("App opened from terminated notification: ${initialMessage.data}");
+        // Delay to let app fully initialize
+        Future.delayed(const Duration(seconds: 1), () {
+          _handleNotificationTap(jsonEncode(initialMessage.data));
+        });
       }
-    });
-    
-    // Check if app was opened from terminated state
-    RemoteMessage? initialMessage = await _fcm.getInitialMessage();
-    if (initialMessage != null) {
-      debugPrint("App opened from terminated state with data: ${initialMessage.data}");
-      try {
-        _handleNotificationTap(jsonEncode(initialMessage.data));
-      } catch (e) {
-        debugPrint("Error encoding initialMessage payload: $e");
-        _handleNotificationTap(initialMessage.data.toString());
-      }
-    }
-    } catch (e) {
+
+      debugPrint("=== NotificationService.initialize() COMPLETE ===");
+    } catch (e, stack) {
       debugPrint("FCM Initialization Error: $e");
+      debugPrint("Stack: $stack");
     }
   }
 
+  /// Show a local notification in the phone's shutter/status bar
   Future<void> _showLocalNotification(RemoteMessage message) async {
-    RemoteNotification? notification = message.notification;
-    AndroidNotification? android = message.notification?.android;
-    // Try multiple sources for image URL
-    String? imageUrl = notification?.android?.imageUrl 
-        ?? notification?.apple?.imageUrl
-        ?? message.data['image'];
-
-    debugPrint("Notification image URL: $imageUrl");
-    debugPrint("Notification data payload: ${message.data}");
-
-    if (notification != null) {
-      StyleInformation? styleInformation;
-      String? largeIconPath;
-      
-      if (imageUrl != null && imageUrl.isNotEmpty) {
-        try {
-          // Download image for BigPictureStyle
-          final http.Response response = await http.get(Uri.parse(imageUrl));
-          if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
-            final bigPicturePath = await _saveFile(response.bodyBytes, 'notification_img_${DateTime.now().millisecondsSinceEpoch}.jpg');
-            largeIconPath = bigPicturePath;
-            
-            styleInformation = BigPictureStyleInformation(
-              FilePathAndroidBitmap(bigPicturePath),
-              largeIcon: FilePathAndroidBitmap(bigPicturePath),
-              contentTitle: notification.title,
-              summaryText: notification.body,
-              hideExpandedLargeIcon: false,
-            );
-            debugPrint("BigPictureStyle notification created successfully");
-          } else {
-            debugPrint("Image download failed with status: ${response.statusCode}");
-          }
-        } catch (e) {
-          debugPrint("Error downloading notification image: $e");
-        }
+    try {
+      RemoteNotification? notification = message.notification;
+      if (notification == null) {
+        debugPrint("No notification block in message, skipping local notification");
+        return;
       }
 
+      // Get image URL from multiple possible sources
+      String? imageUrl = message.notification?.android?.imageUrl
+          ?? message.notification?.apple?.imageUrl
+          ?? message.data['image'];
+
+      debugPrint("Will show local notification: title=${notification.title}, imageUrl=$imageUrl");
+
+      // Build Android notification details
+      AndroidNotificationDetails androidDetails;
+
+      if (imageUrl != null && imageUrl.isNotEmpty) {
+        // Try to download image for BigPicture style
+        try {
+          final http.Response imgResponse = await http.get(Uri.parse(imageUrl))
+              .timeout(const Duration(seconds: 10));
+
+          if (imgResponse.statusCode == 200 && imgResponse.bodyBytes.isNotEmpty) {
+            final String imgPath = await _saveFile(
+              imgResponse.bodyBytes,
+              'notif_${DateTime.now().millisecondsSinceEpoch}.jpg',
+            );
+            debugPrint("Image downloaded successfully: $imgPath");
+
+            androidDetails = AndroidNotificationDetails(
+              'high_importance_channel',
+              'High Importance Notifications',
+              channelDescription: 'This channel is used for important notifications.',
+              importance: Importance.max,
+              priority: Priority.high,
+              icon: 'ic_launcher',
+              largeIcon: FilePathAndroidBitmap(imgPath),
+              styleInformation: BigPictureStyleInformation(
+                FilePathAndroidBitmap(imgPath),
+                largeIcon: FilePathAndroidBitmap(imgPath),
+                contentTitle: notification.title,
+                summaryText: notification.body,
+                hideExpandedLargeIcon: false,
+              ),
+            );
+          } else {
+            debugPrint("Image download failed: status=${imgResponse.statusCode}");
+            androidDetails = _buildSimpleAndroidDetails();
+          }
+        } catch (imgError) {
+          debugPrint("Image download error: $imgError");
+          androidDetails = _buildSimpleAndroidDetails();
+        }
+      } else {
+        androidDetails = _buildSimpleAndroidDetails();
+      }
+
+      // Generate unique notification ID
+      final int notifId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
+
+      // Encode payload as JSON string
+      final String payload = jsonEncode(message.data);
+      debugPrint("Showing notification id=$notifId with payload=$payload");
+
+      await _localNotifications.show(
+        notifId,
+        notification.title,
+        notification.body,
+        NotificationDetails(
+          android: androidDetails,
+          iOS: const DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+        payload: payload,
+      );
+
+      debugPrint("=== LOCAL NOTIFICATION SHOWN SUCCESSFULLY ===");
+    } catch (e, stack) {
+      debugPrint("ERROR in _showLocalNotification: $e");
+      debugPrint("Stack: $stack");
+
+      // Ultimate fallback - show basic notification no matter what
       try {
         await _localNotifications.show(
-          notification.hashCode,
-          notification.title,
-          notification.body,
-          NotificationDetails(
+          DateTime.now().millisecondsSinceEpoch.remainder(100000),
+          message.notification?.title ?? 'Notification',
+          message.notification?.body ?? '',
+          const NotificationDetails(
             android: AndroidNotificationDetails(
               'high_importance_channel',
               'High Importance Notifications',
-              channelDescription: 'This channel is used for important notifications.',
               importance: Importance.max,
               priority: Priority.high,
-              icon: android?.smallIcon ?? 'ic_launcher',
-              largeIcon: largeIconPath != null ? FilePathAndroidBitmap(largeIconPath) : null,
-              styleInformation: styleInformation,
-            ),
-            iOS: const DarwinNotificationDetails(
-              presentAlert: true,
-              presentBadge: true,
-              presentSound: true,
             ),
           ),
           payload: jsonEncode(message.data),
         );
-      } catch (e) {
-        debugPrint("Error showing local notification: $e");
-        // Fallback without big picture
-        await _localNotifications.show(
-          notification.hashCode,
-          notification.title,
-          notification.body,
-          NotificationDetails(
-            android: AndroidNotificationDetails(
-              'high_importance_channel',
-              'High Importance Notifications',
-              channelDescription: 'This channel is used for important notifications.',
-              importance: Importance.max,
-              priority: Priority.high,
-              icon: android?.smallIcon ?? 'ic_launcher',
-            ),
-            iOS: const DarwinNotificationDetails(),
-          ),
-          payload: jsonEncode(message.data),
-        );
+        debugPrint("Fallback notification shown");
+      } catch (fallbackError) {
+        debugPrint("Even fallback notification failed: $fallbackError");
       }
     }
   }
 
+  /// Simple Android notification details without image
+  AndroidNotificationDetails _buildSimpleAndroidDetails() {
+    return const AndroidNotificationDetails(
+      'high_importance_channel',
+      'High Importance Notifications',
+      channelDescription: 'This channel is used for important notifications.',
+      importance: Importance.max,
+      priority: Priority.high,
+      icon: 'ic_launcher',
+    );
+  }
+
+  /// Save bytes to a temp file and return the path
   Future<String> _saveFile(Uint8List bytes, String fileName) async {
     final directory = await getTemporaryDirectory();
     final file = File('${directory.path}/$fileName');
@@ -201,48 +247,68 @@ class NotificationService {
     return file.path;
   }
 
+  /// Handle notification tap - navigate to the correct screen
   void _handleNotificationTap(String? payload) {
     if (payload == null || payload.isEmpty) return;
-    debugPrint("Notification Tapped with payload: $payload");
-    
+    debugPrint("=== NOTIFICATION TAP ===");
+    debugPrint("Raw payload: $payload");
+
     try {
-      Map<String, dynamic> data = _parsePayload(payload);
-      debugPrint("Parsed notification data: $data");
-      
-      String type = data['type']?.toString() ?? '';
-      int id = int.tryParse(data['id']?.toString() ?? '0') ?? 0;
-      String title = data['name']?.toString() 
-          ?? data['festival']?.toString() 
-          ?? data['custom']?.toString() 
+      Map<String, dynamic> data = {};
+
+      // Parse payload (could be JSON string or Map.toString() format)
+      if (payload.startsWith('{')) {
+        try {
+          data = Map<String, dynamic>.from(jsonDecode(payload));
+        } catch (_) {
+          // Fallback: parse {key: value, key2: value2} format
+          final content = payload.substring(1, payload.length - 1);
+          for (var part in content.split(', ')) {
+            final colonIdx = part.indexOf(':');
+            if (colonIdx > 0) {
+              data[part.substring(0, colonIdx).trim()] =
+                  part.substring(colonIdx + 1).trim();
+            }
+          }
+        }
+      }
+
+      debugPrint("Parsed data: $data");
+
+      final String type = data['type']?.toString() ?? '';
+      final int id = int.tryParse(data['id']?.toString() ?? '') ?? 0;
+      final String title = data['name']?.toString()
+          ?? data['festival']?.toString()
+          ?? data['custom']?.toString()
           ?? data['subscriptionPlan']?.toString()
           ?? 'Details';
 
-      debugPrint("Notification tap - type: $type, id: $id, title: $title");
+      debugPrint("Navigation: type=$type, id=$id, title=$title");
 
-      if (id > 0 && type.isNotEmpty) {
-        if (type == 'category' || type == 'festival' || type == 'custom' || type == 'subscriptionPlan') {
-          // Small delay to ensure navigation context is ready
+      // External link - open in browser
+      if (type == 'externalLink') {
+        final link = data['externalLink']?.toString() ?? '';
+        if (link.isNotEmpty) {
           Future.delayed(const Duration(milliseconds: 300), () {
-            Get.to(() => DetailListScreen(
-              type: type == 'subscriptionPlan' ? 'category' : type,
-              id: id,
-              title: title,
-            ));
+            launchUrl(Uri.parse(link), mode: LaunchMode.externalApplication);
           });
           return;
         }
-        if (type == 'externalLink') {
-          // Handle external link type
-          final link = data['externalLink']?.toString() ?? '';
-          if (link.isNotEmpty) {
-            // Navigate to external link or in-app browser
-            debugPrint("Opening external link: $link");
-          }
-          return;
-        }
       }
-      
-      // Fallback - go to notifications page
+
+      // Category, Festival, Custom, SubscriptionPlan - navigate to detail screen
+      if (id > 0 && (type == 'category' || type == 'festival' || type == 'custom' || type == 'subscriptionPlan')) {
+        Future.delayed(const Duration(milliseconds: 300), () {
+          Get.to(() => DetailListScreen(
+            type: type == 'subscriptionPlan' ? 'category' : type,
+            id: id,
+            title: title,
+          ));
+        });
+        return;
+      }
+
+      // Fallback - go to notifications list
       Future.delayed(const Duration(milliseconds: 300), () {
         Get.toNamed('/notifications');
       });
@@ -254,31 +320,7 @@ class NotificationService {
     }
   }
 
-  Map<String, dynamic> _parsePayload(String payload) {
-    if (payload.startsWith('{') && payload.endsWith('}')) {
-      try {
-        // Try JSON first (this is the primary format now)
-        return Map<String, dynamic>.from(jsonDecode(payload));
-      } catch (e) {
-        debugPrint("JSON parse failed, trying manual parse: $e");
-        // Fallback for Map.toString() format: {key: value, key2: value2}
-        final content = payload.substring(1, payload.length - 1);
-        final parts = content.split(', ');
-        final map = <String, dynamic>{};
-        for (var part in parts) {
-          final colonIndex = part.indexOf(':');
-          if (colonIndex > 0) {
-            final key = part.substring(0, colonIndex).trim();
-            final value = part.substring(colonIndex + 1).trim();
-            map[key] = value;
-          }
-        }
-        return map;
-      }
-    }
-    return {};
-  }
-
+  /// Get FCM token
   Future<String?> getToken() async {
     return await _fcm.getToken();
   }

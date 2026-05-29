@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'dart:convert';
+import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_text_styles.dart';
 import '../utils/app_spacing.dart';
+import '../services/api_service.dart';
 import 'support_screen.dart';
 
 class FaqsScreen extends StatefulWidget {
@@ -13,37 +16,89 @@ class FaqsScreen extends StatefulWidget {
 }
 
 class _FaqsScreenState extends State<FaqsScreen> {
-  final List<Map<String, String>> _faqs = [
-    {
-      'q': 'How to edit my business profile?',
-      'a': 'Go to the Business tab and click on the "EDIT" button at the top right of your profile header. You can then update your name, logo, and other details.'
-    },
-    {
-      'q': 'Where can I see my downloads?',
-      'a': 'You can access all your saved designs and downloaded content through the "Downloads" button on the Business page action grid.'
-    },
-    {
-      'q': 'How to change the language?',
-      'a': 'You can change the language from the "More" tab under App Preferences. This will update the content language across the app.'
-    },
-    {
-      'q': 'Are the templates free to use?',
-      'a': 'Most templates are free. Premium templates are marked with a "Pro" badge and require an active subscription to download.'
-    },
-    {
-      'q': 'How can I contact support?',
-      'a': 'Visit the "Help & Support" section on the Business page to connect with us via WhatsApp, Call, or Email.'
-    }
-  ];
+  bool _isLoading = true;
+  String _error = '';
+  
+  // Data structure: Category Name -> List of FAQs
+  Map<String, List<dynamic>> _groupedFaqs = {};
+  Map<String, List<dynamic>> _filteredFaqs = {};
+  
+  String _searchQuery = '';
+  int? _expandedId;
 
-  int? _expandedIndex;
+  @override
+  void initState() {
+    super.initState();
+    _fetchFaqs();
+  }
 
-  void _toggleFaq(int index) {
+  Future<void> _fetchFaqs() async {
     setState(() {
-      if (_expandedIndex == index) {
-        _expandedIndex = null;
+      _isLoading = true;
+      _error = '';
+    });
+
+    try {
+      final response = await ApiService.get('/faqs');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['data'] != null) {
+          setState(() {
+            _groupedFaqs = Map<String, List<dynamic>>.from(data['data']);
+            _filteredFaqs = Map<String, List<dynamic>>.from(data['data']);
+          });
+        }
       } else {
-        _expandedIndex = index;
+        setState(() {
+          _error = 'Failed to load FAQs. Please try again.';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'An error occurred. Please check your connection.';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _filterFaqs(String query) {
+    _searchQuery = query.toLowerCase();
+    
+    if (_searchQuery.isEmpty) {
+      setState(() {
+        _filteredFaqs = Map.from(_groupedFaqs);
+      });
+      return;
+    }
+
+    Map<String, List<dynamic>> filtered = {};
+    
+    _groupedFaqs.forEach((category, faqs) {
+      final matchedFaqs = faqs.where((faq) {
+        final question = (faq['question'] ?? '').toString().toLowerCase();
+        final answer = (faq['answer'] ?? '').toString().toLowerCase();
+        return question.contains(_searchQuery) || answer.contains(_searchQuery);
+      }).toList();
+      
+      if (matchedFaqs.isNotEmpty) {
+        filtered[category] = matchedFaqs;
+      }
+    });
+
+    setState(() {
+      _filteredFaqs = filtered;
+    });
+  }
+
+  void _toggleFaq(int id) {
+    setState(() {
+      if (_expandedId == id) {
+        _expandedId = null;
+      } else {
+        _expandedId = id;
       }
     });
   }
@@ -53,95 +108,179 @@ class _FaqsScreenState extends State<FaqsScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text('Common Questions', style: AppTextStyles.heading4),
+        title: Text('Knowledge Base', style: AppTextStyles.heading4),
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: AppColors.gray900),
           onPressed: () => Get.back(),
         ),
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        child: Column(
-          children: [
-            ...List.generate(_faqs.length, (index) {
-              final isExpanded = _expandedIndex == index;
-              final faq = _faqs[index];
+      body: Column(
+        children: [
+          // Search Bar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(bottom: BorderSide(color: AppColors.slate100)),
+            ),
+            child: TextField(
+              onChanged: _filterFaqs,
+              decoration: InputDecoration(
+                hintText: 'Search for answers...',
+                prefixIcon: Icon(Icons.search, color: AppColors.slate400),
+                filled: true,
+                fillColor: AppColors.slate50,
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+          
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _error.isNotEmpty
+                    ? Center(child: Text(_error, style: TextStyle(color: Colors.red)))
+                    : _filteredFaqs.isEmpty
+                        ? _buildEmptyState()
+                        : _buildFaqList(),
+          ),
+        ],
+      ),
+    );
+  }
 
-              return GestureDetector(
-                onTap: () => _toggleFaq(index),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: AppColors.slate100),
-                    boxShadow: isExpanded ? AppColors.cardShadow : null,
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.search_off, size: 64, color: AppColors.slate300),
+          AppSpacing.gapV16,
+          Text(
+            'No FAQs found matching "$_searchQuery"',
+            style: TextStyle(color: AppColors.slate500, fontSize: 16),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFaqList() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ..._filteredFaqs.entries.map((entry) {
+            final category = entry.key;
+            final faqs = entry.value;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16, top: 8),
+                  child: Text(
+                    category.toUpperCase(),
+                    style: TextStyle(
+                      color: AppColors.slate500,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                      letterSpacing: 1.2,
+                    ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                faq['q']!,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: isExpanded ? AppColors.indigo600 : AppColors.gray800,
-                                  fontSize: 15,
+                ),
+                ...faqs.map((faq) {
+                  final id = faq['id'] as int;
+                  final question = faq['question'] as String? ?? '';
+                  final answerHtml = faq['answer'] as String? ?? '';
+                  final isExpanded = _expandedId == id;
+
+                  return GestureDetector(
+                    onTap: () => _toggleFaq(id),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.slate100),
+                        boxShadow: isExpanded ? AppColors.cardShadow : null,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    question,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: isExpanded ? AppColors.indigo600 : AppColors.gray800,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ),
+                                AppSpacing.gapH16,
+                                AnimatedRotation(
+                                  turns: isExpanded ? 0.5 : 0.0,
+                                  duration: const Duration(milliseconds: 300),
+                                  child: Icon(
+                                    Icons.keyboard_arrow_down,
+                                    color: isExpanded ? AppColors.indigo500 : AppColors.slate400,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (isExpanded)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
+                              child: Container(
+                                padding: const EdgeInsets.only(top: 16),
+                                decoration: BoxDecoration(
+                                  border: Border(top: BorderSide(color: AppColors.slate50)),
+                                ),
+                                child: HtmlWidget(
+                                  answerHtml,
+                                  textStyle: TextStyle(
+                                    color: AppColors.slate600,
+                                    fontSize: 14,
+                                    height: 1.6,
+                                  ),
                                 ),
                               ),
                             ),
-                            AppSpacing.gapH16,
-                            AnimatedRotation(
-                              turns: isExpanded ? 0.5 : 0.0,
-                              duration: const Duration(milliseconds: 300),
-                              child: Icon(
-                                Icons.keyboard_arrow_down,
-                                color: isExpanded ? AppColors.indigo500 : AppColors.slate400,
-                              ),
-                            ),
-                          ],
-                        ),
+                        ],
                       ),
-                      if (isExpanded)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
-                          child: Container(
-                            padding: const EdgeInsets.only(top: 16),
-                            decoration: BoxDecoration(
-                              border: Border(top: BorderSide(color: AppColors.slate50)),
-                            ),
-                            child: Text(
-                              faq['a']!,
-                              style: TextStyle(
-                                color: AppColors.slate500,
-                                fontSize: 14,
-                                height: 1.6,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              );
-            }),
+                    ),
+                  );
+                }).toList(),
+                AppSpacing.gapV16,
+              ],
+            );
+          }).toList(),
 
-            AppSpacing.gapV32,
-            
-            Text(
+          AppSpacing.gapV32,
+          Center(
+            child: Text(
               'Still have questions?',
               style: TextStyle(color: AppColors.slate400, fontSize: 14, fontWeight: FontWeight.w600),
             ),
-            AppSpacing.gapV16,
-            
-            ElevatedButton(
+          ),
+          AppSpacing.gapV16,
+          Center(
+            child: ElevatedButton(
               onPressed: () => Get.to(() => const SupportScreen()),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.indigo600,
@@ -159,10 +298,9 @@ class _FaqsScreenState extends State<FaqsScreen> {
                 ],
               ),
             ),
-            
-            const SizedBox(height: 60),
-          ],
-        ),
+          ),
+          const SizedBox(height: 60),
+        ],
       ),
     );
   }

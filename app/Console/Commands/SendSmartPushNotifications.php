@@ -8,6 +8,7 @@ use App\Models\UserNotification;
 use App\Models\UserActivity;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use App\Services\FcmService;
 
 class SendSmartPushNotifications extends Command
 {
@@ -16,7 +17,7 @@ class SendSmartPushNotifications extends Command
      *
      * @var string
      */
-    protected $signature = 'push:smart-optimize';
+    protected $signature = 'push:smart-optimize {--force : Force send to all active users bypassing the optimal time check}';
 
     /**
      * The console command description.
@@ -37,32 +38,44 @@ class SendSmartPushNotifications extends Command
         // Get current hour
         $currentHour = now()->hour;
 
-        // Find users whose most active hour is the current hour
-        $usersToNotify = User::where('status', 1)->get()->filter(function ($user) use ($currentHour) {
-            return $this->getBestNotificationHour($user->id) === $currentHour;
-        });
+        // Find users whose most active hour is the current hour (unless --force is passed)
+        $usersToNotify = User::where('status', 1)->get();
+        
+        if (!$this->option('force')) {
+            $usersToNotify = $usersToNotify->filter(function ($user) use ($currentHour) {
+                return $this->getBestNotificationHour($user->id) === $currentHour;
+            });
+        } else {
+            $this->info('Force mode enabled: Bypassing time optimization check.');
+        }
 
         $this->info("Found {$usersToNotify->count()} users to notify at hour {$currentHour}.");
 
         foreach ($usersToNotify as $user) {
             // Check if they haven't been notified today
-            $alreadyNotifiedToday = UserNotification::where('user_id', $user->id)
-                ->whereDate('created_at', now()->toDateString())
-                ->where('title', 'Daily Inspiration')
-                ->exists();
+            $cacheKey = "smart_push_notified_today_{$user->id}";
+            $alreadyNotifiedToday = \Illuminate\Support\Facades\Cache::has($cacheKey);
 
             if (!$alreadyNotifiedToday) {
-                // Send a smart push notification (we simulate this by creating a DB notification for now)
-                UserNotification::create([
-                    'user_id' => $user->id,
-                    'title' => 'Daily Inspiration',
-                    'message' => "Hey {$user->name}, it's your favorite time to create! Check out new templates today.",
-                    'icon' => 'fa-bell',
-                    'action_url' => '/dashboard',
-                    'status' => 'unread'
-                ]);
+                $title = 'Daily Inspiration';
+                $message = "Hey {$user->name}, it's your favorite time to create! Check out new templates today.";
+                
+                // Mark as notified for today (expires at midnight)
+                $secondsUntilMidnight = now()->diffInSeconds(now()->endOfDay());
+                \Illuminate\Support\Facades\Cache::put($cacheKey, true, $secondsUntilMidnight);
 
-                $this->info("Queued push notification for User ID: {$user->id}");
+                // Also send via FCM
+                $fcmService = new \App\Services\FcmService();
+                if ($fcmService->isConfigured()) {
+                    $result = $fcmService->sendNotificationToUser($user->id, $title, $message);
+                    if ($result['status'] === 'success') {
+                        $this->info("Sent FCM push notification for User ID: {$user->id}");
+                    } else {
+                        $this->error("Failed to send FCM push for User ID: {$user->id}. Error: " . ($result['message'] ?? 'Unknown error'));
+                    }
+                } else {
+                    $this->info("Queued DB notification for User ID: {$user->id} (FCM not configured)");
+                }
             }
         }
 

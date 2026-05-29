@@ -2,7 +2,38 @@
 
 @section('extra_css')
     <style type="text/css">
-
+        .drag-drop-zone {
+            border: 2px dashed #007bff;
+            border-radius: 10px;
+            padding: 30px 20px;
+            text-align: center;
+            background-color: #f8f9fa;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .drag-drop-zone.dragover {
+            background-color: #e2e6ea;
+            border-color: #28a745;
+        }
+        .drag-drop-zone input[type="file"] {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            cursor: pointer;
+            z-index: 2;
+        }
+        .drag-drop-text {
+            color: #6c757d;
+            font-size: 16px;
+            font-weight: 500;
+            pointer-events: none;
+            position: relative;
+            z-index: 1;
+        }
     </style>
 @endsection
 
@@ -61,15 +92,18 @@
                     <div class="col-12">
                         <div class="form-group row">
                             {!! Form::label('image', 'Select Image', ['class' => 'col-sm-3 col-form-label']) !!}
-                            <div class="col-sm-4">
-                                <input class="form-control" type="file" id="image" name="image" required>
+                            <div class="col-sm-6">
+                                <div class="drag-drop-zone" id="dragDropZone">
+                                    <div class="drag-drop-text" id="dragDropText">
+                                        <i class="fas fa-cloud-upload-alt" style="font-size: 30px; color: #007bff; margin-bottom: 10px; display: block;"></i>
+                                        <span>Drag and drop an image here or click to select</span>
+                                    </div>
+                                    <input type="file" id="image" name="image" required accept="image/*">
+                                    <div id="preview" style="display: none; margin-top: 15px; position: relative; z-index: 1;">
+                                        <img class="shadow bg-white rounded" src="" alt="Image Preview" style="max-height: 150px; max-width: 100%; border-radius: 8px;" />
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-sm-3"></div>
-                            <div class="col-sm-9 mb-3" id="preview"><img type="image" class="shadow bg-white rounded"
-                                    src="{{asset('assets/images/no-image.png')}}" alt="Image"
-                                    style="width: auto;height: 120px" /></div>
                         </div>
                     </div>
                 </div>
@@ -147,14 +181,38 @@
             if (fileInput.files && fileInput.files[0]) {
                 var fileReader = new FileReader();
                 fileReader.onload = function (event) {
-                    $('#preview').html('<img src="' + event.target.result + '" class="shadow bg-white rounded" width="auto" alt="Select Image" height="120px"/>');
+                    $('#preview').show();
+                    $('#preview img').attr('src', event.target.result);
+                    $('#dragDropText').hide();
                 };
                 fileReader.readAsDataURL(fileInput.files[0]);
+            } else {
+                $('#preview').hide();
+                $('#dragDropText').show();
             }
         }
 
         $("#image").change(function () {
             imagePreview(this);
+        });
+
+        // Drag and drop effects
+        var dragDropZone = document.getElementById('dragDropZone');
+        dragDropZone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('dragover');
+        });
+        dragDropZone.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+        });
+        dragDropZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+            if(e.dataTransfer.files.length) {
+                document.getElementById('image').files = e.dataTransfer.files;
+                imagePreview(document.getElementById('image'));
+            }
         });
     </script>
 @endsection

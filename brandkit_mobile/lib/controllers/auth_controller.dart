@@ -7,6 +7,7 @@ import '../screens/dashboard_screen.dart'; // We will create this next
 import '../screens/login_screen.dart';
 import '../controllers/ad_controller.dart';
 import '../controllers/home_controller.dart';
+import '../services/notification_service.dart';
 
 class AuthController extends GetxController {
   var isLoading = false.obs;
@@ -47,6 +48,8 @@ class AuthController extends GetxController {
           Get.find<HomeController>().loadBusinessInfo();
           Get.find<HomeController>().fetchHomeData();
         }
+        
+        await _registerFcmToken(data['userId'].toString());
         
         Get.snackbar('Success', 'Login Successful!', backgroundColor: Colors.green, colorText: Colors.white);
         
@@ -109,6 +112,8 @@ class AuthController extends GetxController {
           Get.find<HomeController>().fetchHomeData();
         }
 
+        await _registerFcmToken(data['userId'].toString());
+
         Get.snackbar('Success', 'Registration successful! Welcome aboard.', backgroundColor: Colors.green, colorText: Colors.white);
         
         // Auto-login and navigate to Dashboard
@@ -159,6 +164,22 @@ class AuthController extends GetxController {
       Get.snackbar('Error', 'Failed to send reset email. $e', backgroundColor: Colors.redAccent, colorText: Colors.white);
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  Future<void> _registerFcmToken(String userId) async {
+    try {
+      final token = await NotificationService().getToken();
+      if (token != null) {
+        debugPrint("Registering FCM Token: $token");
+        await ApiService.post('/register-fcm', {
+          'userId': userId,
+          'fcmToken': token,
+          'deviceId': 'flutter_device', // Since deviceId isn't explicitly extracted in this app, we'll send a fallback
+        });
+      }
+    } catch (e) {
+      debugPrint("Failed to register FCM Token: $e");
     }
   }
 }

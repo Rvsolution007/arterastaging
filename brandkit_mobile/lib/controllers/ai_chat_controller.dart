@@ -16,6 +16,7 @@ class AiChatController extends GetxController {
   var messages = <ChatMessage>[].obs;
   var isLoading = false.obs;
   var ticketId = 0.obs;
+  var isTicketClosed = false.obs;
   PusherChannelsFlutter pusher = PusherChannelsFlutter.getInstance();
 
   AiChatController({int initialTicketId = 0}) {
@@ -54,6 +55,9 @@ class AiChatController extends GetxController {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success']) {
+          if (data['status'] == 'closed' || data['status'] == 'ai_resolved') {
+            isTicketClosed.value = true;
+          }
           final List msgList = data['messages'] ?? [];
           messages.value = msgList.map((m) {
             return ChatMessage(
@@ -144,6 +148,33 @@ class AiChatController extends GetxController {
         isMe: false,
         timestamp: DateTime.now(),
       ));
+    } finally {
+      isLoading(false);
+    }
+  }
+
+  Future<bool> closeTicket(int rating) async {
+    if (ticketId.value == 0) return false;
+    isLoading(true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('userId');
+      final response = await ApiService.post('/ai-chat/close', {
+        'user_id': userId,
+        'ticket_id': ticketId.value,
+        'rating': rating
+      });
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success']) {
+          isTicketClosed.value = true;
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      print("Error closing ticket: $e");
+      return false;
     } finally {
       isLoading(false);
     }

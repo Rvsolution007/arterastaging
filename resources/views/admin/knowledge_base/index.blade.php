@@ -276,9 +276,40 @@
             <h1 class="ai-title">Knowledge Base</h1>
             <p class="ai-subtitle">Manage AI FAQs and training data</p>
         </div>
-        <a href="{{ route('admin.knowledge_base.create') }}" class="btn-glow">
-            <i class="fas fa-plus mr-2"></i> New Entry
-        </a>
+        <div class="d-flex" style="gap: 10px;">
+            <button class="btn btn-outline-primary" data-toggle="modal" data-target="#importModal">
+                <i class="fas fa-file-import mr-1"></i> Import
+            </button>
+            <a href="{{ route('admin.knowledge_base.export') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-file-export mr-1"></i> Export
+            </a>
+            <button class="btn btn-info" data-toggle="modal" data-target="#aiCategoryModal">
+                <i class="fas fa-brain mr-1"></i> AI Analyze Category
+            </button>
+            <button class="btn btn-warning" data-toggle="modal" data-target="#aiContextModal">
+                <i class="fas fa-cog mr-1"></i> AI UI Context
+            </button>
+            <a href="{{ route('admin.knowledge_base.create') }}" class="btn-glow">
+                <i class="fas fa-plus mr-2"></i> New Entry
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <form action="{{ route('admin.knowledge_base') }}" method="GET" class="d-flex" style="gap: 10px;">
+                <select name="category" class="form-control" onchange="this.form.submit()">
+                    <option value="">All Categories</option>
+                    @foreach($categories as $cat)
+                        <option value="{{ $cat }}" {{ request('category') == $cat ? 'selected' : '' }}>{{ $cat }}</option>
+                    @endforeach
+                </select>
+                @if(request()->has('category') && request('category') != '')
+                    <a href="{{ route('admin.knowledge_base') }}" class="btn btn-light"><i class="fas fa-times"></i></a>
+                @endif
+            </form>
+        </div>
     </div>
 
     <!-- Analytics Cards -->
@@ -324,9 +355,10 @@
                         <thead>
                             <tr>
                                 <th width="5%">ID</th>
-                                <th width="40%">Question / Intent</th>
+                                <th width="35%">Question / Intent</th>
                                 <th width="15%">Category</th>
-                                <th width="20%">Keywords</th>
+                                <th width="15%">Keywords</th>
+                                <th width="10%">Match %</th>
                                 <th width="10%">Status</th>
                                 <th width="10%" class="text-right">Actions</th>
                             </tr>
@@ -343,6 +375,19 @@
                                     <div style="font-size: 0.85rem; color: #64748b;">
                                         {{ Str::limit($kb->keywords, 30) ?: 'N/A' }}
                                     </div>
+                                </td>
+                                <td>
+                                    @if(isset($kb->match_percentage))
+                                        @if($kb->match_percentage > 70)
+                                            <span class="ai-badge" style="background:#fee2e2; color:#991b1b;">{{ $kb->match_percentage }}%</span>
+                                        @elseif($kb->match_percentage > 40)
+                                            <span class="ai-badge" style="background:#fef3c7; color:#92400e;">{{ $kb->match_percentage }}%</span>
+                                        @else
+                                            <span class="ai-badge badge-active">{{ $kb->match_percentage }}%</span>
+                                        @endif
+                                    @else
+                                        N/A
+                                    @endif
                                 </td>
                                 <td>
                                     @if($kb->status)
@@ -383,4 +428,148 @@
         </div>
     </div>
 </div>
+
+<!-- Import Modal -->
+<div class="modal fade" id="importModal" tabindex="-1" role="dialog" aria-labelledby="importModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <form action="{{ route('admin.knowledge_base.import') }}" method="POST" enctype="multipart/form-data">
+        @csrf
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="importModalLabel">Import Knowledge Base CSV</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+                <label>Upload CSV File</label>
+                <input type="file" name="csv_file" class="form-control" accept=".csv" required>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary">Import</button>
+          </div>
+        </div>
+    </form>
+  </div>
+</div>
+
+<!-- AI Context Modal -->
+<div class="modal fade" id="aiContextModal" tabindex="-1" role="dialog" aria-labelledby="aiContextModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <form action="{{ route('admin.knowledge_base.update_context') }}" method="POST">
+        @csrf
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="aiContextModalLabel">Edit AI UI Architecture & Rules</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="alert alert-info">
+              <strong>How this works:</strong> Type out the exact navigation paths, button names, and functionality rules of your app here. The AI will strictly follow these rules when answering questions. If you add a new feature to the app later, just update this text!
+            </div>
+            
+            <div class="mb-3 d-flex justify-content-between align-items-center bg-light p-3 rounded border">
+                <div>
+                    <strong><i class="fas fa-magic text-purple mr-1"></i> Auto-Sync Context</strong>
+                    <p class="mb-0 text-muted" style="font-size: 0.85rem;">Let AI read your Flutter source code and generate these rules automatically!</p>
+                </div>
+                <button type="submit" form="autoSyncForm" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-sync-alt mr-1"></i> Auto-Sync Code
+                </button>
+            </div>
+
+            <div class="form-group">
+                <label>App UI Context Rules:</label>
+                <textarea name="ai_context" class="form-control" rows="12" required>{{ $aiContext }}</textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary">Save Rules</button>
+          </div>
+        </div>
+    </form>
+  </div>
+</div>
+
+<form id="autoSyncForm" action="{{ route('admin.knowledge_base.auto_sync_context') }}" method="POST" style="display: none;">
+    @csrf
+</form>
+
+<!-- AI Analyze Category Modal -->
+<div class="modal fade" id="aiCategoryModal" tabindex="-1" role="dialog" aria-labelledby="aiCategoryModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="aiCategoryModalLabel">Generate FAQs for Category</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p class="text-muted">The AI will analyze the category and generate 5 to 8 structured questions and answers.</p>
+            <div class="form-group">
+                <label>Select Category</label>
+                <select id="ai_category_select" class="form-control">
+                    <option value="subscription plan">Subscription Plan</option>
+                    <option value="payment">Payment</option>
+                    <option value="Editor Section">Editor Section</option>
+                    <option value="Profile">Profile</option>
+                    <option value="Download problem">Download problem</option>
+                    <option value="Frame">Frame</option>
+                </select>
+            </div>
+            <div id="ai_generate_alert" class="alert d-none mt-2"></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-info" id="btn_generate_ai">
+                <i class="fas fa-magic"></i> Generate Now
+            </button>
+          </div>
+        </div>
+  </div>
+</div>
+@endsection
+
+@section('script')
+<script>
+    $('#btn_generate_ai').click(function() {
+        var cat = $('#ai_category_select').val();
+        var btn = $(this);
+        var alertBox = $('#ai_generate_alert');
+        
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Generating...');
+        alertBox.removeClass('alert-success alert-danger d-none').addClass('alert-info').text('Analyzing and generating... This may take a minute.');
+
+        $.ajax({
+            url: "{{ route('admin.knowledge_base.ai_category') }}",
+            type: "POST",
+            data: {
+                _token: "{{ csrf_token() }}",
+                category: cat
+            },
+            success: function(response) {
+                if(response.status === 'success') {
+                    alertBox.removeClass('alert-info').addClass('alert-success').text(response.message);
+                    setTimeout(function() {
+                        location.reload();
+                    }, 2000);
+                } else {
+                    alertBox.removeClass('alert-info').addClass('alert-danger').text(response.message);
+                    btn.prop('disabled', false).html('<i class="fas fa-magic"></i> Generate Now');
+                }
+            },
+            error: function(xhr) {
+                alertBox.removeClass('alert-info').addClass('alert-danger').text("An error occurred. Please try again.");
+                btn.prop('disabled', false).html('<i class="fas fa-magic"></i> Generate Now');
+            }
+        });
+    });
+</script>
 @endsection

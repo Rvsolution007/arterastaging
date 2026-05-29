@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../services/ad_service.dart';
@@ -70,6 +71,7 @@ class AdController extends GetxController {
 
   /// Load banner ads for all tabs if allowed by config
   void _loadAllBanners() {
+    if (kIsWeb) return;
     if (!showGlobalBanners) return;
 
     // Home Tab Banner
@@ -169,12 +171,12 @@ class AdController extends GetxController {
   /// Handle access for Festival/Category posts based on free/paid status.
   /// 
   /// Premium template strategy (when base limit reached):
-  ///   - First access (edit): Rewarded Ad (30s unskippable video)
-  ///   - Download time: Interstitial Ad (5s skippable) — handled by [handlePremiumDownloadAd]
+  ///   - First access (edit): Rewarded Ad (if ad limit not reached)
+  ///   - Download time: Interstitial Ad (handled by [handlePremiumDownloadAd])
   ///
-  /// Free template strategy (when base limit reached):
-  ///   - First access (edit): Interstitial Ad only
-  ///   - Download time: No additional ad
+  /// Free template strategy:
+  ///   - First access (edit): No Ad
+  ///   - Download time: Interstitial Ad (handled by [handlePremiumDownloadAd])
   Future<bool> handlePostAccess({
     required BuildContext context,
     required String feature, // 'festival_post' or 'business_category_post'
@@ -193,7 +195,15 @@ class AdController extends GetxController {
       return true;
     }
 
-    final flow = isPaid ? config.postAdFlowPaid : config.postAdFlowFree;
+    // Base limit reached.
+    // If it's a free template, grant access immediately (no rewarded ad for free).
+    if (!isPaid) {
+      onAccessGranted();
+      return true;
+    }
+
+    // It's a paid template and base limit is reached.
+    final flow = config.postAdFlowPaid;
 
     if (flow == 'locked') {
       _showLockedDialog(context, feature);
@@ -201,9 +211,8 @@ class AdController extends GetxController {
     } else if (flow == 'no_ads') {
       onAccessGranted();
       return true;
-    } else if (flow == 'rewarded_then_interstitial') {
-      // Premium template: Show Rewarded Ad on first access (edit)
-      // The Interstitial for download will be handled by handlePremiumDownloadAd
+    } else {
+      // Show rewarded ad if available
       if (_adService.isRewardedReady) {
         _adService.showRewardedAd(
           onRewarded: (reward) {
@@ -216,43 +225,28 @@ class AdController extends GetxController {
         onAccessGranted();
       }
       return true;
-    } else if (flow == 'interstitial_only') {
-      // Free template: Show Interstitial Ad on first access only
-      _adService.showInterstitialAd();
-      onAccessGranted();
-      return true;
     }
-
-    // Fallback
-    onAccessGranted();
-    return true;
   }
 
-  /// Show an Interstitial Ad during download for premium templates
+  /// Show an Interstitial Ad during download for templates
   /// when the user's base limit has been reached.
   ///
-  /// This is Phase 2 of the premium template ad strategy:
-  ///   Phase 1 (first access): Rewarded Ad — handled by [handlePostAccess]
-  ///   Phase 2 (download):     Interstitial Ad — handled here
+  /// This is Phase 2 of the ad strategy:
+  ///   Phase 1 (first access): Rewarded Ad (for paid templates only) — handled by [handlePostAccess]
+  ///   Phase 2 (download):     Interstitial Ad (for ALL templates) — handled here
   ///
   /// Returns true if the download should proceed.
   bool handlePremiumDownloadAd({
     required String feature,
     required bool isPaid,
   }) {
-    // Only show interstitial on download for premium templates
-    // when base limit is reached (i.e., ad flow is active)
-    if (!isPaid) return true; // Free templates: no ad on download
-
     final config = _getFeatureConfig(feature);
     if (config == null) return true;
     if (config.isNoAds) return true; // Within base limit, no ads needed
 
-    final flow = config.postAdFlowPaid;
-    if (flow == 'rewarded_then_interstitial') {
-      // Premium template + base limit reached → show Interstitial on download
-      _adService.showInterstitialAd();
-    }
+    // Base limit reached -> show interstitial on download for ALL templates
+    _adService.showInterstitialAd();
+    
     return true;
   }
 

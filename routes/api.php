@@ -22,7 +22,7 @@ Route::
 Route::
         namespace('Api')->middleware(['throttle'])->group(function () {
             Route::post('/change-password', 'AuthApi@change_password');
-            // Route::post('/register-fcm', 'AuthApi@register_fcm');
+            Route::post('/register-fcm', 'AuthApi@register_fcm');
             // Route::post('/logout', 'AuthApi@logout');
             Route::post('/verify-account', 'AuthApi@verifyAccount');
             Route::post('/resend-verify-code', 'AuthApi@resendVerifyCode');
@@ -61,6 +61,7 @@ Route::
             // Route::post('verify-Paytm-payment','HomeApi@verifyPaytmPayment');
             Route::post('offline-payment', 'HomeApi@offlinePayment');
             Route::get('/payment-details', 'HomeApi@getPaymentDetails');
+            Route::get('/payment-history', 'HomeApi@getPaymentHistory');
             Route::post('/create-order-cashfree', 'HomeApi@create_order_cashfree');
             Route::post('get-val', 'HomeApi@get_val');
 
@@ -147,6 +148,7 @@ Route::
             Route::get('/notifications', 'HomeApi@getNotifications');
 
             // AI Knowledge Base Endpoints (RAG)
+            Route::get('/faqs', 'HomeApi@getFaqs');
             Route::post('/knowledge-base/ingest', [\App\Http\Controllers\KnowledgeBaseController::class, 'ingest']);
             Route::post('/knowledge-base/search', [\App\Http\Controllers\KnowledgeBaseController::class, 'search']);
 
@@ -154,6 +156,7 @@ Route::
             Route::get('/tickets', [\App\Http\Controllers\Api\AiChatController::class, 'getTickets']);
             Route::post('/ai-chat/send', [\App\Http\Controllers\Api\AiChatController::class, 'sendMessage']);
             Route::post('/ai-chat/history', [\App\Http\Controllers\Api\AiChatController::class, 'getHistory']);
+            Route::post('/ai-chat/close', [\App\Http\Controllers\Api\AiChatController::class, 'closeTicket']);
 
             // Partner System
             Route::post('/get-partner-dashboard', 'HomeApi@getPartnerDashboard');

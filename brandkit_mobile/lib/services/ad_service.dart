@@ -97,6 +97,7 @@ class AdService {
 
   // ── Initialize the SDK ──
   Future<void> initialize() async {
+    if (kIsWeb) return;
     await MobileAds.instance.initialize();
     _tracker.init(); // Start ad event tracking
     debugPrint('[AdService] MobileAds SDK initialized.');

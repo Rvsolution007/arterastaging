@@ -11,6 +11,7 @@ import 'notifications_screen.dart';
 import 'support_screen.dart';
 import 'subscription_plans_screen.dart';
 import 'faqs_screen.dart';
+import 'billing_history_screen.dart';
 import '../controllers/home_controller.dart';
 import '../controllers/subscription_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -55,13 +56,15 @@ class _MoreScreenState extends State<MoreScreen> {
                 },
               ),
               AppSpacing.gapV16,
-              _buildBusinessSettings(context),
-              AppSpacing.gapV24,
               _buildPartnerSettings(context),
               _buildAppPreferences(context),
               AppSpacing.gapV24,
+              _buildBillingAndPayments(context),
+              AppSpacing.gapV24,
+              _buildHelpAndSupport(context),
+              AppSpacing.gapV24,
               _buildAboutApp(context),
-              AppSpacing.gapV16,
+              AppSpacing.gapV24,
               _buildAccountSettings(context),
               _buildFooter(),
               const SizedBox(height: 100),
@@ -105,41 +108,6 @@ class _MoreScreenState extends State<MoreScreen> {
     );
   }
 
-  Widget _buildBusinessSettings(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionTitle('business_settings'.tr),
-        _buildSectionContainer(
-          children: [
-            SettingsItem(
-              icon: Icons.translate_rounded,
-              title: 'preferred_languages'.tr,
-              iconColor: AppColors.gray500,
-              iconBgColor: Colors.transparent,
-              trailing: Row(
-                children: [
-                  Text(
-                    TranslationService.availableLanguages.isEmpty 
-                      ? 'English' 
-                      : TranslationService.availableLanguages.firstWhere(
-                          (l) => l['code'] == TranslationService.savedLangCode, 
-                          orElse: () => {'title': 'English'}
-                        )['title'], 
-                    style: AppTextStyles.settingsSubtitle
-                  ),
-                  AppSpacing.gapH4,
-                  Icon(Icons.chevron_right, color: AppColors.gray300, size: 22),
-                ],
-              ),
-              onTap: () => _showLanguageBottomSheet(context),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
   Widget _buildPartnerSettings(BuildContext context) {
     return FutureBuilder<SharedPreferences>(
       future: SharedPreferences.getInstance(),
@@ -180,6 +148,28 @@ class _MoreScreenState extends State<MoreScreen> {
         _buildSectionTitle('app_preferences'.tr),
         _buildSectionContainer(
           children: [
+            SettingsItem(
+              icon: Icons.translate_rounded,
+              title: 'preferred_languages'.tr,
+              iconColor: AppColors.gray500,
+              iconBgColor: Colors.transparent,
+              trailing: Row(
+                children: [
+                  Text(
+                    TranslationService.availableLanguages.isEmpty 
+                      ? 'English' 
+                      : TranslationService.availableLanguages.firstWhere(
+                          (l) => l['code'] == TranslationService.savedLangCode, 
+                          orElse: () => {'title': 'English'}
+                        )['title'], 
+                    style: AppTextStyles.settingsSubtitle
+                  ),
+                  AppSpacing.gapH4,
+                  Icon(Icons.chevron_right, color: AppColors.gray300, size: 22),
+                ],
+              ),
+              onTap: () => _showLanguageBottomSheet(context),
+            ),
             Obx(() {
               final hc = Get.find<HomeController>();
               return SettingsItem(
@@ -197,16 +187,36 @@ class _MoreScreenState extends State<MoreScreen> {
     );
   }
 
-  Widget _buildAboutApp(BuildContext context) {
+  Widget _buildBillingAndPayments(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('about_app'.tr),
+        _buildSectionTitle('Billing & Payments'),
+        _buildSectionContainer(
+          children: [
+            SettingsItem(
+              icon: Icons.receipt_long_outlined,
+              title: 'Billing & Payment History',
+              subtitle: 'View invoices and past payments',
+              iconColor: AppColors.blue600,
+              iconBgColor: Colors.transparent,
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BillingHistoryScreen())),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHelpAndSupport(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Help & Support'),
         _buildSectionContainer(
           children: [
             SettingsItem(icon: Icons.help_outline, title: 'help_support'.tr, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen()))),
             SettingsItem(icon: Icons.chat_bubble_outline, title: 'faqs'.tr, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FaqsScreen()))),
-            SettingsItem(icon: Icons.rss_feed, title: 'blog'.tr, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
             SettingsItem(
               icon: Icons.bug_report_outlined,
               title: 'report_problem'.tr,
@@ -221,6 +231,20 @@ class _MoreScreenState extends State<MoreScreen> {
                 );
               },
             ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAboutApp(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('about_app'.tr),
+        _buildSectionContainer(
+          children: [
+            SettingsItem(icon: Icons.rss_feed, title: 'blog'.tr, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
             SettingsItem(icon: Icons.lock_outline, title: 'privacy_policy'.tr, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
             SettingsItem(icon: Icons.description_outlined, title: 'terms_conditions'.tr, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
             SettingsItem(icon: Icons.credit_card_outlined, title: 'refund_policy'.tr, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),

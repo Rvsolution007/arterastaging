@@ -242,6 +242,12 @@ Route::
 
             // Support & Ops - Knowledge Base (AI Training)
             Route::get('knowledge-base', 'AdminKnowledgeBaseController@index')->name('admin.knowledge_base');
+            Route::get('knowledge-base/export', 'AdminKnowledgeBaseController@exportCsv')->name('admin.knowledge_base.export');
+            Route::post('knowledge-base/import', 'AdminKnowledgeBaseController@importCsv')->name('admin.knowledge_base.import');
+            Route::post('knowledge-base/update-context', 'AdminKnowledgeBaseController@updateContext')->name('admin.knowledge_base.update_context');
+            Route::post('knowledge-base/auto-sync-context', 'AdminKnowledgeBaseController@autoSyncUiContext')->name('admin.knowledge_base.auto_sync_context');
+            Route::post('knowledge-base/ai-category', 'AdminKnowledgeBaseController@generateAiCategory')->name('admin.knowledge_base.ai_category');
+            Route::post('knowledge-base/ai-question', 'AdminKnowledgeBaseController@generateAiQuestion')->name('admin.knowledge_base.ai_question');
             Route::get('knowledge-base/create', 'AdminKnowledgeBaseController@create')->name('admin.knowledge_base.create');
             Route::post('knowledge-base', 'AdminKnowledgeBaseController@store')->name('admin.knowledge_base.store');
             Route::get('knowledge-base/{id}/edit', 'AdminKnowledgeBaseController@edit')->name('admin.knowledge_base.edit');

@@ -17,9 +17,11 @@ class AiChatController extends Controller
     {
         $request->validate([
             'message' => 'required|string',
-            'user_id' => 'required|integer',
-            'ticket_id' => 'nullable|integer'
+            'user_id' => 'required',
+            'ticket_id' => 'nullable'
         ]);
+
+        \Illuminate\Support\Facades\Log::info("AiChat Request:", $request->all());
 
         $userId = $request->user_id;
         $userMessageText = $request->message;
@@ -64,9 +66,10 @@ Here is the Knowledge Base (list of FAQs):
 Instructions:
 1. Understand the user's question, no matter what language they use (English, Hindi, Gujarati, etc.).
 2. Find the FAQ that best matches their question.
-3. If a matching FAQ is found, you MUST return the EXACT ANSWER from that FAQ, but TRANSLATED into the EXACT same language the user used.
-4. Do NOT add any extra conversational text like 'Sure, here is the answer'. ONLY output the translated answer.
-5. If the user's question does NOT match ANY of the provided FAQs, then reply with exactly this message, but translated into the user's language: 'I couldn't find an automatic answer for that. I have assigned Ticket #{$ticket->id} to our human support team. They will review this shortly!'";
+6. If a matching FAQ is found, you MUST return the EXACT ANSWER from that FAQ, but TRANSLATED into the EXACT same language the user used.
+7. IMPORTANT: The FAQ answer may contain HTML tags (like <ol>, <li>, <b>). You MUST convert all HTML tags to standard Markdown. The final output must be pure Markdown, NO HTML.
+8. Do NOT add any extra conversational text like 'Sure, here is the answer'. ONLY output the translated, markdown-formatted answer.
+9. If the user's question does NOT match ANY of the provided FAQs, then reply with exactly this message, but translated into the user's language: 'I couldn't find an automatic answer for that. I have assigned Ticket #{$ticket->id} to our human support team. They will review this shortly!'";
 
         $aiService = new \App\Services\VertexAIService($userId);
         $aiResponse = $aiService->generateContent($systemPrompt, [
@@ -94,12 +97,16 @@ Instructions:
             \Illuminate\Support\Facades\Log::warning("Broadcasting failed: " . $e->getMessage());
         }
 
-        return response()->json([
+        $resp = [
             'success' => true,
             'ticket_id' => $ticket->id,
             'reply' => $aiMsg->message,
             'timestamp' => $aiMsg->created_at->toDateTimeString()
-        ]);
+        ];
+        
+        \Illuminate\Support\Facades\Log::info("AiChat Response:", $resp);
+
+        return response()->json($resp);
     }
 
     /**
@@ -142,6 +149,35 @@ Instructions:
             'ticket_id' => $ticket->id,
             'status' => $ticket->status,
             'messages' => $messages
+        ]);
+    }
+
+    /**
+     * Close a ticket and submit an AI rating
+     */
+    public function closeTicket(Request $request)
+    {
+        $request->validate([
+            'ticket_id' => 'required',
+            'user_id' => 'required',
+            'rating' => 'required|integer|min:1|max:5'
+        ]);
+
+        $ticket = Ticket::where('id', $request->ticket_id)
+                        ->where('user_id', $request->user_id)
+                        ->first();
+
+        if (!$ticket) {
+            return response()->json(['success' => false, 'message' => 'Ticket not found'], 404);
+        }
+
+        $ticket->status = 'closed';
+        $ticket->ai_rating = $request->rating;
+        $ticket->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Ticket closed successfully'
         ]);
     }
 }

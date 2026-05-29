@@ -241,7 +241,13 @@
                     </div>
                     <div style="font-size: 11px; margin-top: 6px; color: #94a3b8; display: flex; justify-content: space-between;">
                         <span><i class="fa-regular fa-clock"></i> {{ $t->updated_at->diffForHumans() }}</span>
-                        <span>Sentiment: <strong style="color: {{ $t->sentiment_score < 4 ? '#ef4444' : '#10b981' }}">{{ $t->sentiment_score }}/10</strong></span>
+                        <span>
+                            @if($t->ai_rating)
+                                <span style="color: #f59e0b; font-weight: 700;"><i class="fa-solid fa-star"></i> {{ $t->ai_rating }}/5 Rated</span>
+                            @else
+                                Sentiment: <strong style="color: {{ $t->sentiment_score < 4 ? '#ef4444' : '#10b981' }}">{{ $t->sentiment_score }}/10</strong>
+                            @endif
+                        </span>
                     </div>
                 </div>
                 @endforeach
@@ -288,7 +294,9 @@ function loadTicket(id, element) {
                     </div>
                     <div>
                         <h5 class="table-panel-title">#${t.id} - ${t.subject}</h5>
-                        <div style="font-size: 0.8rem; color: #64748b; margin-top: 2px;">User: <strong class="text-dark">${t.user ? t.user.name : 'Unknown'}</strong></div>
+                        <div style="font-size: 0.8rem; color: #64748b; margin-top: 2px;">User: <strong class="text-dark">${t.user ? t.user.name : 'Unknown'}</strong>
+                        ${t.ai_rating ? `<span class="ml-3" style="color: #f59e0b; font-weight: bold;"><i class="fa-solid fa-star"></i> ${t.ai_rating}/5 User Rating</span>` : ''}
+                        </div>
                     </div>
                 </div>
                 <div>

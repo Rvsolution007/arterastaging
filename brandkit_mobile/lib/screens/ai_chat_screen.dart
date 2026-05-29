@@ -58,10 +58,10 @@ class AiChatScreen extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  ticketId > 0 ? 'Ticket #$ticketId' : 'New Support Chat',
+                Obx(() => Text(
+                  controller.ticketId.value > 0 ? 'Ticket #${controller.ticketId.value}' : 'New Support Chat',
                   style: const TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                )),
                 Obx(() => Text(
                   controller.isLoading.value ? 'Typing...' : 'Online',
                   style: TextStyle(
@@ -74,6 +74,7 @@ class AiChatScreen extends StatelessWidget {
             ),
           ],
         ),
+        actions: [],
       ),
       body: Column(
         children: [
@@ -83,8 +84,11 @@ class AiChatScreen extends StatelessWidget {
               return ListView.builder(
                 controller: scrollController,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                itemCount: controller.messages.length,
+                itemCount: controller.messages.length + (controller.isLoading.value ? 1 : 0),
                 itemBuilder: (context, index) {
+                  if (index == controller.messages.length) {
+                    return _buildTypingBubble();
+                  }
                   final msg = controller.messages[index];
                   return _buildChatBubble(msg);
                 },
@@ -93,8 +97,58 @@ class AiChatScreen extends StatelessWidget {
           ),
           
           // Input Area
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          Obx(() => controller.isTicketClosed.value
+            ? Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  border: Border(top: BorderSide(color: Colors.grey[300]!))
+                ),
+                child: const Center(
+                  child: Text('This ticket has been closed.', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                ),
+              )
+            : Column(
+                children: [
+                  if (controller.ticketId.value > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F4FF),
+                        border: Border(top: BorderSide(color: Colors.blue[100]!)),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                Text("Issue Resolved?", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF4338CA))),
+                                SizedBox(height: 2),
+                                Text("If you are satisfied with the answer, please close this ticket.", style: TextStyle(fontSize: 11, color: Colors.black54)),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton.icon(
+                            onPressed: () => _showRatingDialog(context, controller),
+                            icon: const Icon(Icons.check_circle_outline, size: 16),
+                            label: const Text('Close Ticket', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF10B981),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                              minimumSize: const Size(0, 36),
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
+                  Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
@@ -155,9 +209,79 @@ class AiChatScreen extends StatelessWidget {
                 ],
               ),
             ),
+            ),
+          ],
+        )),
+          const Padding(
+            padding: EdgeInsets.only(top: 8, bottom: 12),
+            child: Text('Developed by Artera Pixel', style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
+    );
+  }
+
+  void _showRatingDialog(BuildContext context, AiChatController controller) {
+    int rating = 5;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text('Rate AI Support', style: TextStyle(fontWeight: FontWeight.bold)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Was this answer helpful? Please rate your experience to close the ticket.'),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      return IconButton(
+                        icon: Icon(
+                          index < rating ? Icons.star : Icons.star_border,
+                          color: Colors.amber,
+                          size: 36,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            rating = index + 1;
+                          });
+                        },
+                      );
+                    }),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF667EEA),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    bool success = await controller.closeTicket(rating);
+                    if (success) {
+                      Get.snackbar('Success', 'Ticket closed and rated successfully!', backgroundColor: Colors.green, colorText: Colors.white);
+                    } else {
+                      Get.snackbar('Error', 'Failed to close ticket.', backgroundColor: Colors.red, colorText: Colors.white);
+                    }
+                  },
+                  child: const Text('Submit & Close', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          }
+        );
+      }
     );
   }
 
@@ -236,6 +360,102 @@ class AiChatScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTypingBubble() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.all(6),
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(colors: [Color(0xFF667EEA), Color(0xFF764BA2)]),
+            ),
+            child: const Icon(Icons.smart_toy, color: Colors.white, size: 14),
+          ),
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                  bottomLeft: Radius.circular(0),
+                  bottomRight: Radius.circular(20),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  )
+                ],
+              ),
+              child: const TypingIndicator(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class TypingIndicator extends StatefulWidget {
+  const TypingIndicator({Key? key}) : super(key: key);
+
+  @override
+  _TypingIndicatorState createState() => _TypingIndicatorState();
+}
+
+class _TypingIndicatorState extends State<TypingIndicator> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(3, (index) {
+        return AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            final delay = index * 0.2;
+            var val = _controller.value - delay;
+            if (val < 0) val += 1.0;
+            final double opacity = val < 0.5 ? (1.0 - (val * 2)) : ((val - 0.5) * 2);
+            return Opacity(
+              opacity: 0.3 + (opacity * 0.7),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: Colors.grey[500],
+                  shape: BoxShape.circle,
+                ),
+              ),
+            );
+          },
+        );
+      }),
     );
   }
 }

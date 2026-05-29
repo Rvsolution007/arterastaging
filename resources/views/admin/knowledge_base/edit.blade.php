@@ -103,19 +103,33 @@
                     @csrf
                     <div class="form-group">
                         <label>Question / Intent <span class="text-danger">*</span></label>
-                        <input type="text" name="question" class="form-control" value="{{ $kb->question }}" required>
+                        <div class="input-group">
+                            <input type="text" name="question" id="question_input" class="form-control" value="{{ $kb->question }}" required>
+                            <div class="input-group-append">
+                                <button type="button" id="btn_ai_question" class="btn btn-info">
+                                    <i class="fas fa-brain"></i> AI Analyze
+                                </button>
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="form-group">
                         <label>Answer (AI Reply) <span class="text-danger">*</span></label>
-                        <textarea name="answer" class="form-control" rows="5" required>{{ $kb->answer }}</textarea>
+                        <textarea name="answer" id="answer_input" class="form-control" rows="5" required>{{ $kb->answer }}</textarea>
                     </div>
                     
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label>Category <span class="text-danger">*</span></label>
-                                <input type="text" name="category" class="form-control" value="{{ $kb->category }}" required>
+                                <select name="category" id="category_input" class="form-control" required>
+                                    <option value="subscription plan" {{ $kb->category == 'subscription plan' ? 'selected' : '' }}>Subscription Plan</option>
+                                    <option value="payment" {{ $kb->category == 'payment' ? 'selected' : '' }}>Payment</option>
+                                    <option value="Editor Section" {{ $kb->category == 'Editor Section' ? 'selected' : '' }}>Editor Section</option>
+                                    <option value="Profile" {{ $kb->category == 'Profile' ? 'selected' : '' }}>Profile</option>
+                                    <option value="Download problem" {{ $kb->category == 'Download problem' ? 'selected' : '' }}>Download problem</option>
+                                    <option value="Frame" {{ $kb->category == 'Frame' ? 'selected' : '' }}>Frame</option>
+                                </select>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -145,4 +159,44 @@
         </div>
     </div>
 </div>
+@endsection
+
+@section('script')
+<script>
+    $('#btn_ai_question').click(function() {
+        var question = $('#question_input').val();
+        var category = $('#category_input').val();
+        var btn = $(this);
+        var answerBox = $('#answer_input');
+        
+        if (!question) {
+            alert('Please enter a question first.');
+            return;
+        }
+        
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+
+        $.ajax({
+            url: "{{ route('admin.knowledge_base.ai_question') }}",
+            type: "POST",
+            data: {
+                _token: "{{ csrf_token() }}",
+                question: question,
+                category: category
+            },
+            success: function(response) {
+                if(response.status === 'success') {
+                    answerBox.val(response.answer);
+                } else {
+                    alert(response.message);
+                }
+                btn.prop('disabled', false).html('<i class="fas fa-brain"></i> AI Analyze');
+            },
+            error: function(xhr) {
+                alert("An error occurred while generating the answer.");
+                btn.prop('disabled', false).html('<i class="fas fa-brain"></i> AI Analyze');
+            }
+        });
+    });
+</script>
 @endsection

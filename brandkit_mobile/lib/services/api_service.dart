@@ -44,7 +44,7 @@ class ApiService {
     debugPrint('[ApiService] POST: $url');
     final headers = await _getHeaders();
     try {
-      final response = await http.post(url, headers: headers, body: jsonEncode(body)).timeout(const Duration(seconds: 15));
+      final response = await http.post(url, headers: headers, body: jsonEncode(body)).timeout(const Duration(seconds: 60));
       if (response.statusCode != 200) {
         debugPrint('[ApiService] POST Failed (${response.statusCode}): ${response.body}');
       }
@@ -141,6 +141,16 @@ class ApiService {
       'userId': userId,
       'code': code,
     });
+  }
+
+  static Future<Map<String, dynamic>> updateBusiness(Map<String, dynamic> data) async {
+    final response = await post('/update-business', data);
+    return jsonDecode(response.body);
+  }
+
+  static Future<Map<String, dynamic>> getPaymentHistory(int userId) async {
+    final response = await get('/payment-history?userId=$userId');
+    return jsonDecode(response.body);
   }
 
   static Future<http.Response> createPayment(Map<String, dynamic> body) async {

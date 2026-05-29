@@ -194,10 +194,16 @@ class _DetailListScreenState extends State<DetailListScreen> {
     if (list.isNotEmpty && selectedIndex < list.length) {
       isPaid = list[selectedIndex]['isPaid'] == true;
     }
+    if (widget.type == 'custom' || widget.type == 'business_custom') {
+      isPaid = true; // All custom templates are paid
+    }
 
     String featureKey = 'festival_post';
     if (widget.type == 'category' || widget.type == 'business_custom') {
       featureKey = 'business_category_post';
+    }
+    if (widget.type == 'custom') {
+      featureKey = 'custom_post';
     }
 
     final adController = Get.find<AdController>();
@@ -465,12 +471,15 @@ class _DetailListScreenState extends State<DetailListScreen> {
                               };
                             }
 
-                            if (frameData != null) {
+                              if (frameData != null) {
                               final AdController adController = Get.find<AdController>();
                               
                               bool isPaid = false;
                               if (list.isNotEmpty && selectedIndex < list.length) {
                                 isPaid = list[selectedIndex]['isPaid'] == true;
+                              }
+                              if (widget.type == 'custom' || widget.type == 'business_custom') {
+                                isPaid = true; // All custom templates are paid
                               }
                               
                               // Map widget.type to feature key
@@ -478,39 +487,59 @@ class _DetailListScreenState extends State<DetailListScreen> {
                               if (widget.type == 'category' || widget.type == 'business_custom') {
                                 featureKey = 'business_category_post';
                               }
+                              if (widget.type == 'custom') {
+                                featureKey = 'custom_post';
+                              }
 
-                              await adController.handlePostAccess(
-                                context: context,
-                                feature: featureKey,
-                                isPaid: isPaid,
-                                onAccessGranted: () {
-                                  final fc = adController.adConfig.value?.features[featureKey];
-                                  if (fc != null && fc.baseLimit > 0) {
-                                    Get.snackbar(
-                                      'Usage Update', 
-                                      '${fc.used}/${fc.baseLimit} usage remaining.',
-                                      snackPosition: SnackPosition.BOTTOM,
-                                      backgroundColor: Colors.black87,
-                                      colorText: Colors.white,
-                                      margin: const EdgeInsets.all(16),
-                                      borderRadius: 8,
-                                      duration: const Duration(seconds: 2),
-                                    );
-                                  }
+                              final fc = adController.adConfig.value?.features[featureKey];
+                              bool withinBaseLimit = fc != null && fc.isNoAds;
 
-                                  final editorQuery = Uri(queryParameters: {
-                                    'type': widget.type,
-                                    'id': widget.id.toString(),
-                                    'designUrl': selectedImageUrl.isNotEmpty ? selectedImageUrl : itemImage,
-                                  }).query;
-                                  Get.toNamed(
-                                    '/editor?$editorQuery',
-                                    arguments: {
-                                      'frameData': frameData!,
-                                    },
+                              if (withinBaseLimit || !isPaid) {
+                                // Direct access if within base limit or free
+                                if (fc != null && fc.baseLimit > 0 && isPaid) {
+                                  Get.snackbar(
+                                    'Usage Update', 
+                                    '${fc.used}/${fc.baseLimit} usage remaining.',
+                                    snackPosition: SnackPosition.BOTTOM,
+                                    backgroundColor: Colors.black87,
+                                    colorText: Colors.white,
+                                    margin: const EdgeInsets.all(16),
+                                    borderRadius: 8,
+                                    duration: const Duration(seconds: 2),
                                   );
                                 }
-                              );
+                                final editorQuery = Uri(queryParameters: {
+                                  'type': widget.type,
+                                  'id': widget.id.toString(),
+                                  'designUrl': selectedImageUrl.isNotEmpty ? selectedImageUrl : itemImage,
+                                }).query;
+                                Get.toNamed(
+                                  '/editor?$editorQuery',
+                                  arguments: {
+                                    'frameData': frameData!,
+                                  },
+                                );
+                              } else {
+                                // Base limit reached and template is paid
+                                await adController.handlePostAccess(
+                                  context: context,
+                                  feature: featureKey,
+                                  isPaid: isPaid,
+                                  onAccessGranted: () {
+                                    final editorQuery = Uri(queryParameters: {
+                                      'type': widget.type,
+                                      'id': widget.id.toString(),
+                                      'designUrl': selectedImageUrl.isNotEmpty ? selectedImageUrl : itemImage,
+                                    }).query;
+                                    Get.toNamed(
+                                      '/editor?$editorQuery',
+                                      arguments: {
+                                        'frameData': frameData!,
+                                      },
+                                    );
+                                  }
+                                );
+                              }
                             } else {
                               Get.snackbar('Notice', 'No design available to edit.');
                             }

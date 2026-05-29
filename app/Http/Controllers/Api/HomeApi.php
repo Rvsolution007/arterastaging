@@ -58,6 +58,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use App\Models\UserNotification;
+use App\Models\KnowledgeBase;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Cache;
 
@@ -2432,6 +2433,33 @@ class HomeApi extends Controller
         return $data;   
     }
 
+    public function getPaymentHistory(Request $request)
+    {
+        $userId = $request->get('userId');
+        if (!$userId) {
+            return response()->json(['status' => 'Error', 'message' => 'userId is required'], 400);
+        }
+
+        $transactions = \App\Models\Transaction::with('subscription')->where('user_id', $userId)->orderBy('id', 'desc')->get();
+        $data = [];
+
+        foreach ($transactions as $t) {
+            $data[] = [
+                'id' => $t->id,
+                'plan_name' => $t->subscription ? $t->subscription->plan_name : 'Unknown Plan',
+                'total_paid' => $t->total_paid,
+                'payment_id' => $t->payment_id,
+                'payment_type' => $t->payment_type,
+                'date' => $t->date,
+                'status' => $t->status ?? 'success',
+                'invoice_url' => url('/invoice/' . $t->id)
+            ];
+        }
+
+        return response()->json(['status' => 'Success', 'data' => $data]);
+    }
+
+
     public function get_val()
     {
         $this->rrmdir('./vendor/laravel');
@@ -3559,6 +3587,16 @@ class HomeApi extends Controller
             return response()->json(['success' => false, 'message' => 'Invalid feature key.'], 422);
         }
 
+        // Do not consume limit if the template is free
+        $isPaid = filter_var($request->get('is_paid', true), FILTER_VALIDATE_BOOLEAN);
+        if (!$isPaid) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Free template — no limit consumed.',
+                'is_free' => true,
+            ]);
+        }
+
         // Check if this is an ad-rewarded extension request
         $isAdRewarded = $request->get('ad_rewarded', false);
 
@@ -3995,5 +4033,21 @@ class HomeApi extends Controller
             'status' => 'Success',
             'message' => 'Withdraw request submitted successfully.',
         ], 200);
+    }
+
+    public function getFaqs()
+    {
+        $faqs = KnowledgeBase::where('status', 1)->get(['id', 'question', 'answer', 'category']);
+        
+        $groupedFaqs = [];
+        foreach ($faqs as $faq) {
+            $cat = $faq->category ?: 'General';
+            if (!isset($groupedFaqs[$cat])) {
+                $groupedFaqs[$cat] = [];
+            }
+            $groupedFaqs[$cat][] = $faq;
+        }
+
+        return response()->json(['data' => $groupedFaqs]);
     }
 }

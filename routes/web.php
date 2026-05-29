@@ -158,6 +158,8 @@ Route::get('template', 'HomeController@temp');
 Route::get('update-all-date', 'HomeController@update_date');
 Route::get("account-deletion-policy", 'HomeController@user_account_delete');
 
+Route::get('/invoice/{id}', [App\Http\Controllers\InvoiceController::class, 'show'])->name('invoice.show');
+
 Route::get('upload-all-image-digitalOcean', 'HomeController@upload_image_digitalOcean');
 
 // Marketing Landing Pages

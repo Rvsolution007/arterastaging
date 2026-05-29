@@ -83,15 +83,24 @@ class NotificationService {
     // Handle app opening from background/terminated state via notification
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       debugPrint("App opened via notification: ${message.notification?.title}");
-      debugPrint("Notification data: ${message.data}");
-      _handleNotificationTap(jsonEncode(message.data));
+      try {
+        _handleNotificationTap(jsonEncode(message.data));
+      } catch (e) {
+        debugPrint("Error encoding onMessageOpenedApp payload: $e");
+        _handleNotificationTap(message.data.toString());
+      }
     });
     
     // Check if app was opened from terminated state
     RemoteMessage? initialMessage = await _fcm.getInitialMessage();
     if (initialMessage != null) {
       debugPrint("App opened from terminated state with data: ${initialMessage.data}");
-      _handleNotificationTap(jsonEncode(initialMessage.data));
+      try {
+        _handleNotificationTap(jsonEncode(initialMessage.data));
+      } catch (e) {
+        debugPrint("Error encoding initialMessage payload: $e");
+        _handleNotificationTap(initialMessage.data.toString());
+      }
     }
     } catch (e) {
       debugPrint("FCM Initialization Error: $e");
@@ -137,29 +146,51 @@ class NotificationService {
         }
       }
 
-      await _localNotifications.show(
-        DateTime.now().millisecondsSinceEpoch ~/ 1000,
-        notification.title,
-        notification.body,
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            'high_importance_channel',
-            'High Importance Notifications',
-            channelDescription: 'This channel is used for important notifications.',
-            importance: Importance.max,
-            priority: Priority.high,
-            icon: android?.smallIcon ?? 'ic_launcher',
-            largeIcon: largeIconPath != null ? FilePathAndroidBitmap(largeIconPath) : null,
-            styleInformation: styleInformation,
+      try {
+        await _localNotifications.show(
+          notification.hashCode,
+          notification.title,
+          notification.body,
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              'high_importance_channel',
+              'High Importance Notifications',
+              channelDescription: 'This channel is used for important notifications.',
+              importance: Importance.max,
+              priority: Priority.high,
+              icon: android?.smallIcon ?? 'ic_launcher',
+              largeIcon: largeIconPath != null ? FilePathAndroidBitmap(largeIconPath) : null,
+              styleInformation: styleInformation,
+            ),
+            iOS: const DarwinNotificationDetails(
+              presentAlert: true,
+              presentBadge: true,
+              presentSound: true,
+            ),
           ),
-          iOS: const DarwinNotificationDetails(
-            presentAlert: true,
-            presentBadge: true,
-            presentSound: true,
+          payload: jsonEncode(message.data),
+        );
+      } catch (e) {
+        debugPrint("Error showing local notification: $e");
+        // Fallback without big picture
+        await _localNotifications.show(
+          notification.hashCode,
+          notification.title,
+          notification.body,
+          NotificationDetails(
+            android: AndroidNotificationDetails(
+              'high_importance_channel',
+              'High Importance Notifications',
+              channelDescription: 'This channel is used for important notifications.',
+              importance: Importance.max,
+              priority: Priority.high,
+              icon: android?.smallIcon ?? 'ic_launcher',
+            ),
+            iOS: const DarwinNotificationDetails(),
           ),
-        ),
-        payload: jsonEncode(message.data),
-      );
+          payload: jsonEncode(message.data),
+        );
+      }
     }
   }
 

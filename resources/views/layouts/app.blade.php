@@ -1007,11 +1007,6 @@
                 </a>
                 <ul class="nav nav-treeview">
                   <li class="nav-item">
-                    <a href="{{url('admin/notification')}}" class="nav-link @if(Request::is('admin/notification*')) active @endif" style="color: white;">
-                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> Send Notification</p>
-                    </a>
-                  </li>
-                  <li class="nav-item">
                     <a href="{{ route('admin.marketing_settings') }}" class="nav-link @if(Request::is('admin/marketing-settings*')) active @endif" style="color: white;">
                       <p><i class="fa fa-angle-right ml-3 mr-1"></i> Auto Notification</p>
                     </a>

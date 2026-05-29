@@ -359,6 +359,9 @@
 
 @section('script')
 <script>
+// Global store for AI-generated data per user (avoids inline onclick encoding issues)
+var _churnData = {};
+
 function generateStrategy(userId, btn) {
     let row = document.getElementById('strategy-row-' + userId);
     let box = document.getElementById('strategy-content-' + userId);
@@ -377,7 +380,6 @@ function generateStrategy(userId, btn) {
     btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
     btn.disabled = true;
 
-    // Use vanilla fetch API to avoid jQuery issues
     fetch(`{{ url('admin/churn/generate-strategy') }}/${userId}`, {
         method: 'POST',
         headers: {
@@ -389,6 +391,9 @@ function generateStrategy(userId, btn) {
     .then(response => response.json())
     .then(data => {
         if(data.status === 'success') {
+            // Store the AI data globally so buttons can access it safely
+            _churnData[userId] = data.data;
+
             let html = '<h6 class="font-weight-bold" style="color: #4338ca;"><i class="fa-solid fa-chess-knight mr-2"></i> AI Retention Strategy</h6>';
             html += '<ul class="text-dark mb-4" style="padding-left: 1.2rem;">';
             data.data.strategy_steps.forEach(function(step) {
@@ -397,13 +402,10 @@ function generateStrategy(userId, btn) {
             html += '</ul>';
             
             // Email Section
-            let encodedSubject = encodeURIComponent(data.data.email_subject);
-            let encodedBody = encodeURIComponent(data.data.email_body);
-
             html += '<div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.2rem; margin-bottom: 1rem;">';
             html += '<div class="d-flex justify-content-between align-items-center mb-3">';
             html += '<h6 class="font-weight-bold mb-0" style="color: #0ea5e9;"><i class="fa-regular fa-envelope mr-2"></i> Suggested Outreach Email</h6>';
-            html += `<button class="btn btn-sm btn-primary" onclick="sendMail(${userId}, decodeURIComponent('${encodedSubject}'), decodeURIComponent('${encodedBody}'), this)"><i class="fa-regular fa-paper-plane mr-1"></i> Send Mail</button>`;
+            html += '<button class="btn btn-sm btn-primary" id="send-mail-btn-' + userId + '" onclick="sendMail(' + userId + ', this)"><i class="fa-regular fa-paper-plane mr-1"></i> Send Mail</button>';
             html += '</div>';
             html += '<div class="mb-2"><span class="badge-soft" style="background:#f1f5f9;">Subject:</span> <strong class="text-dark">' + data.data.email_subject + '</strong></div>';
             html += '<div class="text-dark mt-3" style="white-space: pre-wrap; font-size: 0.9rem;">' + data.data.email_body + '</div>';
@@ -411,13 +413,10 @@ function generateStrategy(userId, btn) {
 
             // Push Notification Section
             if (data.data.push_title && data.data.push_message) {
-                let encodedPushTitle = encodeURIComponent(data.data.push_title);
-                let encodedPushMsg = encodeURIComponent(data.data.push_message);
-
                 html += '<div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.2rem;">';
                 html += '<div class="d-flex justify-content-between align-items-center mb-3">';
                 html += '<h6 class="font-weight-bold mb-0" style="color: #f59e0b;"><i class="fa-regular fa-bell mr-2"></i> Suggested Push Notification</h6>';
-                html += `<button class="btn btn-sm btn-warning text-white" onclick="sendPushNotification(${userId}, decodeURIComponent('${encodedPushTitle}'), decodeURIComponent('${encodedPushMsg}'), this)"><i class="fa-solid fa-mobile-screen-button mr-1"></i> Send Notification</button>`;
+                html += '<button class="btn btn-sm btn-warning text-white" id="send-notif-btn-' + userId + '" onclick="sendPushNotification(' + userId + ', this)"><i class="fa-solid fa-mobile-screen-button mr-1"></i> Send Notification</button>';
                 html += '</div>';
                 html += '<div class="mb-2"><span class="badge-soft" style="background:#f1f5f9;">Title:</span> <strong class="text-dark">' + data.data.push_title + '</strong></div>';
                 html += '<div class="text-dark mt-2" style="font-size: 0.9rem;">' + data.data.push_message + '</div>';
@@ -439,68 +438,87 @@ function generateStrategy(userId, btn) {
     });
 }
 
-function sendMail(userId, subject, body, btn) {
-    let originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Sending...';
-    btn.disabled = true;
+function sendMail(userId, btn) {
+    try {
+        var d = _churnData[userId];
+        if (!d) { alert('Error: No AI data found. Please generate strategy again.'); return; }
 
-    fetch(`{{ url('admin/churn/send-mail') }}/${userId}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({ subject: subject, body: body })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if(data.status === 'success') {
-            alert("Success: " + data.message);
-            btn.innerHTML = '<i class="fa-solid fa-check"></i> Sent';
-            btn.classList.replace('btn-primary', 'btn-success');
-        } else {
-            alert("Error: " + data.message);
+        var originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Sending...';
+        btn.disabled = true;
+
+        fetch('{{ url("admin/churn/send-mail") }}/' + userId, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ subject: d.email_subject, body: d.email_body })
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if(data.status === 'success') {
+                alert('✅ ' + data.message);
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> Sent';
+                btn.className = 'btn btn-sm btn-success';
+            } else {
+                alert('❌ ' + data.message);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        })
+        .catch(function(err) {
+            console.error('sendMail error:', err);
+            alert('❌ Failed to send mail: ' + err.message);
             btn.innerHTML = originalText;
             btn.disabled = false;
-        }
-    })
-    .catch(err => {
-        alert("Error: Failed to send mail.");
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    });
+        });
+    } catch(e) {
+        console.error('sendMail exception:', e);
+        alert('❌ JS Error: ' + e.message);
+    }
 }
 
-function sendPushNotification(userId, title, message, btn) {
-    let originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Sending...';
-    btn.disabled = true;
+function sendPushNotification(userId, btn) {
+    try {
+        var d = _churnData[userId];
+        if (!d) { alert('Error: No AI data found. Please generate strategy again.'); return; }
 
-    fetch(`{{ url('admin/churn/send-notification') }}/${userId}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({ title: title, message: message })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if(data.status === 'success') {
-            alert("Success: " + data.message);
-            btn.innerHTML = '<i class="fa-solid fa-check"></i> Sent';
-            btn.classList.replace('btn-warning', 'btn-success');
-        } else {
-            alert("Error: " + data.message);
+        var originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Sending...';
+        btn.disabled = true;
+
+        fetch('{{ url("admin/churn/send-notification") }}/' + userId, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ title: d.push_title, message: d.push_message })
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if(data.status === 'success') {
+                alert('✅ ' + data.message);
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> Sent';
+                btn.className = 'btn btn-sm btn-success text-white';
+            } else {
+                alert('❌ ' + data.message);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        })
+        .catch(function(err) {
+            console.error('sendPushNotification error:', err);
+            alert('❌ Failed to send notification: ' + err.message);
             btn.innerHTML = originalText;
             btn.disabled = false;
-        }
-    })
-    .catch(err => {
-        alert("Error: Failed to send notification.");
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    });
+        });
+    } catch(e) {
+        console.error('sendPushNotification exception:', e);
+        alert('❌ JS Error: ' + e.message);
+    }
 }
 </script>
 @endsection
+

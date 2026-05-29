@@ -715,8 +715,8 @@
               </li>
             @endcanany
 
-                  @php($marketingClass = (Request::is('admin/blogs*') || Request::is('admin/leads*') || Request::is('admin/marketing-settings*') || Request::is('admin/ai-campaigns*')) ? "menu-open" : "")
-                  @php($marketingActive = (Request::is('admin/blogs*') || Request::is('admin/leads*') || Request::is('admin/marketing-settings*') || Request::is('admin/ai-campaigns*')) ? "active" : "")
+                  @php($marketingClass = (Request::is('admin/blogs*') || Request::is('admin/leads*')) ? "menu-open" : "")
+                  @php($marketingActive = (Request::is('admin/blogs*') || Request::is('admin/leads*')) ? "active" : "")
                   
                   <li class="nav-item has-treeview {{$marketingClass}}">
                     <a href="#" class="nav-link {{$marketingActive}}" style="color: white;">
@@ -735,16 +735,6 @@
                       <li class="nav-item">
                         <a href="{{ route('admin.leads') }}" class="nav-link @if(Request::is('admin/leads*')) active @endif" style="color: white;">
                           <p><i class="fa fa-angle-right ml-3 mr-1"></i> Lead Management</p>
-                        </a>
-                      </li>
-                      <li class="nav-item">
-                        <a href="{{ route('admin.marketing_settings') }}" class="nav-link @if(Request::is('admin/marketing-settings*')) active @endif" style="color: white;">
-                          <p><i class="fa fa-angle-right ml-3 mr-1"></i> Auto Notification</p>
-                        </a>
-                      </li>
-                      <li class="nav-item">
-                        <a href="{{ route('admin.ai_campaigns') }}" class="nav-link @if(Request::is('admin/ai-campaigns*')) active @endif" style="color: white;">
-                          <p><i class="fa fa-angle-right ml-3 mr-1"></i> Manual Notification</p>
                         </a>
                       </li>
                     </ul>
@@ -1003,22 +993,35 @@
               </li>
             @endcanany
 
-            @if(Request::is('admin/notification*'))
-            @php($class = "menu-open")
-            @php($active = "active")
-            @else
-            @php($class = "")
-            @php($active = "")
-            @endif
+            @php($notiClass = (Request::is('admin/notification*') || Request::is('admin/marketing-settings*') || Request::is('admin/ai-campaigns*')) ? "menu-open" : "")
+            @php($notiActive = (Request::is('admin/notification*') || Request::is('admin/marketing-settings*') || Request::is('admin/ai-campaigns*')) ? "active" : "")
 
             @can('Notification')
-              <li class="nav-item has-treeview {{$class}}">
-                <a href="{{url('admin/notification')}}" class="nav-link {{$active}}" style="color: white;">
+              <li class="nav-item has-treeview {{$notiClass}}">
+                <a href="#" class="nav-link {{$notiActive}}" style="color: white;">
                   <i class="nav-icon fa fa-paper-plane"></i>
                   <p>
                     Notification
+                    <i class="right fa fa-angle-right"></i>
                   </p>
                 </a>
+                <ul class="nav nav-treeview">
+                  <li class="nav-item">
+                    <a href="{{url('admin/notification')}}" class="nav-link @if(Request::is('admin/notification*')) active @endif" style="color: white;">
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> Send Notification</p>
+                    </a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="{{ route('admin.marketing_settings') }}" class="nav-link @if(Request::is('admin/marketing-settings*')) active @endif" style="color: white;">
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> Auto Notification</p>
+                    </a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="{{ route('admin.ai_campaigns') }}" class="nav-link @if(Request::is('admin/ai-campaigns*')) active @endif" style="color: white;">
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> Manual Notification</p>
+                    </a>
+                  </li>
+                </ul>
               </li>
             @endcan
 

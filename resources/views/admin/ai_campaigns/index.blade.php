@@ -196,7 +196,7 @@
         <div class="col-lg-6">
             <div class="panel">
                 <h5 class="panel-title"><i class="fa-solid fa-paper-plane text-success"></i> Broadcast Campaign</h5>
-                <form action="{{ route('admin.ai_campaigns.send') }}" method="POST" enctype="multipart/form-data">
+                <form action="{{ route('admin.manual_notification.send') }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     <div class="form-group">
                         <label>Notification Title</label>
@@ -254,7 +254,7 @@
                 <h5 class="panel-title"><i class="fa-solid fa-clock-rotate-left text-info"></i> Recent Campaigns History</h5>
                 <p class="text-muted text-sm mb-4">View and manage your previously sent AI and standard broadcast campaigns.</p>
                 
-                <form action="{{ route('admin.ai_campaigns.bulk_delete') }}" method="POST" id="bulk-delete-form">
+                <form action="{{ route('admin.manual_notification.bulk_delete') }}" method="POST" id="bulk-delete-form">
                     @csrf
                     <div class="table-responsive">
                         <table class="table table-bordered table-striped table-hover" id="historyTable" style="width: 100%;">
@@ -339,7 +339,7 @@ $(document).ready(function() {
         let originalText = btn.html();
         btn.html('<i class="fa-solid fa-spinner fa-spin"></i> Generating...').prop('disabled', true);
         
-        $.post('{{ route("admin.ai_campaigns.generate") }}', {
+        $.post('{{ route("admin.manual_notification.generate") }}', {
             _token: '{{ csrf_token() }}',
             prompt: prompt,
             tone: tone

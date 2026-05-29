@@ -230,11 +230,11 @@ Route::
             Route::post('leads/draft-email/{id}', 'LeadController@draftEmail')->name('admin.leads.draft_email');
             
             Route::get('blogs', 'BlogController@index')->name('admin.blogs');
-            Route::get('marketing-settings', 'MarketingSettingsController@index')->name('admin.marketing_settings');
-            Route::get('ai-campaigns', 'AiSmartCampaignController@index')->name('admin.ai_campaigns');
-            Route::post('ai-campaigns/generate', 'AiSmartCampaignController@generateCopy')->name('admin.ai_campaigns.generate');
-            Route::post('ai-campaigns/send', 'AiSmartCampaignController@sendCampaign')->name('admin.ai_campaigns.send');
-            Route::post('ai-campaigns/bulk-delete', 'AiSmartCampaignController@bulkDelete')->name('admin.ai_campaigns.bulk_delete');
+            Route::get('auto-notification', 'MarketingSettingsController@index')->name('admin.auto_notification');
+            Route::get('manual-notification', 'AiSmartCampaignController@index')->name('admin.manual_notification');
+            Route::post('manual-notification/generate', 'AiSmartCampaignController@generateCopy')->name('admin.manual_notification.generate');
+            Route::post('manual-notification/send', 'AiSmartCampaignController@sendCampaign')->name('admin.manual_notification.send');
+            Route::post('manual-notification/bulk-delete', 'AiSmartCampaignController@bulkDelete')->name('admin.manual_notification.bulk_delete');
             
             Route::get('tickets', 'TicketController@index')->name('admin.tickets');
             Route::get('tickets/{id}', 'TicketController@show')->name('admin.tickets.show');

@@ -993,8 +993,8 @@
               </li>
             @endcanany
 
-            @php($notiClass = (Request::is('admin/notification*') || Request::is('admin/marketing-settings*') || Request::is('admin/ai-campaigns*')) ? "menu-open" : "")
-            @php($notiActive = (Request::is('admin/notification*') || Request::is('admin/marketing-settings*') || Request::is('admin/ai-campaigns*')) ? "active" : "")
+            @php($notiClass = (Request::is('admin/notification*') || Request::is('admin/auto-notification*') || Request::is('admin/manual-notification*')) ? "menu-open" : "")
+            @php($notiActive = (Request::is('admin/notification*') || Request::is('admin/auto-notification*') || Request::is('admin/manual-notification*')) ? "active" : "")
 
             @can('Notification')
               <li class="nav-item has-treeview {{$notiClass}}">
@@ -1007,12 +1007,12 @@
                 </a>
                 <ul class="nav nav-treeview">
                   <li class="nav-item">
-                    <a href="{{ route('admin.marketing_settings') }}" class="nav-link @if(Request::is('admin/marketing-settings*')) active @endif" style="color: white;">
+                    <a href="{{ route('admin.auto_notification') }}" class="nav-link @if(Request::is('admin/auto-notification*')) active @endif" style="color: white;">
                       <p><i class="fa fa-angle-right ml-3 mr-1"></i> Auto Notification</p>
                     </a>
                   </li>
                   <li class="nav-item">
-                    <a href="{{ route('admin.ai_campaigns') }}" class="nav-link @if(Request::is('admin/ai-campaigns*')) active @endif" style="color: white;">
+                    <a href="{{ route('admin.manual_notification') }}" class="nav-link @if(Request::is('admin/manual-notification*')) active @endif" style="color: white;">
                       <p><i class="fa fa-angle-right ml-3 mr-1"></i> Manual Notification</p>
                     </a>
                   </li>

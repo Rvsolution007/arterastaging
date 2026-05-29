@@ -280,7 +280,7 @@
                     <br>
                     <a href="{{ url('admin/blogs') }}" class="live-link"><i class="fa fa-external-link-alt"></i> /admin/blogs</a><br>
                     <a href="{{ url('admin/leads') }}" class="live-link"><i class="fa fa-external-link-alt"></i> /admin/leads</a><br>
-                    <a href="{{ url('admin/ai-campaigns') }}" class="live-link"><i class="fa fa-external-link-alt"></i> /admin/ai-campaigns</a>
+                    <a href="{{ url('admin/manual-notification') }}" class="live-link"><i class="fa fa-external-link-alt"></i> /admin/manual-notification</a>
                     <ul class="step-list">
                         <li>Click "Generate AI Blog" to auto-create content.</li>
                         <li>Leads are scored 1-100 automatically based on profile completion.</li>

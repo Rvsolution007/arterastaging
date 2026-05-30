@@ -39,6 +39,8 @@ class AppServiceProvider extends ServiceProvider
                         'mail.mailers.smtp.encryption' => $emailSettings['encryption'] ?? config('mail.mailers.smtp.encryption'),
                         'mail.mailers.smtp.username'   => $emailSettings['username'] ?? config('mail.mailers.smtp.username'),
                         'mail.mailers.smtp.password'   => $emailSettings['password'] ?? config('mail.mailers.smtp.password'),
+                        'mail.from.address'            => $emailSettings['username'] ?? config('mail.from.address'),
+                        'mail.from.name'               => config('app.name', 'Artera'),
                     ]);
                 }
             }

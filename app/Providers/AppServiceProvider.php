@@ -28,6 +28,24 @@ class AppServiceProvider extends ServiceProvider
         Paginator::useBootstrapFour();
         Schema::defaultStringLength(191);
         
+        // Dynamically set Mail configuration from database EmailSettings
+        try {
+            if (Schema::hasTable('email_setting')) {
+                $emailSettings = \App\Models\EmailSetting::all()->pluck('key_value', 'key_name')->toArray();
+                if (!empty($emailSettings['smtp_host'])) {
+                    config([
+                        'mail.mailers.smtp.host'       => $emailSettings['smtp_host'] ?? config('mail.mailers.smtp.host'),
+                        'mail.mailers.smtp.port'       => $emailSettings['port'] ?? config('mail.mailers.smtp.port'),
+                        'mail.mailers.smtp.encryption' => $emailSettings['encryption'] ?? config('mail.mailers.smtp.encryption'),
+                        'mail.mailers.smtp.username'   => $emailSettings['username'] ?? config('mail.mailers.smtp.username'),
+                        'mail.mailers.smtp.password'   => $emailSettings['password'] ?? config('mail.mailers.smtp.password'),
+                    ]);
+                }
+            }
+        } catch (\Exception $e) {
+            // Ignore if DB not ready
+        }
+
         // Force HTTPS for all assets and routes when behind a proxy like EasyPanel
         if (config('app.env') !== 'local') {
             \Illuminate\Support\Facades\URL::forceScheme('https');

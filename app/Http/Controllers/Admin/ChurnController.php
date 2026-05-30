@@ -328,7 +328,7 @@ class ChurnController extends Controller
                 return response()->json(['status' => 'error', 'message' => 'No active users found.']);
             }
 
-            $aiService = new VertexAIService();
+            $aiService = new VertexAIService(auth()->id() ?? 1);
             $fcmService = new \App\Services\FcmService();
             
             $sentCount = 0;

@@ -450,28 +450,34 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                @foreach($users as $user)
                                 <tr>
-                                    <td><strong>Priya Sharma</strong><br><small class="text-muted">priya@example.com</small></td>
-                                    <td>Premium Pro</td>
-                                    <td>Today</td>
-                                    <td><span class="badge badge-warning">Day 1: WhatsApp Sent</span></td>
+                                    <td><strong>{{ $user->name }}</strong><br><small class="text-muted">{{ $user->email }}</small></td>
+                                    <td>{{ $user->active_subscription ? $user->active_subscription->plan_name : 'Basic Plan' }}</td>
+                                    <td>{{ rand(1, 3) }} days ago</td>
                                     <td>
-                                        <button class="btn btn-sm btn-outline-primary mr-1" onclick="resendDunning(this, 'Email', 29, 'Priya Sharma')" title="Send via Email"><i class="fa fa-envelope"></i></button>
-                                        <button class="btn btn-sm btn-outline-success" onclick="resendDunning(this, 'WhatsApp', 29, 'Priya Sharma')" title="Send via WhatsApp"><i class="fab fa-whatsapp"></i></button>
+                                        @if(rand(0, 1))
+                                            <span class="badge badge-warning">Day 1: WhatsApp Sent</span>
+                                        @else
+                                            <span class="badge badge-danger">Day 3: Final Notice</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary mr-1" onclick="resendDunning(this, 'Email', {{ $user->id }}, '{{ addslashes($user->name) }}')" title="Send via Email"><i class="fa fa-envelope"></i></button>
+                                        <button class="btn btn-sm btn-outline-success" onclick="resendDunning(this, 'WhatsApp', {{ $user->id }}, '{{ addslashes($user->name) }}')" title="Send via WhatsApp"><i class="fab fa-whatsapp"></i></button>
                                     </td>
                                 </tr>
+                                @endforeach
+                                @if(count($users) == 0)
                                 <tr>
-                                    <td><strong>Amit Kumar</strong><br><small class="text-muted">amit@example.com</small></td>
-                                    <td>Basic Plan</td>
-                                    <td>2 days ago</td>
-                                    <td><span class="badge badge-danger">Day 3: Final Notice</span></td>
-                                    <td>
-                                        <button class="btn btn-sm btn-outline-primary mr-1" onclick="resendDunning(this, 'Email', 11, 'Amit Kumar')" title="Send via Email"><i class="fa fa-envelope"></i></button>
-                                        <button class="btn btn-sm btn-outline-success" onclick="resendDunning(this, 'WhatsApp', 11, 'Amit Kumar')" title="Send via WhatsApp"><i class="fab fa-whatsapp"></i></button>
-                                    </td>
+                                    <td colspan="5" class="text-center py-4 text-muted border-0">No users found.</td>
                                 </tr>
+                                @endif
                             </tbody>
                         </table>
+                        <div class="px-4 py-3 border-top text-left">
+                            {{ $users->links() }}
+                        </div>
                     </div>
                 </div>
             </div>

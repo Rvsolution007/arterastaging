@@ -338,8 +338,11 @@ class ChurnController extends Controller
                 $systemInstruction = "You are a friendly engagement AI for the Artera SaaS platform. Suggest a feature to a user who hasn't tried it yet. Keep it under 100 characters so it fits in a push notification. Return ONLY valid JSON: {\"title\": \"Short Title\", \"body\": \"Short push notification text\"}";
                 $prompt = "User: {$user->name}. Feature they haven't tried yet: {$featureName}. Write a very short push notification to encourage them to try it today.";
                 
-                $response = $aiService->generateText($prompt, $systemInstruction);
-                $cleanJson = str_replace(['```json', '```'], '', $response);
+                $response = $aiService->generateContent($systemInstruction, [
+                    ['role' => 'user', 'text' => $prompt]
+                ]);
+                
+                $cleanJson = str_replace(['```json', '```'], '', $response['text'] ?? '');
                 $aiContent = json_decode($cleanJson, true);
                 
                 if (isset($aiContent['title']) && isset($aiContent['body'])) {

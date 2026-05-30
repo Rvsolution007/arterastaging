@@ -37,8 +37,8 @@ class AuthController extends GetxController {
         await prefs.setBool('isPartner', data['isPartner'] ?? false);
         
         // Save Gamification Stats
-        await prefs.setInt('currentStreak', data['currentStreak'] ?? 0);
-        await prefs.setInt('maxStreak', data['maxStreak'] ?? 0);
+        await prefs.setInt('currentStreak', int.tryParse(data['currentStreak']?.toString() ?? '0') ?? 0);
+        await prefs.setInt('maxStreak', int.tryParse(data['maxStreak']?.toString() ?? '0') ?? 0);
         
         if (data['adConfig'] != null) {
           try {
@@ -104,8 +104,8 @@ class AuthController extends GetxController {
         await prefs.setBool('isPartner', data['isPartner'] ?? false);
         
         // Save Gamification Stats
-        await prefs.setInt('currentStreak', data['currentStreak'] ?? 0);
-        await prefs.setInt('maxStreak', data['maxStreak'] ?? 0);
+        await prefs.setInt('currentStreak', int.tryParse(data['currentStreak']?.toString() ?? '0') ?? 0);
+        await prefs.setInt('maxStreak', int.tryParse(data['maxStreak']?.toString() ?? '0') ?? 0);
         
         if (data['adConfig'] != null) {
           try {

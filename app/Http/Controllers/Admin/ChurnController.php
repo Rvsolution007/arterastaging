@@ -99,7 +99,7 @@ class ChurnController extends Controller
         ];
 
         $systemInstruction = "You are an expert SaaS Customer Success Manager and AI Retention Strategist. Based on the provided user profile and their Health Score Penalty Breakdown, generate a concise, actionable 3-step retention strategy to prevent this user from churning.\n\n" . 
-        "Also suggest a highly personalized email subject and short message to send them. CRITICAL: The email MUST specifically mention the EXACT features/templates they haven't used (e.g., if they haven't used Custom Posts, suggest they try it out) and gently address their inactivity or subscription status based on the penalty breakdown. Make them feel valued.\n\n" .
+        "Also suggest a highly personalized outreach message to send them. CRITICAL: The message MUST specifically mention the EXACT features/templates they haven't used (e.g., if they haven't used Custom Posts, suggest they try it out) and gently address their inactivity. Use Markdown **bold** for important keywords and feature names, and sprinkle in relevant emojis to make it attractive and engaging.\n\n" .
         "Additionally, generate a short, attractive, and actionable Push Notification to send to their mobile app. The title should be catchy (max 50 chars) and the message should be punchy (max 150 chars), inviting them back based on their unused features.\n\n" .
         "Output in pure JSON format: {\"strategy_steps\": [\"step1\", \"step2\", \"step3\"], \"email_subject\": \"Subject here\", \"email_body\": \"Message here\", \"push_title\": \"Push title here\", \"push_message\": \"Push message here\"}";
         
@@ -175,9 +175,28 @@ class ChurnController extends Controller
 
             $url = "{$serverUrl}/message/sendText/{$instanceName}";
 
+            $text = $request->body;
+            
+            // Convert HTML to WhatsApp markdown
+            $text = preg_replace('/<(b|strong)[^>]*>(.*?)<\/\1>/i', '*$2*', $text);
+            $text = preg_replace('/<(i|em)[^>]*>(.*?)<\/\1>/i', '_$2_', $text);
+            $text = preg_replace('/<br\s*\/?>/i', "\n", $text);
+            $text = preg_replace('/<\/p>/i', "\n\n", $text);
+            
+            // Strip remaining HTML tags
+            $text = strip_tags($text);
+            
+            // Convert standard markdown (**text**) to WhatsApp markdown (*text*)
+            $text = preg_replace('/\*\*(.*?)\*\*/', '*$1*', $text);
+            
+            // Decode HTML entities
+            $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5);
+            
+            $text = trim($text);
+
             $data = [
                 "number" => $number,
-                "text" => strip_tags($request->body)
+                "text" => $text
             ];
 
             $ch = curl_init();

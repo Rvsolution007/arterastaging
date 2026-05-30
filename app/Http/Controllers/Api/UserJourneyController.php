@@ -125,18 +125,21 @@ class UserJourneyController extends Controller
             return response()->json(['status' => 'error', 'message' => $validator->errors()->first()]);
         }
 
-        // Save to Database (Mocking DB insertion for now)
-        // \App\Models\UserFeedback::create([
-        //     'user_id' => $request->userId,
-        //     'rating' => $request->rating,
-        //     'comment' => $request->comment
-        // ]);
-
         $actionTaken = 'None';
-        if ($request->rating == 5) {
+        if ($request->rating == 5 || $request->rating == 4) {
             $actionTaken = 'Redirect to PlayStore';
         } elseif ($request->rating <= 3) {
             $actionTaken = 'Create Support Ticket';
+            // Actually create the ticket in DB
+            if ($request->comment) {
+                \App\Models\Ticket::create([
+                    'user_id' => $request->userId,
+                    'subject' => 'Negative App Feedback (' . $request->rating . ' Stars)',
+                    'message' => $request->comment,
+                    'status' => 'Open',
+                    'priority' => 'High'
+                ]);
+            }
         }
 
         return response()->json([

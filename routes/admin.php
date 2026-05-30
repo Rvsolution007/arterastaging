@@ -263,6 +263,7 @@ Route::
             Route::post('churn/send-notification/{id}', 'ChurnController@sendNotification')->name('admin.churn.send-notification');
             Route::post('churn/send-dunning-email/{id}', 'ChurnController@sendDunningEmail');
             Route::post('churn/send-dunning-whatsapp/{id}', 'ChurnController@sendDunningWhatsapp');
+            Route::post('churn/trigger-discovery/{featureName}', 'ChurnController@triggerDiscovery');
 
             Route::resource('app-language', 'AppLanguageController');
             Route::get('app-language', 'AppLanguageController@index')->name('app-language.index');

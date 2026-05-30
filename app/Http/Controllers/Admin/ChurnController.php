@@ -318,4 +318,58 @@ class ChurnController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Failed to send WhatsApp.']);
         }
     }
+    public function triggerDiscovery(Request $request, $featureName)
+    {
+        try {
+            // Find a few users to send the discovery push to (mocked as top 5 active users for demo)
+            $users = User::orderBy('id', 'desc')->take(5)->get();
+            
+            if ($users->isEmpty()) {
+                return response()->json(['status' => 'error', 'message' => 'No active users found.']);
+            }
+
+            $aiService = new VertexAIService();
+            $fcmService = new \App\Services\FcmService();
+            
+            $sentCount = 0;
+            
+            foreach ($users as $user) {
+                // Generate personalized push using AI
+                $systemInstruction = "You are a friendly engagement AI for the Artera SaaS platform. Suggest a feature to a user who hasn't tried it yet. Keep it under 100 characters so it fits in a push notification. Return ONLY valid JSON: {\"title\": \"Short Title\", \"body\": \"Short push notification text\"}";
+                $prompt = "User: {$user->name}. Feature they haven't tried yet: {$featureName}. Write a very short push notification to encourage them to try it today.";
+                
+                $response = $aiService->generateText($prompt, $systemInstruction);
+                $cleanJson = str_replace(['```json', '```'], '', $response);
+                $aiContent = json_decode($cleanJson, true);
+                
+                if (isset($aiContent['title']) && isset($aiContent['body'])) {
+                    if ($fcmService->isConfigured()) {
+                        $result = $fcmService->sendNotificationToUser(
+                            $user->id,
+                            $aiContent['title'],
+                            $aiContent['body'],
+                            null, // No image for now
+                            [
+                                'action' => 'feature_discovery',
+                                'feature_name' => $featureName
+                            ]
+                        );
+                        
+                        if ($result['status'] === 'success') {
+                            $sentCount++;
+                        }
+                    }
+                }
+            }
+            
+            return response()->json([
+                'status' => 'success', 
+                'message' => "AI Banner Push sent to $sentCount users for $featureName"
+            ]);
+            
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Trigger Discovery Error: ' . $e->getMessage());
+            return response()->json(['status' => 'error', 'message' => 'Failed to trigger discovery: ' . $e->getMessage()]);
+        }
+    }
 }

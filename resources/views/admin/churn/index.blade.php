@@ -786,11 +786,34 @@ function triggerDiscovery(btn, featureName) {
     btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
     btn.disabled = true;
     
-    setTimeout(() => {
-        toastr.success(`Discovery Banner queued for ${featureName}!`);
-        btn.innerHTML = '<i class="fa fa-check"></i> Queued';
-        btn.className = 'btn btn-sm btn-success';
-    }, 600);
+    let url = '{{ url("admin/churn/trigger-discovery") }}/' + encodeURIComponent(featureName);
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if(data.status == 'success') {
+            toastr.success(data.message);
+            btn.innerHTML = '<i class="fa fa-check"></i> Queued';
+            btn.className = 'btn btn-sm btn-success';
+        } else {
+            alert('Error: ' + data.message);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to connect to server.');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
 }
 
 function resendDunning(btn, method, userId, userName) {

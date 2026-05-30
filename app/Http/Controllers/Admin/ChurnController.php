@@ -320,6 +320,7 @@ class ChurnController extends Controller
     }
     public function triggerDiscovery(Request $request, $featureName)
     {
+        set_time_limit(120); // AI calls can take a while
         try {
             // Find a few users to send the discovery push to (mocked as top 5 active users for demo)
             $users = User::orderBy('id', 'desc')->take(5)->get();
@@ -370,8 +371,8 @@ class ChurnController extends Controller
                 'message' => "AI Banner Push sent to $sentCount users for $featureName"
             ]);
             
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Trigger Discovery Error: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Trigger Discovery Error: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
             return response()->json(['status' => 'error', 'message' => 'Failed to trigger discovery: ' . $e->getMessage()]);
         }
     }

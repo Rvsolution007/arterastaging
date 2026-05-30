@@ -49,6 +49,7 @@
 
 @section('content')
 <div class="revenue-dashboard">
+    @include('admin.retention.tabs')
     <div class="row mb-4">
         <div class="col-12">
             <h2 style="font-weight: 800; color: #333;">Advanced Payment Analytics</h2>

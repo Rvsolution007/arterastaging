@@ -19,6 +19,8 @@ import 'partner_dashboard_screen.dart';
 import '../widgets/error_submission_dialog.dart';
 import 'referral_screen.dart';
 import '../services/translation_service.dart';
+import 'achievements_screen.dart';
+import 'challenges_screen.dart';
 
 class MoreScreen extends StatefulWidget {
   const MoreScreen({super.key});
@@ -58,6 +60,8 @@ class _MoreScreenState extends State<MoreScreen> {
               AppSpacing.gapV16,
               _buildPartnerSettings(context),
               _buildAppPreferences(context),
+              AppSpacing.gapV24,
+              _buildGamification(context),
               AppSpacing.gapV24,
               _buildBillingAndPayments(context),
               AppSpacing.gapV24,
@@ -181,6 +185,35 @@ class _MoreScreenState extends State<MoreScreen> {
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen())),
               );
             }),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGamification(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Gamification & Rewards'),
+        _buildSectionContainer(
+          children: [
+            SettingsItem(
+              icon: Icons.military_tech_outlined,
+              title: 'My Achievements',
+              subtitle: 'View your badges and progress',
+              iconColor: Colors.orange.shade500,
+              iconBgColor: Colors.transparent,
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AchievementsScreen())),
+            ),
+            SettingsItem(
+              icon: Icons.emoji_events_outlined,
+              title: 'Weekly Challenges',
+              subtitle: 'Participate and earn rewards',
+              iconColor: Colors.purple.shade500,
+              iconBgColor: Colors.transparent,
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChallengesScreen())),
+            ),
           ],
         ),
       ],

@@ -151,7 +151,46 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               );
             }),
-            AppSpacing.gapH8,
+            // ── Gamification Streak Badge ──
+            FutureBuilder<SharedPreferences>(
+              future: SharedPreferences.getInstance(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const SizedBox.shrink();
+                final streak = snapshot.data!.getInt('currentStreak') ?? 0;
+                if (streak < 1) return const SizedBox.shrink();
+                
+                return Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.orange.shade300, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.orange.withValues(alpha: 0.15),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.local_fire_department, color: Colors.orange.shade600, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$streak',
+                        style: TextStyle(
+                          color: Colors.orange.shade700,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
             // ── Quick Start Button ──
             GestureDetector(
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QuickStartWizardScreen())),

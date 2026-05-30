@@ -143,7 +143,22 @@
         </div>
     @endif
 
-    <div class="row">
+    <ul class="nav nav-pills mb-4" id="challenges-tab" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active font-weight-bold" id="tab-challenges" data-toggle="pill" href="#content-challenges" role="tab" style="border-radius: 20px;">Challenges</a>
+        </li>
+        <li class="nav-item ml-2">
+            <a class="nav-link font-weight-bold" id="tab-gamification" data-toggle="pill" href="#content-gamification" role="tab" style="border-radius: 20px;">Gamification Settings</a>
+        </li>
+        <li class="nav-item ml-2">
+            <a class="nav-link font-weight-bold" id="tab-pushlogs" data-toggle="pill" href="#content-pushlogs" role="tab" style="border-radius: 20px;">Push Notification Logs</a>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="challenges-tabContent">
+        <!-- Challenges Tab -->
+        <div class="tab-pane fade show active" id="content-challenges" role="tabpanel">
+            <div class="row">
         <div class="col-md-12">
             <div class="custom-card">
                 <div class="custom-card-header">
@@ -192,6 +207,93 @@
                             @endforelse
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gamification Settings Tab -->
+    <div class="tab-pane fade" id="content-gamification" role="tabpanel">
+        <div class="row">
+            <div class="col-md-8 offset-md-2">
+                <div class="custom-card">
+                    <div class="custom-card-header">
+                        <h5 class="custom-card-title">
+                            <div class="icon-wrapper icon-primary"><i class="fa-solid fa-gamepad"></i></div>
+                            Gamification Settings
+                        </h5>
+                    </div>
+                    <div class="custom-card-body">
+                        <form action="{{ route('admin.challenges.store_settings') }}" method="POST">
+                            @csrf
+                            <div class="form-group">
+                                <label class="font-weight-bold text-muted small">Badge Unlocking (Post Count Goal)</label>
+                                <input type="number" class="form-control" style="border-radius: 8px;" name="badge_post_count" value="{{ \App\Models\Setting::getGlobalValue('gamification', 'badge_post_count', 100) }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="font-weight-bold text-muted small">Daily Streak Goal (Days)</label>
+                                <input type="number" class="form-control" style="border-radius: 8px;" name="streak_goal_days" value="{{ \App\Models\Setting::getGlobalValue('gamification', 'streak_goal_days', 7) }}" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="font-weight-bold text-muted small">Smart Push Notification Enabled</label>
+                                <select class="form-control" style="border-radius: 8px;" name="smart_push_enabled">
+                                    <option value="1" {{ \App\Models\Setting::getGlobalValue('gamification', 'smart_push_enabled', 1) == 1 ? 'selected' : '' }}>Yes</option>
+                                    <option value="0" {{ \App\Models\Setting::getGlobalValue('gamification', 'smart_push_enabled', 1) == 0 ? 'selected' : '' }}>No</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn-gradient w-100 mt-3">Save Settings</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Push Notification Logs Tab -->
+    <div class="tab-pane fade" id="content-pushlogs" role="tabpanel">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="custom-card">
+                    <div class="custom-card-header">
+                        <h5 class="custom-card-title">
+                            <div class="icon-wrapper icon-primary"><i class="fa-solid fa-bell"></i></div>
+                            Smart Push Logs
+                        </h5>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>User ID</th>
+                                    <th>Title</th>
+                                    <th>Sent At</th>
+                                    <th>Status</th>
+                                    <th>Error Message</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($pushLogs ?? [] as $log)
+                                <tr>
+                                    <td>#{{ $log->user_id }}</td>
+                                    <td>{{ $log->title }}</td>
+                                    <td>{{ \Carbon\Carbon::parse($log->created_at)->format('d M, Y H:i A') }}</td>
+                                    <td>
+                                        @if($log->status === 'success')
+                                            <span class="status-badge status-active">Success</span>
+                                        @else
+                                            <span class="status-badge status-inactive">Failed</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-danger">{{ $log->error_message ?? '-' }}</td>
+                                </tr>
+                                @empty
+                                <tr>
+                                    <td colspan="5" class="text-center py-4 text-muted">No logs found yet.</td>
+                                </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

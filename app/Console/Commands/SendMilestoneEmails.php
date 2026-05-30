@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\YearInReviewMail;
 use Carbon\Carbon;
+use App\Models\Setting;
 
 class SendMilestoneEmails extends Command
 {
@@ -35,26 +36,36 @@ class SendMilestoneEmails extends Command
     {
         $this->info('Checking for users with account anniversaries today...');
 
-        // Find users created exactly 1, 2, 3... years ago today
+        $milestoneMonthsSetting = Setting::getGlobalValue('gamification', 'milestone_months', '1,6,12');
+        $milestoneMonths = explode(',', $milestoneMonthsSetting);
+        $milestoneMonths = array_map('trim', $milestoneMonths);
+
+        // Find users created exactly X months ago today
         $users = User::where('status', 1)
             ->whereNotNull('created_at')
-            ->whereMonth('created_at', now()->month)
-            ->whereDay('created_at', now()->day)
-            ->whereYear('created_at', '<', now()->year)
-            ->get();
+            ->get()
+            ->filter(function ($user) use ($milestoneMonths) {
+                $createdAt = Carbon::parse($user->created_at)->startOfDay();
+                $today = now()->startOfDay();
+                
+                // Diff in exact months (day of month must match)
+                if ($createdAt->day === $today->day) {
+                    $diffInMonths = $createdAt->diffInMonths($today);
+                    return in_array((string)$diffInMonths, $milestoneMonths);
+                }
+                return false;
+            });
 
-        $this->info("Found {$users->count()} users with an anniversary today.");
+        $this->info("Found {$users->count()} users with an anniversary milestone today.");
 
         foreach ($users as $user) {
-            // Compile stats for the year
+            // Compile stats since the beginning
             $totalPosts = UserActivity::where('user_id', $user->id)
                 ->whereIn('action', ['download_template', 'create_custom_post', 'create_festival_post', 'magic_cloner_use'])
-                ->where('created_at', '>=', now()->subYear())
                 ->count();
 
             $badgesEarned = DB::table('user_achievements')
                 ->where('user_id', $user->id)
-                ->where('created_at', '>=', now()->subYear())
                 ->count();
 
             $stats = [

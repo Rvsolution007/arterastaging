@@ -20,17 +20,29 @@ class FestivalsPostController extends Controller
         $this->middleware('permission:FestivalPost');
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $index['festivals'] = Festivals::get();
-        $index['data'] = FestivalsPost::orderBy('id', 'DESC')->paginate(12);
+        $tab = $request->query('tab', 'image');
+        $index['tab'] = $tab;
+
+        if ($tab == 'video') {
+            $index['data'] = \App\Models\Video::where('type', 'festival')->orderBy('id', 'DESC')->paginate(12);
+        } else {
+            $index['data'] = FestivalsPost::orderBy('id', 'DESC')->paginate(12);
+        }
         return view("festivals_post.index", $index);
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $index['festivals'] = Festivals::where('status', 1)->get();
         $index['language'] = Language::where('status', 1)->get();
+
+        if ($request->query('type') == 'video') {
+            return view("festivals_post.create_video", $index);
+        }
+
         return view("festivals_post.create", $index);
     }
 
@@ -134,12 +146,19 @@ class FestivalsPostController extends Controller
         return redirect()->route("festivals-post.index");
     }
 
-    public function festival_filter($id)
+    public function festival_filter(Request $request, $id)
     {
         $index['festivals'] = Festivals::get();
-        $index['data'] = FestivalsPost::where('festivals_id', $id)->paginate(12);
         $f_name = Festivals::find($id);
         $index['name'] = $f_name->title;
+        $tab = $request->query('tab', 'image');
+        $index['tab'] = $tab;
+
+        if ($tab == 'video') {
+            $index['data'] = \App\Models\Video::where('type', 'festival')->where('festival_id', $id)->orderBy('id', 'DESC')->paginate(12);
+        } else {
+            $index['data'] = FestivalsPost::where('festivals_id', $id)->orderBy('id', 'DESC')->paginate(12);
+        }
         return view("festivals_post.index", $index);
     }
 

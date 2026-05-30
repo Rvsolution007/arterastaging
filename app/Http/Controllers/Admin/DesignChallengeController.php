@@ -5,13 +5,32 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\DesignChallenge;
+use App\Models\PushNotificationLog;
+use App\Models\Setting;
 
 class DesignChallengeController extends Controller
 {
     public function index()
     {
         $challenges = DesignChallenge::orderBy('created_at', 'desc')->get();
-        return view('admin.challenges.index', compact('challenges'));
+        $pushLogs = PushNotificationLog::with('user')->orderBy('created_at', 'desc')->limit(100)->get();
+        $badgePostCount = Setting::getGlobalValue('gamification', 'badge_post_count', 100);
+        $milestoneMonths = Setting::getGlobalValue('gamification', 'milestone_months', '1,6,12');
+        
+        return view('admin.challenges.index', compact('challenges', 'pushLogs', 'badgePostCount', 'milestoneMonths'));
+    }
+
+    public function storeSettings(Request $request)
+    {
+        $request->validate([
+            'badge_post_count' => 'required|integer',
+            'milestone_months' => 'required|string'
+        ]);
+
+        Setting::setValue('gamification', 'badge_post_count', $request->badge_post_count);
+        Setting::setValue('gamification', 'milestone_months', $request->milestone_months);
+
+        return back()->with('success', 'Gamification settings updated successfully.');
     }
 
     public function store(Request $request)

@@ -76,6 +76,9 @@ class VideoController extends Controller
                 }
             }
 
+            if ($request->has('redirect_to')) {
+                return redirect()->route($request->get('redirect_to') . '.index', ['tab' => 'video']);
+            }
             return redirect()->route("video.index");
         }
     }
@@ -129,11 +132,28 @@ class VideoController extends Controller
             if($request->action_type == "delete")
             {
                 foreach($ids as $id){
-                    Video::find($id)->delete();
+                    $video = Video::find($id);
+                    if($video) {
+                        if(StorageSetting::getStorageSetting("storage") == "DigitalOcean")
+                        {
+                            Storage::disk('spaces')->delete('uploads/video/'.$video->video);
+                        }
+                        else
+                        {
+                            $filePath = public_path('uploads/video/'.$video->video);
+                            if(file_exists($filePath)) {
+                                @unlink($filePath);
+                            }
+                        }
+                        $video->delete();
+                    }
                 }
             }
         }
 
+        if ($request->has('redirect_to')) {
+            return redirect()->route($request->get('redirect_to') . '.index', ['tab' => 'video']);
+        }
         return redirect()->route("video.index");
     }
 
@@ -238,13 +258,17 @@ class VideoController extends Controller
                 }
             }
 
+            if ($request->has('redirect_to')) {
+                return redirect()->route($request->get('redirect_to') . '.index', ['tab' => 'video']);
+            }
             return redirect()->route('video.index');
         }
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
         $video = Video::find($id);
+        $redirect_to = $request->get('redirect_to');
         if($video) {
             if(StorageSetting::getStorageSetting("storage") == "DigitalOcean")
             {
@@ -258,6 +282,10 @@ class VideoController extends Controller
                 }
             }
             $video->delete();
+        }
+
+        if ($redirect_to) {
+            return redirect()->route($redirect_to . '.index', ['tab' => 'video']);
         }
         return redirect()->route('video.index');
     }

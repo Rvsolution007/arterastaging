@@ -227,8 +227,6 @@ Route::
             Route::get('generat-code', 'UserController@generat_code');
 
             // Phase 4 & 5 Missing Routes
-            Route::get('leads', 'LeadController@index')->name('admin.leads');
-            Route::post('leads/draft-email/{id}', 'LeadController@draftEmail')->name('admin.leads.draft_email');
             
             Route::get('blogs', 'BlogController@index')->name('admin.blogs');
             Route::get('auto-notification', 'MarketingSettingsController@index')->name('admin.auto_notification');
@@ -271,11 +269,14 @@ Route::
             // Phase 7 Design Challenges
             Route::get('challenges', 'DesignChallengeController@index')->name('admin.challenges');
             Route::post('challenges', 'DesignChallengeController@store')->name('admin.challenges.store');
+            Route::post('challenges/settings', 'DesignChallengeController@storeSettings')->name('admin.challenges.store_settings');
             Route::get('challenges/{id}/toggle', 'DesignChallengeController@toggleStatus')->name('admin.challenges.toggle');
 
             // Phase 8 God View
             Route::get('god-view', 'GodViewController@index')->name('admin.god_view');
             Route::get('god-view/resolve/{id}', 'GodViewController@resolveAlert')->name('admin.god_view.resolve');
+
+            Route::post('churn/generate-lead-strategy/{id}', 'ChurnController@generateLeadStrategy')->name('admin.churn.generate-lead-strategy');
 
             // Documentation
             Route::get('documentation', 'DocumentationController@index')->name('admin.documentation');

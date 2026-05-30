@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use App\Models\User;
+use App\Models\WinbackHistory;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\URL;
 
@@ -37,8 +38,8 @@ class WinbackReactivationCommand extends Command
         if ($email) {
             $users = $query->where('email', $email)->get();
         } else {
-            // Find users who expired exactly 30 days ago
-            $targetDate = now()->subDays(30)->toDateString();
+            $daysExpired = \App\Models\Setting::getGlobalValue('retention', 'winback_days_expired', 30);
+            $targetDate = now()->subDays($daysExpired)->toDateString();
             $users = $query->whereDate('subscription_end_date', $targetDate)->get();
         }
 
@@ -59,6 +60,11 @@ class WinbackReactivationCommand extends Command
 
             $this->info("Generated Magic Link: {$reactivationLink}");
             
+            WinbackHistory::create([
+                'user_id' => $user->id,
+                'magic_link_url' => $reactivationLink,
+            ]);
+
             // Send the email
             // Mail::to($user->email)->send(new WinbackMail($user, $reactivationLink));
             $this->info("Winback email dispatched.");

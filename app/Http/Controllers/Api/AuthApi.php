@@ -35,6 +35,8 @@ class AuthApi extends Controller
         if (Auth::attempt(['email' => $email, 'password' => $password])) 
         {
             $user = User::find(Auth::user()->id);
+            $this->updateUserStreak($user);
+            $user = User::find(Auth::user()->id); // Refresh
             $ReferralRegister = ReferralRegister::where('user_id',Auth::user()->id)->first();
             
             $res = array(
@@ -56,7 +58,9 @@ class AuthApi extends Controller
                 'businessLimit' => (date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
                 'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
                                 'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
-                'adConfig' => $user->getAdConfigPayload()    
+                'adConfig' => $user->getAdConfigPayload(),
+                'currentStreak' => $user->current_streak ?? 1,
+                'maxStreak' => $user->max_streak ?? 1    
             );
         } 
         else 
@@ -213,7 +217,9 @@ class AuthApi extends Controller
                 'businessLimit' => (date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
                 'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
                                 'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
-                'adConfig' => $user->getAdConfigPayload()
+                'adConfig' => $user->getAdConfigPayload(),
+                'currentStreak' => $user->current_streak ?? 1,
+                'maxStreak' => $user->max_streak ?? 1
             );
         }
 
@@ -308,7 +314,9 @@ class AuthApi extends Controller
                 'businessLimit' => (date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
                 'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
                                 'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
-                'adConfig' => $user->getAdConfigPayload()
+                'adConfig' => $user->getAdConfigPayload(),
+                'currentStreak' => $user->current_streak ?? 1,
+                'maxStreak' => $user->max_streak ?? 1
             );
         }
         else
@@ -337,7 +345,9 @@ class AuthApi extends Controller
                     'businessLimit' => (date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
                     'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
                                     'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
-                'adConfig' => $user->getAdConfigPayload()
+                'adConfig' => $user->getAdConfigPayload(),
+                'currentStreak' => $user->current_streak ?? 1,
+                'maxStreak' => $user->max_streak ?? 1
                 );
             }
             else
@@ -375,7 +385,9 @@ class AuthApi extends Controller
                     'businessLimit' => (date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
                     'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
                                     'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
-                'adConfig' => $user->getAdConfigPayload()
+                'adConfig' => $user->getAdConfigPayload(),
+                'currentStreak' => $user->current_streak ?? 1,
+                'maxStreak' => $user->max_streak ?? 1
                 );
             }
         }
@@ -408,7 +420,9 @@ class AuthApi extends Controller
                 'businessLimit' => (date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
                 'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
                                 'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
-                'adConfig' => $user->getAdConfigPayload()
+                'adConfig' => $user->getAdConfigPayload(),
+                'currentStreak' => $user->current_streak ?? 1,
+                'maxStreak' => $user->max_streak ?? 1
             );
         }
         else
@@ -442,7 +456,9 @@ class AuthApi extends Controller
                     'businessLimit' => (date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
                     'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
                                     'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
-                'adConfig' => $user->getAdConfigPayload()
+                'adConfig' => $user->getAdConfigPayload(),
+                'currentStreak' => $user->current_streak ?? 1,
+                'maxStreak' => $user->max_streak ?? 1
                 );
             }
             else
@@ -482,7 +498,9 @@ class AuthApi extends Controller
                     'businessLimit' => (date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
                     'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
                                     'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
-                'adConfig' => $user->getAdConfigPayload()
+                'adConfig' => $user->getAdConfigPayload(),
+                'currentStreak' => $user->current_streak ?? 1,
+                'maxStreak' => $user->max_streak ?? 1
                 );
             }
         }
@@ -515,7 +533,9 @@ class AuthApi extends Controller
                 'businessLimit' => (date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
                 'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
                                 'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
-                'adConfig' => $user->getAdConfigPayload()
+                'adConfig' => $user->getAdConfigPayload(),
+                'currentStreak' => $user->current_streak ?? 1,
+                'maxStreak' => $user->max_streak ?? 1
             );
             return response()->json($res);
         } 
@@ -658,7 +678,9 @@ class AuthApi extends Controller
                                         'businessLimit' => (date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
                                         'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
                                                         'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
-                'adConfig' => $user->getAdConfigPayload()
+                'adConfig' => $user->getAdConfigPayload(),
+                'currentStreak' => $user->current_streak ?? 1,
+                'maxStreak' => $user->max_streak ?? 1
                                     );
                                 }
                                 else
@@ -779,7 +801,9 @@ class AuthApi extends Controller
                                 'businessLimit' => (date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
                                 'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
                                                 'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
-                'adConfig' => $user->getAdConfigPayload()
+                'adConfig' => $user->getAdConfigPayload(),
+                'currentStreak' => $user->current_streak ?? 1,
+                'maxStreak' => $user->max_streak ?? 1
                             );
                         }
                         else
@@ -1197,6 +1221,31 @@ class AuthApi extends Controller
                     'updated_at' => now(),
                 ]);
             }
+        }
+    }
+
+    private function updateUserStreak($user)
+    {
+        try {
+            $today = now()->startOfDay();
+            $lastLogin = $user->last_login_date ? \Carbon\Carbon::parse($user->last_login_date)->startOfDay() : null;
+
+            if (!$lastLogin) {
+                $user->current_streak = 1;
+            } elseif ($lastLogin->equalTo($today->copy()->subDay())) {
+                $user->current_streak += 1;
+            } elseif ($lastLogin->lessThan($today->copy()->subDay())) {
+                $user->current_streak = 1;
+            }
+            
+            if ($user->current_streak > $user->max_streak) {
+                $user->max_streak = $user->current_streak;
+            }
+
+            $user->last_login_date = now()->toDateString();
+            $user->save();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Streak update failed: ' . $e->getMessage());
         }
     }
 }

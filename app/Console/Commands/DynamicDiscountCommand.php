@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use App\Models\User;
+use App\Models\DynamicDiscountHistory;
 use App\Services\VertexAIService;
 use Exception;
 
@@ -37,9 +38,11 @@ class DynamicDiscountCommand extends Command
         if ($email) {
             $users = User::where('email', $email)->get();
         } else {
+            $threshold = \App\Models\Setting::getGlobalValue('retention', 'dynamic_discount_threshold', 40);
+            
             $users = User::where('is_subscribe', 1)
                          ->whereNotNull('health_score')
-                         ->where('health_score', '<', 40)
+                         ->where('health_score', '<', $threshold)
                          ->take(20)
                          ->get();
         }
@@ -79,6 +82,13 @@ class DynamicDiscountCommand extends Command
                         $this->info("Subject: " . $result['subject']);
                         $this->info("Body: " . $result['body']);
                         
+                        DynamicDiscountHistory::create([
+                            'user_id' => $user->id,
+                            'discount_code' => $discountCode,
+                            'ai_subject' => $result['subject'],
+                            'ai_body' => $result['body'],
+                        ]);
+
                         // Send via Mail facade here
                         // Mail::raw($result['body'], function($msg) use ($user, $result) {
                         //    $msg->to($user->email)->subject($result['subject']);

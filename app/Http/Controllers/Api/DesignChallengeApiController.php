@@ -53,4 +53,32 @@ class DesignChallengeApiController extends Controller
             'message' => 'Challenge submitted successfully!'
         ]);
     }
+
+    public function getAchievements(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id'
+        ]);
+
+        $userId = $request->user_id;
+        
+        $achievements = \Illuminate\Support\Facades\DB::table('user_achievements')
+            ->where('user_id', $userId)
+            ->get();
+
+        $totalPosts = \App\Models\UserActivity::where('user_id', $userId)
+            ->whereIn('action', ['download_template', 'create_custom_post', 'create_festival_post', 'magic_cloner_use'])
+            ->count();
+            
+        $badgePostCount = \App\Models\Setting::getGlobalValue('gamification', 'badge_post_count', 100);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => [
+                'achievements' => $achievements,
+                'total_posts' => $totalPosts,
+                'badge_post_count' => (int) $badgePostCount
+            ]
+        ]);
+    }
 }

@@ -20,17 +20,29 @@ class CategoryPostController extends Controller
         $this->middleware('permission:CategoryPost');
     }
 
-    public function index()
+    public function index(Request $request)
     {
         $index['category'] = Category::get();
-        $index['data'] = CategoryPost::orderBy('id', 'DESC')->paginate(12);
+        $tab = $request->query('tab', 'image');
+        $index['tab'] = $tab;
+
+        if ($tab == 'video') {
+            $index['data'] = \App\Models\Video::where('type', 'category')->orderBy('id', 'DESC')->paginate(12);
+        } else {
+            $index['data'] = CategoryPost::orderBy('id', 'DESC')->paginate(12);
+        }
         return view("category_post.index", $index);
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $index['category'] = Category::where('status', 1)->get();
         $index['language'] = Language::where('status', 1)->get();
+
+        if ($request->query('type') == 'video') {
+            return view("category_post.create_video", $index);
+        }
+
         return view("category_post.create", $index);
     }
 
@@ -187,12 +199,19 @@ class CategoryPostController extends Controller
         return $html;
     }
 
-    public function category_get($id)
+    public function category_get(Request $request, $id)
     {
         $index['category'] = Category::get();
-        $index['data'] = CategoryPost::where('category_id', $id)->paginate(12);
         $c_name = Category::find($id);
         $index['name'] = $c_name->name;
+        $tab = $request->query('tab', 'image');
+        $index['tab'] = $tab;
+
+        if ($tab == 'video') {
+            $index['data'] = \App\Models\Video::where('type', 'category')->where('category_id', $id)->orderBy('id', 'DESC')->paginate(12);
+        } else {
+            $index['data'] = CategoryPost::where('category_id', $id)->orderBy('id', 'DESC')->paginate(12);
+        }
 
         return view("category_post.index", $index);
     }

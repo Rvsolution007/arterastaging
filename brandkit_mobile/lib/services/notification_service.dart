@@ -37,7 +37,7 @@ class NotificationService {
 
       // 3. Initialize flutter_local_notifications
       const AndroidInitializationSettings androidSettings =
-          AndroidInitializationSettings('@mipmap/ic_launcher');
+          AndroidInitializationSettings('@drawable/launcher_icon');
       const DarwinInitializationSettings iosSettings =
           DarwinInitializationSettings();
       const InitializationSettings initSettings = InitializationSettings(
@@ -178,7 +178,7 @@ class NotificationService {
               channelDescription: 'This channel is used for important notifications.',
               importance: Importance.max,
               priority: Priority.high,
-              icon: '@mipmap/ic_launcher',
+              icon: '@drawable/launcher_icon',
               largeIcon: FilePathAndroidBitmap(imgPath),
               styleInformation: BigPictureStyleInformation(
                 FilePathAndroidBitmap(imgPath),
@@ -258,7 +258,7 @@ class NotificationService {
       channelDescription: 'This channel is used for important notifications.',
       importance: Importance.max,
       priority: Priority.high,
-      icon: '@mipmap/ic_launcher',
+      icon: '@drawable/launcher_icon',
     );
   }
 
@@ -366,7 +366,7 @@ class NotificationService {
             channelDescription: 'This channel is used for important notifications.',
             importance: Importance.max,
             priority: Priority.high,
-            icon: '@mipmap/ic_launcher',
+            icon: '@drawable/launcher_icon',
           ),
           iOS: DarwinNotificationDetails(
             presentAlert: true,

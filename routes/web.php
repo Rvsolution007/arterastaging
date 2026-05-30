@@ -102,13 +102,7 @@ Route::group(['middleware' => ['auth']], function () {
     // Photoroom Background Removal API Endpoint (Web Session)
     Route::post('/remove-background', [\App\Http\Controllers\Api\BackgroundRemovalController::class, 'removeBackground'])->name('remove-background');
 
-    // Partner Portal
-    Route::prefix('partner')->name('partner.')->group(function () {
-        Route::get('/toolkit', 'Partner\ToolkitController@index')->name('toolkit');
-        Route::post('/toolkit/generate', 'Partner\ToolkitController@generate')->name('toolkit.generate');
-        Route::get('/profile', 'Partner\ProfileController@index')->name('profile');
-        Route::post('/profile', 'Partner\ProfileController@update')->name('profile.update');
-    });
+
 });
 
 // Shared UI routes
@@ -181,3 +175,14 @@ Route::get('/digital-business-cards', 'LandingController@digitalBusinessCards')-
 Route::get('/logo-maker', 'LandingController@logoMaker')->name('landing.logo_maker');
 Route::get('/video-maker', 'LandingController@videoMaker')->name('landing.video_maker');
 Route::post('/client-log', function(Illuminate\Http\Request $request) { Illuminate\Support\Facades\Log::info('ClientJS Log: ' . $request->message); return response()->json(['status' => 'ok']); });
+
+Route::group(['middleware' => 'admin', 'prefix' => 'admin'], function() {
+    Route::get('/payment-analytics', 'Admin\RetentionAnalyticsController@paymentAnalytics')->name('admin.payment-analytics');
+    Route::get('/retention/discounts', 'Admin\RetentionAnalyticsController@discountHistory')->name('admin.retention.discounts');
+    Route::get('/retention/quotas', 'Admin\RetentionAnalyticsController@quotaHistory')->name('admin.retention.quotas');
+    Route::get('/retention/winbacks', 'Admin\RetentionAnalyticsController@winbackHistory')->name('admin.retention.winbacks');
+    Route::get('/retention/settings', 'Admin\RetentionAnalyticsController@settings')->name('admin.retention.settings');
+    Route::post('/retention/settings', 'Admin\RetentionAnalyticsController@saveSettings')->name('admin.retention.settings.save');
+    Route::get('/invoices-history', 'Admin\AdminInvoiceController@index')->name('admin.invoices.index');
+    Route::get('/reactivate', 'Admin\RetentionAnalyticsController@reactivateUser')->name('admin.reactivate');
+});

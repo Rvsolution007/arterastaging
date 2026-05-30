@@ -156,6 +156,7 @@ Route::
             // Gamification & Challenges
             Route::get('design-challenges', 'DesignChallengeApiController@getActiveChallenges');
             Route::post('design-challenges/submit', 'DesignChallengeApiController@submitChallenge');
+            Route::get('user-achievements', 'DesignChallengeApiController@getAchievements');
 
             // Native App: Get frames for a specific festival/category/custom post
             Route::get('/get-frames', 'HomeApi@getFrames');

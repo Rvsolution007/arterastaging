@@ -70,11 +70,31 @@ class SendSmartPushNotifications extends Command
                     $result = $fcmService->sendNotificationToUser($user->id, $title, $message);
                     if ($result['status'] === 'success') {
                         $this->info("Sent FCM push notification for User ID: {$user->id}");
+                        \App\Models\PushNotificationLog::create([
+                            'user_id' => $user->id,
+                            'title' => $title,
+                            'message' => $message,
+                            'status' => 'success',
+                        ]);
                     } else {
                         $this->error("Failed to send FCM push for User ID: {$user->id}. Error: " . ($result['message'] ?? 'Unknown error'));
+                        \App\Models\PushNotificationLog::create([
+                            'user_id' => $user->id,
+                            'title' => $title,
+                            'message' => $message,
+                            'status' => 'error',
+                            'error_reason' => $result['message'] ?? 'Unknown error',
+                        ]);
                     }
                 } else {
                     $this->info("Queued DB notification for User ID: {$user->id} (FCM not configured)");
+                    \App\Models\PushNotificationLog::create([
+                        'user_id' => $user->id,
+                        'title' => $title,
+                        'message' => $message,
+                        'status' => 'error',
+                        'error_reason' => 'FCM not configured',
+                    ]);
                 }
             }
         }

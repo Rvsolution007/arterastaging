@@ -298,23 +298,33 @@
     <div class="row align-items-center mb-4">
         <div class="col-md-7">
             <h1 class="page-title">Category Post</h1>
-            <p class="page-subtitle">Manage and curate category-specific frame templates</p>
+            <p class="page-subtitle">Manage and curate category-specific {{ $tab == 'video' ? 'videos' : 'frame templates' }}</p>
         </div>
         <div class="col-md-5 text-right">
-            <a href="{{ route('category-post.create')}}" class="btn-premium-add ml-auto" style="width: fit-content;">
-                <i class="fa fa-plus"></i> Add New Frame
+            <a href="{{ $tab == 'video' ? route('category-post.create', ['type' => 'video']) : route('category-post.create') }}" class="btn-premium-add ml-auto" style="width: fit-content;">
+                <i class="fa fa-plus"></i> Add New {{ $tab == 'video' ? 'Video' : 'Frame' }}
             </a>
         </div>
     </div>
+
+    <!-- Tabs Section -->
+    <ul class="nav nav-tabs mb-4" style="border-bottom: 2px solid #e2e8f0;">
+        <li class="nav-item">
+            <a class="nav-link {{ $tab == 'image' ? 'active' : '' }}" style="font-weight: 600; {{ $tab == 'image' ? 'color: #6366f1; border-bottom: 2px solid #6366f1;' : 'color: #64748b;' }}" href="{{ url('admin/category-post?tab=image') }}">Images</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ $tab == 'video' ? 'active' : '' }}" style="font-weight: 600; {{ $tab == 'video' ? 'color: #6366f1; border-bottom: 2px solid #6366f1;' : 'color: #64748b;' }}" href="{{ url('admin/category-post?tab=video') }}">Videos</a>
+        </li>
+    </ul>
 
     <!-- Actions & Filters Wrapper -->
     <div class="actions-wrapper">
         <div class="filter-group">
             <div class="custom-select-wrapper" style="min-width: 250px;">
                 <select class="form-control" id="category_dropdown" name="category_dropdown" onchange="location = this.value;">
-                    <option value="{{url('admin/category-post')}}" @if(empty($name)) selected @endif>All Categories</option>
+                    <option value="{{url('admin/category-post?tab=' . $tab)}}" @if(empty($name)) selected @endif>All Categories</option>
                     @foreach($category as $c)
-                        <option value="{{url('admin/category-get/'.$c->id)}}" @if(!empty($name) && $name == $c->name) selected @endif>{{$c->name}}</option>
+                        <option value="{{url('admin/category-get/'.$c->id.'?tab=' . $tab)}}" @if(!empty($name) && $name == $c->name) selected @endif>{{$c->name}}</option>
                     @endforeach
                 </select>
             </div>
@@ -341,9 +351,12 @@
                     <i class="fa fa-trash-alt mr-2"></i> Delete Selected
                 </a>
             </div>
-            {!! Form::open(['url' => 'admin/category-post-action','method'=>'POST','class'=>'form-horizontal','id'=>'form1']) !!}
+            {!! Form::open(['url' => $tab == 'video' ? 'admin/video-action' : 'admin/category-post-action','method'=>'POST','class'=>'form-horizontal','id'=>'form1']) !!}
             <input type="hidden" name="select_post" value="">
             <input type="hidden" name="action_type" value="">
+            @if($tab == 'video')
+                <input type="hidden" name="redirect_to" value="category-post">
+            @endif
             {!! Form::close() !!}
         </div>
     </div>
@@ -368,12 +381,18 @@
                 </div>
                 
                 <div class="frame-card-image-wrapper">
-                    <img src="@if(App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean'){{\Storage::disk('spaces')->url('uploads/'.$frame->frame_image)}} @else {{asset('uploads/'.$frame->frame_image)}} @endif" alt="{{$frame->category->name}}">
+                    @if($tab == 'video')
+                        <video width="100%" height="100%" preload="metadata" style="object-fit: cover;">
+                            <source src="@if(App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean'){{\Storage::disk('spaces')->url('uploads/video/'.$frame->video)}} @else {{asset('uploads/video/'.$frame->video)}} @endif#t=5">
+                        </video>
+                    @else
+                        <img src="@if(App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean'){{\Storage::disk('spaces')->url('uploads/'.$frame->frame_image)}} @else {{asset('uploads/'.$frame->frame_image)}} @endif" alt="{{$frame->category->name ?? ''}}">
+                    @endif
                 </div>
 
                 <div class="frame-card-content">
-                    <div class="frame-category-name" title="{{$frame->category->name}}">
-                        {{$frame->category->name}}
+                    <div class="frame-category-name" title="{{$frame->category->name ?? ''}}">
+                        {{$frame->category->name ?? ''}}
                     </div>
 
                     <div class="frame-actions-row">
@@ -381,7 +400,7 @@
                             <div class="text-center">
                                 <span class="switch-label">Status</span>
                                 <label class="cl-switch cl-switch-red mb-0">
-                                    <input type="checkbox" class="frame-switch" data-id="{{$frame->id}}" value="1" @if($frame->status==1) checked @endif>
+                                    <input type="checkbox" class="{{ $tab == 'video' ? 'video-switch' : 'frame-switch' }}" data-id="{{$frame->id}}" value="1" @if($frame->status==1) checked @endif>
                                     <span class="switcher"></span>
                                 </label>
                             </div>
@@ -396,17 +415,28 @@
                         </div>
 
                         <div class="action-icons">
-                            <a href="{{url('admin/category-post/'.$frame->id.'/edit')}}" class="icon-btn icon-btn-edit" data-toggle="tooltip" title="Edit Frame">
-                                <i class="fa fa-edit"></i>
-                            </a>
-                            <a href="#" data-id="{{$frame->id}}" class="icon-btn icon-btn-delete btn_delete_a" data-toggle="modal" data-target="#myModal" title="Delete Frame">
+                            @if($tab == 'video')
+                                <a href="{{url('admin/video/'.$frame->id.'/edit?tab=video&redirect_to=category-post')}}" class="icon-btn icon-btn-edit" data-toggle="tooltip" title="Edit Video">
+                                    <i class="fa fa-edit"></i>
+                                </a>
+                            @else
+                                <a href="{{url('admin/category-post/'.$frame->id.'/edit')}}" class="icon-btn icon-btn-edit" data-toggle="tooltip" title="Edit Frame">
+                                    <i class="fa fa-edit"></i>
+                                </a>
+                            @endif
+                            <a href="#" data-id="{{$frame->id}}" class="icon-btn icon-btn-delete btn_delete_a" data-toggle="modal" data-target="#myModal" title="Delete">
                                 <i class="fa fa-trash"></i>
                             </a>
                         </div>
                     </div>
                 </div>
 
-                {!! Form::open(['url' => 'admin/category-post/'.$frame->id,'method'=>'DELETE','class'=>'form-horizontal','id'=>'form_'.$frame->id]) !!}
+                @if($tab == 'video')
+                    {!! Form::open(['url' => 'admin/video/'.$frame->id,'method'=>'DELETE','class'=>'form-horizontal','id'=>'form_'.$frame->id]) !!}
+                    {!! Form::hidden("redirect_to", "category-post") !!}
+                @else
+                    {!! Form::open(['url' => 'admin/category-post/'.$frame->id,'method'=>'DELETE','class'=>'form-horizontal','id'=>'form_'.$frame->id]) !!}
+                @endif
                 {!! Form::hidden("id",$frame->id) !!}
                 {!! Form::close() !!}
             </div>
@@ -595,10 +625,11 @@
       $(".checkbox2").change(function(){
         var checked = $(this).is(':checked');
         var id = $(this).data("id");
+        var isVideo = '{{ $tab }}' === 'video';
 
         $.ajax({
           type: "POST",
-          url: "{{url('admin/category-post-type')}}",
+          url: isVideo ? "{{url('admin/video-type')}}" : "{{url('admin/category-post-type')}}",
           data: { checked : checked , id : id},
           headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
           success: function(data) {
@@ -606,7 +637,7 @@
             {
               new PNotify({
                 title: 'Success!',
-                text: "Category Post Set Paid",
+                text: isVideo ? "Video Set Paid" : "Category Post Set Paid",
                 type: 'success'
               });
             }
@@ -614,7 +645,7 @@
             {
               new PNotify({
                 title: 'Success!',
-                text: "Category Post Set Free",
+                text: isVideo ? "Video Set Free" : "Category Post Set Free",
                 type: 'success'
               });
             }
@@ -645,6 +676,25 @@
             new PNotify({
               title: 'Success!',
               text: "Category Post Status Has Been Changed.",
+              type: 'success'
+            });
+          },
+        });
+      });
+
+      $(".video-switch").change(function(){
+        var checked = $(this).is(':checked');
+        var id = $(this).data("id");
+        
+        $.ajax({
+          type: "POST",
+          url: "{{url('admin/video-status')}}",
+          data: { checked : checked , id : id},
+          headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+          success: function(data) {
+            new PNotify({
+              title: 'Success!',
+              text: "Video Status Has Been Changed.",
               type: 'success'
             });
           },

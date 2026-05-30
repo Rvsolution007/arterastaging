@@ -300,6 +300,9 @@
         <li class="nav-item">
             <a class="nav-link" id="feature-tab" data-toggle="tab" href="#feature" role="tab"><i class="fa-solid fa-compass nav-icon text-info"></i> Feature Adoption</a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link" id="leads-tab" data-toggle="tab" href="#leads" role="tab"><i class="fa-solid fa-fire nav-icon" style="color: #e11d48;"></i> Hot Leads</a>
+        </li>
 
     </ul>
 
@@ -526,6 +529,64 @@
                     </div>
                 </div>
             </div>
+    </div>
+
+        <!-- TAB 4: Leads -->
+        <div class="tab-pane fade" id="leads" role="tabpanel">
+            <div class="table-panel">
+                <div class="table-panel-header">
+                    <div class="table-icon-wrapper icon-failed" style="background: #fee2e2; color: #e11d48;">
+                        <i class="fa-solid fa-fire"></i>
+                    </div>
+                    <h5 class="table-panel-title">Hot Registered Leads</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="custom-table">
+                        <thead>
+                            <tr>
+                                <th>Name / Email</th>
+                                <th style="width: 40%;">Conversion Score</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($hotLeads as $u)
+                            <tr>
+                                <td>
+                                    <div class="font-weight-bold text-dark">{{ $u->name }}</div>
+                                    <div class="text-muted" style="font-size: 0.75rem;">{{ $u->email }}</div>
+                                </td>
+                                <td>
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span style="font-size: 0.75rem; font-weight: 600; color: {{ $u->lead_score > 80 ? '#e11d48' : '#d97706' }};">{{ $u->lead_score }} / 100</span>
+                                    </div>
+                                    <div class="progress-custom" style="height: 8px; border-radius: 4px; background-color: #f1f5f9; overflow: hidden; margin-top: 0.5rem;">
+                                        <div class="progress-bar-custom {{ $u->lead_score > 80 ? 'bg-danger' : 'bg-warning' }}" role="progressbar" style="width: {{ $u->lead_score }}%; border-radius: 4px;" aria-valuenow="{{ $u->lead_score }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn-ai mr-1" onclick="generateLeadStrategy({{ $u->id }}, this)">
+                                        <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> AI Sales Strategy
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr id="lead-strategy-row-{{ $u->id }}" style="display:none;">
+                                <td colspan="3" class="p-0 border-0">
+                                    <div class="strategy-box" id="lead-strategy-content-{{ $u->id }}" style="display: none; background: #f8fafc; border-radius: 12px; padding: 1.5rem; margin: 1rem 1.5rem; border: 1px solid #e2e8f0; border-left: 4px solid #8b5cf6;">
+                                        <!-- AI Content goes here -->
+                                    </div>
+                                </td>
+                            </tr>
+                            @endforeach
+                            @if(count($hotLeads) == 0)
+                            <tr>
+                                <td colspan="3" class="text-center py-4 text-muted border-0">No registered leads found.</td>
+                            </tr>
+                            @endif
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
     </div>
@@ -622,6 +683,83 @@ function generateStrategy(userId, btn) {
             html += '<div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.2rem; margin-bottom: 1rem;">';
             html += '<div class="d-flex justify-content-between align-items-center mb-3">';
             html += '<h6 class="font-weight-bold mb-0" style="color: #0ea5e9;"><i class="fa-regular fa-envelope mr-2"></i> Suggested Outreach Message</h6>';
+            html += '<div>';
+            html += '<button class="btn btn-sm btn-primary mr-2" id="send-mail-btn-' + userId + '" onclick="sendMail(' + userId + ', this)"><i class="fa-regular fa-paper-plane mr-1"></i> Send Mail</button>';
+            html += '<button class="btn btn-sm btn-success" id="send-whatsapp-btn-' + userId + '" onclick="sendStrategyWhatsapp(' + userId + ', this)"><i class="fab fa-whatsapp mr-1"></i> Send WhatsApp</button>';
+            html += '</div></div>';
+            html += '<div class="mb-2"><span class="badge-soft" style="background:#f1f5f9;">Subject:</span> <strong class="text-dark">' + data.data.email_subject + '</strong></div>';
+            html += '<div class="text-dark mt-3" style="white-space: pre-wrap; font-size: 0.9rem;">' + data.data.email_body + '</div>';
+            html += '</div>';
+
+            // Push Notification Section
+            if (data.data.push_title && data.data.push_message) {
+                html += '<div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.2rem;">';
+                html += '<div class="d-flex justify-content-between align-items-center mb-3">';
+                html += '<h6 class="font-weight-bold mb-0" style="color: #f59e0b;"><i class="fa-regular fa-bell mr-2"></i> Suggested Push Notification</h6>';
+                html += '<button class="btn btn-sm btn-warning text-white" id="send-notif-btn-' + userId + '" onclick="sendPushNotification(' + userId + ', this)"><i class="fa-solid fa-mobile-screen-button mr-1"></i> Send Notification</button>';
+                html += '</div>';
+                html += '<div class="mb-2"><span class="badge-soft" style="background:#f1f5f9;">Title:</span> <strong class="text-dark">' + data.data.push_title + '</strong></div>';
+                html += '<div class="text-dark mt-2" style="font-size: 0.9rem;">' + data.data.push_message + '</div>';
+                html += '</div>';
+            }
+            
+            box.innerHTML = html;
+        } else {
+            box.innerHTML = '<div class="text-danger py-3"><i class="fa-solid fa-triangle-exclamation mr-2"></i> Error: ' + data.message + '</div>';
+        }
+    })
+    .catch(error => {
+        box.innerHTML = '<div class="text-danger py-3"><i class="fa-solid fa-triangle-exclamation mr-2"></i> Network error occurred. Please check console.</div>';
+        console.error(error);
+    })
+    .finally(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}
+
+function generateLeadStrategy(userId, btn) {
+    let row = document.getElementById('lead-strategy-row-' + userId);
+    let box = document.getElementById('lead-strategy-content-' + userId);
+    
+    // Toggle close if already open and not loading
+    if(row.style.display === 'table-row' && box.innerHTML.indexOf('fa-spinner') === -1) {
+        row.style.display = 'none';
+        return;
+    }
+
+    row.style.display = 'table-row';
+    box.style.display = 'block';
+    box.innerHTML = '<div class="text-center py-4"><i class="fas fa-circle-notch fa-spin fa-2x text-primary mb-2"></i><p class="text-muted mb-0">AI is analyzing lead behavior and drafting pitch...</p></div>';
+    
+    let originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+    btn.disabled = true;
+
+    fetch(`{{ url('admin/churn/generate-lead-strategy') }}/${userId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if(data.status === 'success') {
+            _churnData[userId] = data.data;
+
+            let html = '<h6 class="font-weight-bold" style="color: #4338ca;"><i class="fa-solid fa-bullseye mr-2"></i> AI Conversion Strategy</h6>';
+            html += '<ul class="text-dark mb-4" style="padding-left: 1.2rem;">';
+            data.data.strategy_steps.forEach(function(step) {
+                html += '<li class="mb-1">' + step + '</li>';
+            });
+            html += '</ul>';
+            
+            // Email Section
+            html += '<div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.2rem; margin-bottom: 1rem;">';
+            html += '<div class="d-flex justify-content-between align-items-center mb-3">';
+            html += '<h6 class="font-weight-bold mb-0" style="color: #0ea5e9;"><i class="fa-regular fa-envelope mr-2"></i> Suggested Pitch Message</h6>';
             html += '<div>';
             html += '<button class="btn btn-sm btn-primary mr-2" id="send-mail-btn-' + userId + '" onclick="sendMail(' + userId + ', this)"><i class="fa-regular fa-paper-plane mr-1"></i> Send Mail</button>';
             html += '<button class="btn btn-sm btn-success" id="send-whatsapp-btn-' + userId + '" onclick="sendStrategyWhatsapp(' + userId + ', this)"><i class="fab fa-whatsapp mr-1"></i> Send WhatsApp</button>';

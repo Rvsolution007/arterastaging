@@ -36,6 +36,10 @@ class AuthController extends GetxController {
         await prefs.setBool('isSubscribe', data['isSubscribe'] ?? false);
         await prefs.setBool('isPartner', data['isPartner'] ?? false);
         
+        // Save Gamification Stats
+        await prefs.setInt('currentStreak', data['currentStreak'] ?? 0);
+        await prefs.setInt('maxStreak', data['maxStreak'] ?? 0);
+        
         if (data['adConfig'] != null) {
           try {
             Get.find<AdController>().updateAdConfig(data['adConfig']);
@@ -98,6 +102,10 @@ class AuthController extends GetxController {
         await prefs.setString('planEndDate', data['planEndDate'] ?? '');
         await prefs.setBool('isSubscribe', data['isSubscribe'] ?? false);
         await prefs.setBool('isPartner', data['isPartner'] ?? false);
+        
+        // Save Gamification Stats
+        await prefs.setInt('currentStreak', data['currentStreak'] ?? 0);
+        await prefs.setInt('maxStreak', data['maxStreak'] ?? 0);
         
         if (data['adConfig'] != null) {
           try {

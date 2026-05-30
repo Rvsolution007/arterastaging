@@ -21,7 +21,18 @@ class ChurnController extends Controller
             'avg_health' => (int) User::avg('health_score'),
         ];
 
-        return view('admin.churn.index', compact('users', 'stats'));
+        $hotLeads = User::where(function($query) {
+                            $query->where('is_subscribe', 0)
+                                  ->orWhereNull('is_subscribe');
+                        })
+                        ->where('user_type', '!=', 'Super Admin') // Exclude Admin
+                        ->orderBy('lead_score', 'desc')
+                        ->take(50)
+                        ->get();
+
+        $coldLeads = \App\Models\Lead::orderBy('created_at', 'desc')->get();
+
+        return view('admin.churn.index', compact('users', 'stats', 'hotLeads', 'coldLeads'));
     }
 
     public function generateStrategy(Request $request, $id)
@@ -124,6 +135,45 @@ class ChurnController extends Controller
         }
 
         return response()->json(['status' => 'error', 'message' => 'Failed to generate strategy or invalid JSON received.']);
+    }
+
+    public function generateLeadStrategy(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+
+        $context = [
+            'name' => $user->name,
+            'lead_score' => $user->lead_score,
+            'usage_count' => $user->total_usage_count ?? 0,
+            'completed_onboarding_steps' => $user->completed_onboarding_steps
+        ];
+
+        $systemInstruction = "You are an expert SaaS Sales SDR for Artera. Based on the provided free user profile and their Lead Score, generate a concise, actionable outreach strategy to convert this user to a paid premium plan.\n\n" . 
+        "CRITICAL: Suggest a highly personalized outreach message to send them. Use Markdown **bold** for important keywords, and sprinkle in relevant emojis.\n\n" .
+        "Additionally, generate a short, attractive Push Notification to send to their mobile app. The title should be catchy (max 50 chars) and the message should be punchy (max 150 chars), inviting them to upgrade to premium.\n\n" .
+        "Output in pure JSON format: {\"strategy_steps\": [\"step1\", \"step2\", \"step3\"], \"email_subject\": \"Subject here\", \"email_body\": \"Message here\", \"push_title\": \"Push title here\", \"push_message\": \"Push message here\"}";
+        
+        $prompt = json_encode($context);
+
+        $aiService = new VertexAIService(auth()->id() ?? 1);
+        $response = $aiService->generateContent($systemInstruction, [
+            ['role' => 'user', 'text' => $prompt]
+        ]);
+
+        if (isset($response['text']) && !str_contains($response['text'], 'Sorry, an error occurred')) {
+            $jsonStr = trim($response['text']);
+            if(str_starts_with($jsonStr, '```json')) {
+                $jsonStr = str_replace(['```json', '```'], '', $jsonStr);
+            }
+            $jsonStr = trim($jsonStr);
+            
+            $result = json_decode($jsonStr, true);
+            if(json_last_error() === JSON_ERROR_NONE) {
+                return response()->json(['status' => 'success', 'data' => $result]);
+            }
+        }
+
+        return response()->json(['status' => 'error', 'message' => 'Failed to generate lead strategy.']);
     }
 
     public function sendMail(Request $request, $id)

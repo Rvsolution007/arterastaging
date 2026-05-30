@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use App\Models\User;
+use App\Models\QuotaAlertHistory;
 
 class QuotaAlertCommand extends Command
 {
@@ -47,9 +48,17 @@ class QuotaAlertCommand extends Command
             if ($limit > 0) {
                 $percentage = ($used / $limit) * 100;
 
-                if ($percentage >= 90) {
+                $threshold = \App\Models\Setting::getGlobalValue('retention', 'quota_alert_threshold', 90);
+
+                if ($percentage >= $threshold) {
                     $this->info("User {$user->name} is at {$percentage}% of their quota.");
                     
+                    QuotaAlertHistory::create([
+                        'user_id' => $user->id,
+                        'limit_amount' => $limit,
+                        'used_amount' => $used,
+                    ]);
+
                     // Fire push notification/email
                     // Mail::to($user->email)->send(new UpgradePromptMail($user));
                     $this->info("Upgrade prompt sent to {$user->email}");

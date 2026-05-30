@@ -581,7 +581,7 @@
 
 
 
-            @if(Request::is('admin/referral-system*') || Request::is('admin/withdraw-request*') || Request::is('admin/subscription-plan*') || Request::is('admin/coupon-code*') || Request::is('admin/transaction*') || Request::is('admin/offer*'))
+            @if(Request::is('admin/subscription-plan*') || Request::is('admin/transaction*'))
             @php($class = "menu-open")
             @php($active = "active")
             @else
@@ -589,7 +589,7 @@
             @php($active = "")
             @endif
 
-            @canany(['ReferralSystem', 'WithdrawRequest', 'SubscriptionPlan', 'CouponCode', 'FinancialStatistics', 'Offer'])
+            @canany(['SubscriptionPlan', 'FinancialStatistics'])
               <li class="nav-item has-treeview {{$class}}">
                 <a href="#" class="nav-link {{$active}}" style="color: white;">
                   <i class="nav-icon fa-solid fa-landmark"></i>
@@ -600,36 +600,11 @@
                 </a>
 
                 <ul class="nav nav-treeview">
-                  @can('ReferralSystem')
-                    <li class="nav-item">
-                      <a href="{{url('admin/referral-system')}}"
-                        class="nav-link @if(Request::is('admin/referral-system*')) active @endif" style="color: white;">
-                        <p><i class="fa fa-angle-right ml-3 mr-1"></i> Referral System</p>
-                      </a>
-                    </li>
-                  @endcan
-                  @can('WithdrawRequest')
-                    <li class="nav-item">
-                      <a href="{{url('admin/withdraw-request')}}"
-                        class="nav-link @if(Request::is('admin/withdraw-request*') && !Request::is('admin/product-category*')) active @endif"
-                        style="color: white;">
-                        <p><i class="fa fa-angle-right ml-3 mr-1"></i> Withdraw Request</p>
-                      </a>
-                    </li>
-                  @endcan
                   @can('SubscriptionPlan')
                     <li class="nav-item">
                       <a href="{{route('subscription-plan.index')}}"
                         class="nav-link @if(Request::is('admin/subscription-plan*')) active @endif" style="color: white;">
                         <p><i class="fa fa-angle-right ml-3 mr-1"></i> Subscriptions Plan</p>
-                      </a>
-                    </li>
-                  @endcan
-                  @can('CouponCode')
-                    <li class="nav-item">
-                      <a href="{{route('coupon-code.index')}}"
-                        class="nav-link @if(Request::is('admin/coupon-code*')) active @endif" style="color: white;">
-                        <p><i class="fa fa-angle-right ml-3 mr-1"></i> Coupon Code</p>
                       </a>
                     </li>
                   @endcan
@@ -641,17 +616,17 @@
                       </a>
                     </li>
                   @endcan
-                  @can('Offer')
-                    <li class="nav-item">
-                      <a href="{{url('admin/offer')}}" class="nav-link @if(Request::is('admin/offer*')) active @endif"
-                        style="color: white;">
-                        <p><i class="fa fa-angle-right ml-3 mr-1"></i> Offer</p>
-                      </a>
-                    </li>
-                  @endcan
                 </ul>
               </li>
             @endcanany
+
+            @php($revenueActive = (Request::is('admin/retention*') || Request::is('admin/invoices-history*') || Request::is('admin/payment-analytics*')) ? "active" : "")
+            <li class="nav-item">
+                <a href="{{ url('admin/payment-analytics') }}" class="nav-link {{$revenueActive}}" style="color: white;">
+                  <i class="nav-icon fa-solid fa-money-bill-trend-up text-success"></i>
+                  <p>Revenue & Retention</p>
+                </a>
+            </li>
 
                   @php($marketingClass = (Request::is('admin/blogs*') || Request::is('admin/leads*')) ? "menu-open" : "")
                   @php($marketingActive = (Request::is('admin/blogs*') || Request::is('admin/leads*')) ? "active" : "")
@@ -668,11 +643,6 @@
                       <li class="nav-item">
                         <a href="{{ url('admin/blogs') }}" class="nav-link @if(Request::is('admin/blogs*')) active @endif" style="color: white;">
                           <p><i class="fa fa-angle-right ml-3 mr-1"></i> AI Blogs</p>
-                        </a>
-                      </li>
-                      <li class="nav-item">
-                        <a href="{{ route('admin.leads') }}" class="nav-link @if(Request::is('admin/leads*')) active @endif" style="color: white;">
-                          <p><i class="fa fa-angle-right ml-3 mr-1"></i> Lead Management</p>
                         </a>
                       </li>
                     </ul>
@@ -725,16 +695,7 @@
             @php($active = "")
             @endif
 
-            @can('Video')
-              <li class="nav-item has-treeview {{$class}}">
-                <a href="{{route('video.index')}}" class="nav-link {{$active}}" style="color: white;">
-                  <i class="nav-icon fas fa-video"></i>
-                  <p>
-                    Video
-                  </p>
-                </a>
-              </li>
-            @endcan
+
 
 
 
@@ -760,16 +721,7 @@
             @endcan
 
 
-            @can('Users')
-              <li class="nav-item has-treeview">
-                <a href="{{route('admin.user_performance')}}" class="nav-link @if(Request::is('admin/user-performance*')) active @endif" style="color: white;">
-                  <i class="nav-icon fa fa-chart-pie"></i>
-                  <p>
-                    User Performance
-                  </p>
-                </a>
-              </li>
-            @endcan
+
 
             @if(Request::is('admin/reported-errors'))
             @php($class = "menu-open")
@@ -923,8 +875,8 @@
               </li>
             @endcan
 
-            @php($analyticsClass = (Request::is('admin/churn*') || Request::is('admin/ai-analytics*')) ? "menu-open" : "")
-            @php($analyticsActive = (Request::is('admin/churn*') || Request::is('admin/ai-analytics*')) ? "active" : "")
+            @php($analyticsClass = (Request::is('admin/churn*') || Request::is('admin/ai-analytics*') || Request::is('admin/user-performance*')) ? "menu-open" : "")
+            @php($analyticsActive = (Request::is('admin/churn*') || Request::is('admin/ai-analytics*') || Request::is('admin/user-performance*')) ? "active" : "")
             <li class="nav-item has-treeview {{$analyticsClass}}">
                 <a href="#" class="nav-link {{$analyticsActive}}" style="color: white;">
                   <i class="nav-icon fa-solid fa-chart-line text-info"></i>
@@ -943,6 +895,15 @@
                       <p><i class="fa fa-angle-right ml-3 mr-1"></i> AI Token Analytics</p>
                     </a>
                   </li>
+                  
+                  @can('Users')
+                  <li class="nav-item">
+                    <a href="{{route('admin.user_performance')}}" class="nav-link @if(Request::is('admin/user-performance*')) active @endif" style="color: white;">
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> User Performance</p>
+                    </a>
+                  </li>
+                  @endcan
+
                 </ul>
             </li>
 
@@ -974,8 +935,8 @@
 
 
 
-            @php($partnerClass = (Request::is('*partner-leaderboard*') || Request::is('*partner/toolkit*') || Request::is('*partner/profile*')) ? "menu-open" : "")
-            @php($partnerActive = (Request::is('*partner-leaderboard*') || Request::is('*partner/toolkit*') || Request::is('*partner/profile*')) ? "active" : "")
+            @php($partnerClass = (Request::is('*partner-leaderboard*') || Request::is('admin/referral-system*') || Request::is('admin/withdraw-request*') || Request::is('admin/coupon-code*') || Request::is('admin/offer*')) ? "menu-open" : "")
+            @php($partnerActive = (Request::is('*partner-leaderboard*') || Request::is('admin/referral-system*') || Request::is('admin/withdraw-request*') || Request::is('admin/coupon-code*') || Request::is('admin/offer*')) ? "active" : "")
             <li class="nav-item has-treeview {{$partnerClass}}">
                 <a href="#" class="nav-link {{$partnerActive}}" style="color: white;">
                   <i class="nav-icon fa-solid fa-handshake text-warning"></i>
@@ -987,16 +948,37 @@
                       <p><i class="fa fa-angle-right ml-3 mr-1"></i> Leaderboard</p>
                     </a>
                   </li>
-                  <li class="nav-item">
-                    <a href="{{ route('partner.toolkit') }}" class="nav-link @if(Request::is('*partner/toolkit*')) active @endif" style="color: white;">
-                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> AI Marketing Toolkit</p>
-                    </a>
-                  </li>
-                  <li class="nav-item">
-                    <a href="{{ route('partner.profile') }}" class="nav-link @if(Request::is('*partner/profile*')) active @endif" style="color: white;">
-                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> Compliance Profile</p>
-                    </a>
-                  </li>
+                  @can('ReferralSystem')
+                    <li class="nav-item">
+                      <a href="{{url('admin/referral-system')}}"
+                        class="nav-link @if(Request::is('admin/referral-system*')) active @endif" style="color: white;">
+                        <p><i class="fa fa-angle-right ml-3 mr-1"></i> Referral System</p>
+                      </a>
+                    </li>
+                  @endcan
+                  @can('WithdrawRequest')
+                    <li class="nav-item">
+                      <a href="{{url('admin/withdraw-request')}}"
+                        class="nav-link @if(Request::is('admin/withdraw-request*')) active @endif" style="color: white;">
+                        <p><i class="fa fa-angle-right ml-3 mr-1"></i> Withdraw Request</p>
+                      </a>
+                    </li>
+                  @endcan
+                  @can('CouponCode')
+                    <li class="nav-item">
+                      <a href="{{route('coupon-code.index')}}"
+                        class="nav-link @if(Request::is('admin/coupon-code*')) active @endif" style="color: white;">
+                        <p><i class="fa fa-angle-right ml-3 mr-1"></i> Coupon Code</p>
+                      </a>
+                    </li>
+                  @endcan
+                  @can('Offer')
+                    <li class="nav-item">
+                      <a href="{{url('admin/offer')}}" class="nav-link @if(Request::is('admin/offer*')) active @endif" style="color: white;">
+                        <p><i class="fa fa-angle-right ml-3 mr-1"></i> Offer</p>
+                      </a>
+                    </li>
+                  @endcan
                 </ul>
             </li>
 

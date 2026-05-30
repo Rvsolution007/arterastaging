@@ -131,8 +131,18 @@
           <h3 class="card-title float-left">
             Festivals Post
           </h3>
-          <a href="{{ route('festivals-post.create')}}" class="btn btn-success float-right">Add New</a>
+          <a href="{{ $tab == 'video' ? route('festivals-post.create', ['type' => 'video']) : route('festivals-post.create') }}" class="btn btn-success float-right">Add New</a>
         </div>
+
+        <!-- Tabs Section -->
+        <ul class="nav nav-tabs mt-3 px-3" style="border-bottom: 2px solid #e2e8f0;">
+            <li class="nav-item">
+                <a class="nav-link {{ $tab == 'image' ? 'active' : '' }}" style="font-weight: 600; {{ $tab == 'image' ? 'color: #6366f1; border-bottom: 2px solid #6366f1;' : 'color: #64748b;' }}" href="{{ url('admin/festivals-post?tab=image') }}">Images</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {{ $tab == 'video' ? 'active' : '' }}" style="font-weight: 600; {{ $tab == 'video' ? 'color: #6366f1; border-bottom: 2px solid #6366f1;' : 'color: #64748b;' }}" href="{{ url('admin/festivals-post?tab=video') }}">Videos</a>
+            </li>
+        </ul>
 
         <div class="card-body">
           <div class="row d-flex justify-content-between mb-3 px-3">
@@ -140,10 +150,10 @@
               <div class="mr-3">
                 <select class="form-control select2" id="festival_dropdown" name="festival_dropdown"
                   onchange="location = this.value;">
-                  <option value="{{url('admin/festivals-post')}}" @if(empty($name)) selected @endif>Select Festivals
+                  <option value="{{url('admin/festivals-post?tab=' . $tab)}}" @if(empty($name)) selected @endif>Select Festivals
                   </option>
                   @foreach($festivals as $f)
-                    <option value="{{url('admin/festival/' . $f->id)}}" @if(!empty($name) && $name == $f->title) selected
+                    <option value="{{url('admin/festival/' . $f->id . '?tab=' . $tab)}}" @if(!empty($name) && $name == $f->title) selected
                     @endif>{{$f->title}}</option>
                   @endforeach
                 </select>
@@ -165,9 +175,12 @@
                   <li><a class="dropdown-item" href="#" data-type="delete" data-toggle="modal"
                       data-target="#deleteModal">Delete</a></li>
                 </ul>
-                {!! Form::open(['url' => 'admin/festivals-post-action', 'method' => 'POST', 'class' => 'form-horizontal', 'id' => 'form1']) !!}
+                {!! Form::open(['url' => $tab == 'video' ? 'admin/video-action' : 'admin/festivals-post-action', 'method' => 'POST', 'class' => 'form-horizontal', 'id' => 'form1']) !!}
                 <input type="hidden" name="select_post" value="">
                 <input type="hidden" name="action_type" value="">
+                @if($tab == 'video')
+                    <input type="hidden" name="redirect_to" value="festivals-post">
+                @endif
                 {!! Form::close() !!}
               </div>
             </div>
@@ -196,21 +209,33 @@
                     </td>
                     <td class="align-middle">#{{$frame->id}}</td>
                     <td class="align-middle">
-                      <img
-                        src="@if(App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean'){{\Storage::disk('spaces')->url('uploads/' . $frame->frame_image)}} @else {{asset('uploads/' . $frame->frame_image)}} @endif"
-                        class="img-preview-trigger shadow-sm"
-                        data-url="@if(App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean'){{\Storage::disk('spaces')->url('uploads/' . $frame->frame_image)}} @else {{asset('uploads/' . $frame->frame_image)}} @endif"
-                        alt="Thumb" />
+                      @if($tab == 'video')
+                        <video width="60" height="60" preload="metadata" style="object-fit: cover; border-radius: 8px;">
+                          <source src="@if(App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean'){{\Storage::disk('spaces')->url('uploads/video/' . $frame->video)}} @else {{asset('uploads/video/' . $frame->video)}} @endif#t=5">
+                        </video>
+                      @else
+                        <img
+                          src="@if(App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean'){{\Storage::disk('spaces')->url('uploads/' . $frame->frame_image)}} @else {{asset('uploads/' . $frame->frame_image)}} @endif"
+                          class="img-preview-trigger shadow-sm"
+                          data-url="@if(App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean'){{\Storage::disk('spaces')->url('uploads/' . $frame->frame_image)}} @else {{asset('uploads/' . $frame->frame_image)}} @endif"
+                          alt="Thumb" />
+                      @endif
                     </td>
                     <td class="align-middle">
-                      <span class="font-weight-bold">{{$frame->festivals->title}}</span>
+                      <span class="font-weight-bold">
+                        @if($tab == 'video')
+                            {{$frame->festival->title ?? ''}}
+                        @else
+                            {{$frame->festivals->title ?? ''}}
+                        @endif
+                      </span>
                     </td>
                     <td class="align-middle">
-                      <input class="festivals-switch-ajax" type="checkbox" data-id="{{$frame->id}}" value="1"
+                      <input class="{{ $tab == 'video' ? 'video-switch-ajax' : 'festivals-switch-ajax' }}" type="checkbox" data-id="{{$frame->id}}" value="1"
                         @if($frame->status == 1) checked @endif>
                     </td>
                     <td class="align-middle">
-                      <input class="type-switch-ajax" type="checkbox" data-id="{{$frame->id}}" value="1"
+                      <input class="{{ $tab == 'video' ? 'video-type-switch-ajax' : 'type-switch-ajax' }}" type="checkbox" data-id="{{$frame->id}}" value="1"
                         @if($frame->paid == 1) checked @endif>
                     </td>
                     <td class="align-middle">
@@ -219,16 +244,26 @@
                     </td>
                     <td class="align-middle">
                       <div class="btn-group">
-                        <a href="{{url('admin/festivals-post/' . $frame->id . '/edit')}}" class="btn btn-sm btn-success"
-                          data-toggle="tooltip" title="Edit">
-                          <i class="fa fa-edit"></i>
-                        </a>
+                        @if($tab == 'video')
+                            <a href="{{url('admin/video/' . $frame->id . '/edit?tab=video&redirect_to=festivals-post')}}" class="btn btn-sm btn-success" data-toggle="tooltip" title="Edit">
+                              <i class="fa fa-edit"></i>
+                            </a>
+                        @else
+                            <a href="{{url('admin/festivals-post/' . $frame->id . '/edit')}}" class="btn btn-sm btn-success" data-toggle="tooltip" title="Edit">
+                              <i class="fa fa-edit"></i>
+                            </a>
+                        @endif
                         <button type="button" data-id="{{$frame->id}}" class="btn btn-sm btn-danger ml-2 btn_delete_a"
                           data-toggle="modal" data-target="#myModal" title="Delete">
                           <i class="fa fa-trash"></i>
                         </button>
                       </div>
-                      {!! Form::open(['url' => 'admin/festivals-post/' . $frame->id, 'method' => 'DELETE', 'class' => 'form-horizontal', 'id' => 'form_' . $frame->id]) !!}
+                      @if($tab == 'video')
+                          {!! Form::open(['url' => 'admin/video/' . $frame->id, 'method' => 'DELETE', 'class' => 'form-horizontal', 'id' => 'form_' . $frame->id]) !!}
+                          {!! Form::hidden("redirect_to", "festivals-post") !!}
+                      @else
+                          {!! Form::open(['url' => 'admin/festivals-post/' . $frame->id, 'method' => 'DELETE', 'class' => 'form-horizontal', 'id' => 'form_' . $frame->id]) !!}
+                      @endif
                       {!! Form::hidden("id", $frame->id) !!}
                       {!! Form::close() !!}
                     </td>
@@ -370,6 +405,8 @@
     $.switcher('.festivals-switch-ajax');
     $.switcher('.type-switch-ajax');
     $.switcher('.ai-switch-ajax');
+    $.switcher('.video-switch-ajax');
+    $.switcher('.video-type-switch-ajax');
 
     var checkarray = [];
     $("#checkall").click(function () {
@@ -472,6 +509,38 @@
               text: "Festivals Post Set Free",
               type: 'success'
             });
+          }
+        },
+      });
+    });
+
+    $(document).on('change', ".video-switch-ajax", function () {
+      var checked = $(this).is(':checked');
+      var id = $(this).data("id");
+      $.ajax({
+        type: "POST",
+        url: "{{url('admin/video-status')}}",
+        data: { checked: checked, id: id },
+        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+        success: function (data) {
+          new PNotify({title: 'Success!', text: "Video Status Changed.", type: 'success'});
+        },
+      });
+    });
+
+    $(document).on('change', ".video-type-switch-ajax", function () {
+      var checked = $(this).is(':checked');
+      var id = $(this).data("id");
+      $.ajax({
+        type: "POST",
+        url: "{{url('admin/video-type')}}",
+        data: { checked: checked, id: id },
+        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+        success: function (data) {
+          if (data == 1) {
+            new PNotify({title: 'Success!', text: "Video Set Paid", type: 'success'});
+          } else {
+            new PNotify({title: 'Success!', text: "Video Set Free", type: 'success'});
           }
         },
       });

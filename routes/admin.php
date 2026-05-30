@@ -189,6 +189,7 @@ Route::
             Route::post('storage-setting', 'SettingController@storage_setting');
             Route::post('api-setting', 'SettingController@api_setting');
             Route::post('whatsapp-setting', 'SettingController@whatsapp_setting');
+            Route::post('whatsapp-generate-qr', 'SettingController@generateWhatsappQr');
             Route::post('app-update-setting', 'SettingController@app_update_setting');
             Route::post('other-setting', 'SettingController@other_setting');
             Route::post('ads-setting', 'SettingController@ads_setting');
@@ -256,11 +257,12 @@ Route::
             Route::get('knowledge-base/{id}/delete', 'AdminKnowledgeBaseController@destroy')->name('admin.knowledge_base.delete');
 
             Route::get('churn-analytics', 'ChurnController@index')->name('admin.churn_analytics');
-            Route::post('churn/generate-strategy/{id}', 'ChurnController@generateStrategy')->name('admin.churn.generate_strategy');
-            Route::post('churn/send-mail/{id}', 'ChurnController@sendMail')->name('admin.churn.send_mail');
-            Route::post('churn/send-notification/{id}', 'ChurnController@sendNotification')->name('admin.churn.send_notification');
-            Route::get('journey', 'JourneyController@index')->name('admin.journey');
-            Route::get('payment-analytics', 'PaymentAnalyticsController@index')->name('admin.payment_analytics');
+            Route::post('churn/generate-strategy/{id}', 'ChurnController@generateStrategy')->name('admin.churn.generate-strategy');
+            Route::post('churn/send-mail/{id}', 'ChurnController@sendMail')->name('admin.churn.send-mail');
+            Route::post('churn/send-strategy-whatsapp/{id}', 'ChurnController@sendStrategyWhatsapp')->name('admin.churn.send-strategy-whatsapp');
+            Route::post('churn/send-notification/{id}', 'ChurnController@sendNotification')->name('admin.churn.send-notification');
+            Route::post('churn/send-dunning-email/{id}', 'ChurnController@sendDunningEmail');
+            Route::post('churn/send-dunning-whatsapp/{id}', 'ChurnController@sendDunningWhatsapp');
 
             Route::resource('app-language', 'AppLanguageController');
             Route::get('app-language', 'AppLanguageController@index')->name('app-language.index');

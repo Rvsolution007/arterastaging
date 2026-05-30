@@ -105,6 +105,22 @@ class HomeController extends Controller
         }
 
         $index['user_count'] = User::count();
+        $activeSubscribers = User::where('is_subscribe', 1)->count();
+        $churnedUsers = User::where('is_subscribe', 0)->whereNotNull('subscription_end_date')->count();
+        $arpu = 29; 
+        $mrr = $activeSubscribers * $arpu;
+        $arr = $mrr * 12;
+        $totalEverSubscribed = $activeSubscribers + $churnedUsers;
+        $churnRate = $totalEverSubscribed > 0 ? ($churnedUsers / $totalEverSubscribed) : 0;
+        $effectiveChurnRate = $churnRate > 0 ? $churnRate : 0.05;
+        $ltv = $arpu / $effectiveChurnRate;
+
+        $index['activeSubscribers'] = $activeSubscribers;
+        $index['mrr'] = $mrr;
+        $index['arr'] = $arr;
+        $index['churnRate'] = $churnRate;
+        $index['ltv'] = $ltv;
+
         $index['festivals_count'] = Festivals::count();
         $index['category_count'] = Category::count();
         $index['business_count'] = Business::count();

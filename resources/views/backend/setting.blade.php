@@ -2472,9 +2472,9 @@
                                                     <div class="row mt-3">
                                                         <div class="col-12">
                                                             <div class="form-group row">
-                                                                {!! Form::label('api_key', 'Api Key', ['class' => 'col-md-3 col-3 col-form-label']) !!}
+                                                                {!! Form::label('evolution_server_url', 'Evolution Server URL', ['class' => 'col-md-3 col-3 col-form-label']) !!}
                                                                 <div class="col-md-6 col-9">
-                                                                    {!! Form::text('name[api_key]', App\Models\WhatsAppSetting::getWhatsAppSetting('api_key'), ['class' => 'form-control', 'required']) !!}
+                                                                    {!! Form::url('name[evolution_server_url]', App\Models\WhatsAppSetting::getWhatsAppSetting('evolution_server_url'), ['class' => 'form-control', 'placeholder' => 'e.g., http://localhost:8080']) !!}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -2483,9 +2483,20 @@
                                                     <div class="row mt-3">
                                                         <div class="col-12">
                                                             <div class="form-group row">
-                                                                {!! Form::label('instance_id', 'Instance id', ['class' => 'col-md-3 col-3 col-form-label']) !!}
+                                                                {!! Form::label('evolution_api_key', 'Global API Key', ['class' => 'col-md-3 col-3 col-form-label']) !!}
                                                                 <div class="col-md-6 col-9">
-                                                                    {!! Form::text('name[instance_id]', App\Models\WhatsAppSetting::getWhatsAppSetting('instance_id'), ['class' => 'form-control', 'required']) !!}
+                                                                    {!! Form::text('name[evolution_api_key]', App\Models\WhatsAppSetting::getWhatsAppSetting('evolution_api_key'), ['class' => 'form-control', 'placeholder' => 'Evolution Global API Key']) !!}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="row mt-3">
+                                                        <div class="col-12">
+                                                            <div class="form-group row">
+                                                                {!! Form::label('evolution_instance_name', 'Instance Name', ['class' => 'col-md-3 col-3 col-form-label']) !!}
+                                                                <div class="col-md-6 col-9">
+                                                                    {!! Form::text('name[evolution_instance_name]', App\Models\WhatsAppSetting::getWhatsAppSetting('evolution_instance_name'), ['class' => 'form-control', 'placeholder' => 'e.g., ArteraInstance']) !!}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -2494,14 +2505,35 @@
                                                     <div class="row">
                                                         <div class="col-md-3"></div><div class="col-md-9 text-left">
                                                             @if(optional(Auth::user())->user_type == "Demo")
-                                                                <button type="button"
-                                                                    class="btn btn-success ToastrButton">Save</button>
+                                                                <button type="button" class="btn btn-success ToastrButton">Save</button>
                                                             @else
                                                                 {!! Form::submit('Save', ['class' => 'btn btn-success']) !!}
                                                             @endif
                                                         </div>
                                                     </div>
                                                     {!! Form::close() !!}
+                                                    
+                                                    <hr>
+                                                    <h5 class="mt-4 mb-3" style="font-family: 'Poppins', sans-serif; font-weight: 600; color: #1e293b;"><i class="fab fa-whatsapp mr-2 text-success"></i>Connect WhatsApp (Scan QR)</h5>
+                                                    <div class="row mt-3">
+                                                        <div class="col-md-3"></div>
+                                                        <div class="col-md-6 text-center">
+                                                            <div id="qrCodeContainer" style="border: 2px dashed #cbd5e1; padding: 20px; border-radius: 10px; background: #f8fafc; min-height: 250px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                                                                <i class="fas fa-qrcode fa-4x text-muted mb-3" id="qrPlaceholderIcon"></i>
+                                                                <img id="whatsappQrImage" src="" alt="WhatsApp QR Code" style="display: none; max-width: 200px;" />
+                                                                <p id="qrStatusText" class="text-muted mt-2">Click below to generate a QR code for your instance.</p>
+                                                                <button type="button" id="btnGenerateQr" class="btn btn-primary mt-2"><i class="fas fa-sync-alt"></i> Generate QR Code</button>
+                                                            </div>
+                                                            <div id="connectedStateContainer" style="display: none; border: 2px solid #28a745; padding: 20px; border-radius: 10px; background: #f4fff6; min-height: 250px; flex-direction: column; align-items: center; justify-content: center;">
+                                                                <i class="fab fa-whatsapp fa-4x text-success mb-3"></i>
+                                                                <h4 class="text-success font-weight-bold">Connected Successfully</h4>
+                                                                <p class="text-muted mt-2">Your WhatsApp instance is active and ready to send messages.</p>
+                                                                <span class="badge badge-success p-2 mt-2" style="font-size: 14px;"><i class="fas fa-circle text-white mr-1" style="font-size: 10px;"></i> Online</span>
+                                                                <button type="button" id="btnCheckStatus" class="btn btn-outline-success mt-4"><i class="fas fa-sync-alt"></i> Refresh Status</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
                                                 </div>
                                             </div>
                                         </div>
@@ -3285,5 +3317,102 @@
                     }
                 });
             }
+
+            let qrPollInterval = null;
+
+            function checkWhatsappStatus(btnElement, isPolling = false) {
+                var serverUrl = document.querySelector('input[name="name[evolution_server_url]"]').value;
+                var apiKey = document.querySelector('input[name="name[evolution_api_key]"]').value;
+                var instanceName = document.querySelector('input[name="name[evolution_instance_name]"]').value;
+
+                if (!serverUrl || !apiKey || !instanceName) {
+                    if (!isPolling) toastr.error('Please save your Server URL, API Key, and Instance Name first.');
+                    return;
+                }
+
+                if (btnElement && !isPolling) {
+                    btnElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
+                    btnElement.disabled = true;
+                }
+                
+                if(!isPolling) document.getElementById('qrStatusText').innerText = 'Connecting to Evolution API...';
+
+                fetch('{{ url("admin/whatsapp-generate-qr") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        server_url: serverUrl,
+                        api_key: apiKey,
+                        instance_name: instanceName
+                    })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success' && data.qr) {
+                        document.getElementById('qrCodeContainer').style.display = 'flex';
+                        document.getElementById('connectedStateContainer').style.display = 'none';
+                        document.getElementById('qrPlaceholderIcon').style.display = 'none';
+                        document.getElementById('whatsappQrImage').style.display = 'block';
+                        document.getElementById('whatsappQrImage').src = data.qr;
+                        document.getElementById('qrStatusText').innerText = 'Scan this QR code with your WhatsApp app.';
+                        if(!isPolling) toastr.success('QR Code generated successfully!');
+                        
+                        // Start polling if not already
+                        if(!qrPollInterval) {
+                            qrPollInterval = setInterval(() => checkWhatsappStatus(null, true), 5000);
+                        }
+                    } else if (data.status === 'connected') {
+                        document.getElementById('qrCodeContainer').style.display = 'none';
+                        document.getElementById('connectedStateContainer').style.display = 'flex';
+                        if(!isPolling && btnElement && btnElement.id !== 'btnCheckStatus') toastr.success('Instance is already connected!');
+                        if(qrPollInterval) {
+                            clearInterval(qrPollInterval);
+                            qrPollInterval = null;
+                            toastr.success('WhatsApp Connected Successfully!');
+                        }
+                    } else {
+                        if(!isPolling) {
+                            toastr.error(data.message || 'Failed to generate QR Code');
+                            document.getElementById('qrStatusText').innerText = 'Failed. Try again.';
+                        }
+                    }
+                })
+                .catch(err => {
+                    if(!isPolling) {
+                        toastr.error('Network error occurred while fetching QR.');
+                        document.getElementById('qrStatusText').innerText = 'Error connecting to server.';
+                    }
+                })
+                .finally(() => {
+                    if (btnElement && !isPolling) {
+                        if(btnElement.id === 'btnGenerateQr') {
+                            btnElement.innerHTML = '<i class="fas fa-sync-alt"></i> Generate QR Code';
+                        } else {
+                            btnElement.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh Status';
+                        }
+                        btnElement.disabled = false;
+                    }
+                });
+            }
+
+            document.getElementById('btnGenerateQr')?.addEventListener('click', function() {
+                checkWhatsappStatus(this, false);
+            });
+            document.getElementById('btnCheckStatus')?.addEventListener('click', function() {
+                checkWhatsappStatus(this, false);
+            });
+
+            // On load check if fields are filled and check status silently
+            setTimeout(() => {
+                var s = document.querySelector('input[name="name[evolution_server_url]"]');
+                var a = document.querySelector('input[name="name[evolution_api_key]"]');
+                var i = document.querySelector('input[name="name[evolution_instance_name]"]');
+                if(s && a && i && s.value && a.value && i.value) {
+                    checkWhatsappStatus(null, true);
+                }
+            }, 1500);
         </script>
 @endsection

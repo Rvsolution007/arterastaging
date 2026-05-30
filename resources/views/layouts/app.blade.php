@@ -338,7 +338,7 @@
 
 
             <li class="nav-item">
-            <a href="{{url('admin/dashboard')}}" class="nav-link {{ (Request::is('admin/dashboard*')) ? 'active' : '' }}" style="color: white;">
+            <a href="{{ route('admin') }}" class="nav-link {{ (Request::is('admin')) ? 'active' : '' }}" style="color: white;">
               <i class="nav-icon fas fa-tachometer-alt" style="color: white;"></i>
               <p style="color: white; font-weight: 500;">
                   Dashboard
@@ -536,23 +536,7 @@
               </li>
             @endcan
 
-            @if(Request::is('admin/general-post*'))
-            @php($gpClass = "menu-open")
-            @php($gpActive = "active")
-            @else
-            @php($gpClass = "")
-            @php($gpActive = "")
-            @endif
 
-            @can('BusinessFrame')
-              <li class="nav-item">
-                <a href="{{route('general-post.index')}}"
-                  class="nav-link @if(Request::is('admin/general-post*')) active @endif" style="color: white;">
-                  <i class="nav-icon fa-solid fa-newspaper"></i>
-                  <p>General Posts</p>
-                </a>
-              </li>
-            @endcan
 
             @if(Request::is('admin/sticker-category*') || Request::is('admin/sticker*') || Request::is('admin/sticker-category-get*'))
             @php($class = "menu-open")
@@ -595,53 +579,7 @@
               </li>
             @endcanany
 
-            @if(Request::is('admin/product-category*') || Request::is('admin/product*') || Request::is('admin/inquiry*'))
-            @php($class = "menu-open")
-            @php($active = "active")
-            @else
-            @php($class = "")
-            @php($active = "")
-            @endif
 
-            @canany(['ProductCategory', 'Product', 'Inquiry'])
-              <li class="nav-item has-treeview {{$class}}">
-                <a href="#" class="nav-link {{$active}}" style="color: white;">
-                  <i class="nav-icon fa-solid fa-store"></i>
-                  <p>
-                    Product
-                    <i class="right fa fa-angle-right"></i>
-                  </p>
-                </a>
-
-                <ul class="nav nav-treeview">
-                  @can('ProductCategory')
-                    <li class="nav-item">
-                      <a href="{{route('product-category.index')}}"
-                        class="nav-link @if(Request::is('admin/product-category*')) active @endif" style="color: white;">
-                        <p><i class="fa fa-angle-right ml-3 mr-1"></i> Product Category</p>
-                      </a>
-                    </li>
-                  @endcan
-                  @can('Product')
-                    <li class="nav-item">
-                      <a href="{{route('product.index')}}"
-                        class="nav-link @if(Request::is('admin/product*') && !Request::is('admin/product-category*')) active @endif"
-                        style="color: white;">
-                        <p><i class="fa fa-angle-right ml-3 mr-1"></i> Product</p>
-                      </a>
-                    </li>
-                  @endcan
-                  @can('Inquiry')
-                    <li class="nav-item">
-                      <a href="{{route('inquiry.index')}}" class="nav-link @if(Request::is('admin/inquiry*')) active @endif"
-                        style="color: white;">
-                        <p><i class="fa fa-angle-right ml-3 mr-1"></i> Inquiry</p>
-                      </a>
-                    </li>
-                  @endcan
-                </ul>
-              </li>
-            @endcanany
 
             @if(Request::is('admin/referral-system*') || Request::is('admin/withdraw-request*') || Request::is('admin/subscription-plan*') || Request::is('admin/coupon-code*') || Request::is('admin/transaction*') || Request::is('admin/offer*'))
             @php($class = "menu-open")
@@ -798,43 +736,9 @@
               </li>
             @endcan
 
-            @if(Request::is('admin/news*'))
-            @php($class = "menu-open")
-            @php($active = "active")
-            @else
-            @php($class = "")
-            @php($active = "")
-            @endif
 
-            @can('News')
-              <li class="nav-item has-treeview {{$class}}">
-                <a href="{{route('news.index')}}" class="nav-link {{$active}}" style="color: white;">
-                  <i class="nav-icon fa fa-gift"></i>
-                  <p>
-                    News
-                  </p>
-                </a>
-              </li>
-            @endcan
 
-            @if(Request::is('admin/story*'))
-            @php($class = "menu-open")
-            @php($active = "active")
-            @else
-            @php($class = "")
-            @php($active = "")
-            @endif
 
-            @can('Stories')
-              <li class="nav-item has-treeview {{$class}}">
-                <a href="{{route('story.index')}}" class="nav-link {{$active}}" style="color: white;">
-                  <i class="nav-icon fa fa-map"></i>
-                  <p>
-                    Stories
-                  </p>
-                </a>
-              </li>
-            @endcan
 
             @if(Request::is('admin/user*') && !Request::is('admin/user-profile'))
             @php($class = "menu-open")
@@ -935,63 +839,9 @@
               </li>
             @endcan
 
-            @if(Request::is('admin/business-card*'))
-            @php($class = "menu-open")
-            @php($active = "active")
-            @else
-            @php($class = "")
-            @php($active = "")
-            @endif
 
-            @can('BusinessCard')
-              <li class="nav-item has-treeview {{$class}}">
-                <a href="{{route('business-card.index')}}" class="nav-link {{$active}}" style="color: white;">
-                  <i class="nav-icon fa-solid fa-address-card"></i>
-                  <p>
-                    Business Card
-                  </p>
-                </a>
-              </li>
-            @endcan
 
-            @if(Request::is('admin/entry*') || Request::is('admin/subject*'))
-            @php($class = "menu-open")
-            @php($active = "active")
-            @else
-            @php($class = "")
-            @php($active = "")
-            @endif
 
-            @canany(['Entry', 'Subject'])
-              <li class="nav-item has-treeview {{$class}}">
-                <a href="" class="nav-link {{$active}}" style="color: white;">
-                  <i class="nav-icon fa fa-envelope"></i>
-                  <p>
-                    Contact List
-                    <i class="right fa fa-angle-right"></i>
-                  </p>
-                </a>
-
-                <ul class="nav nav-treeview">
-                  @can('Entry')
-                    <li class="nav-item">
-                      <a href="{{route('entry.index')}}" class="nav-link @if(Request::is('admin/entry*')) active @endif"
-                        style="color: white;">
-                        <p><i class="fa fa-angle-right ml-3 mr-1"></i> Entry</p>
-                      </a>
-                    </li>
-                  @endcan
-                  @can('Subject')
-                    <li class="nav-item">
-                      <a href="{{route('subject.index')}}" class="nav-link @if(Request::is('admin/subject*')) active @endif"
-                        style="color: white;">
-                        <p><i class="fa fa-angle-right ml-3 mr-1"></i> Subject</p>
-                      </a>
-                    </li>
-                  @endcan
-                </ul>
-              </li>
-            @endcanany
 
             @php($notiClass = (Request::is('admin/notification*') || Request::is('admin/auto-notification*') || Request::is('admin/manual-notification*')) ? "menu-open" : "")
             @php($notiActive = (Request::is('admin/notification*') || Request::is('admin/auto-notification*') || Request::is('admin/manual-notification*')) ? "active" : "")
@@ -1020,24 +870,7 @@
               </li>
             @endcan
 
-            @if(Request::is('admin/whatsapp-message*'))
-            @php($class = "menu-open")
-            @php($active = "active")
-            @else
-            @php($class = "")
-            @php($active = "")
-            @endif
 
-            @can('WhatsAppMessage')
-              <li class="nav-item has-treeview {{$class}}">
-                <a href="{{url('admin/whatsapp-message')}}" class="nav-link {{$active}}" style="color: white;">
-                  <i class="nav-icon fab fa-whatsapp"></i>
-                  <p>
-                    WhatsApp Message
-                  </p>
-                </a>
-              </li>
-            @endcan
 
             @if(Request::is('admin/roles*'))
             @php($class = "menu-open")
@@ -1090,29 +923,21 @@
               </li>
             @endcan
 
-            @php($analyticsClass = (Request::is('admin/payment-analytics*') || Request::is('admin/churn*') || Request::is('admin/journey*') || Request::is('admin/ai-analytics*')) ? "menu-open" : "")
-            @php($analyticsActive = (Request::is('admin/payment-analytics*') || Request::is('admin/churn*') || Request::is('admin/journey*') || Request::is('admin/ai-analytics*')) ? "active" : "")
+            @php($analyticsClass = (Request::is('admin/churn*') || Request::is('admin/ai-analytics*')) ? "menu-open" : "")
+            @php($analyticsActive = (Request::is('admin/churn*') || Request::is('admin/ai-analytics*')) ? "active" : "")
             <li class="nav-item has-treeview {{$analyticsClass}}">
                 <a href="#" class="nav-link {{$analyticsActive}}" style="color: white;">
                   <i class="nav-icon fa-solid fa-chart-line text-info"></i>
                   <p>Analytics & Insights<i class="right fa fa-angle-right"></i></p>
                 </a>
                 <ul class="nav nav-treeview">
-                  <li class="nav-item">
-                    <a href="{{ route('admin.payment_analytics') }}" class="nav-link @if(Request::is('admin/payment-analytics*')) active @endif" style="color: white;">
-                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> Payment Analytics</p>
-                    </a>
-                  </li>
+
                   <li class="nav-item">
                     <a href="{{ route('admin.churn_analytics') }}" class="nav-link @if(Request::is('admin/churn*')) active @endif" style="color: white;">
                       <p><i class="fa fa-angle-right ml-3 mr-1"></i> Churn Analytics</p>
                     </a>
                   </li>
-                  <li class="nav-item">
-                    <a href="{{ route('admin.journey') }}" class="nav-link @if(Request::is('admin/journey*')) active @endif" style="color: white;">
-                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> Customer Journey</p>
-                    </a>
-                  </li>
+
                   <li class="nav-item">
                     <a href="{{ route('admin.ai_analytics') }}" class="nav-link @if(Request::is('admin/ai-analytics*')) active @endif" style="color: white;">
                       <p><i class="fa fa-angle-right ml-3 mr-1"></i> AI Token Analytics</p>
@@ -1147,13 +972,7 @@
                 </ul>
               </li>
 
-            @if(Request::is('admin/backup*'))
-            @php($class = "menu-open")
-            @php($active = "active")
-            @else
-            @php($class = "")
-            @php($active = "")
-            @endif
+
 
             @php($partnerClass = (Request::is('*partner-leaderboard*') || Request::is('*partner/toolkit*') || Request::is('*partner/profile*')) ? "menu-open" : "")
             @php($partnerActive = (Request::is('*partner-leaderboard*') || Request::is('*partner/toolkit*') || Request::is('*partner/profile*')) ? "active" : "")
@@ -1181,16 +1000,151 @@
                 </ul>
             </li>
 
-            @if(optional(Auth::user())->user_type == "Super Admin" || optional(Auth::user())->user_type == "Demo")
-              <li class="nav-item has-treeview {{$class}}">
-                <a href="{{route('backup.index')}}" class="nav-link {{$active}}" style="color: white;">
-                  <i class="nav-icon fa fa-database"></i>
-                  <p>
-                    Backup
-                  </p>
-                </a>
-              </li>
+            @if(Request::is('admin/general-post*') || Request::is('admin/product-category*') || Request::is('admin/product*') || Request::is('admin/inquiry*') || Request::is('admin/news*') || Request::is('admin/story*') || Request::is('admin/business-card*') || Request::is('admin/entry*') || Request::is('admin/subject*') || Request::is('admin/whatsapp-message*') || Request::is('admin/backup*'))
+            @php($otherClass = "menu-open")
+            @php($otherActive = "active")
+            @else
+            @php($otherClass = "")
+            @php($otherActive = "")
             @endif
+
+            <li class="nav-item has-treeview {{$otherClass}}">
+              <a href="#" class="nav-link {{$otherActive}}" style="color: white;">
+                <i class="nav-icon fa fa-ellipsis-h"></i>
+                <p>
+                  Other
+                  <i class="right fa fa-angle-right"></i>
+                </p>
+              </a>
+              <ul class="nav nav-treeview">
+                
+                @can('BusinessFrame')
+                  <li class="nav-item">
+                    <a href="{{route('general-post.index')}}"
+                      class="nav-link @if(Request::is('admin/general-post*')) active @endif" style="color: white;">
+                      <i class="nav-icon fa-solid fa-newspaper"></i>
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> General Posts</p>
+                    </a>
+                  </li>
+                @endcan
+
+                @canany(['ProductCategory', 'Product', 'Inquiry'])
+                  <li class="nav-item has-treeview @if(Request::is('admin/product-category*') || Request::is('admin/product*') || Request::is('admin/inquiry*')) menu-open @endif">
+                    <a href="#" class="nav-link @if(Request::is('admin/product-category*') || Request::is('admin/product*') || Request::is('admin/inquiry*')) active @endif" style="color: white;">
+                      <i class="nav-icon fa-solid fa-store"></i>
+                      <p>
+                        Product
+                        <i class="right fa fa-angle-right"></i>
+                      </p>
+                    </a>
+
+                    <ul class="nav nav-treeview">
+                      @can('ProductCategory')
+                        <li class="nav-item">
+                          <a href="{{route('product-category.index')}}"
+                            class="nav-link @if(Request::is('admin/product-category*')) active @endif" style="color: white;">
+                            <p><i class="fa fa-angle-right ml-3 mr-1"></i> Product Category</p>
+                          </a>
+                        </li>
+                      @endcan
+                      @can('Product')
+                        <li class="nav-item">
+                          <a href="{{route('product.index')}}"
+                            class="nav-link @if(Request::is('admin/product*') && !Request::is('admin/product-category*')) active @endif"
+                            style="color: white;">
+                            <p><i class="fa fa-angle-right ml-3 mr-1"></i> Product</p>
+                          </a>
+                        </li>
+                      @endcan
+                      @can('Inquiry')
+                        <li class="nav-item">
+                          <a href="{{route('inquiry.index')}}" class="nav-link @if(Request::is('admin/inquiry*')) active @endif"
+                            style="color: white;">
+                            <p><i class="fa fa-angle-right ml-3 mr-1"></i> Inquiry</p>
+                          </a>
+                        </li>
+                      @endcan
+                    </ul>
+                  </li>
+                @endcanany
+
+                @can('News')
+                  <li class="nav-item">
+                    <a href="{{route('news.index')}}" class="nav-link @if(Request::is('admin/news*')) active @endif" style="color: white;">
+                      <i class="nav-icon fa fa-gift"></i>
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> News</p>
+                    </a>
+                  </li>
+                @endcan
+
+                @can('Stories')
+                  <li class="nav-item">
+                    <a href="{{route('story.index')}}" class="nav-link @if(Request::is('admin/story*')) active @endif" style="color: white;">
+                      <i class="nav-icon fa fa-map"></i>
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> Stories</p>
+                    </a>
+                  </li>
+                @endcan
+
+                @can('BusinessCard')
+                  <li class="nav-item">
+                    <a href="{{route('business-card.index')}}" class="nav-link @if(Request::is('admin/business-card*')) active @endif" style="color: white;">
+                      <i class="nav-icon fa-solid fa-address-card"></i>
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> Business Card</p>
+                    </a>
+                  </li>
+                @endcan
+
+                @canany(['Entry', 'Subject'])
+                  <li class="nav-item has-treeview @if(Request::is('admin/entry*') || Request::is('admin/subject*')) menu-open @endif">
+                    <a href="#" class="nav-link @if(Request::is('admin/entry*') || Request::is('admin/subject*')) active @endif" style="color: white;">
+                      <i class="nav-icon fa fa-envelope"></i>
+                      <p>
+                        Contact List
+                        <i class="right fa fa-angle-right"></i>
+                      </p>
+                    </a>
+
+                    <ul class="nav nav-treeview">
+                      @can('Entry')
+                        <li class="nav-item">
+                          <a href="{{route('entry.index')}}" class="nav-link @if(Request::is('admin/entry*')) active @endif"
+                            style="color: white;">
+                            <p><i class="fa fa-angle-right ml-3 mr-1"></i> Entry</p>
+                          </a>
+                        </li>
+                      @endcan
+                      @can('Subject')
+                        <li class="nav-item">
+                          <a href="{{route('subject.index')}}" class="nav-link @if(Request::is('admin/subject*')) active @endif"
+                            style="color: white;">
+                            <p><i class="fa fa-angle-right ml-3 mr-1"></i> Subject</p>
+                          </a>
+                        </li>
+                      @endcan
+                    </ul>
+                  </li>
+                @endcanany
+
+                @can('WhatsAppMessage')
+                  <li class="nav-item">
+                    <a href="{{url('admin/whatsapp-message')}}" class="nav-link @if(Request::is('admin/whatsapp-message*')) active @endif" style="color: white;">
+                      <i class="nav-icon fab fa-whatsapp"></i>
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> WhatsApp Message</p>
+                    </a>
+                  </li>
+                @endcan
+
+                @if(optional(Auth::user())->user_type == "Super Admin" || optional(Auth::user())->user_type == "Demo")
+                  <li class="nav-item">
+                    <a href="{{route('backup.index')}}" class="nav-link @if(Request::is('admin/backup*')) active @endif" style="color: white;">
+                      <i class="nav-icon fa fa-database"></i>
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> Backup</p>
+                    </a>
+                  </li>
+                @endif
+              </ul>
+            </li>
 
               <!-- Missing Phase 7: Gamification -->
               <li class="nav-item">

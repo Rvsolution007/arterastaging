@@ -234,7 +234,12 @@
             <div class="ticket-list">
                 @foreach($tickets as $t)
                 <div class="ticket-item" onclick="loadTicket({{ $t->id }}, this)">
-                    <div class="ticket-title">#{{ $t->id }} - {{ Str::limit($t->subject, 30) }}</div>
+                    <div class="ticket-title">
+                        @if($t->ai_rating && $t->ai_rating <= 3)
+                            <span class="badge badge-danger mr-1" style="font-size: 0.65rem;" title="Generated from In-App Feedback Loop"><i class="fa fa-star text-white"></i> NPS Feedback</span>
+                        @endif
+                        #{{ $t->id }} - {{ Str::limit($t->subject, 30) }}
+                    </div>
                     <div class="ticket-meta">
                         <span class="font-weight-bold" style="color: #475569;">{{ $t->user->name ?? 'Unknown User' }}</span>
                         <span class="badge-soft badge-{{ $t->status }}">{{ str_replace('_', ' ', $t->status) }}</span>

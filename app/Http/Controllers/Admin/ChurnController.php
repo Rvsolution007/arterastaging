@@ -147,6 +147,60 @@ class ChurnController extends Controller
         }
     }
 
+    public function sendStrategyWhatsapp(Request $request, $id)
+    {
+        $request->validate([
+            'body' => 'required|string',
+        ]);
+
+        $user = User::findOrFail($id);
+
+        try {
+            if (!$user->mobile_no) {
+                return response()->json(['status' => 'error', 'message' => 'User does not have a mobile number saved.']);
+            }
+            
+            $serverUrl = rtrim(\App\Models\WhatsAppSetting::getWhatsAppSetting('evolution_server_url'), '/');
+            $apiKey = \App\Models\WhatsAppSetting::getWhatsAppSetting('evolution_api_key');
+            $instanceName = \App\Models\WhatsAppSetting::getWhatsAppSetting('evolution_instance_name');
+            
+            if (!$serverUrl || !$apiKey || !$instanceName) {
+                return response()->json(['status' => 'error', 'message' => 'WhatsApp API Settings are incomplete. Configure them in Settings -> WhatsApp.']);
+            }
+            
+            $number = $user->mobile_no;
+            if (!str_starts_with($number, '91') && strlen($number) == 10) {
+                $number = "91" . $number;
+            }
+
+            $url = "{$serverUrl}/message/sendText/{$instanceName}";
+
+            $data = [
+                "number" => $number,
+                "text" => strip_tags($request->body)
+            ];
+
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                "apikey: {$apiKey}",
+                "Content-Type: application/json"
+            ]);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+            $result = curl_exec($ch);
+            curl_close($ch);
+
+            return response()->json(['status' => 'success', 'message' => "WhatsApp sent successfully!"]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Send Strategy WhatsApp Error: ' . $e->getMessage());
+            return response()->json(['status' => 'error', 'message' => 'Failed to send WhatsApp.']);
+        }
+    }
+
     public function sendNotification(Request $request, $id)
     {
         $request->validate([
@@ -178,6 +232,71 @@ class ChurnController extends Controller
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Send Push Notification Error: ' . $e->getMessage());
             return response()->json(['status' => 'error', 'message' => 'Failed to send push notification.']);
+        }
+    }
+
+    public function sendDunningEmail($id)
+    {
+        try {
+            $user = User::findOrFail($id);
+            // Uses standard Laravel Mailer configured in .env or Email Settings
+            \Illuminate\Support\Facades\Mail::raw("Hi {$user->name}, your recent payment failed. Please update your payment method to avoid service interruption.", function($message) use ($user) {
+                $message->to($user->email)->subject("Action Required: Payment Failed");
+            });
+            return response()->json(['status' => 'success', 'message' => "Email sent successfully to {$user->email}"]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Send Dunning Email Error: ' . $e->getMessage());
+            return response()->json(['status' => 'error', 'message' => 'Failed to send email. Please check your SMTP / Email Settings.']);
+        }
+    }
+
+    public function sendDunningWhatsapp($id)
+    {
+        try {
+            $user = User::findOrFail($id);
+            if (!$user->mobile_no) {
+                return response()->json(['status' => 'error', 'message' => 'User does not have a mobile number saved.']);
+            }
+            
+            $serverUrl = rtrim(\App\Models\WhatsAppSetting::getWhatsAppSetting('evolution_server_url'), '/');
+            $apiKey = \App\Models\WhatsAppSetting::getWhatsAppSetting('evolution_api_key');
+            $instanceName = \App\Models\WhatsAppSetting::getWhatsAppSetting('evolution_instance_name');
+            
+            if (!$serverUrl || !$apiKey || !$instanceName) {
+                return response()->json(['status' => 'error', 'message' => 'WhatsApp API Settings are incomplete. Configure them in Settings -> WhatsApp.']);
+            }
+            
+            $msg = "Hi {$user->name}, your recent payment failed. Please update your payment method to continue using the Premium Plan.";
+            $number = $user->mobile_no;
+            if (!str_starts_with($number, '91') && strlen($number) == 10) {
+                $number = "91" . $number;
+            }
+
+            $url = "{$serverUrl}/message/sendText/{$instanceName}";
+
+            $data = [
+                "number" => $number,
+                "text" => $msg
+            ];
+
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                "apikey: {$apiKey}",
+                "Content-Type: application/json"
+            ]);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+            $result = curl_exec($ch);
+            curl_close($ch);
+
+            return response()->json(['status' => 'success', 'message' => "WhatsApp sent successfully!"]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Send Dunning WhatsApp Error: ' . $e->getMessage());
+            return response()->json(['status' => 'error', 'message' => 'Failed to send WhatsApp.']);
         }
     }
 }

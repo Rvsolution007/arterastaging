@@ -1300,4 +1300,97 @@ SPACES_ENDPOINT="' . $endpoint . '"
 
         return redirect()->back()->with('alert', 'Move All Files To Digital Ocean');
     }
+
+    public function generateWhatsappQr(Request $request)
+    {
+        $serverUrl = rtrim($request->server_url, '/');
+        $apiKey = $request->api_key;
+        $instanceName = $request->instance_name;
+
+        // 1. Check if instance already exists and its connection state
+        $stateUrl = "{$serverUrl}/instance/connectionState/{$instanceName}";
+        
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $stateUrl);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            "apikey: {$apiKey}",
+            "Content-Type: application/json"
+        ]);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+        $stateResult = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        $stateData = json_decode($stateResult, true);
+        
+        if ($httpCode == 200 && isset($stateData['instance']['state']) && $stateData['instance']['state'] === 'open') {
+            return response()->json(['status' => 'connected']);
+        }
+
+        // 2. Fetch or Create Instance to get QR
+        // If it doesn't exist (404), we create it.
+        if ($httpCode == 404 || (isset($stateData['status']) && $stateData['status'] == 404)) {
+            $createUrl = "{$serverUrl}/instance/create";
+            
+            $postData = json_encode([
+                "instanceName" => $instanceName,
+                "qrcode" => true,
+                "integration" => "WHATSAPP-BAILEYS"
+            ]);
+            
+            $ch2 = curl_init();
+            curl_setopt($ch2, CURLOPT_URL, $createUrl);
+            curl_setopt($ch2, CURLOPT_HTTPHEADER, [
+                "apikey: {$apiKey}",
+                "Content-Type: application/json"
+            ]);
+            curl_setopt($ch2, CURLOPT_POST, true);
+            curl_setopt($ch2, CURLOPT_POSTFIELDS, $postData);
+            curl_setopt($ch2, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch2, CURLOPT_SSL_VERIFYHOST, 0);
+            curl_setopt($ch2, CURLOPT_SSL_VERIFYPEER, 0);
+            $createResult = curl_exec($ch2);
+            curl_close($ch2);
+
+            $createData = json_decode($createResult, true);
+            
+            if (isset($createData['qrcode']['base64'])) {
+                return response()->json([
+                    'status' => 'success',
+                    'qr' => $createData['qrcode']['base64']
+                ]);
+            }
+        }
+        
+        // 3. If instance exists but not open, just fetch the connection QR
+        $connectUrl = "{$serverUrl}/instance/connect/{$instanceName}";
+        $ch3 = curl_init();
+        curl_setopt($ch3, CURLOPT_URL, $connectUrl);
+        curl_setopt($ch3, CURLOPT_HTTPHEADER, [
+            "apikey: {$apiKey}",
+            "Content-Type: application/json"
+        ]);
+        curl_setopt($ch3, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch3, CURLOPT_SSL_VERIFYHOST, 0);
+        curl_setopt($ch3, CURLOPT_SSL_VERIFYPEER, 0);
+        $connectResult = curl_exec($ch3);
+        curl_close($ch3);
+        
+        $connectData = json_decode($connectResult, true);
+        if (isset($connectData['base64'])) {
+            return response()->json([
+                'status' => 'success',
+                'qr' => $connectData['base64']
+            ]);
+        }
+        
+        return response()->json([
+            'status' => 'error', 
+            'message' => 'Failed to retrieve QR code. Check your Evolution API Server URL and Global API Key.',
+            'debug_state' => $stateData,
+            'debug_connect' => $connectData ?? null
+        ]);
+    }
 }

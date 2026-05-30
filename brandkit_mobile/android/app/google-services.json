@@ -1,28 +1,121 @@
 {
   "project_info": {
-    "project_number": "126045810257",
-    "project_id": "artera-ea217",
-    "storage_bucket": "artera-ea217.firebasestorage.app"
+    "project_number": "671545921262",
+    "project_id": "artera-pixel",
+    "storage_bucket": "artera-pixel.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:126045810257:android:87c189ba3e319c79efd270",
+        "mobilesdk_app_id": "1:671545921262:android:2083287d69ce2a2552adff",
         "android_client_info": {
-          "package_name": "com.arterapixel.pro"
+          "package_name": "com.arterapixel.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "671545921262-q1ooktj4bnposnhageaql5jumrsbh58u.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.arterapixel.app",
+            "certificate_hash": "789f40ee4bca72437088ee7644538bdc1dd3ad16"
+          }
+        },
+        {
+          "client_id": "671545921262-sj6m200ij4bvcioe605eg5agh6rcjn0g.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyAQxS3qccotJEc-R96noUtkVs1w1Gfeyrw"
+          "current_key": "AIzaSyAb1TqjLJ6R19ZzifTXXnfMFJtG4UrrEOw"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "671545921262-sj6m200ij4bvcioe605eg5agh6rcjn0g.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:671545921262:android:b3bf9d9dd5fbc11a52adff",
+        "android_client_info": {
+          "package_name": "com.arterapixel.pro"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "671545921262-sj6m200ij4bvcioe605eg5agh6rcjn0g.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAb1TqjLJ6R19ZzifTXXnfMFJtG4UrrEOw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "671545921262-sj6m200ij4bvcioe605eg5agh6rcjn0g.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:671545921262:android:151d184ffde4065252adff",
+        "android_client_info": {
+          "package_name": "com.iqueen.arterapixel"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "671545921262-h7g6r9jnfkq46fcjji3kr0rnb9e5ln6o.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.iqueen.arterapixel",
+            "certificate_hash": "997d6f8d7142ac98e54c7a1b6fa985fb110bb226"
+          }
+        },
+        {
+          "client_id": "671545921262-ip6c8ms6av568nlg17agf9fb8tdjjl5f.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.iqueen.arterapixel",
+            "certificate_hash": "60aaa3fb5856d20faac1cf7a7570e4b5ceb7fecc"
+          }
+        },
+        {
+          "client_id": "671545921262-sj6m200ij4bvcioe605eg5agh6rcjn0g.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAb1TqjLJ6R19ZzifTXXnfMFJtG4UrrEOw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "671545921262-sj6m200ij4bvcioe605eg5agh6rcjn0g.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      },
+      "admob_app_id": "ca-app-pub-8529977313104602~7190589338"
     }
   ],
   "configuration_version": "1"

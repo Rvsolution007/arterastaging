@@ -139,56 +139,62 @@ class WhatsappMessageController extends Controller
         $whatsappMsg = WhatsappMessage::find($request->msg_id);
         $user = User::find($request->user_id);
         
-        $data['apikey'] = WhatsAppSetting::getWhatsAppSetting('api_key');
-        $data['instance'] = WhatsAppSetting::getWhatsAppSetting('instance_id');
-        $data['msg'] = $whatsappMsg->message;
-        $url = "https://app.wapify.net/api/text-message.php";
+        $serverUrl = rtrim(WhatsAppSetting::getWhatsAppSetting('evolution_server_url'), '/');
+        $apiKey = WhatsAppSetting::getWhatsAppSetting('evolution_api_key');
+        $instanceName = WhatsAppSetting::getWhatsAppSetting('evolution_instance_name');
         
-        $data['number'] = $user->mobile_no;
-
-        if($whatsappMsg->type == "media"){
-            $url = "https://app.wapify.net/api/media-message.php";
-            if(StorageSetting::getStorageSetting('storage') == 'DigitalOcean')
-            {
-                $data['media'] = Storage::disk('spaces')->url('uploads/'.$whatsappMsg->image);
-            }
-            else
-            {
-                $data['media'] = asset('uploads/'.$whatsappMsg->image);
-            }
+        $number = $user->mobile_no;
+        if (!str_starts_with($number, '91') && strlen($number) == 10) {
+            $number = "91" . $number;
         }
-        
-        if($whatsappMsg->type == "button"){
-            $url = "https://app.wapify.net/api/button-message.php";
-            $data['btn1'] = $whatsappMsg->btn1;
-            $data['btn1value'] = $whatsappMsg->btn1_value;
-            $data['btn1type'] = $whatsappMsg->btn1_type;
+
+        $headers = [
+            "apikey: {$apiKey}",
+            "Content-Type: application/json"
+        ];
+
+        if ($whatsappMsg->type == "media" || $whatsappMsg->type == "button") {
+            $url = "{$serverUrl}/message/sendMedia/{$instanceName}";
             
-            if($whatsappMsg->btn2 != "" && $whatsappMsg->btn2_value != "" && $whatsappMsg->btn2_type != ""){
-                $data['btn2'] = $whatsappMsg->btn2;
-                $data['btn2value'] = $whatsappMsg->btn2_value;
-                $data['btn2type'] = $whatsappMsg->btn2_type;
+            $mediaUrl = "";
+            if(StorageSetting::getStorageSetting('storage') == 'DigitalOcean') {
+                $mediaUrl = Storage::disk('spaces')->url('uploads/'.$whatsappMsg->image);
+            } else {
+                $mediaUrl = asset('uploads/'.$whatsappMsg->image);
             }
-            
-            $data['footer'] = $whatsappMsg->footer;
-            
-            if($whatsappMsg->image != ""){
-                if(StorageSetting::getStorageSetting('storage') == 'DigitalOcean')
-                {
-                    $data['media'] = Storage::disk('spaces')->url('uploads/'.$whatsappMsg->image);
+
+            // Note: Evolution API does not support buttons on all devices natively anymore without business API.
+            // We'll send it as media with caption containing the text + buttons info.
+            $caption = $whatsappMsg->message;
+            if ($whatsappMsg->type == "button") {
+                $caption .= "\n\nOptions:\n1. " . $whatsappMsg->btn1;
+                if ($whatsappMsg->btn2) {
+                    $caption .= "\n2. " . $whatsappMsg->btn2;
                 }
-                else
-                {
-                    $data['media'] = asset('uploads/'.$whatsappMsg->image);
+                if ($whatsappMsg->footer) {
+                    $caption .= "\n\n" . $whatsappMsg->footer;
                 }
             }
+
+            $data = [
+                "number" => $number,
+                "mediatype" => "image",
+                "media" => $mediaUrl,
+                "caption" => $caption
+            ];
+        } else {
+            $url = "{$serverUrl}/message/sendText/{$instanceName}";
+            $data = [
+                "number" => $number,
+                "text" => $whatsappMsg->message
+            ];
         }
 
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/x-www-form-urlencoded']);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
@@ -202,17 +208,16 @@ class WhatsappMessageController extends Controller
     {
         $whatsappMsg = WhatsappMessage::find($request->id);
         
-        $data['apikey'] = WhatsAppSetting::getWhatsAppSetting('api_key');
-        $data['instance'] = WhatsAppSetting::getWhatsAppSetting('instance_id');
-        $data['msg'] = $whatsappMsg->message;
-        $url = "https://app.wapify.net/api/text-message.php";
+        $serverUrl = rtrim(WhatsAppSetting::getWhatsAppSetting('evolution_server_url'), '/');
+        $apiKey = WhatsAppSetting::getWhatsAppSetting('evolution_api_key');
+        $instanceName = WhatsAppSetting::getWhatsAppSetting('evolution_instance_name');
         
         $user = array();
         if($request->user_type == "random")
         {
             $user = User::where('mobile_no','!=','')->where('user_type','User')->inRandomOrder()->take($request->quantity)->get();
         }
-        if($request->user_type == "older")
+        else if($request->user_type == "older")
         {
             $user = User::where('mobile_no','!=','')->where('user_type','User')->whereBetween('created_at',[date('Y-m-d H:i:s',strtotime('-60 days')),date('Y-m-d H:i:s',strtotime('today'))])->take($request->quantity)->get();
         }
@@ -221,69 +226,71 @@ class WhatsappMessageController extends Controller
             $user = User::where('mobile_no','!=','')->where('user_type','User')->latest()->take($request->quantity)->get();
         }
 
-        $users_final = "";
+        $headers = [
+            "apikey: {$apiKey}",
+            "Content-Type: application/json"
+        ];
+
+        $mediaUrl = "";
+        if($whatsappMsg->type == "media" || $whatsappMsg->type == "button"){
+            if(StorageSetting::getStorageSetting('storage') == 'DigitalOcean') {
+                $mediaUrl = Storage::disk('spaces')->url('uploads/'.$whatsappMsg->image);
+            } else {
+                $mediaUrl = asset('uploads/'.$whatsappMsg->image);
+            }
+        }
+
+        $caption = $whatsappMsg->message;
+        if ($whatsappMsg->type == "button") {
+            $caption .= "\n\nOptions:\n1. " . $whatsappMsg->btn1;
+            if ($whatsappMsg->btn2) {
+                $caption .= "\n2. " . $whatsappMsg->btn2;
+            }
+            if ($whatsappMsg->footer) {
+                $caption .= "\n\n" . $whatsappMsg->footer;
+            }
+        }
+
+        $results = [];
+        
+        // Evolution API usually expects single number per request or we loop
         foreach ($user as $key => $user_val){
-            if($users_final == "")
-            {
-                $users_final = "+91".$user_val->mobile_no;
+            $number = $user_val->mobile_no;
+            if (!str_starts_with($number, '91') && strlen($number) == 10) {
+                $number = "91" . $number;
             }
-            else
-            {
-                $users_final = $users_final.","."+91".$user_val->mobile_no;
+
+            if ($whatsappMsg->type == "media" || $whatsappMsg->type == "button") {
+                $url = "{$serverUrl}/message/sendMedia/{$instanceName}";
+                $data = [
+                    "number" => $number,
+                    "mediatype" => "image",
+                    "media" => $mediaUrl,
+                    "caption" => $caption
+                ];
+            } else {
+                $url = "{$serverUrl}/message/sendText/{$instanceName}";
+                $data = [
+                    "number" => $number,
+                    "text" => $whatsappMsg->message
+                ];
             }
+
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+            $res = curl_exec($ch);
+            curl_close($ch);
+            
+            $results[] = $res;
         }
 
-        $data['number'] = $users_final;
-        if($whatsappMsg->type == "media"){
-            $url = "https://app.wapify.net/api/media-message.php";
-            if(StorageSetting::getStorageSetting('storage') == 'DigitalOcean')
-            {
-                $data['media'] = Storage::disk('spaces')->url('uploads/'.$whatsappMsg->image);
-            }
-            else
-            {
-                $data['media'] = asset('uploads/'.$whatsappMsg->image);
-            }
-        }
-        
-        if($whatsappMsg->type == "button"){
-            $url = "https://app.wapify.net/api/button-message.php";
-            $data['btn1'] = $whatsappMsg->btn1;
-            $data['btn1value'] = $whatsappMsg->btn1_value;
-            $data['btn1type'] = $whatsappMsg->btn1_type;
-            
-            if($whatsappMsg->btn2 != "" && $whatsappMsg->btn2_value != "" && $whatsappMsg->btn2_type != ""){
-                $data['btn2'] = $whatsappMsg->btn2;
-                $data['btn2value'] = $whatsappMsg->btn2_value;
-                $data['btn2type'] = $whatsappMsg->btn2_type;
-            }
-            
-            $data['footer'] = $whatsappMsg->footer;
-            
-            if($whatsappMsg->image != ""){
-                if(StorageSetting::getStorageSetting('storage') == 'DigitalOcean')
-                {
-                    $data['media'] = Storage::disk('spaces')->url('uploads/'.$whatsappMsg->image);
-                }
-                else
-                {
-                    $data['media'] = asset('uploads/'.$whatsappMsg->image);
-                }
-            }
-        }
-
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/x-www-form-urlencoded']);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-        $result = curl_exec($ch);
-        curl_close($ch);
-        
-        return $result;
+        return json_encode(['status' => 'success', 'data' => $results]);
     }
 
     public function destroy($id)

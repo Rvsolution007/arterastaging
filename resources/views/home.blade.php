@@ -177,6 +177,55 @@
 </div>
 
 @can('FinancialStatistics')
+<div class="row poppins-font">
+    <div class="col-lg-3 col-xs-6">
+        <div class="dash-card bg-gradient-blue">
+            <div class="dash-icon-box">
+                <i class="fa fa-dollar-sign dash-icon d-flex align-items-center justify-content-center" style="font-size:24px;"></i>
+            </div>
+            <div class="dash-content">
+                <span class="dash-title">MRR (Monthly)</span>
+                <h2 class="dash-number">${{ number_format($mrr, 2) }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-xs-6">
+        <div class="dash-card bg-gradient-green">
+            <div class="dash-icon-box">
+                <i class="fa fa-money-bill-wave dash-icon d-flex align-items-center justify-content-center" style="font-size:24px;"></i>
+            </div>
+            <div class="dash-content">
+                <span class="dash-title">ARR (Annual)</span>
+                <h2 class="dash-number">${{ number_format($arr, 2) }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-xs-6">
+        <div class="dash-card bg-gradient-pink">
+            <div class="dash-icon-box">
+                <i class="fa fa-user-times dash-icon d-flex align-items-center justify-content-center" style="font-size:24px;"></i>
+            </div>
+            <div class="dash-content">
+                <span class="dash-title">Churn Rate</span>
+                <h2 class="dash-number">{{ number_format($churnRate * 100, 1) }}%</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-xs-6">
+        <div class="dash-card bg-gradient-orange">
+            <div class="dash-icon-box">
+                <i class="fa fa-gem dash-icon d-flex align-items-center justify-content-center" style="font-size:24px;"></i>
+            </div>
+            <div class="dash-content">
+                <span class="dash-title">LTV (Lifetime Value)</span>
+                <h2 class="dash-number">${{ number_format($ltv, 2) }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+@endcan
+
+@can('FinancialStatistics')
 <div class="row">
     <div class="col-lg-3 col-xs-6">
         <div class="dash-card bg-white">

@@ -219,8 +219,9 @@ Route::post('webhooks/payment/failed', 'Api\PaymentWebhookController@handle');
 
 
 // Phase 3 Remaining Endpoints
-Route::middleware('auth:sanctum')->group(function () {
-    Route::post('onboarding/step', 'Api\OnboardingController@completeStep');
-    Route::get('feedback/check-eligibility', 'Api\FeedbackController@checkEligibility');
-    Route::post('feedback/submit', 'Api\FeedbackController@submit');
+Route::namespace('Api')->middleware(['throttle'])->group(function () {
+    Route::post('onboarding/status', 'UserJourneyController@onboardingStatus');
+    Route::post('onboarding/step', 'UserJourneyController@completeStep');
+    Route::post('feedback/check-eligibility', 'UserJourneyController@checkEligibility');
+    Route::post('feedback/submit', 'UserJourneyController@submitFeedback');
 });

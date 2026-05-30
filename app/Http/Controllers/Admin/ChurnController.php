@@ -143,7 +143,7 @@ class ChurnController extends Controller
             return response()->json(['status' => 'success', 'message' => 'Email sent successfully!']);
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Send Mail Error: ' . $e->getMessage());
-            return response()->json(['status' => 'error', 'message' => 'Failed to send email. Check SMTP settings.']);
+            return response()->json(['status' => 'error', 'message' => 'Email Error: ' . $e->getMessage()]);
         }
     }
 

@@ -40,7 +40,10 @@ class DesignChallengeController extends Controller
             'description' => 'nullable|string',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
-            'reward_points' => 'nullable|string'
+            'type' => 'nullable|string|in:any_post,festival_post,custom_post,ai_trends_post',
+            'target_count' => 'required|integer|min:1',
+            'target_id' => 'nullable|integer',
+            'reward_points' => 'nullable|integer|min:0'
         ]);
 
         DesignChallenge::create($request->all());
@@ -56,6 +59,10 @@ class DesignChallengeController extends Controller
             'title' => 'required|string|max:255',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
+            'type' => 'nullable|string|in:any_post,festival_post,custom_post,ai_trends_post',
+            'target_count' => 'required|integer|min:1',
+            'target_id' => 'nullable|integer',
+            'reward_points' => 'nullable|integer|min:0'
         ]);
 
         $challenge->update($request->all());

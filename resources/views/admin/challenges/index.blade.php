@@ -172,6 +172,7 @@
                         <thead>
                             <tr>
                                 <th>Title</th>
+                                <th>Type & Goal</th>
                                 <th>Start Date</th>
                                 <th>End Date</th>
                                 <th>Status</th>
@@ -184,6 +185,17 @@
                                 <td>
                                     <div class="font-weight-bold" style="color: #1e293b; font-size: 1rem;">{{ $challenge->title }}</div>
                                     <div class="text-muted" style="font-size: 0.8rem;">{{ Str::limit($challenge->description, 50) }}</div>
+                                </td>
+                                <td>
+                                    <div class="font-weight-bold" style="font-size: 0.9rem;">
+                                        {{ str_replace('_', ' ', Str::title($challenge->type ?? 'any_post')) }}
+                                    </div>
+                                    <div class="text-muted" style="font-size: 0.8rem;">
+                                        Target: {{ $challenge->target_count ?? 1 }}
+                                        @if($challenge->target_id)
+                                        | ID: {{ $challenge->target_id }}
+                                        @endif
+                                    </div>
                                 </td>
                                 <td>{{ \Carbon\Carbon::parse($challenge->start_date)->format('d M, Y') }}</td>
                                 <td>{{ \Carbon\Carbon::parse($challenge->end_date)->format('d M, Y') }}</td>
@@ -320,6 +332,31 @@
                     <div class="form-group">
                         <label class="font-weight-bold text-muted small">Description</label>
                         <textarea class="form-control" style="border-radius: 8px;" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold text-muted small">Challenge Type</label>
+                            <select class="form-control" style="border-radius: 8px;" name="type">
+                                <option value="any_post">Any Post</option>
+                                <option value="festival_post">Festival Post</option>
+                                <option value="custom_post">Custom Post</option>
+                                <option value="ai_trends_post">AI Trends Post</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold text-muted small">Target Count</label>
+                            <input type="number" class="form-control" style="border-radius: 8px;" name="target_count" value="1" min="1" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold text-muted small">Specific Target ID (Optional)</label>
+                            <input type="number" class="form-control" style="border-radius: 8px;" name="target_id" placeholder="e.g. Festival ID">
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold text-muted small">Reward Points</label>
+                            <input type="number" class="form-control" style="border-radius: 8px;" name="reward_points" value="0" min="0">
+                        </div>
                     </div>
                     <div class="row">
                         <div class="col-md-6 form-group">

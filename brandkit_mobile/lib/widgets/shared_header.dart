@@ -5,9 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../controllers/home_controller.dart';
 import '../controllers/subscription_controller.dart';
-import '../utils/colors.dart';
-import '../utils/styles.dart';
-import '../utils/spacing.dart';
+import '../utils/app_colors.dart';
+import '../utils/app_text_styles.dart';
+import '../utils/app_spacing.dart';
 import '../screens/subscription_plans_screen.dart';
 import '../screens/achievements_screen.dart';
 import '../screens/notifications_screen.dart';
@@ -167,7 +167,7 @@ class SharedHeader extends StatelessWidget {
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    const Icon(Icons.notifications_outlined, color: AppColors.gray600, size: 22),
+                    Icon(Icons.notifications_outlined, color: AppColors.gray600, size: 22),
                     Obx(() {
                       if (hc.notifications.isEmpty) return const SizedBox.shrink();
                       return Positioned(

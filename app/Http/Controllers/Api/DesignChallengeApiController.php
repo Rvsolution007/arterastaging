@@ -95,10 +95,25 @@ class DesignChallengeApiController extends Controller
             
         $badgePostCount = \App\Models\Setting::getGlobalValue('gamification', 'badge_post_count', 100);
 
+        // Fetch Design Challenges for the user
+        $challenges = DesignChallenge::where('is_active', true)
+            ->orWhereHas('participants', function($q) use ($userId) {
+                $q->where('user_id', $userId)->where('status', 'completed');
+            })
+            ->orderBy('created_at', 'desc')
+            ->get()->map(function($c) use ($userId) {
+                $participant = ChallengeParticipant::where('challenge_id', $c->id)->where('user_id', $userId)->first();
+                $c->progress = $participant ? $participant->progress : 0;
+                $c->status = $participant ? $participant->status : 'in_progress';
+                $c->is_participated = true; // Auto-enrolled now
+                return $c;
+            });
+
         return response()->json([
             'status' => 'success',
             'data' => [
                 'achievements' => $achievements,
+                'challenges' => $challenges,
                 'total_posts' => $totalPosts,
                 'badge_post_count' => (int) $badgePostCount
             ]
@@ -116,28 +131,31 @@ class DesignChallengeApiController extends Controller
         if (in_array($itemType, ['custom', 'business_custom_frame', 'business_frame', 'business_custom'])) $challengeType = 'custom_post';
         // ai_trends_post logic if exists
 
-        $activeParticipants = ChallengeParticipant::where('user_id', $userId)
-            ->where('status', 'in_progress')
+        $activeChallenges = DesignChallenge::where('is_active', true)
+            ->where('end_date', '>=', now())
             ->get();
 
-        foreach ($activeParticipants as $participant) {
-            $challenge = DesignChallenge::find($participant->challenge_id);
-            if ($challenge && $challenge->is_active && $challenge->end_date >= now()) {
-                
-                $isMatch = false;
-                if ($challenge->type == 'any_post' || !$challenge->type) {
-                    $isMatch = true;
-                } else if ($challenge->type == $challengeType) {
-                    if ($challenge->target_id) {
-                        if ($challenge->target_id == $itemId) {
-                            $isMatch = true;
-                        }
-                    } else {
+        foreach ($activeChallenges as $challenge) {
+            $isMatch = false;
+            if ($challenge->type == 'any_post' || !$challenge->type) {
+                $isMatch = true;
+            } else if ($challenge->type == $challengeType) {
+                if ($challenge->target_id) {
+                    if ($challenge->target_id == $itemId) {
                         $isMatch = true;
                     }
+                } else {
+                    $isMatch = true;
                 }
+            }
 
-                if ($isMatch) {
+            if ($isMatch) {
+                $participant = ChallengeParticipant::firstOrCreate(
+                    ['challenge_id' => $challenge->id, 'user_id' => $userId],
+                    ['status' => 'in_progress', 'progress' => 0]
+                );
+
+                if ($participant->status != 'completed') {
                     $participant->progress += 1;
                     if ($participant->progress >= $challenge->target_count) {
                         $participant->status = 'completed';
@@ -147,8 +165,7 @@ class DesignChallengeApiController extends Controller
                         if ($challenge->reward_points > 0) {
                             $user = \App\Models\User::find($userId);
                             if ($user) {
-                                // Assuming user model has a way to add points. Usually user_wallets or user_points
-                                // We will leave a stub for points logic here if needed
+                                // Add points logic here
                             }
                         }
                     }

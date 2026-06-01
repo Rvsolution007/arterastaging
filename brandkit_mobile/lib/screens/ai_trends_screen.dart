@@ -6,6 +6,7 @@ import '../utils/app_text_styles.dart';
 import '../utils/app_spacing.dart';
 import '../controllers/home_controller.dart';
 import '../widgets/common/section_header.dart';
+import '../widgets/shared_header.dart';
 import 'detail_list_screen.dart';
 
 class AiTrendsScreen extends StatelessWidget {
@@ -23,7 +24,7 @@ class AiTrendsScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeader(hc),
+              const SharedHeader(),
               AppSpacing.gapV24,
               _buildAiTrendsSection(hc),
               AppSpacing.gapV32,
@@ -38,103 +39,7 @@ class AiTrendsScreen extends StatelessWidget {
     );
   }
 
-  // ── 1. Header (Same as Home) ──
-  Widget _buildHeader(HomeController hc) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: AppColors.gray50)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Obx(() {
-                final logo = hc.businessLogo.value;
-                return Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: logo.isEmpty ? AppColors.indigo600 : Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 4,
-                      )
-                    ],
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: logo.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: '${hc.uploadsBaseUrl}/$logo',
-                          fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) => _buildInitials(hc),
-                        )
-                      : _buildInitials(hc),
-                );
-              }),
-              AppSpacing.gapH12,
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Obx(() => Text(
-                        hc.businessName.value.isNotEmpty ? hc.businessName.value : 'business'.tr,
-                        style: AppTextStyles.cardTitle,
-                      )),
-                  Text('business'.tr, style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-                ],
-              ),
-            ],
-          ),
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.slate100,
-                ),
-                child: Icon(Icons.notifications_none_rounded, color: AppColors.gray500, size: 20),
-              ),
-              AppSpacing.gapH12,
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.indigo600,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: AppColors.primaryShadow,
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.bolt, color: Colors.white, size: 16),
-                    const SizedBox(width: 4),
-                    Text('quick'.tr, style: AppTextStyles.buttonPrimary.copyWith(fontSize: 12)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInitials(HomeController hc) {
-    final name = hc.businessName.value;
-    final initials = name.isNotEmpty
-        ? name.split(' ').take(2).map((w) => w.isNotEmpty ? w[0] : '').join().toUpperCase()
-        : 'B';
-    return Center(
-      child: Text(
-        initials,
-        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Colors.white),
-      ),
-    );
-  }
+  // Header is now in SharedHeader
 
   // ── 2. AI Trends Section ──
   Widget _buildAiTrendsSection(HomeController hc) {

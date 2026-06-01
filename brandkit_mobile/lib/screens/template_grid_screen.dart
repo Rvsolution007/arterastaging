@@ -8,6 +8,7 @@ import '../controllers/ad_controller.dart';
 import '../services/api_service.dart';
 import 'editor_screen.dart';
 import 'custom_posts_screen.dart';
+import '../widgets/shared_header.dart';
 
 class TemplateGridScreen extends StatelessWidget {
   const TemplateGridScreen({super.key});
@@ -23,64 +24,7 @@ class TemplateGridScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 40, height: 40,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.primary,
-                        ),
-                        child: const Icon(Icons.person, color: Colors.white, size: 20),
-                      ),
-                      const SizedBox(width: 10),
-                      Obx(() => Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            homeController.businessName.value.isNotEmpty 
-                                ? homeController.businessName.value.toUpperCase() 
-                                : 'business'.tr,
-                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                          ),
-                          Text('custom_templates'.tr, style: TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
-                        ],
-                      )),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Container(
-                        width: 36, height: 36,
-                        decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.grey.shade100),
-                        child: Icon(Icons.notifications_none, color: AppColors.textSecondary, size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.bolt, color: Colors.white, size: 16),
-                            const SizedBox(width: 4),
-                            Text('quick'.tr, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+            const SharedHeader(),
 
             // Search Bar
             Padding(

@@ -25,7 +25,9 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
 
   Future<void> _fetchChallenges() async {
     try {
-      final response = await ApiService.get('/design-challenges');
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('userId') ?? '';
+      final response = await ApiService.get('/design-challenges?user_id=$userId');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['status'] == 'success') {
@@ -54,6 +56,7 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
 
       if (response.statusCode == 200) {
         Get.snackbar('Success', 'You have joined the challenge!', backgroundColor: Colors.green, colorText: Colors.white);
+        _fetchChallenges();
       } else {
         final data = jsonDecode(response.body);
         Get.snackbar('Notice', data['message'] ?? 'Could not join challenge', backgroundColor: Colors.orange, colorText: Colors.white);
@@ -129,15 +132,11 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
               Container(
                 height: 120,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.purple.shade400, Colors.pink.shade400],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                 ),
                 child: Center(
-                  child: Icon(Icons.brush, size: 50, color: Colors.white.withValues(alpha: 0.5)),
+                  child: Icon(Icons.emoji_events_rounded, size: 50, color: AppColors.primary),
                 ),
               ),
               Padding(
@@ -189,18 +188,54 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () => _participate(challenge['id']),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        child: const Text('Participate Now', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    if (challenge['is_participated'] == true) ...[
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                challenge['status'] == 'completed' ? 'Completed!' : 'In Progress',
+                                style: TextStyle(
+                                  color: challenge['status'] == 'completed' ? Colors.green : AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                '${challenge['progress'] ?? 0} / ${challenge['target_count'] ?? 1}',
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: LinearProgressIndicator(
+                              value: (challenge['progress'] ?? 0) / (challenge['target_count'] ?? 1),
+                              backgroundColor: Colors.grey.shade200,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                challenge['status'] == 'completed' ? Colors.green : AppColors.primary,
+                              ),
+                              minHeight: 8,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
+                    ] else ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => _participate(challenge['id']),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: const Text('Participate Now', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

@@ -9,6 +9,7 @@ import '../services/notification_service.dart';
 class HomeController extends GetxController {
   var isLoading = true.obs;
   var isFestivalLoading = false.obs;
+  var showQuickStart = false.obs;
   
   // Data observables
   var categories = [].obs;
@@ -63,9 +64,22 @@ class HomeController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    checkQuickStartVisibility();
     fetchHomeData();
     loadBusinessInfo();
     _refreshFcmToken();
+  }
+
+  Future<void> checkQuickStartVisibility() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isHidden = prefs.getBool('quickstart_hidden') ?? false;
+    showQuickStart.value = !isHidden;
+  }
+  
+  Future<void> hideQuickStartPermanently() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('quickstart_hidden', true);
+    showQuickStart.value = false;
   }
 
   Future<void> _refreshFcmToken() async {

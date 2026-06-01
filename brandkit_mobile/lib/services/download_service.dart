@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:get/get.dart';
+import '../controllers/home_controller.dart';
 
 class DownloadService {
   static const String _prefsKey = 'my_downloads';
@@ -41,6 +43,12 @@ class DownloadService {
       downloads.insert(0, jsonEncode(newDownload));
       await prefs.setStringList(_prefsKey, downloads);
       
+      // Permanently hide Quick Start Wizard on first download
+      await prefs.setBool('quickstart_hidden', true);
+      if (Get.isRegistered<HomeController>()) {
+        Get.find<HomeController>().showQuickStart.value = false;
+      }
+
       debugPrint('[DownloadService] Saved to local storage: ${file.path}');
     } catch (e) {
       debugPrint('[DownloadService] Error saving download: $e');

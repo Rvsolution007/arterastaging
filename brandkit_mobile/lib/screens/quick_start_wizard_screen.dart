@@ -51,6 +51,12 @@ class _QuickStartWizardScreenState extends State<QuickStartWizardScreen> with Ti
       _stepsCompleted[step] = true;
       _stepsInProgress[step] = false;
     });
+    
+    if (_allDone) {
+      if (Get.isRegistered<HomeController>()) {
+        Get.find<HomeController>().hideQuickStartPermanently();
+      }
+    }
   }
 
   int get _completedCount => _stepsCompleted.where((s) => s).length;

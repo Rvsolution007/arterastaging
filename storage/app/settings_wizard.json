@@ -22,5 +22,12 @@
         "ai_bot": {
             "business_prompt": "Company: Bhavani Crane & Lifting Equipments\nBrand: BHAVANI"
         }
+    },
+    "global": {
+        "gamification": {
+            "badge_post_count": "50",
+            "streak_goal_days": "7",
+            "smart_push_enabled": "1"
+        }
     }
 }

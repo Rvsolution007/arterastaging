@@ -15,20 +15,23 @@ class DesignChallengeController extends Controller
         $challenges = DesignChallenge::orderBy('created_at', 'desc')->get();
         $pushLogs = PushNotificationLog::with('user')->orderBy('created_at', 'desc')->limit(100)->get();
         $badgePostCount = Setting::getGlobalValue('gamification', 'badge_post_count', 100);
-        $milestoneMonths = Setting::getGlobalValue('gamification', 'milestone_months', '1,6,12');
+        $streakGoalDays = Setting::getGlobalValue('gamification', 'streak_goal_days', 7);
+        $smartPushEnabled = Setting::getGlobalValue('gamification', 'smart_push_enabled', 1);
         
-        return view('admin.challenges.index', compact('challenges', 'pushLogs', 'badgePostCount', 'milestoneMonths'));
+        return view('admin.challenges.index', compact('challenges', 'pushLogs', 'badgePostCount', 'streakGoalDays', 'smartPushEnabled'));
     }
 
     public function storeSettings(Request $request)
     {
         $request->validate([
             'badge_post_count' => 'required|integer',
-            'milestone_months' => 'required|string'
+            'streak_goal_days' => 'required|integer',
+            'smart_push_enabled' => 'required|boolean'
         ]);
 
         Setting::setValue('gamification', 'badge_post_count', $request->badge_post_count);
-        Setting::setValue('gamification', 'milestone_months', $request->milestone_months);
+        Setting::setValue('gamification', 'streak_goal_days', $request->streak_goal_days);
+        Setting::setValue('gamification', 'smart_push_enabled', $request->smart_push_enabled);
 
         return back()->with('success', 'Gamification settings updated successfully.');
     }

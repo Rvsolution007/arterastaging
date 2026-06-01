@@ -15998,3 +15998,13 @@ Your invoices are formatted for business use and include all necessary details f
 #34 C:\\xampp\\htdocs\\Artera\\artisan(35): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
 #35 {main}
 "} 
+[2026-06-01 16:17:12] local.INFO: DEBUG API customPost: userId resolved: NULL, token present: NO, query: {"t":"1780310832082"}  
+[2026-06-01 16:17:13] local.INFO: DEBUG API customPost: userId resolved: NULL, token present: NO, query: {"t":"1780310832082"}  
+[2026-06-01 16:17:13] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-06-01 16:17:42] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1780310862019"}  
+[2026-06-01 16:17:42] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-06-01 16:17:42] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-06-01 16:17:42] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1780310862019"}  
+[2026-06-01 16:17:42] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-06-01 16:17:42] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-06-01 16:17:42] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 

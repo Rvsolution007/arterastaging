@@ -16008,3 +16008,82 @@ Your invoices are formatted for business use and include all necessary details f
 [2026-06-01 16:17:42] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
 [2026-06-01 16:17:42] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
 [2026-06-01 16:17:42] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-06-01 16:21:17] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1780311077461"}  
+[2026-06-01 16:21:17] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 48  
+[2026-06-01 16:21:17] local.INFO: DEBUG API customPost: Replaced 9 text layers.  
+[2026-06-01 16:21:17] local.INFO: DEBUG API customPost: userId resolved: 18, token present: NO, query: {"userId":"18","t":"1780311077461"}  
+[2026-06-01 16:21:17] local.INFO: DEBUG API customPost: AI Content Found for Frame ID: 20  
+[2026-06-01 16:21:17] local.INFO: DEBUG API customPost: Replaced 8 text layers.  
+[2026-06-01 16:21:17] local.INFO: CustomPost API Debug:  {"categories_count":2,"data_count":2,"recent_count":2} 
+[2026-06-01 16:26:57] local.ERROR: PHP Parse error: Syntax error, unexpected '=' on line 1 {"exception":"[object] (Psy\\Exception\\ParseErrorException(code: 0): PHP Parse error: Syntax error, unexpected '=' on line 1 at C:\\xampp\\htdocs\\Artera\\vendor\\psy\\psysh\\src\\Exception\\ParseErrorException.php:40)
+[stacktrace]
+#0 C:\\xampp\\htdocs\\Artera\\vendor\\psy\\psysh\\src\\CodeCleaner.php(340): Psy\\Exception\\ParseErrorException::fromParseError(Object(PhpParser\\Error))
+#1 C:\\xampp\\htdocs\\Artera\\vendor\\psy\\psysh\\src\\CodeCleaner.php(267): Psy\\CodeCleaner->parse('<?php  = Reques...', false)
+#2 C:\\xampp\\htdocs\\Artera\\vendor\\psy\\psysh\\src\\Shell.php(864): Psy\\CodeCleaner->clean(Array, false)
+#3 C:\\xampp\\htdocs\\Artera\\vendor\\psy\\psysh\\src\\Shell.php(893): Psy\\Shell->addCode(' = Request::cre...', true)
+#4 C:\\xampp\\htdocs\\Artera\\vendor\\psy\\psysh\\src\\Shell.php(1355): Psy\\Shell->setCode(' = Request::cre...', true)
+#5 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\tinker\\src\\Console\\TinkerCommand.php(76): Psy\\Shell->execute(' = Request::cre...')
+#6 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Container\\BoundMethod.php(36): Laravel\\Tinker\\Console\\TinkerCommand->handle()
+#7 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Container\\Util.php(41): Illuminate\\Container\\BoundMethod::Illuminate\\Container\\{closure}()
+#8 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Container\\BoundMethod.php(93): Illuminate\\Container\\Util::unwrapIfClosure(Object(Closure))
+#9 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Container\\BoundMethod.php(35): Illuminate\\Container\\BoundMethod::callBoundMethod(Object(Illuminate\\Foundation\\Application), Array, Object(Closure))
+#10 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Container\\Container.php(663): Illuminate\\Container\\BoundMethod::call(Object(Illuminate\\Foundation\\Application), Array, Array, NULL)
+#11 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Console\\Command.php(182): Illuminate\\Container\\Container->call(Array)
+#12 C:\\xampp\\htdocs\\Artera\\vendor\\symfony\\console\\Command\\Command.php(291): Illuminate\\Console\\Command->execute(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
+#13 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Console\\Command.php(151): Symfony\\Component\\Console\\Command\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
+#14 C:\\xampp\\htdocs\\Artera\\vendor\\symfony\\console\\Application.php(1014): Illuminate\\Console\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#15 C:\\xampp\\htdocs\\Artera\\vendor\\symfony\\console\\Application.php(301): Symfony\\Component\\Console\\Application->doRunCommand(Object(Laravel\\Tinker\\Console\\TinkerCommand), Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#16 C:\\xampp\\htdocs\\Artera\\vendor\\symfony\\console\\Application.php(171): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#17 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Console\\Application.php(102): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#18 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Console\\Kernel.php(155): Illuminate\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#19 C:\\xampp\\htdocs\\Artera\\artisan(35): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#20 {main}
+"} 
+[2026-06-01 16:27:05] local.ERROR: PHP Parse error: Syntax error, unexpected T_NS_SEPARATOR on line 1 {"exception":"[object] (Psy\\Exception\\ParseErrorException(code: 0): PHP Parse error: Syntax error, unexpected T_NS_SEPARATOR on line 1 at C:\\xampp\\htdocs\\Artera\\vendor\\psy\\psysh\\src\\Exception\\ParseErrorException.php:40)
+[stacktrace]
+#0 C:\\xampp\\htdocs\\Artera\\vendor\\psy\\psysh\\src\\CodeCleaner.php(340): Psy\\Exception\\ParseErrorException::fromParseError(Object(PhpParser\\Error))
+#1 C:\\xampp\\htdocs\\Artera\\vendor\\psy\\psysh\\src\\CodeCleaner.php(267): Psy\\CodeCleaner->parse('<?php \\\\ = Reque...', false)
+#2 C:\\xampp\\htdocs\\Artera\\vendor\\psy\\psysh\\src\\Shell.php(864): Psy\\CodeCleaner->clean(Array, false)
+#3 C:\\xampp\\htdocs\\Artera\\vendor\\psy\\psysh\\src\\Shell.php(893): Psy\\Shell->addCode('\\\\ = Request::cr...', true)
+#4 C:\\xampp\\htdocs\\Artera\\vendor\\psy\\psysh\\src\\Shell.php(1355): Psy\\Shell->setCode('\\\\ = Request::cr...', true)
+#5 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\tinker\\src\\Console\\TinkerCommand.php(76): Psy\\Shell->execute('\\\\ = Request::cr...')
+#6 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Container\\BoundMethod.php(36): Laravel\\Tinker\\Console\\TinkerCommand->handle()
+#7 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Container\\Util.php(41): Illuminate\\Container\\BoundMethod::Illuminate\\Container\\{closure}()
+#8 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Container\\BoundMethod.php(93): Illuminate\\Container\\Util::unwrapIfClosure(Object(Closure))
+#9 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Container\\BoundMethod.php(35): Illuminate\\Container\\BoundMethod::callBoundMethod(Object(Illuminate\\Foundation\\Application), Array, Object(Closure))
+#10 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Container\\Container.php(663): Illuminate\\Container\\BoundMethod::call(Object(Illuminate\\Foundation\\Application), Array, Array, NULL)
+#11 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Console\\Command.php(182): Illuminate\\Container\\Container->call(Array)
+#12 C:\\xampp\\htdocs\\Artera\\vendor\\symfony\\console\\Command\\Command.php(291): Illuminate\\Console\\Command->execute(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
+#13 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Console\\Command.php(151): Symfony\\Component\\Console\\Command\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
+#14 C:\\xampp\\htdocs\\Artera\\vendor\\symfony\\console\\Application.php(1014): Illuminate\\Console\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#15 C:\\xampp\\htdocs\\Artera\\vendor\\symfony\\console\\Application.php(301): Symfony\\Component\\Console\\Application->doRunCommand(Object(Laravel\\Tinker\\Console\\TinkerCommand), Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#16 C:\\xampp\\htdocs\\Artera\\vendor\\symfony\\console\\Application.php(171): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#17 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Console\\Application.php(102): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#18 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Console\\Kernel.php(155): Illuminate\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#19 C:\\xampp\\htdocs\\Artera\\artisan(35): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#20 {main}
+"} 
+[2026-06-01 16:28:57] local.ERROR: PHP Parse error: Syntax error, unexpected T_NS_SEPARATOR on line 1 {"exception":"[object] (Psy\\Exception\\ParseErrorException(code: 0): PHP Parse error: Syntax error, unexpected T_NS_SEPARATOR on line 1 at C:\\xampp\\htdocs\\Artera\\vendor\\psy\\psysh\\src\\Exception\\ParseErrorException.php:40)
+[stacktrace]
+#0 C:\\xampp\\htdocs\\Artera\\vendor\\psy\\psysh\\src\\CodeCleaner.php(340): Psy\\Exception\\ParseErrorException::fromParseError(Object(PhpParser\\Error))
+#1 C:\\xampp\\htdocs\\Artera\\vendor\\psy\\psysh\\src\\CodeCleaner.php(267): Psy\\CodeCleaner->parse('<?php \\\\ = Reque...', false)
+#2 C:\\xampp\\htdocs\\Artera\\vendor\\psy\\psysh\\src\\Shell.php(864): Psy\\CodeCleaner->clean(Array, false)
+#3 C:\\xampp\\htdocs\\Artera\\vendor\\psy\\psysh\\src\\Shell.php(893): Psy\\Shell->addCode('\\\\ = Request::cr...', true)
+#4 C:\\xampp\\htdocs\\Artera\\vendor\\psy\\psysh\\src\\Shell.php(1355): Psy\\Shell->setCode('\\\\ = Request::cr...', true)
+#5 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\tinker\\src\\Console\\TinkerCommand.php(76): Psy\\Shell->execute('\\\\ = Request::cr...')
+#6 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Container\\BoundMethod.php(36): Laravel\\Tinker\\Console\\TinkerCommand->handle()
+#7 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Container\\Util.php(41): Illuminate\\Container\\BoundMethod::Illuminate\\Container\\{closure}()
+#8 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Container\\BoundMethod.php(93): Illuminate\\Container\\Util::unwrapIfClosure(Object(Closure))
+#9 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Container\\BoundMethod.php(35): Illuminate\\Container\\BoundMethod::callBoundMethod(Object(Illuminate\\Foundation\\Application), Array, Object(Closure))
+#10 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Container\\Container.php(663): Illuminate\\Container\\BoundMethod::call(Object(Illuminate\\Foundation\\Application), Array, Array, NULL)
+#11 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Console\\Command.php(182): Illuminate\\Container\\Container->call(Array)
+#12 C:\\xampp\\htdocs\\Artera\\vendor\\symfony\\console\\Command\\Command.php(291): Illuminate\\Console\\Command->execute(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
+#13 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Console\\Command.php(151): Symfony\\Component\\Console\\Command\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
+#14 C:\\xampp\\htdocs\\Artera\\vendor\\symfony\\console\\Application.php(1014): Illuminate\\Console\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#15 C:\\xampp\\htdocs\\Artera\\vendor\\symfony\\console\\Application.php(301): Symfony\\Component\\Console\\Application->doRunCommand(Object(Laravel\\Tinker\\Console\\TinkerCommand), Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#16 C:\\xampp\\htdocs\\Artera\\vendor\\symfony\\console\\Application.php(171): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#17 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Console\\Application.php(102): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#18 C:\\xampp\\htdocs\\Artera\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Console\\Kernel.php(155): Illuminate\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#19 C:\\xampp\\htdocs\\Artera\\artisan(35): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#20 {main}
+"} 

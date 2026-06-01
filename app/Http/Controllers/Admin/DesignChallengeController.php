@@ -24,9 +24,9 @@ class DesignChallengeController extends Controller
     public function storeSettings(Request $request)
     {
         $request->validate([
-            'badge_post_count' => 'required|integer',
-            'streak_goal_days' => 'required|integer',
-            'smart_push_enabled' => 'required|boolean'
+            'badge_post_count' => 'required|numeric',
+            'streak_goal_days' => 'required|numeric',
+            'smart_push_enabled' => 'required|in:0,1'
         ]);
 
         Setting::setValue('gamification', 'badge_post_count', $request->badge_post_count);

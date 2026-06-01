@@ -27,7 +27,8 @@
         "gamification": {
             "badge_post_count": "50",
             "streak_goal_days": "7",
-            "smart_push_enabled": "1"
+            "smart_push_enabled": "1",
+            "start_date": "2026-06-01 00:00:00"
         }
     }
 }

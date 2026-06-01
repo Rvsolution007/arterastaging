@@ -1049,6 +1049,8 @@ class AuthApi extends Controller
         $itemId = $request->get('item_id');
         $downloadedImageBase64 = $request->get('downloaded_image');
 
+        \Log::info("trackActivity called: user=$userId, action=$action, type=$itemType, id=$itemId");
+
         if (!$userId) {
              return response()->json(['status' => 'error', 'message' => 'User ID required'], 400);
         }
@@ -1184,8 +1186,11 @@ class AuthApi extends Controller
 
     private function checkMilestoneBadges($userId)
     {
+        $startDate = \App\Models\Setting::getGlobalValue('gamification', 'start_date', '2026-06-01 00:00:00');
+
         $postCount = \App\Models\UserActivity::where('user_id', $userId)
             ->whereIn('action', ['download_template', 'create_custom_post', 'create_festival_post', 'magic_cloner_use'])
+            ->where('created_at', '>=', $startDate)
             ->count();
 
         $milestones = [

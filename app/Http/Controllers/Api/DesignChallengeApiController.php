@@ -86,8 +86,11 @@ class DesignChallengeApiController extends Controller
             ->where('user_id', $userId)
             ->get();
 
+        $startDate = \App\Models\Setting::getGlobalValue('gamification', 'start_date', '2026-06-01 00:00:00');
+
         $totalPosts = \App\Models\UserActivity::where('user_id', $userId)
             ->whereIn('action', ['download_template', 'create_custom_post', 'create_festival_post', 'magic_cloner_use'])
+            ->where('created_at', '>=', $startDate)
             ->count();
             
         $badgePostCount = \App\Models\Setting::getGlobalValue('gamification', 'badge_post_count', 100);

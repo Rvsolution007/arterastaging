@@ -131,7 +131,7 @@ class DesignChallengeApiController extends Controller
         // ai_trends_post logic if exists
 
         $activeChallenges = DesignChallenge::where('is_active', true)
-            ->where('end_date', '>=', now())
+            ->where('end_date', '>=', now()->startOfDay())
             ->get();
 
         foreach ($activeChallenges as $challenge) {

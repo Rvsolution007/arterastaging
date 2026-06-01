@@ -1104,6 +1104,9 @@ class AuthApi extends Controller
 
         $this->checkMilestoneBadges($userId);
 
+        // Track Design Challenge progress
+        \App\Http\Controllers\Api\DesignChallengeApiController::incrementProgress($userId, $action, $itemType, $itemId);
+
         // ── Consume subscription feature limit on download ──
         if ($action === 'download_template' && $itemType) {
             $user = User::find($userId);

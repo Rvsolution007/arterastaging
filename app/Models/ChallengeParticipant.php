@@ -9,5 +9,5 @@ class ChallengeParticipant extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['challenge_id', 'user_id', 'post_id', 'submitted_at'];
+    protected $fillable = ['challenge_id', 'user_id', 'post_id', 'progress', 'status', 'submitted_at'];
 }

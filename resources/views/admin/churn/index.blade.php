@@ -500,13 +500,6 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <div class="border rounded p-3 text-left">
-                                <h6 class="font-weight-bold">Magic Cloner</h6>
-                                <p class="text-muted small">840 active users haven't used this.</p>
-                                <button class="btn btn-sm btn-info" onclick="triggerDiscovery(this, 'Magic Cloner')">Trigger Discovery Banner</button>
-                            </div>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <div class="border rounded p-3 text-left">
                                 <h6 class="font-weight-bold">Custom Posts</h6>
                                 <p class="text-muted small">320 active users haven't used this.</p>
                                 <button class="btn btn-sm btn-info" onclick="triggerDiscovery(this, 'Custom Posts')">Trigger Discovery Banner</button>

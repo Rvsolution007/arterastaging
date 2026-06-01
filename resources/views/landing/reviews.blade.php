@@ -43,20 +43,6 @@
                 </div>
             </div>
 
-            <!-- Review 2 -->
-            <div class="review-card">
-                <div class="review-stars">
-                    <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star-half-stroke"></i>
-                </div>
-                <p class="review-text">"The AI Magic Cloner is mind-blowing. I upload an ad I like from Instagram, and the app recreates my electronics products in the exact same stylish layout. Unbelievable!"</p>
-                <div class="reviewer-info">
-                    <div class="reviewer-img" style="background-color: #3B82F6;">R</div>
-                    <div class="reviewer-details">
-                        <h4>Rahul Desai</h4>
-                        <p>Electronics Retailer</p>
-                    </div>
-                </div>
-            </div>
 
             <!-- Review 3 -->
             <div class="review-card">

@@ -147,9 +147,7 @@
         <li class="nav-item">
             <a class="nav-link active font-weight-bold" id="tab-challenges" data-toggle="pill" href="#content-challenges" role="tab" style="border-radius: 20px;">Challenges</a>
         </li>
-        <li class="nav-item ml-2">
-            <a class="nav-link font-weight-bold" id="tab-gamification" data-toggle="pill" href="#content-gamification" role="tab" style="border-radius: 20px;">Gamification Settings</a>
-        </li>
+
         <li class="nav-item ml-2">
             <a class="nav-link font-weight-bold" id="tab-pushlogs" data-toggle="pill" href="#content-pushlogs" role="tab" style="border-radius: 20px;">Push Notification Logs</a>
         </li>
@@ -206,10 +204,20 @@
                                         <span class="status-badge status-inactive">Inactive</span>
                                     @endif
                                 </td>
-                                <td class="text-right">
-                                    <a href="{{ route('admin.challenges.toggle', $challenge->id) }}" class="btn btn-sm btn-outline-secondary rounded-pill">
+                                <td class="text-right d-flex justify-content-end align-items-center">
+                                    <button class="btn btn-sm btn-outline-primary rounded-pill mr-2" data-toggle="modal" data-target="#editModal{{ $challenge->id }}">
+                                        Edit
+                                    </button>
+                                    <a href="{{ route('admin.challenges.toggle', $challenge->id) }}" class="btn btn-sm btn-outline-secondary rounded-pill mr-2">
                                         Toggle Status
                                     </a>
+                                    <form action="{{ route('admin.challenges.destroy', $challenge->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this challenge?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill">
+                                            Delete
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                             @empty
@@ -223,43 +231,9 @@
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Gamification Settings Tab -->
-    <div class="tab-pane fade" id="content-gamification" role="tabpanel">
-        <div class="row">
-            <div class="col-md-8 offset-md-2">
-                <div class="custom-card">
-                    <div class="custom-card-header">
-                        <h5 class="custom-card-title">
-                            <div class="icon-wrapper icon-primary"><i class="fa-solid fa-gamepad"></i></div>
-                            Gamification Settings
-                        </h5>
-                    </div>
-                    <div class="custom-card-body">
-                        <form action="{{ route('admin.challenges.store_settings') }}" method="POST">
-                            @csrf
-                            <div class="form-group">
-                                <label class="font-weight-bold text-muted small">Badge Unlocking (Post Count Goal)</label>
-                                <input type="number" class="form-control" style="border-radius: 8px;" name="badge_post_count" value="{{ \App\Models\Setting::getGlobalValue('gamification', 'badge_post_count', 100) }}" required>
-                            </div>
-                            <div class="form-group">
-                                <label class="font-weight-bold text-muted small">Daily Streak Goal (Days)</label>
-                                <input type="number" class="form-control" style="border-radius: 8px;" name="streak_goal_days" value="{{ \App\Models\Setting::getGlobalValue('gamification', 'streak_goal_days', 7) }}" required>
-                            </div>
-                            <div class="form-group">
-                                <label class="font-weight-bold text-muted small">Smart Push Notification Enabled</label>
-                                <select class="form-control" style="border-radius: 8px;" name="smart_push_enabled">
-                                    <option value="1" {{ \App\Models\Setting::getGlobalValue('gamification', 'smart_push_enabled', 1) == 1 ? 'selected' : '' }}>Yes</option>
-                                    <option value="0" {{ \App\Models\Setting::getGlobalValue('gamification', 'smart_push_enabled', 1) == 0 ? 'selected' : '' }}>No</option>
-                                </select>
-                            </div>
-                            <button type="submit" class="btn-gradient w-100 mt-3">Save Settings</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+
 
     <!-- Push Notification Logs Tab -->
     <div class="tab-pane fade" id="content-pushlogs" role="tabpanel">
@@ -296,7 +270,7 @@
                                             <span class="status-badge status-inactive">Failed</span>
                                         @endif
                                     </td>
-                                    <td class="text-danger">{{ $log->error_message ?? '-' }}</td>
+                                    <td class="text-danger">{{ $log->error_reason ?? '-' }}</td>
                                 </tr>
                                 @empty
                                 <tr>
@@ -344,7 +318,7 @@
                             </select>
                         </div>
                         <div class="col-md-6 form-group">
-                            <label class="font-weight-bold text-muted small">Target Count</label>
+                            <label class="font-weight-bold text-muted small">Badge Unlocking (Post Count Goal)</label>
                             <input type="number" class="form-control" style="border-radius: 8px;" name="target_count" value="1" min="1" required>
                         </div>
                     </div>
@@ -356,6 +330,19 @@
                         <div class="col-md-6 form-group">
                             <label class="font-weight-bold text-muted small">Reward Points</label>
                             <input type="number" class="form-control" style="border-radius: 8px;" name="reward_points" value="0" min="0">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold text-muted small">Daily Streak Goal (Days)</label>
+                            <input type="number" class="form-control" style="border-radius: 8px;" name="streak_goal_days" placeholder="e.g. 7">
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold text-muted small">Push Notification Enable</label>
+                            <select class="form-control" style="border-radius: 8px;" name="push_notification_enabled">
+                                <option value="1">Yes</option>
+                                <option value="0">No</option>
+                            </select>
                         </div>
                     </div>
                     <div class="row">
@@ -376,4 +363,85 @@
         </div>
     </div>
 </div>
+
+<!-- Edit Modals -->
+@foreach($challenges as $challenge)
+<div class="modal fade" id="editModal{{ $challenge->id }}" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content" style="border-radius: 16px; border: none;">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title font-weight-bold" style="color: #1e293b;">Edit Challenge</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form action="{{ route('admin.challenges.update', $challenge->id) }}" method="POST">
+                @csrf
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="font-weight-bold text-muted small">Challenge Title</label>
+                        <input type="text" class="form-control" style="border-radius: 8px;" name="title" value="{{ $challenge->title }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="font-weight-bold text-muted small">Description</label>
+                        <textarea class="form-control" style="border-radius: 8px;" name="description" rows="3">{{ $challenge->description }}</textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold text-muted small">Challenge Type</label>
+                            <select class="form-control" style="border-radius: 8px;" name="type">
+                                <option value="any_post" {{ $challenge->type == 'any_post' ? 'selected' : '' }}>Any Post</option>
+                                <option value="festival_post" {{ $challenge->type == 'festival_post' ? 'selected' : '' }}>Festival Post</option>
+                                <option value="custom_post" {{ $challenge->type == 'custom_post' ? 'selected' : '' }}>Custom Post</option>
+                                <option value="ai_trends_post" {{ $challenge->type == 'ai_trends_post' ? 'selected' : '' }}>AI Trends Post</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold text-muted small">Badge Unlocking (Post Count Goal)</label>
+                            <input type="number" class="form-control" style="border-radius: 8px;" name="target_count" value="{{ $challenge->target_count }}" min="1" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold text-muted small">Specific Target ID (Optional)</label>
+                            <input type="number" class="form-control" style="border-radius: 8px;" name="target_id" value="{{ $challenge->target_id }}">
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold text-muted small">Reward Points</label>
+                            <input type="number" class="form-control" style="border-radius: 8px;" name="reward_points" value="{{ $challenge->reward_points }}" min="0">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold text-muted small">Daily Streak Goal (Days)</label>
+                            <input type="number" class="form-control" style="border-radius: 8px;" name="streak_goal_days" value="{{ $challenge->streak_goal_days }}">
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold text-muted small">Push Notification Enable</label>
+                            <select class="form-control" style="border-radius: 8px;" name="push_notification_enabled">
+                                <option value="1" {{ $challenge->push_notification_enabled ? 'selected' : '' }}>Yes</option>
+                                <option value="0" {{ !$challenge->push_notification_enabled ? 'selected' : '' }}>No</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold text-muted small">Start Date</label>
+                            <input type="date" class="form-control" style="border-radius: 8px;" name="start_date" value="{{ \Carbon\Carbon::parse($challenge->start_date)->format('Y-m-d') }}" required>
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold text-muted small">End Date</label>
+                            <input type="date" class="form-control" style="border-radius: 8px;" name="end_date" value="{{ \Carbon\Carbon::parse($challenge->end_date)->format('Y-m-d') }}" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0 pt-0">
+                    <button type="submit" class="btn-gradient w-100">Update Challenge</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endforeach
+
 @endsection

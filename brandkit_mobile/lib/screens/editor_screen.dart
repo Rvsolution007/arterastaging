@@ -64,18 +64,8 @@ class _EditorScreenState extends State<EditorScreen> {
     final baseUrl = ApiService.baseUrl.replaceAll('/123456', '');
     final targetUrl = '/edit/${widget.type}/${widget.id}?design=${Uri.encodeComponent(widget.designUrl)}';
     
-    // Check if we need to pass AI data and mapping
-    String aiParam = '';
-    if (widget.aiAnalysisData != null) {
-      final injectData = {
-        'ai_data': widget.aiAnalysisData,
-        'mapping': widget.mappingRules ?? [],
-      };
-      final jsonStr = Uri.encodeComponent(jsonEncode(injectData));
-      aiParam = '&ai_inject=$jsonStr'; // Backend needs to support this or Editor JS reads it from URL
-    }
 
-    final editorUrl = '$baseUrl/webview-login?user_id=$userId&redirect=${Uri.encodeComponent(targetUrl)}$aiParam';
+    final editorUrl = '$baseUrl/webview-login?user_id=$userId&redirect=${Uri.encodeComponent(targetUrl)}';
     
     if (mounted) {
       setState(() {
@@ -109,16 +99,7 @@ class _EditorScreenState extends State<EditorScreen> {
             debugPrint('[Editor] Page finished: $url');
             if (mounted) setState(() => isLoading = false);
             
-            if (widget.aiAnalysisData != null) {
-              final injectData = {
-                'ai_data': widget.aiAnalysisData,
-                'mapping': widget.mappingRules ?? [],
-              };
-              final jsonStr = jsonEncode(injectData);
-              _controller.runJavaScript(
-                "localStorage.setItem('magicClonerInject', JSON.stringify($jsonStr));"
-              );
-            }
+
           },
           onWebResourceError: (error) {
             debugPrint('[Editor] WebView error: ${error.description} (code: ${error.errorCode})');

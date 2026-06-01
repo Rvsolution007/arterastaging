@@ -64,7 +64,7 @@ class AutomateCustomerJourneyCommand extends Command
     {
         // 1. Calculate New Stage
         $daysSinceJoined = $user->created_at ? $user->created_at->diffInDays(now()) : 0;
-        $usageSum = $user->custom_post_used + $user->daily_drip_used + $user->magic_cloner_used + $user->festival_post_used;
+        $usageSum = $user->custom_post_used + $user->daily_drip_used + $user->festival_post_used;
         $isSubscribed = $user->is_subscribe && $user->subscription_end_date && Carbon::parse($user->subscription_end_date)->isFuture();
         
         $newStage = 'onboarding';

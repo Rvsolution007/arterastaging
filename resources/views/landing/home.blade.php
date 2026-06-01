@@ -139,34 +139,13 @@
                 </div>
             </div>
 
-            <!-- Slide 3 -->
-            <div class="slide">
-                <div class="hero-content">
-                    <div class="hero-text">
-                        <h1>AI Magic Cloner for Your Products</h1>
-                        <p>Upload a photo of a competitor's ad, and our AI instantly analyzes the layout, colors, and fonts to recreate a matching template with YOUR products.</p>
-                        <div class="hero-actions">
-                            <a href="#" class="play-store-btn">
-                                <i class="fa-brands fa-google-play"></i>
-                                <div class="play-store-text">
-                                    <span>GET IT ON</span>
-                                    <strong>Google Play</strong>
-                                </div>
-                            </a>
-                        </div>
-                    </div>
-                    <div class="hero-image">
-                        <img src="{{ asset('landing/images/app-screens.png') }}" alt="AI Magic Cloner" class="hero-img-element" style="border-radius: 0; box-shadow: none;" onerror="this.src='https://placehold.co/600x500/1E3A8A/FFFFFF?text=AI+Cloner'">
-                    </div>
-                </div>
-            </div>
+
 
         </div>
         
         <div class="slider-dots" id="sliderDots">
             <div class="dot active" onclick="setSlide(0)"></div>
             <div class="dot" onclick="setSlide(1)"></div>
-            <div class="dot" onclick="setSlide(2)"></div>
         </div>
     </div>
 </section>

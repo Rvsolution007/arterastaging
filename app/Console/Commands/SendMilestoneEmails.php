@@ -36,7 +36,7 @@ class SendMilestoneEmails extends Command
     {
         $this->info('Checking for users with account anniversaries today...');
 
-        $milestoneMonthsSetting = Setting::getGlobalValue('gamification', 'milestone_months', '1,6,12');
+        $milestoneMonthsSetting = '1,6,12';
         $milestoneMonths = explode(',', $milestoneMonthsSetting);
         $milestoneMonths = array_map('trim', $milestoneMonths);
 
@@ -61,7 +61,7 @@ class SendMilestoneEmails extends Command
         foreach ($users as $user) {
             // Compile stats since the beginning
             $totalPosts = UserActivity::where('user_id', $user->id)
-                ->whereIn('action', ['download_template', 'create_custom_post', 'create_festival_post', 'magic_cloner_use'])
+                ->whereIn('action', ['download_template', 'create_custom_post', 'create_festival_post'])
                 ->count();
 
             $badgesEarned = DB::table('user_achievements')

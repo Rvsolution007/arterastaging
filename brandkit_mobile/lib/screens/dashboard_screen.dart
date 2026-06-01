@@ -6,7 +6,7 @@ import 'template_grid_screen.dart';
 import 'my_business_screen.dart';
 import 'ai_trends_screen.dart';
 import 'more_screen.dart';
-import '../widgets/magic_cloner_sheet.dart';
+
 import '../controllers/ad_controller.dart';
 import 'ai_chat_screen.dart';
 import 'support_tickets_screen.dart';
@@ -45,22 +45,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             backgroundColor: const Color(0xFF667EEA),
             child: const Icon(Icons.smart_toy, color: Colors.white, size: 28),
           ),
-          if (_currentIndex == 0 || _currentIndex == 1) ...[
-            const SizedBox(height: 16),
-            FloatingActionButton(
-              heroTag: 'magic_cloner',
-              onPressed: () {
-                showModalBottomSheet(
-                  context: context,
-                  isScrollControlled: true,
-                  backgroundColor: Colors.transparent,
-                  builder: (context) => const MagicClonerSheet(),
-                );
-              },
-              backgroundColor: Colors.purple.shade500,
-              child: const Icon(Icons.auto_awesome, color: Colors.white, size: 28),
-            ),
-          ]
+
         ],
       ),
       bottomNavigationBar: Column(

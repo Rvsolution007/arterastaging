@@ -33,22 +33,6 @@
             <p class="section-desc">Discover how each component of Artera works together to amplify your digital presence.</p>
         </div>
 
-        <!-- Feature 1: AI Magic Cloner -->
-        <div class="feature-row">
-            <div class="feature-img-box" data-aos="fade-right">
-                <img src="{{ asset('landing/images/app-screens.png') }}" onerror="this.src='https://placehold.co/600x400/F0F7FF/1E3A8A?text=AI+Magic+Cloner'" alt="AI Magic Cloner">
-            </div>
-            <div class="feature-text-box" data-aos="fade-left">
-                <i class="fa-solid fa-clone f-icon"></i>
-                <h2>AI Magic Cloner</h2>
-                <p>Have you ever seen a competitor's social media post and wished you could create something just like it? Our AI Magic Cloner does exactly that.</p>
-                <ul class="feature-list">
-                    <li><i class="fa-solid fa-circle-check"></i> Upload any inspiration image.</li>
-                    <li><i class="fa-solid fa-circle-check"></i> The AI automatically extracts the layout, color palette, and font vibe.</li>
-                    <li><i class="fa-solid fa-circle-check"></i> It instantly recreates a matching template using your own business products.</li>
-                </ul>
-            </div>
-        </div>
 
         <!-- Feature 2: Daily Drip Automation -->
         <div class="feature-row reverse">

@@ -57,7 +57,6 @@ class CalculateHealthScoreCommand extends Command
                 // 3. Feature Usage Penalty
                 $usageSum = $user->custom_post_used + 
                             $user->daily_drip_used + 
-                            $user->magic_cloner_used + 
                             $user->festival_post_used + 
                             $user->business_category_post_used;
 

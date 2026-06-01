@@ -44,7 +44,7 @@
                     <h2 style="font-size: 28px; color: var(--primary); margin: 0;">Our Company</h2>
                 </div>
                 <p><strong>Artera is a forward-thinking SaaS platform built specifically for the modern entrepreneur.</strong></p>
-                <p>Founded on the belief that premium branding should not be restricted by budget, we have developed a comprehensive suite of AI-powered tools that automate the heavy lifting of digital marketing. From generating festival greetings to cloning high-converting competitor ads, Artera serves as your 24/7 in-house marketing agency.</p>
+                <p>Founded on the belief that premium branding should not be restricted by budget, we have developed a comprehensive suite of AI-powered tools that automate the heavy lifting of digital marketing. From generating festival greetings to creating stunning custom posts, Artera serves as your 24/7 in-house marketing agency.</p>
                 <p>Based in the cloud and accessible via a seamless mobile application, our platform serves thousands of businesses across 50+ categories, ensuring they remain relevant, consistent, and visually stunning in today's fast-paced digital world.</p>
             </div>
         </div>
@@ -98,7 +98,7 @@
                     <h2 style="font-size: 28px; color: var(--primary); margin: 0;">Our Vision</h2>
                 </div>
                 <p><strong>To be the global standard for AI-driven business branding and automated social media growth.</strong></p>
-                <p>We envision a future where every entrepreneur, from local shop owners to growing startups, has an intelligent marketing assistant in their pocket. By continuously innovating our AI Magic Cloner and Daily Drip engines, we aim to eliminate the friction between having a great product and effectively marketing it to the world.</p>
+                <p>We envision a future where every entrepreneur, from local shop owners to growing startups, has an intelligent marketing assistant in their pocket. By continuously innovating our Daily Drip engine and smart templates, we aim to eliminate the friction between having a great product and effectively marketing it to the world.</p>
                 <ul style="list-style: none; margin-top: 20px; padding: 0;">
                     <li style="margin-bottom: 10px;"><i class="fa-solid fa-check" style="color: #10B981; margin-right: 10px;"></i> Pioneering Generative AI for local businesses</li>
                     <li style="margin-bottom: 10px;"><i class="fa-solid fa-check" style="color: #10B981; margin-right: 10px;"></i> Building a seamless ecosystem of web and mobile tools</li>

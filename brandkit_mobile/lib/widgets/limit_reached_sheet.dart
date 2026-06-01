@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/app_colors.dart';
 import '../controllers/subscription_controller.dart';
+import 'package:get/get.dart';
 
 /// Premium bottom sheet shown when a feature's usage limit is reached.
 /// Displays feature progress, Watch Ad option (if available), and Upgrade CTA.
@@ -168,6 +169,73 @@ class LimitReachedSheet extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
+
+              // ── Use Reward Credit Button ──
+              Obx(() {
+                final subController = Get.find<SubscriptionController>();
+                final rewardPoints = subController.rewardPoints.value;
+                if (rewardPoints > 0) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: GestureDetector(
+                      onTap: () async {
+                        // show loading or just call API directly
+                        bool success = await subController.useRewardCredit(feature.key);
+                        if (success && onWatchAd != null) {
+                          Navigator.pop(context);
+                          onWatchAd!(); // triggers the bypass
+                        }
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.stars, color: Colors.white, size: 20),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Use 1 Reward Credit to Unlock',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'You have $rewardPoints credits available',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              }),
 
               // ── Watch Ad Button ──
               if (canWatchAd) ...[

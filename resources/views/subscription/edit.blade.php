@@ -196,27 +196,7 @@
 
 
 
-                    <!-- Magic Cloner Limit -->
-                    <div class="row mb-3">
-                        <div class="col-12">
-                            <div class="feature-card p-3">
-                                <div class="feature-header">
-                                    <h6 class="font-weight-bold text-dark mb-0">Magic Cloner</h6>
-                                    <small class="text-muted">Max AI Cloner uses</small>
-                                </div>
-                                <div class="row align-items-center">
-                                    <div class="col-sm-6">
-                                        <label class="small text-muted font-weight-bold mb-1">Base Limit</label>
-                                        {!! Form::number('magic_cloner_limit',$subscription->magic_cloner_limit,['class' => 'form-control form-control-sm','required','min'=>0]) !!}
-                                    </div>
-                                    <div class="col-sm-6">
-                                        <label class="small text-muted font-weight-bold mb-1">Max Ad Uses</label>
-                                        {!! Form::number('magic_cloner_ad_reward_limit', $subscription->magic_cloner_ad_reward_limit ?? 5, ['class' => 'form-control form-control-sm', 'min'=>0]) !!}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+
 
                     <!-- Festival Post Limit -->
                     <div class="row mb-3">

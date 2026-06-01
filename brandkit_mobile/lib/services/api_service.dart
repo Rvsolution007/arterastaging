@@ -55,22 +55,7 @@ class ApiService {
     }
   }
 
-  static Future<http.Response> uploadMagicClonerImage(String endpoint, String imagePath) async {
-    final url = Uri.parse('$baseUrl$endpoint');
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    
-    var request = http.MultipartRequest('POST', url);
-    request.headers.addAll({
-      'Accept': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
-    });
-    
-    request.files.add(await http.MultipartFile.fromPath('inspiration_image', imagePath));
-    
-    final streamedResponse = await request.send();
-    return await http.Response.fromStream(streamedResponse);
-  }
+
 
   static Future<http.Response> uploadSetupWizardSource(String endpoint, Map<String, String> fields, {String? filePath, List<int>? fileBytes, String? fileName}) async {
     final url = Uri.parse('$baseUrl$endpoint');

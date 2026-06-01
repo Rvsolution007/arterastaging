@@ -18,6 +18,7 @@ class SubscriptionController extends GetxController {
   final isSubscribe = false.obs;
   final isLoading = false.obs;
   final businessLimit = 1.obs;
+  final rewardPoints = 0.obs;
 
   // ── Computed ──
   int get daysRemaining {
@@ -50,6 +51,7 @@ class SubscriptionController extends GetxController {
     planEndDate.value = prefs.getString('planEndDate') ?? '';
     isSubscribe.value = prefs.getBool('isSubscribe') ?? false;
     businessLimit.value = prefs.getInt('businessLimit') ?? 1;
+    rewardPoints.value = prefs.getInt('rewardPoints') ?? 0;
   }
 
   /// Refresh subscription data from backend /user API
@@ -69,6 +71,7 @@ class SubscriptionController extends GetxController {
         planEndDate.value = data['planEndDate'] ?? '';
         isSubscribe.value = data['isSubscribe'] ?? false;
         businessLimit.value = data['businessLimit'] ?? 1;
+        rewardPoints.value = data['rewardPoints'] ?? 0;
         bool isPartner = data['isPartner'] ?? false;
 
         // Persist locally
@@ -78,6 +81,7 @@ class SubscriptionController extends GetxController {
         await prefs.setString('planEndDate', planEndDate.value);
         await prefs.setBool('isSubscribe', isSubscribe.value);
         await prefs.setInt('businessLimit', businessLimit.value);
+        await prefs.setInt('rewardPoints', rewardPoints.value);
         await prefs.setBool('isPartner', isPartner);
 
         // Update ad config too if present
@@ -106,7 +110,7 @@ class SubscriptionController extends GetxController {
       'custom_post': {'name': 'PRO Custom Posts', 'icon': Icons.edit_outlined},
       'festival_post': {'name': 'PRO Festival Posts', 'icon': Icons.celebration_outlined},
       'business_category_post': {'name': 'PRO Category Posts', 'icon': Icons.category_outlined},
-      'magic_cloner': {'name': 'magic_cloner'.tr, 'icon': Icons.auto_awesome_outlined},
+
     };
 
     featureMap.forEach((key, meta) {
@@ -136,6 +140,33 @@ class SubscriptionController extends GetxController {
     });
 
     return features;
+  }
+
+  /// Use 1 Reward Credit to unlock a feature bypass
+  Future<bool> useRewardCredit(String featureKey) async {
+    if (rewardPoints.value < 1) return false;
+    
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId') ?? '';
+    
+    try {
+      final response = await ApiService.post('/use-reward-credit', {
+        'user_id': userId,
+        'feature_key': featureKey
+      });
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['status'] == 'success') {
+          rewardPoints.value = data['rewardPoints'] ?? (rewardPoints.value - 1);
+          await prefs.setInt('rewardPoints', rewardPoints.value);
+          return true;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error using reward credit: $e');
+    }
+    return false;
   }
 }
 

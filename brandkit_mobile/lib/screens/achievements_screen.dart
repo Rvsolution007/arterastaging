@@ -41,6 +41,11 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
             totalPosts = data['data']['total_posts'] ?? 0;
             badgePostCount = data['data']['badge_post_count'] ?? 100;
           });
+          
+          // Save unlocked badges count to SharedPreferences for the header
+          final completedChallenges = challenges.where((c) => c['status'] == 'completed').toList();
+          final unlockedCount = achievements.length + completedChallenges.length;
+          prefs.setInt('unlockedBadgesCount', unlockedCount);
         }
       }
     } catch (e) {
@@ -73,8 +78,6 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildProgressCard(progress, nextBadgeGoal),
-                  const SizedBox(height: 24),
                   _buildActiveChallenges(),
                   const SizedBox(height: 24),
                   const Text('Unlocked Badges', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -85,50 +88,6 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                 ],
               ),
             ),
-    );
-  }
-
-  Widget _buildProgressCard(double progress, int nextBadgeGoal) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF4F46E5)]),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF6366F1).withValues(alpha: 0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Next Badge Progress', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16)),
-              Icon(Icons.star, color: Colors.yellow.shade400),
-            ],
-          ),
-          const SizedBox(height: 20),
-          LinearProgressIndicator(
-            value: progress,
-            backgroundColor: Colors.white.withValues(alpha: 0.2),
-            valueColor: AlwaysStoppedAnimation<Color>(Colors.yellow.shade400),
-            minHeight: 10,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('$totalPosts Posts', style: const TextStyle(color: Colors.white70)),
-              Text('$nextBadgeGoal Posts Goal', style: const TextStyle(color: Colors.white70)),
-            ],
-          ),
-        ],
-      ),
     );
   }
 
@@ -169,15 +128,21 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
         ...activeChallenges.map((challenge) {
           final progress = challenge['progress'] ?? 0;
           final target = challenge['target_count'] ?? 1;
-          final progressPercent = progress / target;
+          final progressPercent = (target > 0) ? (progress / target) : 0.0;
 
           return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade200),
+              gradient: const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF4F46E5)]),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -188,18 +153,18 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                     Expanded(
                       child: Text(
                         challenge['title'] ?? 'Challenge',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
                       ),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         '$progress / $target',
-                        style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 12),
+                        style: TextStyle(color: Colors.yellow.shade400, fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                     ),
                   ],
@@ -207,15 +172,15 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
                 const SizedBox(height: 8),
                 Text(
                   challenge['description'] ?? '',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 20),
                 LinearProgressIndicator(
                   value: progressPercent,
-                  backgroundColor: Colors.grey.shade200,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                  minHeight: 8,
-                  borderRadius: BorderRadius.circular(4),
+                  backgroundColor: Colors.white.withValues(alpha: 0.2),
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.yellow.shade400),
+                  minHeight: 10,
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ],
             ),
@@ -253,39 +218,137 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
           badgeColor = Colors.purple.shade500;
         }
 
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
+        int rewardPoints = 0;
+        String badgeDesc = 'You unlocked this badge!';
+        if (index >= achievements.length) {
+          final c = completedChallenges[index - achievements.length];
+          rewardPoints = int.tryParse(c['reward_points'].toString()) ?? 0;
+          badgeDesc = c['description'] ?? 'You completed this challenge!';
+        }
+
+        return Card(
+          elevation: 4,
+          shadowColor: Colors.black12,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: InkWell(
             borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: badgeColor.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  title: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: badgeColor.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(badgeIcon, size: 48, color: badgeColor),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(badgeName, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+                    ],
+                  ),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        badgeDesc,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 14, color: Colors.black87),
+                      ),
+                      const SizedBox(height: 20),
+                      if (rewardPoints > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.stars, color: Colors.green),
+                              const SizedBox(width: 8),
+                              Text(
+                                '+$rewardPoints Reward Points',
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 16),
+                              ),
+                            ],
+                          ),
+                        )
+                      else if (index >= achievements.length)
+                        const Text('Badge Unlocked', style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Awesome!', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ],
                 ),
-                child: Icon(badgeIcon, size: 40, color: badgeColor),
-              ),
-              const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Text(
-                  badgeName,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              );
+            },
+            child: Stack(
+              children: [
+                Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: badgeColor.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(badgeIcon, size: 40, color: badgeColor),
+                      ),
+                      const SizedBox(height: 16),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                        child: Text(
+                          badgeName,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                if (rewardPoints > 0)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green.shade200),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.stars, size: 12, color: Colors.green.shade600),
+                          const SizedBox(width: 4),
+                          Text(
+                            '+$rewardPoints',
+                            style: TextStyle(
+                              color: Colors.green.shade700,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         );
       },

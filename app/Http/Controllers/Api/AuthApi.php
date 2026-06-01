@@ -535,7 +535,8 @@ class AuthApi extends Controller
                                 'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
                 'adConfig' => $user->getAdConfigPayload(),
                 'currentStreak' => $user->current_streak ?? 1,
-                'maxStreak' => $user->max_streak ?? 1
+                'maxStreak' => $user->max_streak ?? 1,
+                'rewardPoints' => $user->reward_points ?? 0
             );
             return response()->json($res);
         } 
@@ -1089,6 +1090,21 @@ class AuthApi extends Controller
             }
         }
 
+        // --- GAMIFICATION EXPLOIT FIX ---
+        // Prevent users from downloading the same template multiple times to farm achievements or consume duplicate limits.
+        if (in_array($action, ['download_template', 'create_custom_post', 'create_festival_post'])) {
+            $existing = \App\Models\UserActivity::where('user_id', $userId)
+                ->where('action', $action)
+                ->where('payload->item_type', $itemType)
+                ->where('payload->item_id', $itemId)
+                ->exists();
+                
+            if ($existing) {
+                // Return early so we don't duplicate activity, consume subscription limits twice, or increment achievements.
+                return response()->json(['status' => 'success']);
+            }
+        }
+
         \App\Models\UserActivity::create([
             'user_id' => $userId,
             'action' => $action,
@@ -1186,10 +1202,10 @@ class AuthApi extends Controller
 
     private function checkMilestoneBadges($userId)
     {
-        $startDate = \App\Models\Setting::getGlobalValue('gamification', 'start_date', '2026-06-01 00:00:00');
+        $startDate = '2026-06-01 00:00:00';
 
         $postCount = \App\Models\UserActivity::where('user_id', $userId)
-            ->whereIn('action', ['download_template', 'create_custom_post', 'create_festival_post', 'magic_cloner_use'])
+            ->whereIn('action', ['download_template', 'create_custom_post', 'create_festival_post'])
             ->where('created_at', '>=', $startDate)
             ->count();
 
@@ -1255,5 +1271,52 @@ class AuthApi extends Controller
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('Streak update failed: ' . $e->getMessage());
         }
+    }
+
+    public function useRewardCredit(Request $request)
+    {
+        $userId = $request->get('userId') ?? $request->get('user_id');
+        $featureKey = $request->get('feature_key');
+
+        if (!$userId || !$featureKey) {
+            return response()->json(['status' => 'error', 'message' => 'Missing userId or feature_key'], 400);
+        }
+
+        $user = User::find($userId);
+        if (!$user) {
+            return response()->json(['status' => 'error', 'message' => 'User not found'], 404);
+        }
+
+        if ($user->reward_points < 1) {
+            return response()->json(['status' => 'error', 'message' => 'Insufficient reward credits'], 400);
+        }
+
+        // Deduct 1 point
+        $user->decrement('reward_points', 1);
+
+        // Grant +1 ad-free limit bypass by injecting a temporary ad reward record
+        // This is equivalent to having watched an ad for this feature.
+        $cacheKey = "user_{$userId}_ad_used_{$featureKey}_" . date('Y_m_d');
+        // If they use a reward credit, we can simulate an ad watch by storing an "extra" limit or we can just 
+        // decrement the daily ad usage limit so they have +1 remaining.
+        // The easiest way is to decrement the current day's tracked ad uses for this feature so it goes below max.
+        
+        $currentUses = \Illuminate\Support\Facades\Cache::get($cacheKey, 0);
+        if ($currentUses > 0) {
+            \Illuminate\Support\Facades\Cache::decrement($cacheKey);
+        } else {
+            // If they haven't used ads but are out of base limit, we just temporarily boost their base limit?
+            // Actually, if they are out of base limit, they would fall into Ad logic. So they just need the Ad logic to succeed.
+            // By doing this, we basically simulate that they watched an ad, and the mobile app will immediately try to download.
+            // But wait, the mobile app expects to just bypass the ad block and call trackActivity.
+            // trackActivity will consume the base limit (making it negative or further negative).
+            // That is perfectly fine! The base limit will just go more negative, and they still bypassed the ad.
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Reward credit used successfully',
+            'rewardPoints' => $user->reward_points
+        ]);
     }
 }

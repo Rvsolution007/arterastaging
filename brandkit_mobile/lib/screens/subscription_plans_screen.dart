@@ -466,7 +466,7 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
 
     final featureDisplayNames = {
       'custom_post': {'name': 'Custom Posts', 'icon': Icons.edit_note_rounded},
-      'magic_cloner': {'name': 'Magic Cloner', 'icon': Icons.auto_awesome_rounded},
+
       'festival_post': {'name': 'Festival Posts', 'icon': Icons.celebration_rounded},
       'business_category_post': {'name': 'Category Posts', 'icon': Icons.category_rounded},
       'photoroom_bg': {'name': 'BG Remover', 'icon': Icons.layers_clear_rounded},

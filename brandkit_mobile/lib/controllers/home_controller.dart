@@ -236,7 +236,7 @@ class HomeController extends GetxController {
         }
       }
       
-      // 4. Fetch custom posts for magic cloner (send userId for AI content injection if available)
+      // 4. Fetch custom posts (send userId for AI content injection if available)
       try {
         isLoading(true);
         final prefs = await SharedPreferences.getInstance();

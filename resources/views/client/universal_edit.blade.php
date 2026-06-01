@@ -2199,15 +2199,7 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
         const isOverlay = !isBaseTemplate;
         isFrameHidden = false;
 
-        // Check for Magic Cloner Injection
-        let magicClonerInject = null;
-        try {
-            const mcData = localStorage.getItem('magicClonerInject');
-            if (mcData) {
-                magicClonerInject = JSON.parse(mcData);
-                localStorage.removeItem('magicClonerInject');
-            }
-        } catch(e) {}
+
 
         if (isOverlay) {
             // Keep the base template canvas as-is, use its dimensions
@@ -2447,18 +2439,7 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
                                 objTop = ly + (lh - (img.height * sY)) / 2;
                             }
 
-                            if (magicClonerInject && magicClonerInject.mapping && !isFrameSlot) {
-                                const mappedKey = magicClonerInject.mapping[layerOrigName] || magicClonerInject.mapping[lname.toLowerCase()];
-                                if (mappedKey && mappedKey.includes('color') && magicClonerInject.ai_data[mappedKey]) {
-                                    const tintColor = magicClonerInject.ai_data[mappedKey];
-                                    img.filters.push(new fabric.Image.filters.BlendColor({
-                                        color: tintColor,
-                                        mode: 'multiply',
-                                        alpha: 1
-                                    }));
-                                    img.applyFilters();
-                                }
-                            }
+
 
                             // --- DYNAMIC THEMING FOR SHAPES AND ICONS ---
                             if (isOverlay) {

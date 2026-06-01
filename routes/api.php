@@ -76,6 +76,7 @@ Route::
 
             Route::get('/user', 'AuthApi@user_data');
             Route::post('/user_data', 'AuthApi@user_data');
+            Route::post('/use-reward-credit', 'AuthApi@useRewardCredit');
             Route::post('/profile-update', 'AuthApi@profile_update');
             Route::post('/user-account-delete', 'AuthApi@delete_user_account');
             Route::post('/report-error', 'AuthApi@reportError');
@@ -151,7 +152,7 @@ Route::
             Route::post('consume-feature', 'HomeApi@consumeFeature');
 
             // AI Magic Cloner Integration (Phase 7 SaaS Blueprint)
-            Route::post('ai-magic-cloner', 'AiMagicClonerController@cloneVibe')->middleware('saas.limit:magic_cloner');
+
 
             // Gamification & Challenges
             Route::get('design-challenges', 'DesignChallengeApiController@getActiveChallenges');

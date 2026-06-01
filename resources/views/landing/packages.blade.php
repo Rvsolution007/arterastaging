@@ -77,13 +77,7 @@
                         <li><i class="fa-solid fa-check"></i> {{ $plan->festival_post_limit ?: 'Unlimited' }} Festival Posts</li>
                         <li><i class="fa-solid fa-check"></i> {{ $plan->custom_post_edit_limit ?: 'Unlimited' }} Custom Posts Edit</li>
                         <li><i class="fa-solid fa-check"></i> {{ $plan->daily_drip_limit ?: 'Unlimited' }} Daily Drip Posts</li>
-                        <li>
-                            @if($plan->magic_cloner_limit > 0)
-                                <i class="fa-solid fa-check"></i> {{ $plan->magic_cloner_limit }} Magic Cloner Uses
-                            @else
-                                <i class="fa-solid fa-times"></i> Magic Cloner Included
-                            @endif
-                        </li>
+
                         <li>
                             @if($plan->daily_drip_can_choose)
                                 <i class="fa-solid fa-check"></i> Select Daily Drip Content

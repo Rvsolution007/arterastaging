@@ -53,8 +53,8 @@ class UserJourneyController extends Controller
             $steps['first_post'] = true;
         }
 
-        // 4. Explored Features (Magic Cloner)
-        if ($user->magic_cloner_used > 0) {
+        // 4. Explored Features (Daily Drip)
+        if ($user->daily_drip_used > 0) {
             $steps['explore_features'] = true;
         }
 

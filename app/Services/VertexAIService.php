@@ -726,9 +726,7 @@ class VertexAIService
             return 'AI Setup Wizard';
         }
 
-        if (str_starts_with($routeName, 'magic_cloner.')) {
-            return 'AI Magic Cloner';
-        }
+
 
         return 'General Chat/Classification API';
     }

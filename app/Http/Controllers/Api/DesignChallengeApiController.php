@@ -86,14 +86,12 @@ class DesignChallengeApiController extends Controller
             ->where('user_id', $userId)
             ->get();
 
-        $startDate = \App\Models\Setting::getGlobalValue('gamification', 'start_date', '2026-06-01 00:00:00');
+        $startDate = '2026-06-01 00:00:00';
 
         $totalPosts = \App\Models\UserActivity::where('user_id', $userId)
-            ->whereIn('action', ['download_template', 'create_custom_post', 'create_festival_post', 'magic_cloner_use'])
+            ->whereIn('action', ['download_template', 'create_custom_post', 'create_festival_post'])
             ->where('created_at', '>=', $startDate)
             ->count();
-            
-        $badgePostCount = \App\Models\Setting::getGlobalValue('gamification', 'badge_post_count', 100);
 
         // Fetch Design Challenges for the user
         $challenges = DesignChallenge::where('is_active', true)
@@ -103,10 +101,11 @@ class DesignChallengeApiController extends Controller
             ->orderBy('created_at', 'desc')
             ->get()->map(function($c) use ($userId) {
                 $participant = ChallengeParticipant::where('challenge_id', $c->id)->where('user_id', $userId)->first();
-                $c->progress = $participant ? $participant->progress : 0;
-                $c->status = $participant ? $participant->status : 'in_progress';
-                $c->is_participated = true; // Auto-enrolled now
-                return $c;
+                $arr = $c->toArray();
+                $arr['progress'] = $participant ? $participant->progress : 0;
+                $arr['status'] = $participant ? $participant->status : 'in_progress';
+                $arr['is_participated'] = true; // Auto-enrolled now
+                return $arr;
             });
 
         return response()->json([
@@ -115,7 +114,7 @@ class DesignChallengeApiController extends Controller
                 'achievements' => $achievements,
                 'challenges' => $challenges,
                 'total_posts' => $totalPosts,
-                'badge_post_count' => (int) $badgePostCount
+                'badge_post_count' => 100 // Default value for UI backward compatibility
             ]
         ]);
     }
@@ -165,7 +164,7 @@ class DesignChallengeApiController extends Controller
                         if ($challenge->reward_points > 0) {
                             $user = \App\Models\User::find($userId);
                             if ($user) {
-                                // Add points logic here
+                                $user->increment('reward_points', $challenge->reward_points);
                             }
                         }
                     }

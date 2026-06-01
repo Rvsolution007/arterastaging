@@ -68,7 +68,6 @@ class ChurnController extends Controller
 
         $usageSum = $user->custom_post_used + 
                     $user->daily_drip_used + 
-                    $user->magic_cloner_used + 
                     $user->festival_post_used + 
                     $user->business_category_post_used;
 
@@ -82,7 +81,6 @@ class ChurnController extends Controller
         $unused_features = [];
         if ($user->custom_post_used == 0) $unused_features[] = "Custom Posts";
         if ($user->daily_drip_used == 0) $unused_features[] = "Daily Drip";
-        if ($user->magic_cloner_used == 0) $unused_features[] = "Magic Cloner";
         if ($user->festival_post_used == 0) $unused_features[] = "Festival Posts";
         if ($user->business_category_post_used == 0) $unused_features[] = "Business Category Posts";
 

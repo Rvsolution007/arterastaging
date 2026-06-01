@@ -45,13 +45,11 @@ class User extends Authenticatable
         "last_notification_read_at",
         "custom_post_used",
         "daily_drip_used",
-        "magic_cloner_used",
         "festival_post_used",
         "business_category_post_used",
         "photoroom_bg_used",
         "custom_post_ad_used",
         "daily_drip_ad_used",
-        "magic_cloner_ad_used",
         "festival_post_ad_used",
         "business_category_ad_used",
         "limits_reset_at",
@@ -109,13 +107,11 @@ class User extends Authenticatable
             $this->update([
                 'custom_post_used' => 0,
                 'daily_drip_used' => 0,
-                'magic_cloner_used' => 0,
                 'festival_post_used' => 0,
                 'business_category_post_used' => 0,
                 'photoroom_bg_used' => 0,
                 'custom_post_ad_used' => 0,
                 'daily_drip_ad_used' => 0,
-                'magic_cloner_ad_used' => 0,
                 'festival_post_ad_used' => 0,
                 'business_category_ad_used' => 0,
                 'limits_reset_at' => now(),
@@ -125,7 +121,7 @@ class User extends Authenticatable
 
     /**
      * Check if the user can use a specific feature.
-     * @param string $feature  One of: 'custom_post', 'daily_drip', 'magic_cloner', 'photoroom_bg'
+     * @param string $feature  One of: 'custom_post', 'daily_drip', 'photoroom_bg'
      * @return bool
      */
     public function canUseFeature($feature)
@@ -139,7 +135,6 @@ class User extends Authenticatable
 
         $limitMap = [
             'custom_post'            => ['used' => 'custom_post_used',            'limit' => 'custom_post_edit_limit'],
-            'magic_cloner'           => ['used' => 'magic_cloner_used',           'limit' => 'magic_cloner_limit'],
             'festival_post'          => ['used' => 'festival_post_used',          'limit' => 'festival_post_limit'],
             'business_category_post' => ['used' => 'business_category_post_used', 'limit' => 'business_category_post_limit'],
             'photoroom_bg'           => ['used' => 'photoroom_bg_used',           'limit' => 'photoroom_bg_limit'],
@@ -155,7 +150,7 @@ class User extends Authenticatable
 
     /**
      * Consume one unit of a feature.
-     * @param string $feature  One of: 'custom_post', 'daily_drip', 'magic_cloner', 'photoroom_bg'
+     * @param string $feature  One of: 'custom_post', 'daily_drip', 'photoroom_bg'
      * @return bool
      */
     public function consumeFeature($feature)
@@ -164,7 +159,6 @@ class User extends Authenticatable
 
         $fieldMap = [
             'custom_post'            => 'custom_post_used',
-            'magic_cloner'           => 'magic_cloner_used',
             'festival_post'          => 'festival_post_used',
             'business_category_post' => 'business_category_post_used',
             'photoroom_bg'           => 'photoroom_bg_used',
@@ -190,7 +184,6 @@ class User extends Authenticatable
 
         $limitMap = [
             'custom_post'            => ['used' => 'custom_post_used',            'limit' => 'custom_post_edit_limit'],
-            'magic_cloner'           => ['used' => 'magic_cloner_used',           'limit' => 'magic_cloner_limit'],
             'festival_post'          => ['used' => 'festival_post_used',          'limit' => 'festival_post_limit'],
             'business_category_post' => ['used' => 'business_category_post_used', 'limit' => 'business_category_post_limit'],
             'photoroom_bg'           => ['used' => 'photoroom_bg_used',           'limit' => 'photoroom_bg_limit'],
@@ -217,7 +210,6 @@ class User extends Authenticatable
 
         $adMap = [
             'custom_post'            => ['enabled' => 'custom_post_ad_reward',       'limit' => 'custom_post_ad_reward_limit',       'used' => 'custom_post_ad_used'],
-            'magic_cloner'           => ['enabled' => 'magic_cloner_ad_reward',      'limit' => 'magic_cloner_ad_reward_limit',      'used' => 'magic_cloner_ad_used'],
             'festival_post'          => ['enabled' => 'festival_post_ad_reward',     'limit' => 'festival_post_ad_reward_limit',     'used' => 'festival_post_ad_used'],
             'business_category_post' => ['enabled' => 'business_category_ad_reward', 'limit' => 'business_category_ad_reward_limit', 'used' => 'business_category_ad_used'],
         ];
@@ -244,7 +236,6 @@ class User extends Authenticatable
 
         $adMap = [
             'custom_post'            => 'custom_post_ad_used',
-            'magic_cloner'           => 'magic_cloner_ad_used',
             'festival_post'          => 'festival_post_ad_used',
             'business_category_post' => 'business_category_ad_used',
         ];
@@ -267,7 +258,6 @@ class User extends Authenticatable
 
         $limits = [
             'custom_post'            => ['base' => 'custom_post_edit_limit',       'used' => 'custom_post_used',            'ad_limit' => 'custom_post_ad_reward_limit',       'ad_used' => 'custom_post_ad_used'],
-            'magic_cloner'           => ['base' => 'magic_cloner_limit',           'used' => 'magic_cloner_used',           'ad_limit' => 'magic_cloner_ad_reward_limit',      'ad_used' => 'magic_cloner_ad_used'],
             'festival_post'          => ['base' => 'festival_post_limit',          'used' => 'festival_post_used',          'ad_limit' => 'festival_post_ad_reward_limit',     'ad_used' => 'festival_post_ad_used'],
             'business_category_post' => ['base' => 'business_category_post_limit', 'used' => 'business_category_post_used', 'ad_limit' => 'business_category_ad_reward_limit', 'ad_used' => 'business_category_ad_used'],
         ];
@@ -374,15 +364,6 @@ class User extends Authenticatable
                     'ad_used' => $this->custom_post_ad_used,
                     'state' => $this->getAdState('custom_post'),
                     'max_ad_uses' => $plan ? $plan->custom_post_ad_reward : 0,
-                ],
-
-                'magic_cloner' => [
-                    'base_limit' => $plan ? $plan->magic_cloner_limit : 0,
-                    'used' => $this->magic_cloner_used,
-                    'ad_limit' => $plan ? $plan->magic_cloner_ad_reward_limit : 0,
-                    'ad_used' => $this->magic_cloner_ad_used,
-                    'state' => $this->getAdState('magic_cloner'),
-                    'max_ad_uses' => $plan ? $plan->magic_cloner_ad_reward : 0,
                 ],
                 'festival_post' => [
                     'base_limit' => $plan ? $plan->festival_post_limit : 0,

@@ -87,7 +87,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::put('/products/{id}', 'CatalogueController@productUpdate');
     Route::delete('/products/{id}', 'CatalogueController@productDestroy');
     // AI Magic Cloner (Web Session)
-    Route::post('/magic-cloner/analyze', 'MagicClonerWebController@analyze')->name('magic_cloner.analyze');
+
 
     // Lazy AI Generation for Custom Frames (Just-In-Time)
     Route::post('/generate-frame-content', 'MainController@generateFrameContent')->name('generate.frame.content');

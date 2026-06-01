@@ -60,7 +60,6 @@ class SubscriptionController extends Controller
             "yearly_discount_price" => 'required|numeric',
             'business_limit' => 'required',
             'custom_post_edit_limit' => 'required|numeric',
-            'magic_cloner_limit' => 'required|numeric',
             'festival_post_limit' => 'required|numeric',
             'business_category_post_limit' => 'required|numeric'
         ]);
@@ -82,16 +81,13 @@ class SubscriptionController extends Controller
                 "plan_detail" => serialize($request->get('detail')),
                 "business_limit" =>  $request->get("business_limit"),
                 "custom_post_edit_limit" => $request->get("custom_post_edit_limit", 0),
-                "magic_cloner_limit" => $request->get("magic_cloner_limit", 0),
                 "festival_post_limit" => $request->get("festival_post_limit", 0),
                 "business_category_post_limit" => $request->get("business_category_post_limit", 0),
                 "photoroom_bg_limit" => $request->get("photoroom_bg_limit", 0),
                 "custom_post_ad_reward_limit" => $request->get("custom_post_ad_reward_limit", 5),
-                "magic_cloner_ad_reward_limit" => $request->get("magic_cloner_ad_reward_limit", 5),
                 "festival_post_ad_reward_limit" => $request->get("festival_post_ad_reward_limit", 5),
                 "business_category_ad_reward_limit" => $request->get("business_category_ad_reward_limit", 5),
                 "custom_post_ad_reward" => $request->get("custom_post_ad_reward_limit", 5) > 0 ? 1 : 0,
-                "magic_cloner_ad_reward" => $request->get("magic_cloner_ad_reward_limit", 5) > 0 ? 1 : 0,
                 "festival_post_ad_reward" => $request->get("festival_post_ad_reward_limit", 5) > 0 ? 1 : 0,
                 "business_category_ad_reward" => $request->get("business_category_ad_reward_limit", 5) > 0 ? 1 : 0,
                 "google_product_enable" => ($request->get("google_product_enable"))?1:0,
@@ -136,16 +132,13 @@ class SubscriptionController extends Controller
             $subscription->plan_detail = serialize($request->detail);
             $subscription->business_limit = $request->business_limit;
             $subscription->custom_post_edit_limit = $request->get("custom_post_edit_limit", 0);
-            $subscription->magic_cloner_limit = $request->get("magic_cloner_limit", 0);
             $subscription->festival_post_limit = $request->get("festival_post_limit", 0);
             $subscription->business_category_post_limit = $request->get("business_category_post_limit", 0);
             $subscription->photoroom_bg_limit = $request->get("photoroom_bg_limit", 0);
             $subscription->custom_post_ad_reward_limit = $request->get("custom_post_ad_reward_limit", 5);
-            $subscription->magic_cloner_ad_reward_limit = $request->get("magic_cloner_ad_reward_limit", 5);
             $subscription->festival_post_ad_reward_limit = $request->get("festival_post_ad_reward_limit", 5);
             $subscription->business_category_ad_reward_limit = $request->get("business_category_ad_reward_limit", 5);
             $subscription->custom_post_ad_reward = $request->get("custom_post_ad_reward_limit", 5) > 0 ? 1 : 0;
-            $subscription->magic_cloner_ad_reward = $request->get("magic_cloner_ad_reward_limit", 5) > 0 ? 1 : 0;
             $subscription->festival_post_ad_reward = $request->get("festival_post_ad_reward_limit", 5) > 0 ? 1 : 0;
             $subscription->business_category_ad_reward = $request->get("business_category_ad_reward_limit", 5) > 0 ? 1 : 0;
             $subscription->google_product_enable = ($request->google_product_enable)?1:0;

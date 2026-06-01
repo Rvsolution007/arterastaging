@@ -104,13 +104,43 @@ class SharedHeader extends StatelessWidget {
                 ),
               );
             }),
-            // ── Gamification Streak Badge ──
+            // ── Reward Points Badge ──
+            Obx(() {
+              final sc = Get.find<SubscriptionController>();
+              final rewardPoints = sc.rewardPoints.value;
+              if (rewardPoints == 0) return const SizedBox.shrink();
+              return Container(
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFF59E0B), Color(0xFFD97706)],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(children: [
+                  const Icon(Icons.stars, color: Colors.white, size: 14),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$rewardPoints',
+                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800),
+                  ),
+                ]),
+              );
+            }),
+            // ── Gamification Badges Icon ──
             FutureBuilder<SharedPreferences>(
               future: SharedPreferences.getInstance(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) return const SizedBox.shrink();
-                final streak = snapshot.data!.getInt('currentStreak') ?? 0;
-                if (streak < 1) return const SizedBox.shrink();
+                final badgesCount = snapshot.data!.getInt('unlockedBadgesCount') ?? 0;
                 
                 return GestureDetector(
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AchievementsScreen())),
@@ -118,25 +148,33 @@ class SharedHeader extends StatelessWidget {
                     margin: const EdgeInsets.only(right: 8),
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: badgesCount > 0 ? Colors.white : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.orange.shade300, width: 1.5),
+                      border: Border.all(
+                        color: badgesCount > 0 ? Colors.orange.shade300 : Colors.grey.shade300, 
+                        width: 1.5
+                      ),
                       boxShadow: [
-                        BoxShadow(
-                          color: Colors.orange.withValues(alpha: 0.15),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
+                        if (badgesCount > 0)
+                          BoxShadow(
+                            color: Colors.orange.withValues(alpha: 0.15),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
                       ],
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.local_fire_department, color: Colors.orange.shade600, size: 16),
+                        Icon(
+                          Icons.emoji_events, 
+                          color: badgesCount > 0 ? Colors.orange.shade600 : Colors.grey.shade500, 
+                          size: 16
+                        ),
                         const SizedBox(width: 4),
                         Text(
-                          '$streak',
+                          '$badgesCount',
                           style: TextStyle(
-                            color: Colors.orange.shade700,
+                            color: badgesCount > 0 ? Colors.orange.shade700 : Colors.grey.shade600,
                             fontWeight: FontWeight.w800,
                             fontSize: 12,
                           ),

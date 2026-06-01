@@ -210,8 +210,7 @@ Route::
             Route::get('ai-monitor/batch-status/{id}', 'AiMonitorController@batchStatus')->name('admin.ai_monitor.batch_status');
             
             // Magic Cloner Admin Setup
-            Route::get('magic-cloner', 'MagicClonerController@index')->name('admin.magic_cloner.index');
-            Route::post('magic-cloner', 'MagicClonerController@store')->name('admin.magic_cloner.store');
+
             Route::resource('post-purpose', 'PostPurposeController');
             Route::post('post-purpose-status', 'PostPurposeController@post_purpose_status');
 
@@ -269,8 +268,9 @@ Route::
             // Phase 7 Design Challenges
             Route::get('challenges', 'DesignChallengeController@index')->name('admin.challenges');
             Route::post('challenges', 'DesignChallengeController@store')->name('admin.challenges.store');
-            Route::post('challenges/settings', 'DesignChallengeController@storeSettings')->name('admin.challenges.store_settings');
+            Route::post('challenges/{id}/update', 'DesignChallengeController@update')->name('admin.challenges.update');
             Route::get('challenges/{id}/toggle', 'DesignChallengeController@toggleStatus')->name('admin.challenges.toggle');
+            Route::delete('challenges/{id}/destroy', 'DesignChallengeController@destroy')->name('admin.challenges.destroy');
 
             // Phase 8 God View
             Route::get('god-view', 'GodViewController@index')->name('admin.god_view');

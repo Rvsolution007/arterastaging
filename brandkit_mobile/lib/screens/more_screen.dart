@@ -20,7 +20,7 @@ import '../widgets/error_submission_dialog.dart';
 import 'referral_screen.dart';
 import '../services/translation_service.dart';
 import 'achievements_screen.dart';
-import 'challenges_screen.dart';
+
 
 class MoreScreen extends StatefulWidget {
   const MoreScreen({super.key});

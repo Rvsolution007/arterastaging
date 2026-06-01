@@ -14,26 +14,8 @@ class DesignChallengeController extends Controller
     {
         $challenges = DesignChallenge::orderBy('created_at', 'desc')->get();
         $pushLogs = PushNotificationLog::with('user')->orderBy('created_at', 'desc')->limit(100)->get();
-        $badgePostCount = Setting::getGlobalValue('gamification', 'badge_post_count', 100);
-        $streakGoalDays = Setting::getGlobalValue('gamification', 'streak_goal_days', 7);
-        $smartPushEnabled = Setting::getGlobalValue('gamification', 'smart_push_enabled', 1);
         
-        return view('admin.challenges.index', compact('challenges', 'pushLogs', 'badgePostCount', 'streakGoalDays', 'smartPushEnabled'));
-    }
-
-    public function storeSettings(Request $request)
-    {
-        $request->validate([
-            'badge_post_count' => 'required|numeric',
-            'streak_goal_days' => 'required|numeric',
-            'smart_push_enabled' => 'required|in:0,1'
-        ]);
-
-        Setting::setValue('gamification', 'badge_post_count', $request->badge_post_count);
-        Setting::setValue('gamification', 'streak_goal_days', $request->streak_goal_days);
-        Setting::setValue('gamification', 'smart_push_enabled', $request->smart_push_enabled);
-
-        return back()->with('success', 'Gamification settings updated successfully.');
+        return view('admin.challenges.index', compact('challenges', 'pushLogs'));
     }
 
     public function store(Request $request)
@@ -46,10 +28,22 @@ class DesignChallengeController extends Controller
             'type' => 'nullable|string|in:any_post,festival_post,custom_post,ai_trends_post',
             'target_count' => 'required|integer|min:1',
             'target_id' => 'nullable|integer',
-            'reward_points' => 'nullable|integer|min:0'
+            'reward_points' => 'nullable|integer|min:0',
+            'streak_goal_days' => 'nullable|integer|min:1',
+            'push_notification_enabled' => 'boolean'
         ]);
 
-        DesignChallenge::create($request->all());
+        $challenge = DesignChallenge::create($request->all());
+
+        if ($request->push_notification_enabled) {
+            \App\Models\PushNotificationLog::create([
+                'user_id' => auth()->id() ?? 1,
+                'title' => 'New Challenge: ' . $challenge->title,
+                'message' => 'A new challenge is available! Check it out.',
+                'status' => 'success',
+                'error_reason' => null
+            ]);
+        }
 
         return back()->with('success', 'Design Challenge created successfully.');
     }
@@ -65,10 +59,22 @@ class DesignChallengeController extends Controller
             'type' => 'nullable|string|in:any_post,festival_post,custom_post,ai_trends_post',
             'target_count' => 'required|integer|min:1',
             'target_id' => 'nullable|integer',
-            'reward_points' => 'nullable|integer|min:0'
+            'reward_points' => 'nullable|integer|min:0',
+            'streak_goal_days' => 'nullable|integer|min:1',
+            'push_notification_enabled' => 'boolean'
         ]);
 
         $challenge->update($request->all());
+
+        if ($request->push_notification_enabled) {
+            \App\Models\PushNotificationLog::create([
+                'user_id' => auth()->id() ?? 1,
+                'title' => 'Challenge Updated: ' . $challenge->title,
+                'message' => 'Check out the updated challenge details!',
+                'status' => 'success',
+                'error_reason' => null
+            ]);
+        }
 
         return back()->with('success', 'Design Challenge updated successfully.');
     }

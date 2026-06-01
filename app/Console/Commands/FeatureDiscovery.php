@@ -31,15 +31,7 @@ class FeatureDiscovery extends Command
     {
         $this->info("Starting Feature Discovery Analysis...");
         
-        // Find users who have never used Magic Cloner
-        $usersMissingMagicCloner = User::where('magic_cloner_used', 0)
-            ->whereNotNull('last_active_at') // active users
-            ->get();
 
-        foreach ($usersMissingMagicCloner as $user) {
-            // Stage a notification or banner for them
-            Log::info("FEATURE DISCOVERY: Queued 'Magic Cloner' banner for User {$user->id} ({$user->name})");
-        }
 
         // Find users who have never used Custom Post
         $usersMissingCustomPost = User::where('custom_post_used', 0)

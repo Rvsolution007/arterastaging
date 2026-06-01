@@ -467,55 +467,7 @@
               </li>
             @endcanany
 
-            @if(Request::is('admin/custom-post*') || Request::is('admin/custom-post-frame*') || Request::is('admin/custom-post-get*') || Request::is('admin/magic-cloner'))
-            @php($class = "menu-open")
-            @php($active = "active")
-            @else
-            @php($class = "")
-            @php($active = "")
-            @endif
 
-            @canany(['CustomCategory', 'CustomFrame'])
-              <li class="nav-item has-treeview {{$class}}">
-                <a href="#" class="nav-link {{$active}}" style="color: white;">
-                  <i class="nav-icon fa-solid fa-image"></i>
-                  <p>
-                    Magic Cloner <span class="badge badge-warning right mr-3" style="font-size: 0.6em;">Pkg 3 Gold</span>
-                    <i class="right fa fa-angle-right"></i>
-                  </p>
-                </a>
-
-                <ul class="nav nav-treeview">
-                  @can('CustomCategory')
-                    <li class="nav-item">
-                      <a href="{{route('custom-post.index')}}"
-                        class="nav-link @if(Request::is('admin/custom-post*') && !Request::is('admin/custom-post-frame*') && !Request::is('admin/custom-post-get*')) active @endif"
-                        style="color: white;">
-                        <p><i class="fa fa-angle-right ml-3 mr-1"></i> Magic Cloner Category</p>
-                      </a>
-                    </li>
-                  @endcan
-                  @can('CustomFrame')
-                    <li class="nav-item">
-                      <a href="{{route('custom-post-frame.index')}}"
-                        class="nav-link @if(Request::is('admin/custom-post-frame*') || Request::is('admin/custom-post-get*')) active @endif"
-                        style="color: white;">
-                        <p><i class="fa fa-angle-right ml-3 mr-1"></i> Magic Cloner Frame</p>
-                      </a>
-                    </li>
-                  @endcan
-                  @can('CustomFrame')
-                    <li class="nav-item">
-                      <a href="{{route('admin.magic_cloner.index')}}"
-                        class="nav-link @if(Request::is('admin/magic-cloner')) active @endif"
-                        style="color: white;">
-                        <p><i class="fa fa-angle-right ml-3 mr-1"></i> AI Logic Setup</p>
-                      </a>
-                    </li>
-                  @endcan
-                </ul>
-              </li>
-            @endcanany
 
             @if(Request::is('admin/business-category*') || Request::is('admin/business-frame*') || Request::is('admin/business-category-get*'))
             @php($class = "menu-open")

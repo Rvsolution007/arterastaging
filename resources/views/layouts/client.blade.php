@@ -282,50 +282,6 @@
             class="hidden absolute inset-0 bg-white/20 backdrop-blur-md z-40 transition-all duration-300 animate-fade-in">
         </div>
 
-        <!-- Magic Cloner Bottom Sheet -->
-        <div id="magic-cloner-sheet" class="hidden absolute inset-0 z-[110]">
-            <!-- Backdrop -->
-            <div id="magic-cloner-backdrop" onclick="toggleMagicCloner(false)" class="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in"></div>
-            
-            <!-- Sheet Content -->
-            <div id="magic-cloner-content" class="absolute bottom-0 left-0 right-0 bg-white rounded-t-[2rem] shadow-2xl transition-transform duration-300 translate-y-full flex flex-col p-6 items-center">
-                <!-- Inner Drag Handle -->
-                <div class="w-12 h-1.5 bg-gray-200 rounded-full mb-6"></div>
-                
-                <div class="w-16 h-16 rounded-full bg-fuchsia-100 flex items-center justify-center mb-4">
-                    <i data-lucide="wand-2" class="w-8 h-8 text-fuchsia-600"></i>
-                </div>
-                
-                <h3 class="text-xl font-black text-slate-800 mb-2">AI Magic Cloner</h3>
-                <p class="text-center text-sm font-medium text-slate-500 mb-6 px-4">Upload any inspiration image and we will extract its brand vibe, colors, and layout to generate magical templates for you.</p>
-
-                <!-- File Upload Box -->
-                <label for="magic-upload" class="w-full relative overflow-hidden rounded-2xl border-2 border-dashed border-fuchsia-300 bg-fuchsia-50/50 hover:bg-fuchsia-50 transition-colors p-8 flex flex-col items-center justify-center cursor-pointer group active:scale-[0.98]">
-                    <div class="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                        <i data-lucide="upload-cloud" class="w-6 h-6 text-fuchsia-500"></i>
-                    </div>
-                    <span class="text-sm font-bold text-fuchsia-600 mb-1">Upload Inspiration</span>
-                    <span class="text-[11px] font-semibold text-slate-400">JPG, PNG (Max. 5MB)</span>
-                    <input type="file" id="magic-upload" class="hidden" accept="image/*" onchange="startMagicCloneProcess(this)">
-                </label>
-                
-                <!-- Loading State (Hidden by Default) -->
-                <div id="magic-loading" class="hidden w-full flex-col items-center justify-center py-6">
-                    <div class="animate-spin rounded-full h-10 w-10 border-4 border-fuchsia-100 border-t-fuchsia-600 mb-4"></div>
-                    <p class="text-sm font-bold text-slate-700 animate-pulse">🪄 Extracting brand vibe...</p>
-                </div>
-
-                <!-- Results State (Hidden by Default) -->
-                <div id="magic-results" class="hidden w-full flex-col pb-4">
-                    <h4 class="font-bold text-slate-800 mb-3 text-center">🪄 Magical Templates Generated</h4>
-                    <div id="magic-templates-container" class="flex overflow-x-auto gap-4 py-2 snap-x scrollbar-hide">
-                        <!-- Templates Injected Here -->
-                    </div>
-                </div>
-
-                <div class="w-full mt-4 safe-area-pb"></div>
-            </div>
-        </div>
 
         <!-- FAB -->
         <div id="fab-container" class="absolute bottom-28 right-4 z-50 pointer-events-none w-full max-w-md">
@@ -396,7 +352,7 @@
 
         // FAB Menu Items
         const fabMenuItems = [
-            { t: 'Magic Cloner', i: 'wand-2', c: 'bg-fuchsia-500', id: 'btn-magic-cloner' },
+
             { t: 'AI Trends', i: 'sparkles', c: 'bg-indigo-600' },
             { t: 'Snap Shot', i: 'camera', c: 'bg-sky-500' },
             { t: 'Reels Maker', i: 'play', c: 'bg-rose-500' },
@@ -450,7 +406,7 @@
                 fabMenu.classList.remove('hidden');
                 fabBackdrop.classList.remove('hidden');
                 fabMenu.innerHTML = fabMenuItems.map((item, i) => `
-                    <button ${item.id ? `id="${item.id}"` : ''} onclick="if(this.id === 'btn-magic-cloner') { toggleMagicCloner(true); }" class="flex items-center gap-3 animate-scale-in" style="animation-delay: ${i * 40}ms">
+                    <button ${item.id ? `id="${item.id}"` : ''} class="flex items-center gap-3 animate-scale-in" style="animation-delay: ${i * 40}ms">
                         <span class="bg-white px-5 py-2 rounded-full shadow-lg text-[15px] font-bold text-slate-800 tracking-tight border border-white whitespace-nowrap">${item.t}</span>
                         <div class="w-12 h-12 rounded-full ${item.c} shadow-lg flex items-center justify-center text-white active:scale-90 transition-transform"><i data-lucide="${item.i}" class="w-6 h-6"></i></div>
                     </button>
@@ -470,102 +426,7 @@
             fabBackdrop.addEventListener('click', () => toggleFAB(false));
         }
 
-        // Magic Cloner Logic
-        const magicClonerSheet = document.getElementById('magic-cloner-sheet');
-        const magicClonerContent = document.getElementById('magic-cloner-content');
-        const magicUploadInput = document.getElementById('magic-upload');
-        const magicLoadingObj = document.getElementById('magic-loading');
-        const magicResultsObj = document.getElementById('magic-results');
-        const magicTemplatesContainer = document.getElementById('magic-templates-container');
 
-        function toggleMagicCloner(show) {
-            if (show) {
-                toggleFAB(false);
-                magicClonerSheet.classList.remove('hidden');
-                setTimeout(() => {
-                    magicClonerContent.style.transform = 'translateY(0)';
-                }, 10);
-            } else {
-                magicClonerContent.style.transform = 'translateY(100%)';
-                setTimeout(() => {
-                    magicClonerSheet.classList.add('hidden');
-                    // reset form
-                    if(magicUploadInput) magicUploadInput.value = '';
-                    if(magicLoadingObj) magicLoadingObj.classList.add('hidden');
-                    if(magicResultsObj) magicResultsObj.classList.add('hidden');
-                    if(magicUploadInput) magicUploadInput.parentElement.classList.remove('hidden');
-                }, 300);
-            }
-        }
-
-        function startMagicCloneProcess(input) {
-            if (input.files && input.files[0]) {
-                // Hide upload button and show loader
-                input.parentElement.classList.add('hidden');
-                magicLoadingObj.classList.remove('hidden');
-                magicLoadingObj.classList.add('flex');
-                
-                // Construct FormData object
-                const formData = new FormData();
-                formData.append('inspiration_image', input.files[0]);
-
-                // Use the web route (session auth) with CSRF token
-                fetch('{{ route("magic_cloner.analyze") }}', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json'
-                    },
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    magicLoadingObj.classList.add('hidden');
-                    magicLoadingObj.classList.remove('flex');
-
-                    if(data.success && data.suggested_templates) {
-                        magicResultsObj.classList.remove('hidden');
-                        magicResultsObj.classList.add('flex');
-
-                        // Log AI detection for debugging
-                        console.log('🪄 AI Detection:', data.design_vibe_detected);
-                        console.log('📦 Matched Templates:', data.suggested_templates);
-                        
-                        // Render templates with match score
-                        magicTemplatesContainer.innerHTML = data.suggested_templates.map(t => `
-                            <div class="relative w-32 h-32 flex-shrink-0 snap-center rounded-2xl overflow-hidden shadow-lg border-2 border-fuchsia-100 cursor-pointer hover:border-fuchsia-500 transition-colors"
-                                 onclick='selectMagicTemplate(${JSON.stringify(t)})'>
-                                <img src="${t.thumb}" class="w-full h-full object-cover">
-                                <div class="absolute top-1 right-1 bg-green-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow">${t.match_score || 0}%</div>
-                                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2 text-center">
-                                    <span class="text-white text-[10px] font-bold">Use Template</span>
-                                </div>
-                            </div>
-                        `).join('');
-                    } else {
-                        alert('Error: ' + (data.message || 'Something went wrong'));
-                        toggleMagicCloner(false);
-                    }
-                })
-                .catch(err => {
-                    console.error("Magic Cloner Error: ", err);
-                    alert("Network error. Please try again.");
-                    toggleMagicCloner(false);
-                });
-            }
-        }
-        
-        function selectMagicTemplate(template) {
-            // Save payload to localStorage so editor can pick it up
-            localStorage.setItem('magicClonerInject', JSON.stringify({
-                ai_data: template.ai_analysis_data,
-                mapping: template.frontend_mapping_rules
-            }));
-            
-            // Redirect to universal editor with the selected frame ID (using custom type)
-            // Or redirecting to create a custom post with this frame
-            window.location.href = '{{ url("edit/custom") }}/' + template.id;
-        }
     </script>
     @yield('scripts')
 </body>

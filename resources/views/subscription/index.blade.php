@@ -91,7 +91,7 @@ input:checked + .slider:before {
               <th>Duration</th>
               <th>Plan Price</th>
               <th>Dis. Price</th>
-              <th>Limits (C/M/F/B)</th>
+              <th>Limits (C/F/B)</th>
               <th>Created</th>
               <th>Status</th>
               <th>Action</th>
@@ -107,7 +107,7 @@ input:checked + .slider:before {
               <td class="align-middle">{{number_format($row->discount_price,2)}}</td>
               <td class="align-middle" style="font-size: 0.9em; font-weight: 500;">
                 <span class="text-primary" title="Custom Post Limit">{{$row->custom_post_edit_limit}}</span> /
-                <span class="text-danger" title="Magic Cloner Limit">{{$row->magic_cloner_limit}}</span> /
+
                 <span class="text-info" title="Festival Limit">{{$row->festival_post_limit}}</span> /
                 <span class="text-warning" title="Category Limit">{{$row->business_category_post_limit}}</span>
               </td>

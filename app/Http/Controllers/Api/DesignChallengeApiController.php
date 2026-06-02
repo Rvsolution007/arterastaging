@@ -140,7 +140,23 @@ class DesignChallengeApiController extends Controller
                 $isMatch = true;
             } else if ($challenge->type == $challengeType) {
                 if ($challenge->target_id) {
-                    if ($challenge->target_id == $itemId) {
+                    // The app sends the template's specific ID as $itemId to ensure the duplicate-check logic works per template.
+                    // However, the admin sets $challenge->target_id to the parent ID (e.g., Festival ID or Category ID).
+                    // We must resolve the parent ID from the template to see if it matches.
+                    $parentId = null;
+                    if ($itemType == 'festival') {
+                        $template = \App\Models\FestivalsPost::find($itemId);
+                        if ($template) $parentId = $template->festivals_id;
+                    } elseif ($itemType == 'category') {
+                        $template = \App\Models\CategoryPost::find($itemId);
+                        if ($template) $parentId = $template->category_id;
+                    } elseif ($itemType == 'custom') {
+                        $template = \App\Models\CustomFrame::find($itemId);
+                        if ($template) $parentId = $template->custom_post_id;
+                    }
+                    
+                    // Match if either the resolved parent ID or the item ID itself matches the target.
+                    if ($challenge->target_id == $parentId || $challenge->target_id == $itemId) {
                         $isMatch = true;
                     }
                 } else {

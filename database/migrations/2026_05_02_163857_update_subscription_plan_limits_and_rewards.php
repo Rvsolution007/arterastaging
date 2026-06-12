@@ -18,7 +18,7 @@ return new class extends Migration
             $table->integer('daily_drip_ad_reward_limit')->default(5)->after('daily_drip_ad_reward');
             $table->integer('magic_cloner_ad_reward_limit')->default(5)->after('magic_cloner_ad_reward');
             $table->integer('festival_post_ad_reward_limit')->default(5)->after('festival_post_ad_reward');
-            $table->integer('business_category_ad_reward_limit')->default(5)->after('business_category_ad_reward');
+            $table->integer('category_ad_reward_limit')->default(5)->after('category_ad_reward');
 
             $table->dropColumn(['daily_drip_can_edit', 'daily_drip_can_choose']);
         });
@@ -28,7 +28,7 @@ return new class extends Migration
             $table->integer('daily_drip_ad_used')->default(0);
             $table->integer('magic_cloner_ad_used')->default(0);
             $table->integer('festival_post_ad_used')->default(0);
-            $table->integer('business_category_ad_used')->default(0);
+            $table->integer('category_ad_used')->default(0);
         });
     }
 
@@ -45,7 +45,7 @@ return new class extends Migration
                 'daily_drip_ad_reward_limit',
                 'magic_cloner_ad_reward_limit',
                 'festival_post_ad_reward_limit',
-                'business_category_ad_reward_limit'
+                'category_ad_reward_limit'
             ]);
 
             $table->boolean('daily_drip_can_edit')->default(false);
@@ -58,7 +58,7 @@ return new class extends Migration
                 'daily_drip_ad_used',
                 'magic_cloner_ad_used',
                 'festival_post_ad_used',
-                'business_category_ad_used'
+                'category_ad_used'
             ]);
         });
     }

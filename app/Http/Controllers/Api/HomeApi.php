@@ -344,6 +344,73 @@ class HomeApi extends Controller
         ], 200);
     }
 
+    private function injectDynamicBackgroundImageArray($parsedJson, $userId)
+    {
+        \Illuminate\Support\Facades\Log::info("DEBUG API injectBG: Started for user $userId");
+        if (!$parsedJson || !isset($parsedJson['layers']) || !$userId) {
+            \Illuminate\Support\Facades\Log::info("DEBUG API injectBG: Missing json, layers, or userId. Aborting.");
+            return $parsedJson;
+        }
+
+        $business = \App\Models\Business::where('user_id', $userId)->where('is_default', 1)->first() ?? \App\Models\Business::where('user_id', $userId)->first();
+        if (!$business || !$business->business_category_id) {
+            \Illuminate\Support\Facades\Log::info("DEBUG API injectBG: No business or business_category_id found for user $userId. Aborting.");
+            return $parsedJson;
+        }
+
+        $businessCategoryId = $business->business_category_id;
+        \Illuminate\Support\Facades\Log::info("DEBUG API injectBG: Found business category ID: $businessCategoryId for user $userId");
+        $bgLayerIndex = -1;
+
+        foreach ($parsedJson['layers'] as $i => $layer) {
+            if (isset($layer['type']) && $layer['type'] === 'image' && isset($layer['name'])) {
+                $name = strtolower($layer['name']);
+                if (str_contains($name, 'background') || str_contains($name, 'bg')) {
+                    $bgLayerIndex = $i;
+                    \Illuminate\Support\Facades\Log::info("DEBUG API injectBG: Found background layer at index $i with name {$layer['name']}");
+                    break;
+                }
+            }
+        }
+
+        if ($bgLayerIndex >= 0) {
+            $bgLayer = $parsedJson['layers'][$bgLayerIndex];
+            if (isset($bgLayer['w']) && isset($bgLayer['h']) && $bgLayer['h'] > 0) {
+                $ratio = $bgLayer['w'] / $bgLayer['h'];
+                $aspectRatioEnum = null;
+                
+                if (abs($ratio - 1) < 0.1) {
+                    $aspectRatioEnum = '1:1';
+                } elseif (abs($ratio - 1.77) < 0.2) {
+                    $aspectRatioEnum = '16:9';
+                } elseif (abs($ratio - 0.56) < 0.2) {
+                    $aspectRatioEnum = '9:16';
+                }
+                
+                \Illuminate\Support\Facades\Log::info("DEBUG API injectBG: Layer dimensions {$bgLayer['w']}x{$bgLayer['h']}, ratio $ratio, mapped to aspect enum: " . ($aspectRatioEnum ?? 'NONE'));
+
+                if ($aspectRatioEnum) {
+                    $randomBg = \App\Models\CategoryBackgroundImage::where('business_category_id', $businessCategoryId)
+                                    ->where('aspect_ratio', $aspectRatioEnum)
+                                    ->inRandomOrder()
+                                    ->first();
+                    if ($randomBg) {
+                        $parsedJson['layers'][$bgLayerIndex]['src'] = '../../../../' . $randomBg->image;
+                        \Illuminate\Support\Facades\Log::info("DEBUG API injectBG: Successfully replaced BG with image ID {$randomBg->id} ({$randomBg->image})");
+                    } else {
+                        \Illuminate\Support\Facades\Log::info("DEBUG API injectBG: No random background found in DB for category $businessCategoryId and ratio $aspectRatioEnum");
+                    }
+                }
+            } else {
+                \Illuminate\Support\Facades\Log::info("DEBUG API injectBG: Found BG layer, but missing valid width/height.");
+            }
+        } else {
+            \Illuminate\Support\Facades\Log::info("DEBUG API injectBG: No background layer found in JSON.");
+        }
+
+        return $parsedJson;
+    }
+
     public function customPost()
     {
         $customCategory = \App\Models\CustomFramePurpose::where('status',1)->get();
@@ -386,7 +453,7 @@ class HomeApi extends Controller
                             if(is_dir('./uploads/template/'.$zip_name.'/json/')) {
                                 $file = scandir('./uploads/template/'.$zip_name.'/json/', 1);
                                 if(isset($file[0]) && $file[0] != '.' && $file[0] != '..') {
-                                    return file_get_contents(public_path('uploads/template/'.$zip_name.'/json/'.$file[0]));
+                                    return file_get_contents(base_path('uploads/template/'.$zip_name.'/json/'.$file[0]));
                                 }
                             }
                         }
@@ -399,16 +466,19 @@ class HomeApi extends Controller
                     // For DigitalOcean, we assume it's preview.jpg for now, or fallback to similar logic if needed.
                     $preview_img = Storage::disk('spaces')->url('uploads/template/'.$zip_name.'/preview.jpg');
                 } else {
-                    $dir = public_path('uploads/template/'.$zip_name.'/');
+                    $dir = base_path('uploads/template/'.$zip_name.'/');
                     if (is_dir($dir)) {
                         if (file_exists($dir.'preview.jpg')) {
                             $preview_img = asset('uploads/template/'.$zip_name.'/preview.jpg');
+                            $preview_img = str_replace('public/uploads', 'uploads', $preview_img);
                         } elseif (file_exists($dir.'preview.png')) {
                             $preview_img = asset('uploads/template/'.$zip_name.'/preview.png');
+                            $preview_img = str_replace('public/uploads', 'uploads', $preview_img);
                         } else {
                             $files = glob($dir . '*.{jpg,jpeg,png}', GLOB_BRACE);
                             if (!empty($files)) {
                                 $preview_img = asset('uploads/template/'.$zip_name.'/'.basename($files[0]));
+                                $preview_img = str_replace('public/uploads', 'uploads', $preview_img);
                             }
                         }
                     }
@@ -430,27 +500,37 @@ class HomeApi extends Controller
                 \Illuminate\Support\Facades\Log::info("DEBUG API customPost: userId resolved: " . ($userId ?? 'NULL') . ", token present: " . ($token ? 'YES' : 'NO') . ", query: " . json_encode(request()->query()));
                 
                 if ($userId && !empty($json_data)) {
-                    $aiContent = \App\Models\UserCustomFrameContent::where('user_id', $userId)
-                        ->where('business_custom_frame_id', $frame->id)
-                        ->first();
+                    $parsedJson = json_decode($json_data, true);
+                    $jsonModified = false;
+                    
+                    if ($parsedJson) {
+                        $newJson = $this->injectDynamicBackgroundImageArray($parsedJson, $userId);
+                        if ($newJson !== $parsedJson) {
+                            $parsedJson = $newJson;
+                            $jsonModified = true;
+                        }
                         
-                    if ($aiContent) {
-                        \Illuminate\Support\Facades\Log::info("DEBUG API customPost: AI Content Found for Frame ID: " . $frame->id);
-                        if (!empty($aiContent->generated_content)) {
-                            $parsedJson = json_decode($json_data, true);
-                            if ($parsedJson && isset($parsedJson['layers'])) {
-                                $replacedCount = 0;
-                                foreach ($parsedJson['layers'] as &$layer) {
-                                    if (isset($layer['type']) && $layer['type'] === 'text' && isset($layer['name'])) {
-                                        if (isset($aiContent->generated_content[$layer['name']])) {
-                                            $layer['text'] = $aiContent->generated_content[$layer['name']];
-                                            $replacedCount++;
-                                        }
+                        $aiContent = \App\Models\UserCustomFrameContent::where('user_id', $userId)
+                            ->where('business_custom_frame_id', $frame->id)
+                            ->first();
+                            
+                        if ($aiContent && !empty($aiContent->generated_content) && isset($parsedJson['layers'])) {
+                            \Illuminate\Support\Facades\Log::info("DEBUG API customPost: AI Content Found for Frame ID: " . $frame->id);
+                            $replacedCount = 0;
+                            foreach ($parsedJson['layers'] as &$layer) {
+                                if (isset($layer['type']) && $layer['type'] === 'text' && isset($layer['name'])) {
+                                    if (isset($aiContent->generated_content[$layer['name']])) {
+                                        $layer['text'] = $aiContent->generated_content[$layer['name']];
+                                        $replacedCount++;
+                                        $jsonModified = true;
                                     }
                                 }
-                                \Illuminate\Support\Facades\Log::info("DEBUG API customPost: Replaced $replacedCount text layers.");
-                                $json_data = json_encode($parsedJson);
                             }
+                            \Illuminate\Support\Facades\Log::info("DEBUG API customPost: Replaced $replacedCount text layers.");
+                        }
+                        
+                        if ($jsonModified) {
+                            $json_data = json_encode($parsedJson);
                         }
                     }
                 }
@@ -508,6 +588,8 @@ class HomeApi extends Controller
             ->where("status", 1)
             ->orderBy('id', 'desc')
             ->paginate($limit);
+            
+        \Illuminate\Support\Facades\Log::info("DEBUG API customPostPaginated: Hit for category $categoryId, page $page. Found {$custom_frame_paginator->count()} frames.");
 
         $posts = [];
         $isDigitalOcean = StorageSetting::getStorageSetting('storage') == 'DigitalOcean';
@@ -533,7 +615,7 @@ class HomeApi extends Controller
                         if(is_dir('./uploads/template/'.$zip_name.'/json/')) {
                             $file = scandir('./uploads/template/'.$zip_name.'/json/', 1);
                             if(isset($file[0]) && $file[0] != '.' && $file[0] != '..') {
-                                return file_get_contents(public_path('uploads/template/'.$zip_name.'/json/'.$file[0]));
+                                return file_get_contents(base_path('uploads/template/'.$zip_name.'/json/'.$file[0]));
                             }
                         }
                     }
@@ -545,7 +627,7 @@ class HomeApi extends Controller
             if($isDigitalOcean) {
                 $preview_img = Storage::disk('spaces')->url('uploads/template/'.$zip_name.'/preview.jpg');
             } else {
-                $dir = public_path('uploads/template/'.$zip_name.'/');
+                $dir = base_path('uploads/template/'.$zip_name.'/');
                 if (is_dir($dir)) {
                     if (file_exists($dir.'preview.jpg')) {
                         $preview_img = asset('uploads/template/'.$zip_name.'/preview.jpg');
@@ -573,23 +655,33 @@ class HomeApi extends Controller
             }
 
             if ($userId && !empty($json_data)) {
-                $aiContent = \App\Models\UserCustomFrameContent::where('user_id', $userId)
-                    ->where('business_custom_frame_id', $frame->id)
-                    ->first();
+                $parsedJson = json_decode($json_data, true);
+                $jsonModified = false;
+                
+                if ($parsedJson) {
+                    $newJson = $this->injectDynamicBackgroundImageArray($parsedJson, $userId);
+                    if ($newJson !== $parsedJson) {
+                        $parsedJson = $newJson;
+                        $jsonModified = true;
+                    }
                     
-                if ($aiContent) {
-                    if (!empty($aiContent->generated_content)) {
-                        $parsedJson = json_decode($json_data, true);
-                        if ($parsedJson && isset($parsedJson['layers'])) {
-                            foreach ($parsedJson['layers'] as &$layer) {
-                                if (isset($layer['type']) && $layer['type'] === 'text' && isset($layer['name'])) {
-                                    if (isset($aiContent->generated_content[$layer['name']])) {
-                                        $layer['text'] = $aiContent->generated_content[$layer['name']];
-                                    }
+                    $aiContent = \App\Models\UserCustomFrameContent::where('user_id', $userId)
+                        ->where('business_custom_frame_id', $frame->id)
+                        ->first();
+                        
+                    if ($aiContent && !empty($aiContent->generated_content) && isset($parsedJson['layers'])) {
+                        foreach ($parsedJson['layers'] as &$layer) {
+                            if (isset($layer['type']) && $layer['type'] === 'text' && isset($layer['name'])) {
+                                if (isset($aiContent->generated_content[$layer['name']])) {
+                                    $layer['text'] = $aiContent->generated_content[$layer['name']];
+                                    $jsonModified = true;
                                 }
                             }
-                            $json_data = json_encode($parsedJson);
                         }
+                    }
+                    
+                    if ($jsonModified) {
+                        $json_data = json_encode($parsedJson);
                     }
                 }
             }
@@ -661,7 +753,7 @@ class HomeApi extends Controller
         }
         else
         {
-            $destinationPath = public_path('uploads');
+            $destinationPath = base_path('uploads');
             $extension = $request->file("profile_image")->getClientOriginalExtension();
             $fileName = Str::uuid() . '.' . $extension;
             $request->file("profile_image")->move($destinationPath, $fileName);
@@ -1715,9 +1807,9 @@ class HomeApi extends Controller
                             "base_limit" => $s->festival_post_limit ?? 0,
                             "ad_reward_limit" => $s->festival_post_ad_reward_limit ?? 0,
                         ],
-                        "business_category_post" => [
-                            "base_limit" => $s->business_category_post_limit ?? 0,
-                            "ad_reward_limit" => $s->business_category_ad_reward_limit ?? 0,
+                        "category_post" => [
+                            "base_limit" => $s->category_post_limit ?? 0,
+                            "ad_reward_limit" => $s->category_ad_reward_limit ?? 0,
                         ],
                         "photoroom_bg" => [
                             "base_limit" => $s->photoroom_bg_limit ?? 0,
@@ -2772,20 +2864,23 @@ class HomeApi extends Controller
                 }
 
                 $preview_img = "";
-                if(StorageSetting::getStorageSetting('storage') == 'DigitalOcean') {
-                    // For DigitalOcean, we assume it's preview.jpg for now, or fallback to similar logic if needed.
+                $isDigitalOcean = (StorageSetting::getStorageSetting('storage') == 'DigitalOcean');
+                if($isDigitalOcean) {
                     $preview_img = Storage::disk('spaces')->url('uploads/template/'.$zip_name.'/preview.jpg');
                 } else {
-                    $dir = public_path('uploads/template/'.$zip_name.'/');
+                    $dir = base_path('uploads/template/'.$zip_name.'/');
                     if (is_dir($dir)) {
                         if (file_exists($dir.'preview.jpg')) {
                             $preview_img = asset('uploads/template/'.$zip_name.'/preview.jpg');
+                            $preview_img = str_replace('public/uploads', 'uploads', $preview_img);
                         } elseif (file_exists($dir.'preview.png')) {
                             $preview_img = asset('uploads/template/'.$zip_name.'/preview.png');
+                            $preview_img = str_replace('public/uploads', 'uploads', $preview_img);
                         } else {
                             $files = glob($dir . '*.{jpg,jpeg,png}', GLOB_BRACE);
                             if (!empty($files)) {
                                 $preview_img = asset('uploads/template/'.$zip_name.'/'.basename($files[0]));
+                                $preview_img = str_replace('public/uploads', 'uploads', $preview_img);
                             }
                         }
                     }
@@ -3150,7 +3245,7 @@ class HomeApi extends Controller
                     if(StorageSetting::getStorageSetting('storage') == 'DigitalOcean') {
                         $preview_img = Storage::disk('spaces')->url('uploads/template/'.$zip_name.'/preview.jpg');
                     } else {
-                        $dir = public_path('uploads/template/'.$zip_name.'/');
+                        $dir = base_path('uploads/template/'.$zip_name.'/');
                         if (is_dir($dir)) {
                             if (file_exists($dir.'preview.jpg')) {
                                 $preview_img = asset('uploads/template/'.$zip_name.'/preview.jpg');
@@ -3540,7 +3635,7 @@ class HomeApi extends Controller
 
     private function upload_image($file,$field,$id)
     {
-        $destinationPath = public_path('uploads');
+        $destinationPath = base_path('uploads');
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);
@@ -3576,7 +3671,7 @@ class HomeApi extends Controller
         }
 
         $feature = $request->get('feature');
-        $validFeatures = ['custom_post', 'festival_post', 'business_category_post'];
+        $validFeatures = ['custom_post', 'festival_post', 'category_post'];
 
         if (!$feature || !in_array($feature, $validFeatures)) {
             return response()->json(['success' => false, 'message' => 'Invalid feature key.'], 422);
@@ -3605,7 +3700,7 @@ class HomeApi extends Controller
                 $fieldMap = [
                     'custom_post'            => 'custom_post_used',
                     'festival_post'          => 'festival_post_used',
-                    'business_category_post' => 'business_category_post_used',
+                    'category_post' => 'category_post_used',
                 ];
                 // Reset the used counter by 1 to allow one more use
                 if ($user->{$fieldMap[$feature]} > 0) {
@@ -3791,7 +3886,7 @@ class HomeApi extends Controller
                     if (StorageSetting::getStorageSetting('storage') == 'DigitalOcean') {
                         $preview_img = Storage::disk('spaces')->url('uploads/template/'.$zip_name.'/preview.jpg');
                     } else {
-                        $dir = public_path('uploads/template/'.$zip_name.'/');
+                        $dir = base_path('uploads/template/'.$zip_name.'/');
                         if (is_dir($dir)) {
                             if (file_exists($dir.'preview.jpg')) {
                                 $preview_img = asset('uploads/template/'.$zip_name.'/preview.jpg');

@@ -87,8 +87,8 @@ Route::
             Route::get('/story', 'ContentApiController@getStory');
             Route::get('/festival', 'ContentApiController@getFestival');
             Route::get('/category', 'ContentApiController@getCategory');
-            Route::get('/custom-post', 'HomeApi@customPost');
-            Route::get('/custom-post-paginated', 'HomeApi@customPostPaginated');
+            Route::get('/custom-post-category', 'HomeApi@customPost');
+            Route::get('/custom-post-category-paginated', 'HomeApi@customPostPaginated');
             Route::get('/personal', 'HomeApi@personal');
             Route::post('/search', 'HomeApi@search');
 
@@ -102,6 +102,11 @@ Route::
             Route::get('/language', 'HomeApi@getLanguage');
             Route::get('/app-translations', 'HomeApi@getAppTranslations');
             Route::get('/subscription-plan', 'HomeApi@getSubscriptionplan');
+
+            // Mini Website API
+            Route::get('/mini-website/templates', 'MiniWebsiteApiController@templates');
+            Route::post('/mini-website/generate', 'MiniWebsiteApiController@generate');
+            Route::get('/mini-website/my-links', 'MiniWebsiteApiController@myLinks');
 
             Route::post('/create-payment', 'HomeApi@addPayment');
             Route::post('stripe-payment', 'HomeApi@stripePayment');
@@ -124,7 +129,7 @@ Route::
 
             Route::get('/business-category', 'HomeApi@getBusinessCategory');
             Route::get('/business-sub-category', 'HomeApi@getBusinessSubCategory');
-            Route::get('/business-frame', 'HomeApi@getBusinessFrame');
+            Route::get('/custom-post', 'HomeApi@getBusinessFrame');
 
             Route::get('/get-sticker', 'HomeApi@getSticker');
             Route::post('/search-sticker', 'HomeApi@searchSticker');
@@ -227,3 +232,10 @@ Route::namespace('Api')->middleware(['throttle'])->group(function () {
     Route::post('feedback/check-eligibility', 'UserJourneyController@checkEligibility');
     Route::post('feedback/submit', 'UserJourneyController@submitFeedback');
 });
+
+// Greeting API Endpoints
+Route::namespace('Api')->group(function () {
+    Route::any('get_greeting_categories', 'GreetingApiController@categories');
+    Route::any('get_greetings_by_category', 'GreetingApiController@get_greetings_by_category');
+});
+

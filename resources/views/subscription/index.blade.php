@@ -109,7 +109,7 @@ input:checked + .slider:before {
                 <span class="text-primary" title="Custom Post Limit">{{$row->custom_post_edit_limit}}</span> /
 
                 <span class="text-info" title="Festival Limit">{{$row->festival_post_limit}}</span> /
-                <span class="text-warning" title="Category Limit">{{$row->business_category_post_limit}}</span>
+                <span class="text-warning" title="Category Limit">{{$row->category_post_limit}}</span>
               </td>
               <td class="align-middle">{{$row->created_at}}</td>
               <td class="align-middle">

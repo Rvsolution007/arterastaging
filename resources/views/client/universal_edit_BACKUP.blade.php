@@ -2924,7 +2924,7 @@
             const img = activeElement.querySelector('img');
             if (img) {
                 const cacheBuster = '?v=' + new Date().getTime();
-                img.src = '/brandkit/public/assets/images/placeholder-frame.png' + cacheBuster;
+                img.src = '/Artera/public/assets/images/placeholder-frame.png' + cacheBuster;
                 
                 img.removeAttribute('data-modified');
                 // Reset adjustments

@@ -17,10 +17,12 @@ class AiChatController extends GetxController {
   var isLoading = false.obs;
   var ticketId = 0.obs;
   var isTicketClosed = false.obs;
+  var source = ''.obs;
   PusherChannelsFlutter pusher = PusherChannelsFlutter.getInstance();
 
-  AiChatController({int initialTicketId = 0}) {
+  AiChatController({int initialTicketId = 0, String source = ''}) {
     ticketId.value = initialTicketId;
+    this.source.value = source;
   }
 
   @override
@@ -121,6 +123,9 @@ class AiChatController extends GetxController {
         'user_id': userId,
         'message': text,
       };
+      if (source.value.isNotEmpty) {
+        body['category'] = source.value;
+      }
       if (ticketId.value > 0) {
         body['ticket_id'] = ticketId.value;
       }

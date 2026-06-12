@@ -56,7 +56,9 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
-    'asset_url' => env('ASSET_URL'),
+    'asset_url' => (isset($_SERVER['HTTP_HOST']) && !empty($_SERVER['HTTP_HOST']))
+        ? ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . '/Artera')
+        : env('APP_URL', 'http://localhost/Artera'),
 
     /*
     |--------------------------------------------------------------------------

@@ -40,14 +40,14 @@ ad_config_code = r'''                'createdAt' => date('Y-m-d H:i:s', strtotim
                             'post_ad_flow_paid' => $user->getPostAdFlow('festival_post', true),
                             'post_ad_flow_free' => $user->getPostAdFlow('festival_post', false)
                         ],
-                        'business_category_post' => [
-                            'base_limit' => $user->subscription ? $user->subscription->business_category_post_limit : 0,
-                            'used' => $user->business_category_post_used,
+                        'category_post' => [
+                            'base_limit' => $user->subscription ? $user->subscription->category_post_limit : 0,
+                            'used' => $user->category_post_used,
                             'max_ad_uses' => $user->subscription ? $user->subscription->business_category_ad_reward_limit : 0,
                             'ad_used' => $user->business_category_ad_used,
-                            'state' => $user->getAdState('business_category_post'),
-                            'post_ad_flow_paid' => $user->getPostAdFlow('business_category_post', true),
-                            'post_ad_flow_free' => $user->getPostAdFlow('business_category_post', false)
+                            'state' => $user->getAdState('category_post'),
+                            'post_ad_flow_paid' => $user->getPostAdFlow('category_post', true),
+                            'post_ad_flow_free' => $user->getPostAdFlow('category_post', false)
                         ]
                     ]
                 ]'''

@@ -103,7 +103,7 @@ class BusinessFrameController extends Controller
                 }
             }
 
-            return redirect()->route("business-frame.index");
+            return redirect()->route("custom-post.index");
         }
     }
 
@@ -147,7 +147,7 @@ class BusinessFrameController extends Controller
             }
         }
 
-        return redirect()->route("business-frame.index");
+        return redirect()->route("custom-post.index");
     }
 
     public function business_category_get($id)
@@ -234,7 +234,7 @@ class BusinessFrameController extends Controller
                 }
             }
 
-            return redirect()->route('business-frame.index');
+            return redirect()->route('custom-post.index');
         }
     }
 
@@ -248,7 +248,7 @@ class BusinessFrameController extends Controller
         }
 
         BusinessFrame::find($id)->delete();
-        return redirect()->route('business-frame.index');
+        return redirect()->route('custom-post.index');
     }
 
     private function upload_image($file, $field, $id)
@@ -583,5 +583,12 @@ class BusinessFrameController extends Controller
 
         $frame->delete();
         return redirect()->back()->with('success', 'Custom Frame deleted successfully!');
+    }
+
+    public function business_custom_frame_landing(Request $request)
+    {
+        $frame = \App\Models\BusinessCustomFrame::find($request->get("id"));
+        $frame->show_on_landing = ($request->get("checked") == "true") ? 1 : 0;
+        $frame->save();
     }
 }

@@ -18,7 +18,7 @@ return new class extends Migration
             $table->boolean('daily_drip_ad_reward')->default(true);
             $table->boolean('magic_cloner_ad_reward')->default(true);
             $table->boolean('festival_post_ad_reward')->default(true);
-            $table->boolean('business_category_ad_reward')->default(true);
+            $table->boolean('category_ad_reward')->default(true);
         });
     }
 
@@ -35,7 +35,7 @@ return new class extends Migration
                 'daily_drip_ad_reward',
                 'magic_cloner_ad_reward',
                 'festival_post_ad_reward',
-                'business_category_ad_reward'
+                'category_ad_reward'
             ]);
         });
     }

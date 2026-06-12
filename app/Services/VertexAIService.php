@@ -198,6 +198,72 @@ class VertexAIService
         ];
     }
 
+    public function generateMultiVisionContentBase64(string $systemPrompt, array $images, bool $forceJson = false): array
+    {
+        if (!$this->isConfigured()) {
+            throw new \Exception('AI bot is not configured. Please set up Vertex AI or Gemini in Settings.');
+        }
+
+        $endpoint = $this->getEndpoint($forceJson);
+        
+        $parts = [
+            ["text" => $systemPrompt]
+        ];
+
+        foreach ($images as $img) {
+            $parts[] = [
+                "inlineData" => [
+                    "mimeType" => $img['mimeType'] ?? 'image/jpeg',
+                    "data" => $img['data']
+                ]
+            ];
+        }
+        
+        $body = [
+            "contents" => [
+                [
+                    "role" => "user",
+                    "parts" => $parts
+                ]
+            ],
+            "generationConfig" => [
+                "temperature" => 0.1
+            ]
+        ];
+
+        if ($forceJson) {
+            $body["generationConfig"]["responseMimeType"] = "application/json";
+        }
+
+        $headers = ['Content-Type' => 'application/json'];
+        if (!$this->isUsingGeminiStudio()) {
+            $headers['Authorization'] = "Bearer " . $this->getAccessToken();
+        }
+
+        $response = Http::withHeaders($headers)->timeout(120)->post($endpoint, $body);
+
+        if (!$response->successful()) {
+            $err = $response->json();
+            $msg = $err['error']['message'] ?? $response->body();
+            if ($response->status() === 429 || stripos($msg, 'Quota exceeded') !== false) {
+                throw new \Exception('Google AI Quota Exceeded: You have reached the request limit.');
+            }
+            throw new \Exception('AI Vision Error: ' . $msg);
+        }
+
+        $data = $response->json();
+        $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
+        $usage = $data['usageMetadata'] ?? [];
+
+        // Log Token Usage
+        AiTokenLog::logUsage($this->userId, $this->detectFeature(), $this->provider, $this->model, $usage);
+
+        return [
+            'text' => trim($text),
+            'raw' => $data
+        ];
+    }
+
     public function classifyContent(string $prompt): array
     {
         if (!$this->isConfigured()) {

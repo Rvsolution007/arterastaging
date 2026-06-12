@@ -15,7 +15,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'screens/notifications_screen.dart';
-import 'screens/editor_screen.dart';
+import 'screens/native_editor_screen.dart';
 import 'screens/detail_list_screen.dart';
 import 'controllers/home_controller.dart';
 import 'services/translation_service.dart';
@@ -89,13 +89,11 @@ class ArteraApp extends StatelessWidget {
             else if (idRaw is String) id = int.tryParse(idRaw) ?? 0;
           }
 
-          return EditorScreen(
+          return NativeEditorScreen(
             type: getValue('type') ?? 'business_custom_frame',
             id: id,
             designUrl: getValue('designUrl') ?? '',
             frameData: args['frameData'] ?? <String, dynamic>{},
-            aiAnalysisData: args['aiAnalysisData'],
-            mappingRules: args['mappingRules'],
           );
         }),
         GetPage(name: '/details', page: () {

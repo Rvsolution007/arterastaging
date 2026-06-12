@@ -171,20 +171,35 @@ class DesignChallengeApiController extends Controller
                 );
 
                 if ($participant->status != 'completed') {
-                    $participant->progress += 1;
-                    if ($participant->progress >= $challenge->target_count) {
-                        $participant->status = 'completed';
-                        $participant->progress = $challenge->target_count;
+                    $itemKey = $itemType . '_' . $itemId;
+                    $completedItems = [];
+                    if (!empty($participant->completed_items)) {
+                        $completedItems = is_string($participant->completed_items) 
+                            ? json_decode($participant->completed_items, true) 
+                            : $participant->completed_items;
+                        if (!is_array($completedItems)) $completedItems = [];
+                    }
+
+                    if (!in_array($itemKey, $completedItems)) {
+                        // This specific template has not been used for this challenge yet!
+                        $completedItems[] = $itemKey;
+                        $participant->completed_items = json_encode($completedItems);
+                        $participant->progress += 1;
                         
-                        // Add reward points if any
-                        if ($challenge->reward_points > 0) {
-                            $user = \App\Models\User::find($userId);
-                            if ($user) {
-                                $user->increment('reward_points', $challenge->reward_points);
+                        if ($participant->progress >= $challenge->target_count) {
+                            $participant->status = 'completed';
+                            $participant->progress = $challenge->target_count;
+                            
+                            // Add reward points if any
+                            if ($challenge->reward_points > 0) {
+                                $user = \App\Models\User::find($userId);
+                                if ($user) {
+                                    $user->increment('reward_points', $challenge->reward_points);
+                                }
                             }
                         }
+                        $participant->save();
                     }
-                    $participant->save();
                 }
             }
         }

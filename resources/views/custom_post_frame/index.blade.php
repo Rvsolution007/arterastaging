@@ -207,15 +207,21 @@
                   <li><a href="{{url('admin/custom-post-frame/'.$frame->id.'/edit')}}" data-toggle="tooltip" data-tooltip="Edit"><i class="fa fa-edit"></i></a></li>
                   <li><a href="#" data-id="{{$frame->id}}" class="btn_delete_a" data-toggle="modal" data-target="#myModal"><i class="fa fa-trash"></i></a></li>
                   <li>
-                    <label class="cl-switch cl-switch-red">
+                    <label class="cl-switch cl-switch-red" title="Status">
                       <input type="checkbox" class="frame-switch" data-id="{{$frame->id}}" value="1" @if($frame->status==1) checked @endif>
                       <span class="switcher"></span>
                     </label>
                   </li>
                   <li>
-                    <div class="form-check form-check-inline">
+                    <div class="form-check form-check-inline" title="Premium">
                       <input class="form-check-input checkbox2" type="checkbox" data-id="{{$frame->id}}" value="1" @if($frame->paid==1) checked @endif>
                     </div>
+                  </li>
+                  <li>
+                    <label class="cl-switch cl-switch-green" title="Show on Landing Page">
+                      <input type="checkbox" class="landing-switch-ajax" data-id="{{$frame->id}}" value="1" @if($frame->show_on_landing==1) checked @endif>
+                      <span class="switcher"></span>
+                    </label>
                   </li>
                 </ul>
                 {!! Form::open(['url' => 'admin/custom-post-frame/'.$frame->id,'method'=>'DELETE','class'=>'form-horizontal','id'=>'form_'.$frame->id]) !!}
@@ -478,6 +484,25 @@
             new PNotify({
               title: 'Success!',
               text: "Custom Frame Status Has Been Changed.",
+              type: 'success'
+            });
+          },
+        });
+      });
+
+      $(".landing-switch-ajax").change(function(){
+        var checked = $(this).is(':checked');
+        var id = $(this).data("id");
+        
+        $.ajax({
+          type: "POST",
+          url: "{{url('admin/custom-post-frame-landing')}}",
+          data: { checked : checked , id : id},
+          headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+          success: function(data) {
+            new PNotify({
+              title: 'Success!',
+              text: "Landing Visibility Has Been Changed.",
               type: 'success'
             });
           },

@@ -65,7 +65,7 @@ class CustomPostController extends Controller
                 }
             }
 
-            return redirect()->route("custom-post.index");
+            return redirect()->route("custom-post-category.index");
         }
     }
 
@@ -134,7 +134,7 @@ class CustomPostController extends Controller
                 }
             }
 
-            return redirect()->route('custom-post.index');
+            return redirect()->route('custom-post-category.index');
         }
     }
 
@@ -173,7 +173,7 @@ class CustomPostController extends Controller
         CustomPostFrame::where('custom_post_id',$id)->delete();
         Story::where("custom_category_id",$id)->delete();
 
-        return redirect()->route('custom-post.index');
+        return redirect()->route('custom-post-category.index');
     }
 
     private function upload_image($file,$field,$id)

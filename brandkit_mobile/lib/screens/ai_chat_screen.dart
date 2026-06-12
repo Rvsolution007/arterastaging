@@ -4,17 +4,21 @@ import '../controllers/ai_chat_controller.dart';
 import '../utils/app_colors.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 class AiChatScreen extends StatelessWidget {
   final int ticketId;
-  const AiChatScreen({Key? key, this.ticketId = 0}) : super(key: key);
+  final String source;
+  const AiChatScreen({Key? key, this.ticketId = 0, this.source = ''}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     // Initialize controller with the specific ticket ID
     // We use a tag so GetX can manage multiple instances if needed, or simply delete the old one.
-    Get.delete<AiChatController>(); 
-    final controller = Get.put(AiChatController(initialTicketId: ticketId));
+    Get.delete<AiChatController>(force: true); 
+    final controller = Get.put(AiChatController(initialTicketId: ticketId, source: source));
+    controller.ticketId.value = ticketId;
+    controller.source.value = source;
     final TextEditingController textController = TextEditingController();
     final ScrollController scrollController = ScrollController();
 
@@ -31,7 +35,8 @@ class AiChatScreen extends StatelessWidget {
       });
     });
 
-    return Scaffold(
+    return PointerInterceptor(
+      child: Scaffold(
       backgroundColor: Colors.grey[50], // Very light background
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -218,6 +223,7 @@ class AiChatScreen extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 

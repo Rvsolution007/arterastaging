@@ -17,7 +17,7 @@ class ClearAppCache extends Command
 {
     protected $signature = 'cache:clear-app {--settings : Clear only settings cache} {--api : Clear only API response cache}';
     
-    protected $description = 'Clear all BrandKit application caches (settings + API responses)';
+    protected $description = 'Clear all ArtEra Pixel application caches (settings + API responses)';
 
     public function handle()
     {

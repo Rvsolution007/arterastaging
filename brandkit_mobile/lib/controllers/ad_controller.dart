@@ -179,7 +179,7 @@ class AdController extends GetxController {
   ///   - Download time: Interstitial Ad (handled by [handlePremiumDownloadAd])
   Future<bool> handlePostAccess({
     required BuildContext context,
-    required String feature, // 'festival_post' or 'business_category_post'
+    required String feature, // 'festival_post' or 'category_post'
     required bool isPaid,
     required VoidCallback onAccessGranted,
   }) async {

@@ -49,7 +49,7 @@ class _CustomPostsScreenState extends State<CustomPostsScreen> {
         _selectedCategoryId = hc.customPosts.first['customCategoryId'] ?? 0;
       }
       
-      final response = await ApiService.get('/custom-post-paginated?category_id=$_selectedCategoryId&page=$pageKey&limit=20');
+      final response = await ApiService.get('/custom-post-category-paginated?category_id=$_selectedCategoryId&page=$pageKey&limit=20');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final List newItems = data['data'] ?? [];

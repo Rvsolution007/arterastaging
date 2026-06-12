@@ -412,6 +412,12 @@
                                 <span class="switch-label">AI</span>
                                 <input class="form-check-input ai-switch-ajax" type="checkbox" data-id="{{$frame->id}}" value="1" @if($frame->is_ai==1) checked @endif>
                             </div>
+                            @if($tab != 'video')
+                            <div class="text-center">
+                                <span class="switch-label">Landing</span>
+                                <input class="form-check-input landing-switch-ajax" type="checkbox" data-id="{{$frame->id}}" value="1" @if($frame->show_on_landing==1) checked @endif>
+                            </div>
+                            @endif
                         </div>
 
                         <div class="action-icons">
@@ -606,6 +612,7 @@
       $('#category').select2();
       $.switcher('.checkbox2');
       $.switcher('.ai-switch-ajax');
+      $.switcher('.landing-switch-ajax');
     
       // $('#category').on('change', function () {
       //   var id = $(this).val();
@@ -714,6 +721,25 @@
             new PNotify({
               title: 'Success!',
               text: "AI Status Has Been Changed.",
+              type: 'success'
+            });
+          },
+        });
+      });
+
+      $(".landing-switch-ajax").change(function(){
+        var checked = $(this).is(':checked');
+        var id = $(this).data("id");
+        
+        $.ajax({
+          type: "POST",
+          url: "{{url('admin/category-post-landing')}}",
+          data: { checked : checked , id : id},
+          headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+          success: function(data) {
+            new PNotify({
+              title: 'Success!',
+              text: "Landing Visibility Has Been Changed.",
               type: 'success'
             });
           },

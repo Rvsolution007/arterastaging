@@ -3,7 +3,8 @@
 
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+  <!-- DO NOT UNCOMMENT OR ADD upgrade-insecure-requests - IT BREAKS LOCAL MOBILE APP TESTING BY FORCING HTTPS -->
+  <!-- <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"> -->
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>Dashboard - {{App\Models\AppSetting::getAppSetting('app_title')}}</title>
@@ -61,6 +62,13 @@
 
     body {
       font-family: 'Poppins', sans-serif;
+    }
+
+    .nav-treeview {
+      background-color: rgba(255, 255, 255, 0.06);
+      border-radius: 6px;
+      margin: 2px 10px;
+      padding: 4px 0;
     }
 
     .dropdown:hover .dropdown-menu {
@@ -356,6 +364,7 @@
             </a>
           </li>
 
+
             <!-- @if(Request::is('admin/members*'))
               @php($class="menu-open")
               @php($active="active")
@@ -469,7 +478,7 @@
 
 
 
-            @if(Request::is('admin/business-category*') || Request::is('admin/business-frame*') || Request::is('admin/business-category-get*'))
+            @if(Request::is('admin/business-category*') || Request::is('admin/custom-post*') || Request::is('admin/business-category-get*'))
             @php($class = "menu-open")
             @php($active = "active")
             @else
@@ -479,7 +488,7 @@
 
             @can('BusinessFrame')
               <li class="nav-item">
-                <a href="{{route('business-frame.index')}}" class="nav-link {{$active}}" style="color: white;">
+                <a href="{{route('custom-post.index')}}" class="nav-link {{$active}}" style="color: white;">
                   <i class="nav-icon fa-solid fa-business-time"></i>
                   <p>
                     Custom Post <span class="badge badge-secondary right mr-3" style="font-size: 0.6em;">Pkg 2 Silver</span>
@@ -487,6 +496,30 @@
                 </a>
               </li>
             @endcan
+
+              <li class="nav-item has-treeview @if(Request::is('admin/greeting-category*') || Request::is('admin/greeting*')) menu-open @endif">
+                <a href="#" class="nav-link @if(Request::is('admin/greeting-category*') || Request::is('admin/greeting*')) active @endif" style="color: white;">
+                  <i class="nav-icon fa-solid fa-gift"></i>
+                  <p>
+                    Greetings
+                    <i class="right fa fa-angle-right"></i>
+                  </p>
+                </a>
+                <ul class="nav nav-treeview">
+                  <li class="nav-item">
+                    <a href="{{route('greeting-category.index')}}" class="nav-link @if(Request::is('admin/greeting-category*')) active @endif" style="color: white;">
+                      <i class="fa fa-circle-o nav-icon"></i>
+                      <p>Greeting Category</p>
+                    </a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="{{route('greeting.index')}}" class="nav-link @if(Request::is('admin/greeting') || Request::is('admin/greeting/*') || Request::is('admin/greeting-get*')) active @endif" style="color: white;">
+                      <i class="fa fa-circle-o nav-icon"></i>
+                      <p>Greetings</p>
+                    </a>
+                  </li>
+                </ul>
+              </li>
 
 
 
@@ -695,7 +728,7 @@
             @endcan
 
 
-            @if(Request::is('admin/business*') && !Request::is('admin/business-card*') && !Request::is('admin/business-frame*'))
+            @if(Request::is('admin/business*') && !Request::is('admin/business-card*') && !Request::is('admin/custom-post*'))
             @php($class = "menu-open")
             @php($active = "active")
             @else
@@ -724,9 +757,18 @@
                   @can('BusinessCategory')
                     <li class="nav-item">
                       <a href="{{route('business-category.index')}}"
-                        class="nav-link @if(Request::is('admin/business-category*') && !Request::is('admin/business-frame*') && !Request::is('admin/business-category-get*')) active @endif"
+                        class="nav-link @if(Request::is('admin/business-category*') && !Request::is('admin/custom-post*') && !Request::is('admin/business-category-get*')) active @endif"
                         style="color: white;">
                         <p><i class="fa fa-angle-right ml-3 mr-1"></i> Business Category</p>
+                      </a>
+                    </li>
+                  @endcan
+                  @can('BusinessCategory')
+                    <li class="nav-item">
+                      <a href="{{route('category-background-image.index')}}"
+                        class="nav-link @if(Request::is('admin/category-background-image*')) active @endif"
+                        style="color: white;">
+                        <p><i class="fa fa-angle-right ml-3 mr-1"></i> Category BG Images</p>
                       </a>
                     </li>
                   @endcan
@@ -957,7 +999,7 @@
                     <a href="{{route('general-post.index')}}"
                       class="nav-link @if(Request::is('admin/general-post*')) active @endif" style="color: white;">
                       <i class="nav-icon fa-solid fa-newspaper"></i>
-                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> General Posts</p>
+                      <p>General Posts</p>
                     </a>
                   </li>
                 @endcan
@@ -977,7 +1019,8 @@
                         <li class="nav-item">
                           <a href="{{route('product-category.index')}}"
                             class="nav-link @if(Request::is('admin/product-category*')) active @endif" style="color: white;">
-                            <p><i class="fa fa-angle-right ml-3 mr-1"></i> Product Category</p>
+                            <i class="far fa-circle nav-icon" style="font-size: 0.6rem; margin-left: 1rem;"></i>
+                            <p>Product Category</p>
                           </a>
                         </li>
                       @endcan
@@ -986,7 +1029,8 @@
                           <a href="{{route('product.index')}}"
                             class="nav-link @if(Request::is('admin/product*') && !Request::is('admin/product-category*')) active @endif"
                             style="color: white;">
-                            <p><i class="fa fa-angle-right ml-3 mr-1"></i> Product</p>
+                            <i class="far fa-circle nav-icon" style="font-size: 0.6rem; margin-left: 1rem;"></i>
+                            <p>Product</p>
                           </a>
                         </li>
                       @endcan
@@ -994,7 +1038,8 @@
                         <li class="nav-item">
                           <a href="{{route('inquiry.index')}}" class="nav-link @if(Request::is('admin/inquiry*')) active @endif"
                             style="color: white;">
-                            <p><i class="fa fa-angle-right ml-3 mr-1"></i> Inquiry</p>
+                            <i class="far fa-circle nav-icon" style="font-size: 0.6rem; margin-left: 1rem;"></i>
+                            <p>Inquiry</p>
                           </a>
                         </li>
                       @endcan
@@ -1006,7 +1051,7 @@
                   <li class="nav-item">
                     <a href="{{route('news.index')}}" class="nav-link @if(Request::is('admin/news*')) active @endif" style="color: white;">
                       <i class="nav-icon fa fa-gift"></i>
-                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> News</p>
+                      <p>News</p>
                     </a>
                   </li>
                 @endcan
@@ -1015,7 +1060,7 @@
                   <li class="nav-item">
                     <a href="{{route('story.index')}}" class="nav-link @if(Request::is('admin/story*')) active @endif" style="color: white;">
                       <i class="nav-icon fa fa-map"></i>
-                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> Stories</p>
+                      <p>Stories</p>
                     </a>
                   </li>
                 @endcan
@@ -1024,10 +1069,17 @@
                   <li class="nav-item">
                     <a href="{{route('business-card.index')}}" class="nav-link @if(Request::is('admin/business-card*')) active @endif" style="color: white;">
                       <i class="nav-icon fa-solid fa-address-card"></i>
-                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> Business Card</p>
+                      <p>Business Card</p>
                     </a>
                   </li>
                 @endcan
+
+                <li class="nav-item">
+                  <a href="{{route('mini-website-template.index')}}" class="nav-link @if(Request::is('admin/mini-website-template*')) active @endif" style="color: white;">
+                    <i class="nav-icon fa-solid fa-globe"></i>
+                    <p>Mini Websites</p>
+                  </a>
+                </li>
 
                 @canany(['Entry', 'Subject'])
                   <li class="nav-item has-treeview @if(Request::is('admin/entry*') || Request::is('admin/subject*')) menu-open @endif">
@@ -1044,7 +1096,8 @@
                         <li class="nav-item">
                           <a href="{{route('entry.index')}}" class="nav-link @if(Request::is('admin/entry*')) active @endif"
                             style="color: white;">
-                            <p><i class="fa fa-angle-right ml-3 mr-1"></i> Entry</p>
+                            <i class="far fa-circle nav-icon" style="font-size: 0.6rem; margin-left: 1rem;"></i>
+                            <p>Entry</p>
                           </a>
                         </li>
                       @endcan
@@ -1052,7 +1105,8 @@
                         <li class="nav-item">
                           <a href="{{route('subject.index')}}" class="nav-link @if(Request::is('admin/subject*')) active @endif"
                             style="color: white;">
-                            <p><i class="fa fa-angle-right ml-3 mr-1"></i> Subject</p>
+                            <i class="far fa-circle nav-icon" style="font-size: 0.6rem; margin-left: 1rem;"></i>
+                            <p>Subject</p>
                           </a>
                         </li>
                       @endcan
@@ -1064,7 +1118,7 @@
                   <li class="nav-item">
                     <a href="{{url('admin/whatsapp-message')}}" class="nav-link @if(Request::is('admin/whatsapp-message*')) active @endif" style="color: white;">
                       <i class="nav-icon fab fa-whatsapp"></i>
-                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> WhatsApp Message</p>
+                      <p>WhatsApp Message</p>
                     </a>
                   </li>
                 @endcan
@@ -1073,7 +1127,7 @@
                   <li class="nav-item">
                     <a href="{{route('backup.index')}}" class="nav-link @if(Request::is('admin/backup*')) active @endif" style="color: white;">
                       <i class="nav-icon fa fa-database"></i>
-                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> Backup</p>
+                      <p>Backup</p>
                     </a>
                   </li>
                 @endif

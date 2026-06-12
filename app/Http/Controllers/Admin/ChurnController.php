@@ -69,7 +69,7 @@ class ChurnController extends Controller
         $usageSum = $user->custom_post_used + 
                     $user->daily_drip_used + 
                     $user->festival_post_used + 
-                    $user->business_category_post_used;
+                    $user->category_post_used;
 
         $feature_usage_penalty = 0;
         if ($usageSum == 0) {
@@ -82,7 +82,7 @@ class ChurnController extends Controller
         if ($user->custom_post_used == 0) $unused_features[] = "Custom Posts";
         if ($user->daily_drip_used == 0) $unused_features[] = "Daily Drip";
         if ($user->festival_post_used == 0) $unused_features[] = "Festival Posts";
-        if ($user->business_category_post_used == 0) $unused_features[] = "Business Category Posts";
+        if ($user->category_post_used == 0) $unused_features[] = "Category Posts";
 
         // Prepare context for the AI
         $context = [

@@ -2,231 +2,796 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
     <title>@yield('title', 'Artera - AI-Powered Digital Marketing')</title>
-    <!-- Google Fonts -->
+    <meta name="description" content="Artera uses advanced AI to instantly generate professional festival posters, business templates, and custom social media content for your brand.">
+
+    <!-- Google Fonts — Inter with full weight range -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- AOS Animation CSS -->
-    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
-    
+
     <style>
+        /* ============================================
+           DESIGN SYSTEM — 8x.social Inspired
+           ============================================ */
         :root {
-            --primary: #1E3A8A; /* Deep Blue */
-            --primary-light: #3B82F6; /* Bright Blue */
-            --accent: #60A5FA; /* Sky Blue */
+            --primary: #1E3A8A;
+            --primary-light: #3B82F6;
+            --accent: #60A5FA;
             --bg-white: #FFFFFF;
-            --bg-alt: #F0F7FF; /* Ice Blue */
-            --text-dark: #0F172A;
-            --text-gray: #64748B;
-            --transition: all 0.3s ease-in-out;
-            --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-            --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            --bg-dark: #1a1a1a;
+            --bg-black: #000000;
+            --text-dark: #1a1a1a;
+            --text-gray: #555555;
+            --text-muted: #999999;
+            --blue: #3b82f6;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        html { scroll-behavior: smooth; }
-        body { color: var(--text-dark); overflow-x: hidden; background-color: var(--bg-white); }
-        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
-        .section { padding: 100px 0; }
-        .section-alt { background-color: var(--bg-alt); }
-        .text-center { text-align: center; }
-        .text-primary { color: var(--primary); }
-        .text-gradient { background: linear-gradient(135deg, var(--primary), var(--primary-light)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .section-title { font-size: 36px; font-weight: 700; margin-bottom: 16px; }
-        .section-desc { color: var(--text-gray); font-size: 18px; max-width: 600px; margin: 0 auto 50px; line-height: 1.6; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 
-        /* Buttons */
-        .btn { display: inline-block; padding: 12px 28px; border-radius: 50px; font-weight: 600; text-decoration: none; transition: var(--transition); cursor: pointer; border: none; font-size: 16px; }
-        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: white; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.39); }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5); }
-        .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
-        .btn-outline:hover { background: var(--primary); color: white; }
-
-        /* Navbar */
-        .navbar { position: fixed; top: 0; width: 100%; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); z-index: 1000; padding: 15px 0; box-shadow: var(--shadow-sm); transition: var(--transition); }
-        .nav-container { display: flex; justify-content: space-between; align-items: center; }
-        .logo { font-size: 24px; font-weight: 800; color: var(--primary); text-decoration: none; display: flex; align-items: center; gap: 10px; }
-        .logo i { color: var(--primary-light); }
-        .nav-links { display: flex; gap: 30px; list-style: none; align-items: center; }
-        .nav-links a { text-decoration: none; color: var(--text-dark); font-weight: 500; transition: var(--transition); position: relative; }
-        .nav-links a::after { content: ''; position: absolute; width: 0; height: 2px; bottom: -5px; left: 0; background-color: var(--primary-light); transition: var(--transition); }
-        .nav-links a:hover::after, .nav-links a.active::after { width: 100%; }
-        .nav-links a:hover, .nav-links a.active { color: var(--primary-light); }
-        .mobile-menu-btn { display: none; font-size: 24px; color: var(--text-dark); cursor: pointer; }
-
-        @media (max-width: 768px) {
-            .nav-links, .nav-action { display: none; }
-            .mobile-menu-btn { display: block; }
-            .nav-links.active { display: flex; flex-direction: column; position: absolute; top: 70px; left: 0; width: 100%; background: white; padding: 20px; box-shadow: 0 10px 10px rgba(0,0,0,0.1); }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: var(--text-dark);
+            overflow-x: hidden;
+            background-color: var(--bg-white);
+            line-height: 1.5;
         }
 
-        /* Dropdown */
-        .dropdown { position: relative; display: inline-block; }
-        .dropdown-content { display: none; position: absolute; background-color: white; min-width: 200px; box-shadow: var(--shadow-md); z-index: 1001; border-radius: 8px; top: 100%; left: 0; padding: 10px 0; }
-        .dropdown-content a { color: var(--text-dark); padding: 12px 20px; text-decoration: none; display: block; transition: 0.3s; font-weight: 500; }
-        .dropdown-content a::after { display: none; }
-        .dropdown-content a:hover { background-color: var(--bg-alt); color: var(--primary); }
-        .dropdown:hover .dropdown-content { display: block; }
+        /* ---- Typography ---- */
+        .font-mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace; }
+        .font-black { font-weight: 900; }
+        .font-bold { font-weight: 700; }
+        .font-semibold { font-weight: 600; }
+        .font-medium { font-weight: 500; }
+        .tracking-tight { letter-spacing: -0.02em; }
+        .tracking-wider { letter-spacing: 0.05em; }
+        .tracking-widest { letter-spacing: 0.2em; }
+        .uppercase { text-transform: uppercase; }
+        .leading-tight { line-height: 0.95; }
+        .leading-relaxed { line-height: 1.65; }
 
-        /* Footer */
-        .footer { background: var(--text-dark); color: white; padding: 80px 0 30px; margin-top: 50px; }
-        .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr; gap: 40px; margin-bottom: 50px; }
-        .footer-logo { font-size: 28px; font-weight: 800; color: white; text-decoration: none; display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
-        .footer-logo i { color: var(--primary-light); }
-        .footer-desc { color: #94a3b8; line-height: 1.6; margin-bottom: 20px; max-width: 300px; }
-        .footer-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; position: relative; padding-bottom: 10px; }
-        .footer-title::after { content: ''; position: absolute; bottom: 0; left: 0; width: 40px; height: 2px; background: var(--primary-light); }
-        .footer-links { list-style: none; }
-        .footer-links li { margin-bottom: 12px; }
-        .footer-links a { color: #94a3b8; text-decoration: none; transition: var(--transition); }
-        .footer-links a:hover { color: white; padding-left: 5px; }
-        .footer-bottom { padding-top: 30px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; color: #94a3b8; font-size: 14px; }
-        
+        /* ---- Layout ---- */
+        .container-full { width: 100%; padding: 0 24px; }
+        .container-wide { width: 100%; max-width: 1400px; margin: 0 auto; padding: 0 24px; }
+        @media (min-width: 1024px) { .container-full { padding: 0 48px; } .container-wide { padding: 0 48px; } }
+        @media (min-width: 1280px) { .container-full { padding: 0 80px; } .container-wide { padding: 0 80px; } }
+
+        /* ---- Eyebrow Badge ---- */
+        .eyebrow {
+            display: inline-block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--blue);
+            padding: 8px 16px;
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 50px;
+            margin-bottom: 32px;
+        }
+        .eyebrow-plain {
+            display: inline-block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--blue);
+        }
+
+        /* ---- Section Headings ---- */
+        .heading-xl {
+            font-size: clamp(2.5rem, 7vw, 6rem);
+            font-weight: 900;
+            line-height: 0.95;
+            letter-spacing: -0.02em;
+        }
+        .heading-lg {
+            font-size: clamp(2.5rem, 6vw, 5rem);
+            font-weight: 900;
+            line-height: 0.95;
+            letter-spacing: -0.02em;
+        }
+        .heading-md {
+            font-size: clamp(2rem, 5vw, 4rem);
+            font-weight: 900;
+            line-height: 0.95;
+            letter-spacing: -0.01em;
+        }
+        .text-xl { font-size: clamp(1.125rem, 2vw, 1.5rem); }
+        .text-lg { font-size: 1.125rem; }
+        .text-sm { font-size: 0.875rem; }
+        .text-xs { font-size: 0.75rem; }
+
+        /* ---- Buttons — Sharp Geometric (no border-radius) ---- */
+        .btn-sharp {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 20px 40px;
+            font-weight: 700;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: 'Inter', sans-serif;
+        }
+        .btn-sharp-primary {
+            background-color: var(--blue);
+            color: #fff;
+        }
+        .btn-sharp-primary:hover { background-color: #2563eb; transform: translateY(-2px); }
+        .btn-sharp-outline {
+            background: transparent;
+            border: 2px solid var(--blue);
+            color: var(--blue);
+        }
+        .btn-sharp-outline:hover { background: rgba(59, 130, 246, 0.05); }
+        .btn-sharp-white {
+            background: #fff;
+            color: var(--blue);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        .btn-sharp-white:hover { transform: translateY(-2px); box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.3); }
+
+        .btn-arrow {
+            width: 20px; height: 20px;
+            transition: transform 0.3s ease;
+        }
+        .btn-sharp:hover .btn-arrow { transform: translateX(4px); }
+
+        /* ---- Noise Texture ---- */
+        .noise-overlay {
+            position: absolute; inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            opacity: 0.03;
+            pointer-events: none;
+        }
+
+        /* ============================================
+           ANIMATION SYSTEM — Advanced Text Animations
+           ============================================ */
+
+        /* ---- Base Scroll Reveal ---- */
+        .reveal {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .reveal.revealed {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .reveal-delay-1 { transition-delay: 0.1s; }
+        .reveal-delay-2 { transition-delay: 0.2s; }
+        .reveal-delay-3 { transition-delay: 0.3s; }
+        .reveal-delay-4 { transition-delay: 0.4s; }
+        .reveal-delay-5 { transition-delay: 0.5s; }
+        .reveal-delay-6 { transition-delay: 0.6s; }
+
+        /* ---- Slide from Left / Right ---- */
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(-60px);
+            transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .reveal-left.revealed { opacity: 1; transform: translateX(0); }
+
+        .reveal-right {
+            opacity: 0;
+            transform: translateX(60px);
+            transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .reveal-right.revealed { opacity: 1; transform: translateX(0); }
+
+        /* ---- Scale Up Reveal ---- */
+        .reveal-scale {
+            opacity: 0;
+            transform: scale(0.85);
+            transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .reveal-scale.revealed { opacity: 1; transform: scale(1); }
+
+        /* ---- Blur In Reveal ---- */
+        .reveal-blur {
+            opacity: 0;
+            filter: blur(12px);
+            transform: translateY(20px);
+            transition: opacity 0.9s cubic-bezier(0.16, 1, 0.3, 1), filter 0.9s cubic-bezier(0.16, 1, 0.3, 1), transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .reveal-blur.revealed { opacity: 1; filter: blur(0); transform: translateY(0); }
+
+        /* ---- Split Text — Line by Line Mask Reveal ---- */
+        .split-text .split-line {
+            display: block;
+            overflow: hidden;
+        }
+        .split-text .split-line-inner {
+            display: block;
+            transform: translateY(110%);
+            transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .split-text.revealed .split-line-inner {
+            transform: translateY(0);
+        }
+        .split-text .split-line:nth-child(2) .split-line-inner { transition-delay: 0.08s; }
+        .split-text .split-line:nth-child(3) .split-line-inner { transition-delay: 0.16s; }
+        .split-text .split-line:nth-child(4) .split-line-inner { transition-delay: 0.24s; }
+        .split-text .split-line:nth-child(5) .split-line-inner { transition-delay: 0.32s; }
+
+        /* ---- Stagger Words ---- */
+        .stagger-words .stagger-word {
+            display: inline-block;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .stagger-words.revealed .stagger-word {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ---- Typewriter Effect ---- */
+        .typewriter {
+            display: inline-block;
+            overflow: hidden;
+            white-space: nowrap;
+            border-right: 2px solid var(--blue);
+            width: 0;
+            animation: typewriter-blink 0.8s step-end infinite;
+        }
+        .typewriter.revealed {
+            animation: typewriter-expand 1.5s steps(30, end) forwards, typewriter-blink 0.8s step-end infinite;
+        }
+        @keyframes typewriter-expand {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+        @keyframes typewriter-blink {
+            50% { border-color: transparent; }
+        }
+
+        /* ---- Counter Animated Numbers ---- */
+        .counter-up {
+            display: inline-block;
+        }
+
+        /* ---- Text Shimmer / Gradient Sweep ---- */
+        .text-shimmer {
+            background: linear-gradient(
+                90deg,
+                var(--text-dark) 0%,
+                var(--blue) 40%,
+                var(--text-dark) 60%,
+                var(--text-dark) 100%
+            );
+            background-size: 200% 100%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: shimmer-sweep 3s ease-in-out infinite;
+        }
+        .text-shimmer-white {
+            background: linear-gradient(
+                90deg,
+                #fff 0%,
+                var(--blue) 40%,
+                #fff 60%,
+                #fff 100%
+            );
+            background-size: 200% 100%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: shimmer-sweep 3s ease-in-out infinite;
+        }
+        @keyframes shimmer-sweep {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* ---- Floating / Pulsing glow effect for CTAs ---- */
+        .btn-glow {
+            position: relative;
+            overflow: visible;
+        }
+        .btn-glow::after {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            background: var(--blue);
+            filter: blur(16px);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            z-index: -1;
+        }
+        .btn-glow:hover::after {
+            opacity: 0.4;
+        }
+
+        /* ---- Underline draw animation ---- */
+        .draw-underline {
+            position: relative;
+            display: inline-block;
+        }
+        .draw-underline::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 3px;
+            background: var(--blue);
+            transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .draw-underline.revealed::after {
+            width: 100%;
+        }
+
+        /* ---- Fade up stagger for list items ---- */
+        .stagger-list .stagger-item {
+            opacity: 0;
+            transform: translateY(24px);
+            transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .stagger-list.revealed .stagger-item { opacity: 1; transform: translateY(0); }
+
+        /* ============================================
+           NAVBAR — 8x.social style
+           ============================================ */
+        .site-header {
+            position: fixed;
+            inset: 0 0 auto 0;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+            transition: var(--transition);
+        }
+        .site-header.scrolled {
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.08);
+        }
+        .header-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 64px;
+        }
+
+        /* Logo */
+        .site-logo {
+            font-size: 22px;
+            font-weight: 900;
+            color: var(--primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            letter-spacing: -0.02em;
+        }
+        .site-logo i { color: var(--blue); font-size: 20px; }
+
+        /* Nav links */
+        .nav-menu {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+            list-style: none;
+        }
+        .nav-menu a {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-dark);
+            text-decoration: none;
+            transition: var(--transition);
+            position: relative;
+        }
+        .nav-menu a:hover,
+        .nav-menu a.active { color: var(--blue); opacity: 0.85; }
+
+        /* Nav dropdown */
+        .nav-dropdown { position: relative; }
+        .nav-dropdown-content {
+            display: none;
+            position: absolute;
+            top: calc(100% + 12px);
+            left: -12px;
+            background: #fff;
+            border: 1px solid rgba(0,0,0,0.08);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+            min-width: 200px;
+            padding: 8px 0;
+            z-index: 1001;
+        }
+        .nav-dropdown:hover .nav-dropdown-content { display: block; }
+        .nav-dropdown-content a {
+            display: block;
+            padding: 10px 20px;
+            font-size: 13px;
+            font-weight: 500;
+            text-transform: none;
+            letter-spacing: 0;
+            color: var(--text-dark);
+        }
+        .nav-dropdown-content a:hover {
+            background: rgba(59, 130, 246, 0.06);
+            color: var(--blue);
+        }
+
+        /* Nav CTA */
+        .nav-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 24px;
+            background: var(--blue);
+            color: #fff !important;
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            text-decoration: none;
+            transition: var(--transition);
+        }
+        .nav-cta:hover { background: #2563eb; }
+
+        /* Mobile toggle */
+        .mobile-toggle {
+            display: none;
+            font-size: 22px;
+            color: var(--text-dark);
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 8px;
+        }
+
         @media (max-width: 1024px) {
-            .footer-grid { grid-template-columns: 1fr 1fr; }
+            .nav-menu, .nav-actions { display: none; }
+            .mobile-toggle { display: block; }
+            .nav-menu.open {
+                display: flex;
+                flex-direction: column;
+                position: fixed;
+                top: 64px; left: 0; right: 0;
+                background: #fff;
+                padding: 24px;
+                gap: 20px;
+                border-bottom: 1px solid rgba(0,0,0,0.08);
+                box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            }
+            .nav-menu.open .nav-dropdown-content {
+                position: static;
+                box-shadow: none;
+                border: none;
+                padding-left: 16px;
+                display: block;
+            }
+        }
+
+        /* ============================================
+           FOOTER — Full black, 8x.social style
+           ============================================ */
+        .site-footer {
+            width: 100%;
+            background: #000;
+            color: #fff;
+            padding: 60px 0 0;
+        }
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 40px;
+            padding-bottom: 48px;
+        }
+        .footer-col-title {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 20px;
+        }
+        .footer-links { list-style: none; }
+        .footer-links li { margin-bottom: 10px; }
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.5);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s ease;
+        }
+        .footer-links a:hover { color: #fff; }
+
+        .footer-bottom {
+            padding: 24px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .footer-bottom-inner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: rgba(255, 255, 255, 0.35);
+            font-size: 13px;
+        }
+        .footer-socials { display: flex; gap: 16px; }
+        .footer-socials a {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 16px;
+            transition: color 0.2s ease;
+        }
+        .footer-socials a:hover { color: #fff; }
+
+        @media (max-width: 1024px) {
+            .footer-grid { grid-template-columns: repeat(3, 1fr); }
         }
         @media (max-width: 768px) {
-            .footer-grid { grid-template-columns: 1fr; text-align: center; }
-            .footer-desc { margin: 0 auto 20px; }
-            .footer-title::after { left: 50%; transform: translateX(-50%); }
-            .footer-bottom { flex-direction: column; gap: 15px; }
+            .footer-grid { grid-template-columns: repeat(2, 1fr); }
+            .footer-bottom-inner { flex-direction: column; gap: 12px; text-align: center; }
         }
+        @media (max-width: 480px) {
+            .footer-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ---- Utility spacer ---- */
+        .header-spacer { height: 64px; }
     </style>
     @yield('extra_css')
 </head>
 <body>
 
     <!-- Navigation -->
-    <nav class="navbar" id="navbar">
-        <div class="container nav-container">
-            <a href="{{ route('landing.home') }}" class="logo"><i class="fa-solid fa-layer-group"></i> Artera</a>
-            
-            <ul class="nav-links" id="navLinks">
-                <li><a href="{{ route('landing.home') }}" class="{{ request()->routeIs('landing.home') ? 'active' : '' }}">Home</a></li>
-                <li><a href="{{ route('landing.templates') }}" class="{{ request()->routeIs('landing.templates') ? 'active' : '' }}">Templates</a></li>
-                <li class="dropdown">
-                    <a href="#" class="dropbtn">Tools <i class="fa-solid fa-chevron-down" style="font-size:12px;"></i></a>
-                    <div class="dropdown-content">
-                        <a href="{{ route('landing.logo_maker') }}">Logo Maker</a>
-                        <a href="{{ route('landing.digital_business_cards') }}">Digital Business Cards</a>
-                        <a href="{{ route('landing.video_maker') }}">Video Maker</a>
-                    </div>
-                </li>
-                <li><a href="{{ route('landing.features') }}" class="{{ request()->routeIs('landing.features') ? 'active' : '' }}">Features</a></li>
-                <li><a href="{{ route('landing.packages') }}" class="{{ request()->routeIs('landing.packages') ? 'active' : '' }}">Packages</a></li>
-                <li><a href="{{ route('landing.blogs') }}" class="{{ request()->routeIs('landing.blogs', 'landing.blog_details') ? 'active' : '' }}">Blog</a></li>
-                <li><a href="{{ route('landing.contact') }}" class="{{ request()->routeIs('landing.contact') ? 'active' : '' }}">Contact Us</a></li>
-            </ul>
-            
-            <div class="nav-action">
-                <a href="#" class="btn btn-primary"><i class="fa-brands fa-google-play mr-2"></i> Download App</a>
-            </div>
-            
-            <div class="mobile-menu-btn" id="mobileBtn">
-                <i class="fa-solid fa-bars"></i>
+    <header class="site-header" id="siteHeader">
+        <div class="container-full">
+            <div class="header-inner">
+                <a href="{{ route('landing.home') }}" class="site-logo">
+                    <i class="fa-solid fa-layer-group"></i> Artera
+                </a>
+
+                <ul class="nav-menu" id="navMenu">
+                    <li><a href="{{ route('landing.home') }}" class="{{ request()->routeIs('landing.home') ? 'active' : '' }}">Home</a></li>
+                    <li><a href="{{ route('landing.templates') }}" class="{{ request()->routeIs('landing.templates') ? 'active' : '' }}">Templates</a></li>
+                    <li class="nav-dropdown">
+                        <a href="#">Tools <i class="fa-solid fa-chevron-down" style="font-size:10px; margin-left:4px;"></i></a>
+                        <div class="nav-dropdown-content">
+                            <a href="{{ route('landing.logo_maker') }}">Logo Maker</a>
+                            <a href="{{ route('landing.digital_business_cards') }}">Digital Business Cards</a>
+                            <a href="{{ route('landing.video_maker') }}">Video Maker</a>
+                        </div>
+                    </li>
+                    <li><a href="{{ route('landing.features') }}" class="{{ request()->routeIs('landing.features') ? 'active' : '' }}">Features</a></li>
+                    <li><a href="{{ route('landing.packages') }}" class="{{ request()->routeIs('landing.packages') ? 'active' : '' }}">Packages</a></li>
+                    <li><a href="{{ route('landing.blogs') }}" class="{{ request()->routeIs('landing.blogs', 'landing.blog_details') ? 'active' : '' }}">Blog</a></li>
+                    <li><a href="{{ route('landing.contact') }}" class="{{ request()->routeIs('landing.contact') ? 'active' : '' }}">Contact</a></li>
+                </ul>
+
+                <div class="nav-actions" style="display:flex; align-items:center; gap:12px;">
+                    <a href="#" class="nav-cta">
+                        <i class="fa-brands fa-google-play"></i> Download App
+                    </a>
+                </div>
+
+                <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
             </div>
         </div>
-    </nav>
+    </header>
+
+    <div class="header-spacer"></div>
 
     <!-- Main Content -->
-    <main style="padding-top: 80px;">
+    <main>
         @yield('content')
     </main>
 
     <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-grid" style="grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr;">
+    <footer class="site-footer">
+        <div class="container-full">
+            <div class="footer-grid">
                 <div>
-                    <a href="{{ route('landing.home') }}" class="footer-logo"><i class="fa-solid fa-layer-group"></i> Artera</a>
-                    <p class="footer-desc">The ultimate AI-powered poster maker and marketing automation tool for small and medium businesses.</p>
-                    <div style="margin-top: 20px;">
-                        <a href="#" class="btn btn-primary" style="padding: 10px 20px;"><i class="fa-brands fa-google-play mr-2"></i> Download App</a>
-                    </div>
-                </div>
-                
-                <div>
-                    <h4 class="footer-title">Quick Links</h4>
+                    <h3 class="footer-col-title">Company</h3>
                     <ul class="footer-links">
                         <li><a href="{{ route('landing.home') }}">Home</a></li>
-                        <li><a href="{{ route('landing.templates') }}">Templates</a></li>
                         <li><a href="{{ route('landing.features') }}">Features</a></li>
-                        <li><a href="{{ route('landing.packages') }}">Pricing Plans</a></li>
                         <li><a href="{{ route('landing.blogs') }}">Blog</a></li>
                         <li><a href="{{ route('landing.contact') }}">Contact</a></li>
                     </ul>
                 </div>
 
                 <div>
-                    <h4 class="footer-title">Explore Categories</h4>
+                    <h3 class="footer-col-title">Templates</h3>
                     <ul class="footer-links">
                         <li><a href="{{ route('landing.category', 'real-estate') }}">Real Estate</a></li>
                         <li><a href="{{ route('landing.category', 'doctors') }}">Doctors</a></li>
                         <li><a href="{{ route('landing.category', 'politicians') }}">Politicians</a></li>
                         <li><a href="{{ route('landing.category', 'education') }}">Education</a></li>
-                        <li><a href="{{ route('landing.category', 'restaurants') }}">Restaurants</a></li>
-                        <li><a href="{{ route('landing.category', 'jewellery') }}">Jewellery</a></li>
                     </ul>
                 </div>
-                
+
                 <div>
-                    <h4 class="footer-title">Legal</h4>
+                    <h3 class="footer-col-title">Tools</h3>
+                    <ul class="footer-links">
+                        <li><a href="{{ route('landing.logo_maker') }}">Logo Maker</a></li>
+                        <li><a href="{{ route('landing.digital_business_cards') }}">Business Cards</a></li>
+                        <li><a href="{{ route('landing.video_maker') }}">Video Maker</a></li>
+                        <li><a href="{{ route('landing.templates') }}">All Templates</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="footer-col-title">Legal</h3>
                     <ul class="footer-links">
                         <li><a href="{{ url('/privacy-policy') }}">Privacy Policy</a></li>
                         <li><a href="{{ url('/terms-condition') }}">Terms & Conditions</a></li>
                         <li><a href="{{ url('/refund-policy') }}">Refund Policy</a></li>
                     </ul>
                 </div>
-                
+
                 <div>
-                    <h4 class="footer-title">Newsletter</h4>
-                    <p class="footer-desc">Subscribe to get the latest marketing tips and template updates.</p>
-                    <form style="display: flex; gap: 10px; margin-top: 15px;" onsubmit="event.preventDefault();">
-                        <input type="email" placeholder="Your email address" style="padding: 12px; border-radius: 8px; border: none; width: 100%;" required>
-                        <button type="submit" style="background: var(--primary-light); color: white; border: none; padding: 0 20px; border-radius: 8px; cursor: pointer;"><i class="fa-solid fa-paper-plane"></i></button>
-                    </form>
+                    <h3 class="footer-col-title">Download</h3>
+                    <ul class="footer-links">
+                        <li><a href="#">Get the App</a></li>
+                        <li><a href="{{ route('landing.packages') }}">View Plans</a></li>
+                    </ul>
                 </div>
             </div>
-            
+
             <div class="footer-bottom">
-                <p>&copy; 2026 Artera Inc. All rights reserved.</p>
-                <div style="display: flex; gap: 20px;">
-                    <a href="#" style="color: #94a3b8;"><i class="fa-brands fa-facebook-f"></i></a>
-                    <a href="#" style="color: #94a3b8;"><i class="fa-brands fa-instagram"></i></a>
-                    <a href="#" style="color: #94a3b8;"><i class="fa-brands fa-linkedin-in"></i></a>
+                <div class="container-full" style="padding:0;">
+                    <div class="footer-bottom-inner">
+                        <div>&copy; {{ date('Y') }} Artera. All rights reserved.</div>
+                        <div class="footer-socials">
+                            <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+                            <a href="#" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+                            <a href="#" aria-label="LinkedIn"><i class="fa-brands fa-linkedin-in"></i></a>
+                            <a href="#" aria-label="Twitter"><i class="fa-brands fa-x-twitter"></i></a>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </footer>
 
     <!-- Scripts -->
-    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script>
-        AOS.init({ duration: 800, once: true, offset: 100 });
+        document.addEventListener('DOMContentLoaded', () => {
 
-        window.addEventListener('scroll', () => {
-            const navbar = document.getElementById('navbar');
-            if (window.scrollY > 50) {
-                navbar.style.padding = '10px 0';
-                navbar.style.boxShadow = '0 4px 20px rgba(0,0,0,0.1)';
+            // ============================================
+            // 1. SPLIT TEXT — Auto-wrap lines for mask reveal
+            // ============================================
+            document.querySelectorAll('.split-text').forEach(el => {
+                const lines = el.querySelectorAll('span[style*="display:block"], span[style*="display: block"]');
+                if (lines.length > 0) {
+                    // Already has span blocks — wrap each inner content
+                    lines.forEach(line => {
+                        const inner = document.createElement('span');
+                        inner.className = 'split-line-inner';
+                        inner.innerHTML = line.innerHTML;
+                        line.innerHTML = '';
+                        line.classList.add('split-line');
+                        line.appendChild(inner);
+                    });
+                } else {
+                    // No span blocks — split by <br> or treat as single line
+                    const html = el.innerHTML;
+                    const parts = html.split(/<br\s*\/?>/i);
+                    if (parts.length > 1) {
+                        el.innerHTML = parts.map(p =>
+                            `<span class="split-line"><span class="split-line-inner">${p.trim()}</span></span>`
+                        ).join('');
+                    } else {
+                        el.innerHTML = `<span class="split-line"><span class="split-line-inner">${html}</span></span>`;
+                    }
+                }
+            });
+
+            // ============================================
+            // 2. STAGGER WORDS — Split text into word spans
+            // ============================================
+            document.querySelectorAll('.stagger-words').forEach(el => {
+                const text = el.textContent.trim();
+                const words = text.split(/\s+/);
+                el.innerHTML = words.map((w, i) =>
+                    `<span class="stagger-word" style="transition-delay:${i * 0.04}s">${w}</span>`
+                ).join(' ');
+            });
+
+            // ============================================
+            // 3. STAGGER LIST — Add delay to each item
+            // ============================================
+            document.querySelectorAll('.stagger-list').forEach(list => {
+                const items = list.querySelectorAll('.stagger-item');
+                items.forEach((item, i) => {
+                    item.style.transitionDelay = `${i * 0.08}s`;
+                });
+            });
+
+            // ============================================
+            // 4. INTERSECTION OBSERVER — Unified for all animated elements
+            // ============================================
+            const animatedSelectors = '.reveal, .reveal-left, .reveal-right, .reveal-scale, .reveal-blur, .split-text, .stagger-words, .stagger-list, .typewriter, .draw-underline';
+            const animatedEls = document.querySelectorAll(animatedSelectors);
+
+            if ('IntersectionObserver' in window) {
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('revealed');
+                            observer.unobserve(entry.target);
+                        }
+                    });
+                }, { threshold: 0.1, rootMargin: '0px 0px -60px 0px' });
+                animatedEls.forEach(el => observer.observe(el));
             } else {
-                navbar.style.padding = '15px 0';
-                navbar.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+                animatedEls.forEach(el => el.classList.add('revealed'));
+            }
+
+            // ============================================
+            // 5. COUNTER UP — Animate numbers from 0
+            // ============================================
+            const counterEls = document.querySelectorAll('.counter-up');
+            if (counterEls.length > 0) {
+                const counterObserver = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const el = entry.target;
+                            const target = parseInt(el.getAttribute('data-target')) || 0;
+                            const suffix = el.getAttribute('data-suffix') || '';
+                            const duration = 1500;
+                            const start = performance.now();
+                            function updateCounter(now) {
+                                const elapsed = now - start;
+                                const progress = Math.min(elapsed / duration, 1);
+                                // Ease out cubic
+                                const eased = 1 - Math.pow(1 - progress, 3);
+                                el.textContent = Math.floor(eased * target).toLocaleString() + suffix;
+                                if (progress < 1) requestAnimationFrame(updateCounter);
+                            }
+                            requestAnimationFrame(updateCounter);
+                            counterObserver.unobserve(el);
+                        }
+                    });
+                }, { threshold: 0.3 });
+                counterEls.forEach(el => counterObserver.observe(el));
+            }
+
+            // ============================================
+            // 6. NAVBAR SCROLL EFFECT
+            // ============================================
+            const header = document.getElementById('siteHeader');
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 30) {
+                    header.classList.add('scrolled');
+                } else {
+                    header.classList.remove('scrolled');
+                }
+            });
+
+            // ============================================
+            // 7. MOBILE TOGGLE
+            // ============================================
+            const mobileToggle = document.getElementById('mobileToggle');
+            const navMenu = document.getElementById('navMenu');
+            if (mobileToggle && navMenu) {
+                mobileToggle.addEventListener('click', () => {
+                    navMenu.classList.toggle('open');
+                    const icon = mobileToggle.querySelector('i');
+                    icon.classList.toggle('fa-bars');
+                    icon.classList.toggle('fa-xmark');
+                });
             }
         });
-
-        const mobileBtn = document.getElementById('mobileBtn');
-        const navLinks = document.getElementById('navLinks');
-        if(mobileBtn && navLinks) {
-            mobileBtn.addEventListener('click', () => {
-                navLinks.classList.toggle('active');
-            });
-        }
     </script>
     @yield('extra_js')
 </body>

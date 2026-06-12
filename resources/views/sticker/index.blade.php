@@ -120,7 +120,12 @@
           <h3 class="card-title float-left">
             Sticker
           </h3>
-          <a href="{{ route('sticker.create')}}" class="btn btn-success float-right">Add New</a>
+          <div class="float-right">
+            <button type="button" class="btn btn-primary mr-2" data-toggle="modal" data-target="#aiGenerateModal">
+              <i class="fas fa-magic"></i> AI Auto Generate
+            </button>
+            <a href="{{ route('sticker.create')}}" class="btn btn-success">Add New</a>
+          </div>
         </div>
 
         <div class="card-body">
@@ -220,6 +225,39 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Generate Modal -->
+  <div class="modal fade" id="aiGenerateModal" tabindex="-1" role="dialog" aria-labelledby="aiGenerateModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <form id="aiGenerateForm">
+          <div class="modal-header">
+            <h5 class="modal-title" id="aiGenerateModalLabel"><i class="fas fa-magic"></i> AI Auto Generate Stickers</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Category Name</label>
+              <input type="text" class="form-control" name="category_name" required placeholder="e.g. Space, Animals, Food">
+              <small class="form-text text-muted">AI will automatically generate related emojis and add them to this category.</small>
+            </div>
+            <div id="aiLoading" style="display:none;" class="text-center mt-3">
+              <div class="spinner-border text-primary" role="status">
+                <span class="sr-only">Loading...</span>
+              </div>
+              <p class="mt-2 text-primary font-weight-bold">AI is generating stickers... Please wait.</p>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            <button type="submit" class="btn btn-primary" id="aiGenerateBtn">Generate</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -424,6 +462,53 @@
             type: 'success'
           });
         },
+      });
+    });
+
+    $("#aiGenerateForm").submit(function(e) {
+      e.preventDefault();
+      var categoryName = $(this).find('input[name="category_name"]').val();
+      var btn = $("#aiGenerateBtn");
+      
+      btn.prop('disabled', true);
+      $("#aiLoading").show();
+      
+      $.ajax({
+        type: "POST",
+        url: "{{url('admin/sticker/generate-ai')}}",
+        data: {
+          category_name: categoryName,
+          _token: $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function(response) {
+          if (response.success) {
+            new PNotify({
+              title: 'Success!',
+              text: response.message,
+              type: 'success'
+            });
+            setTimeout(function() {
+              location.reload();
+            }, 1500);
+          } else {
+            new PNotify({
+              title: 'Error!',
+              text: response.message,
+              type: 'error'
+            });
+            btn.prop('disabled', false);
+            $("#aiLoading").hide();
+          }
+        },
+        error: function(err) {
+          new PNotify({
+            title: 'Error!',
+            text: 'Something went wrong. Please try again.',
+            type: 'error'
+          });
+          btn.prop('disabled', false);
+          $("#aiLoading").hide();
+        }
       });
     });
   </script>

@@ -109,7 +109,7 @@ class SubscriptionController extends GetxController {
     final featureMap = {
       'custom_post': {'name': 'PRO Custom Posts', 'icon': Icons.edit_outlined},
       'festival_post': {'name': 'PRO Festival Posts', 'icon': Icons.celebration_outlined},
-      'business_category_post': {'name': 'PRO Category Posts', 'icon': Icons.category_outlined},
+      'category_post': {'name': 'PRO Category Posts', 'icon': Icons.category_outlined},
 
     };
 

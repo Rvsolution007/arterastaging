@@ -468,7 +468,7 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
       'custom_post': {'name': 'Custom Posts', 'icon': Icons.edit_note_rounded},
 
       'festival_post': {'name': 'Festival Posts', 'icon': Icons.celebration_rounded},
-      'business_category_post': {'name': 'Category Posts', 'icon': Icons.category_rounded},
+      'category_post': {'name': 'Category Posts', 'icon': Icons.category_rounded},
       'photoroom_bg': {'name': 'BG Remover', 'icon': Icons.layers_clear_rounded},
     };
 

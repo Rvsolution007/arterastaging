@@ -607,6 +607,59 @@ class MainController extends Controller
         return $frames_list;
     }
 
+    private function injectDynamicBackgroundImage($config, $businessCategoryId)
+    {
+        \Illuminate\Support\Facades\Log::info("DEBUG WEB injectBG: Started. BusinessCategoryId=$businessCategoryId");
+        if (!$config || !isset($config->layers) || !$businessCategoryId) {
+            \Illuminate\Support\Facades\Log::info("DEBUG WEB injectBG: Aborting (missing config, layers, or categoryId).");
+            return $config;
+        }
+
+        $bgLayer = null;
+        foreach ($config->layers as $layer) {
+            if ($layer->type === 'image' && isset($layer->name)) {
+                $name = strtolower($layer->name);
+                if (str_contains($name, 'background') || str_contains($name, 'bg')) {
+                    $bgLayer = $layer;
+                    \Illuminate\Support\Facades\Log::info("DEBUG WEB injectBG: Found BG layer: {$layer->name}");
+                    break;
+                }
+            }
+        }
+
+        if ($bgLayer && isset($bgLayer->w) && isset($bgLayer->h) && $bgLayer->h > 0) {
+            $ratio = $bgLayer->w / $bgLayer->h;
+            $aspectRatioEnum = null;
+            
+            if (abs($ratio - 1) < 0.1) {
+                $aspectRatioEnum = '1:1';
+            } elseif (abs($ratio - 1.77) < 0.2) {
+                $aspectRatioEnum = '16:9';
+            } elseif (abs($ratio - 0.56) < 0.2) {
+                $aspectRatioEnum = '9:16';
+            }
+
+            \Illuminate\Support\Facades\Log::info("DEBUG WEB injectBG: Layer dimensions {$bgLayer->w}x{$bgLayer->h}, ratio $ratio, mapped to aspect enum: " . ($aspectRatioEnum ?? 'NONE'));
+
+            if ($aspectRatioEnum) {
+                $randomBg = \App\Models\CategoryBackgroundImage::where('business_category_id', $businessCategoryId)
+                                ->where('aspect_ratio', $aspectRatioEnum)
+                                ->inRandomOrder()
+                                ->first();
+                if ($randomBg) {
+                    $bgLayer->src = url($randomBg->image);
+                    \Illuminate\Support\Facades\Log::info("DEBUG WEB injectBG: Successfully replaced BG with image ID {$randomBg->id}. URL generated: {$bgLayer->src}");
+                } else {
+                    \Illuminate\Support\Facades\Log::info("DEBUG WEB injectBG: No random background found in DB for category $businessCategoryId and ratio $aspectRatioEnum");
+                }
+            }
+        } else {
+            \Illuminate\Support\Facades\Log::info("DEBUG WEB injectBG: No background layer found or invalid dimensions.");
+        }
+
+        return $config;
+    }
+
     public function universal_edit($type, $id)
     {
         $data = $this->getCommonData();
@@ -689,10 +742,23 @@ class MainController extends Controller
                 }
             }
 
+            $businessCategoryId = isset($data['business']) && $data['business'] ? $data['business']->business_category_id : null;
+            if ($post_template && $post_template->config) {
+                $post_template->config = $this->injectDynamicBackgroundImage($post_template->config, $businessCategoryId);
+            }
+
             $frames_list = collect();
         } else {
             // Try to extract ZIP-based templates first
             $frames_list = $this->extractFramesFromTemplates($item_frames, false);
+
+            $businessCategoryId = isset($data['business']) && $data['business'] ? $data['business']->business_category_id : null;
+            $frames_list->transform(function($frame) use ($businessCategoryId) {
+                if ($frame->config) {
+                    $frame->config = $this->injectDynamicBackgroundImage($frame->config, $businessCategoryId);
+                }
+                return $frame;
+            });
             
             if ($type == 'custom') {
                 $post_template = $frames_list->first();
@@ -929,8 +995,9 @@ class MainController extends Controller
         $sticker_categories = \App\Models\StickerCategory::where('status', 1)->get();
         $stickers = \App\Models\Sticker::where('status', 1)->get();
         $poster_categories = \App\Models\PosterCategory::where('status', 1)->get();
+        $frame_id = request()->get('frame_id');
 
-        return response(view('client.universal_edit', array_merge($data, compact('item', 'languages', 'item_frames', 'frames', 'sticker_categories', 'stickers', 'poster_categories', 'type', 'id', 'post_template', 'favoriteFrames', 'hasProducts'))))
+        return response(view('client.universal_edit', array_merge($data, compact('item', 'languages', 'item_frames', 'frames', 'sticker_categories', 'stickers', 'poster_categories', 'type', 'id', 'frame_id', 'post_template', 'favoriteFrames', 'hasProducts'))))
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0')
             ->header('Pragma', 'no-cache')
             ->header('Expires', '0');
@@ -1007,6 +1074,52 @@ class MainController extends Controller
         return response()->json([
             'success' => true,
             'frame_id' => $frameId,
+            'content' => $content,
+        ]);
+    }
+
+    /**
+     * Manual AI Generation endpoint for Custom Frame content (Editor).
+     */
+    public function generateManualAiContent(Request $request)
+    {
+        $frameId = $request->input('frame_id');
+        $productId = $request->input('product_id');
+        $manualPrompt = $request->input('manual_prompt');
+        $canvasLayers = $request->input('canvas_layers', []);
+        $language = $request->input('language', 'English');
+        $userId = Auth::id();
+
+        \Log::info("Manual AI Generate called", [
+            'frame_id' => $frameId, 'user_id' => $userId, 
+            'canvas_layers_count' => count($canvasLayers),
+            'language' => $language
+        ]);
+
+        if (!$userId) {
+            return response()->json(['success' => false, 'message' => 'Not authenticated'], 401);
+        }
+
+        if (empty($canvasLayers)) {
+            return response()->json(['success' => false, 'message' => 'No text layers found'], 400);
+        }
+
+        $content = \App\Services\CustomFrameAIService::generateManualContent(
+            $frameId ? (int) $frameId : 0, 
+            $userId, 
+            $productId ? (int) $productId : null, 
+            $manualPrompt,
+            $canvasLayers,
+            $language
+        );
+
+        if ($content === null) {
+            $err = \App\Services\CustomFrameAIService::$lastLog['error'] ?? 'Unknown error';
+            return response()->json(['success' => false, 'message' => 'Could not generate content: ' . $err], 500);
+        }
+
+        return response()->json([
+            'success' => true,
             'content' => $content,
         ]);
     }

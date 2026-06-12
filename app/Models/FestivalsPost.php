@@ -22,7 +22,8 @@ class FestivalsPost extends Model
         "width",
         "image_type",
         "aspect_ratio",
-        "is_ai"
+        "is_ai",
+        "show_on_landing"
     ];
 
     public function user()

@@ -48,7 +48,7 @@ class UserJourneyController extends Controller
         $usageSum = $user->custom_post_used + 
                     $user->daily_drip_used + 
                     $user->festival_post_used + 
-                    $user->business_category_post_used;
+                    $user->category_post_used;
         if ($usageSum > 0) {
             $steps['first_post'] = true;
         }

@@ -109,6 +109,13 @@ class FestivalsPostController extends Controller
         $festivals->save();
     }
 
+    public function festivals_post_landing(Request $request)
+    {
+        $festivals = FestivalsPost::find($request->get("id"));
+        $festivals->show_on_landing = ($request->get("checked") == "true") ? 1 : 0;
+        $festivals->save();
+    }
+
     public function festivals_post_ai(Request $request)
     {
         $festivals = FestivalsPost::find($request->get("id"));

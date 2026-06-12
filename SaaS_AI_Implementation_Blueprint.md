@@ -1,6 +1,6 @@
-# Master Implementation Plan: BrandKit x WhatsApp CRM SaaS Sync
+# Master Implementation Plan: ArtEra Pixel x WhatsApp CRM SaaS Sync
 
-Provide a brief description of the problem, background context, and what the change accomplishes. This document brings together Monetization Packages, AI PDF Catalog Recognition via Vertex AI, and Distributed Bi-Directional Webhook Sync between your Hostinger Shared Hosting (BrandKit) and VPS (WhatsApp CRM) servers.
+Provide a brief description of the problem, background context, and what the change accomplishes. This document brings together Monetization Packages, AI PDF Catalog Recognition via Vertex AI, and Distributed Bi-Directional Webhook Sync between your Hostinger Shared Hosting (ArtEra Pixel) and VPS (WhatsApp CRM) servers.
 
 ## User Review Required
 > [!IMPORTANT]
@@ -11,14 +11,14 @@ Provide a brief description of the problem, background context, and what the cha
 ## 1. System Architecture: Distributed Data Sync
 
 ### Choice: Event-Driven Webhooks (Decoupled Approach)
-Based on hosting BrandKit on **Hostinger Shared Hosting** and WhatsApp CRM on **Hostinger VPS**, the Webhook event-architecture is implemented.
+Based on hosting ArtEra Pixel on **Hostinger Shared Hosting** and WhatsApp CRM on **Hostinger VPS**, the Webhook event-architecture is implemented.
 
 * **Hosting Cost Impact:** Zero required extra servers.
 * **Mechanism Details:**
-  1. **User Action:** User edits or AI generates product data from a PDF on BrandKit (Shared Hosting).
-  2. **Webhook Trigger:** BrandKit securely fires an asynchronous HTTP `POST` Webhook to the VPS (`wa-crm.com/api/webhooks/brandkit-sync`) with a JSON payload of the structured product data.
+  1. **User Action:** User edits or AI generates product data from a PDF on ArtEra Pixel (Shared Hosting).
+  2. **Webhook Trigger:** ArtEra Pixel securely fires an asynchronous HTTP `POST` Webhook to the VPS (`wa-crm.com/api/webhooks/ArtEra Pixel-sync`) with a JSON payload of the structured product data.
   3. **VPS Upsert:** The CRM VPS receives the payload, verifies a shared secret Hmac signature for security, and runs an `UPSERT` sequence (Update if ID exists, Insert if strictly new).
-  4. **Reverse Flow:** If the CRM directly updates inventory after a user WhatsApp interaction, it strictly triggers a webhook back to BrandKit. 
+  4. **Reverse Flow:** If the CRM directly updates inventory after a user WhatsApp interaction, it strictly triggers a webhook back to ArtEra Pixel. 
   5. **Safety Gate:** Payloads contain a metaflag `origin="api_webhook"` so the receiving server knows not to re-trigger a bounce-back webhook, preventing infinite sync loops.
 
 ---

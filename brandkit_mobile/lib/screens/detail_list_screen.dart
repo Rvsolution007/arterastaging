@@ -145,7 +145,12 @@ class _DetailListScreenState extends State<DetailListScreen> {
     try {
       setState(() => isLoading = true);
       
-      final response = await ApiService.get('/get-frames?type=${widget.type}&id=${widget.id}');
+      http.Response response;
+      if (widget.type == 'greeting') {
+        response = await ApiService.get('/get_greetings_by_category?id=${widget.id}');
+      } else {
+        response = await ApiService.get('/get-frames?type=${widget.type}&id=${widget.id}');
+      }
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -200,7 +205,7 @@ class _DetailListScreenState extends State<DetailListScreen> {
 
     String featureKey = 'festival_post';
     if (widget.type == 'category' || widget.type == 'business_custom') {
-      featureKey = 'business_category_post';
+      featureKey = 'category_post';
     }
     if (widget.type == 'custom') {
       featureKey = 'custom_post';
@@ -236,10 +241,15 @@ class _DetailListScreenState extends State<DetailListScreen> {
           isVideo: isVideo,
           fileName: fileName,
         );
+        String trackItemId = widget.id.toString();
+        if (list.isNotEmpty && selectedIndex < list.length) {
+          trackItemId = list[selectedIndex]['frameId']?.toString() ?? widget.id.toString();
+        }
+
         ApiService.trackActivity(
           action: 'download_template',
           itemType: widget.type,
-          itemId: widget.id.toString(),
+          itemId: trackItemId,
         );
         Get.snackbar('Success', 'Design saved to gallery successfully!', snackPosition: SnackPosition.BOTTOM);
       } else {
@@ -485,7 +495,7 @@ class _DetailListScreenState extends State<DetailListScreen> {
                               // Map widget.type to feature key
                               String featureKey = 'festival_post';
                               if (widget.type == 'category' || widget.type == 'business_custom') {
-                                featureKey = 'business_category_post';
+                                featureKey = 'category_post';
                               }
                               if (widget.type == 'custom') {
                                 featureKey = 'custom_post';
@@ -597,7 +607,8 @@ class _DetailListScreenState extends State<DetailListScreen> {
                   child: Column(
                     children: [
                       // Filter Tabs (Images / Videos)
-                      Container(
+                      if (widget.type != 'greeting')
+                        Container(
                         decoration: BoxDecoration(
                           color: Colors.white,
                           border: Border(bottom: BorderSide(color: const Color(0xFFF8FAFC))),
@@ -661,7 +672,7 @@ class _DetailListScreenState extends State<DetailListScreen> {
                       ),
 
                       // AI Filter (Only for Images)
-                      if (activeTab == 'images')
+                      if (activeTab == 'images' && widget.type != 'greeting')
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.white,

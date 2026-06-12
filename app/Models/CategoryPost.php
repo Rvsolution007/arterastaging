@@ -11,7 +11,7 @@ class CategoryPost extends Model
     protected $table = "category_post";
 
     protected $fillable = [
-        'category_id','user_id','language_id','frame_image','status',"paid","height","width","image_type","aspect_ratio","is_ai"
+        'category_id','user_id','language_id','frame_image','status',"paid","height","width","image_type","aspect_ratio","is_ai","show_on_landing"
     ];
 
     public function user()

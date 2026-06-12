@@ -17,6 +17,7 @@ class HomeController extends GetxController {
   var customCategories = [].obs;
   var profileCategories = [].obs;
   var customPosts = [].obs;
+  var greetingCategories = [].obs; // Added for Greetings
   var recentCustomPosts = [].obs;  // Recent 10 templates for "New Posts" section
   var stories = [].obs;
   var news = [].obs;
@@ -120,6 +121,7 @@ class HomeController extends GetxController {
     hiddenFrameFields.clear();
     
     customPosts.clear();
+    greetingCategories.clear();
     categories.clear();
     upcomingFestivals.clear();
     customCategories.clear();
@@ -236,25 +238,20 @@ class HomeController extends GetxController {
         }
       }
       
-      // 4. Fetch custom posts (send userId for AI content injection if available)
+      // 4. Fetch custom posts (now we'll fetch greetings concurrently as well)
       try {
-        isLoading(true);
         final prefs = await SharedPreferences.getInstance();
-        String userId = prefs.getString('userId') ?? '';
+        final userId = prefs.getString('userId') ?? '';
+        final url = userId.isNotEmpty ? '/custom-post-category?userId=$userId' : '/custom-post-category';
         
-        // If userId is empty, wait briefly (useful for Web reloads)
-        if (userId.isEmpty) {
-          await Future.delayed(const Duration(milliseconds: 500));
-          userId = prefs.getString('userId') ?? '';
-        }
+        final responses = await Future.wait([
+          ApiService.get(url),
+          ApiService.get('/get_greeting_categories')
+        ]);
+        
+        final customResponse = responses[0];
+        final greetingResponse = responses[1];
 
-        debugPrint('[HomeCtrl] Fetching custom posts for userId: "$userId"');
-        
-        // Fetch custom posts regardless of userId. (userId is optional for AI replacement)
-        final url = userId.isNotEmpty ? '/custom-post?userId=$userId' : '/custom-post';
-        final customResponse = await ApiService.get(url);
-        debugPrint('[HomeCtrl] Custom Post API status: ${customResponse.statusCode}');
-        
         if (customResponse.statusCode == 200) {
           final customData = jsonDecode(customResponse.body);
           final List<dynamic> posts = customData['data'] ?? [];
@@ -264,8 +261,17 @@ class HomeController extends GetxController {
         } else {
           debugPrint('[HomeCtrl] Failed to fetch custom posts: ${customResponse.body}');
         }
+
+        if (greetingResponse.statusCode == 200) {
+          final greetingData = jsonDecode(greetingResponse.body);
+          final List<dynamic> posts = greetingData['data'] ?? [];
+          debugPrint('[HomeCtrl] Received ${posts.length} greeting categories');
+          greetingCategories.value = posts;
+        } else {
+          debugPrint('[HomeCtrl] Failed to fetch greeting categories: ${greetingResponse.body}');
+        }
       } catch (e) {
-        debugPrint('[HomeCtrl] Custom posts fetch error: $e');
+        debugPrint('[HomeCtrl] Custom/Greeting posts fetch error: $e');
       }
 
       // 5. Fetch stories
@@ -349,7 +355,7 @@ class HomeController extends GetxController {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('userId') ?? '';
-      final url = userId.isNotEmpty ? '/custom-post?userId=$userId' : '/custom-post';
+      final url = userId.isNotEmpty ? '/custom-post-category?userId=$userId' : '/custom-post-category';
       final response = await ApiService.get(url);
       
       if (response.statusCode == 200) {

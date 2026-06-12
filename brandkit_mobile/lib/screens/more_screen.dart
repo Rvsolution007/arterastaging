@@ -20,6 +20,7 @@ import '../widgets/error_submission_dialog.dart';
 import 'referral_screen.dart';
 import '../services/translation_service.dart';
 import 'achievements_screen.dart';
+import 'mini_website_dashboard_screen.dart';
 
 
 class MoreScreen extends StatefulWidget {
@@ -195,6 +196,20 @@ class _MoreScreenState extends State<MoreScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _buildSectionTitle('Digital Identity'),
+        _buildSectionContainer(
+          children: [
+            SettingsItem(
+              icon: Icons.language,
+              title: 'Mini Website',
+              subtitle: 'Digital Business Card & Bio Link',
+              iconColor: Colors.blue.shade500,
+              iconBgColor: Colors.transparent,
+              onTap: () => Get.to(() => MiniWebsiteDashboardScreen()),
+            ),
+          ],
+        ),
+        
         _buildSectionTitle('Gamification & Rewards'),
         _buildSectionContainer(
           children: [

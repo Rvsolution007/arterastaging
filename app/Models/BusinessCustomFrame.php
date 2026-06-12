@@ -18,6 +18,7 @@ class BusinessCustomFrame extends Model
         'original_zip_name',
         'json_rules',
         'status',
+        'show_on_landing',
     ];
 
     public function purpose()

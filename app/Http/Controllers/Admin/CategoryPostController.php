@@ -109,6 +109,13 @@ class CategoryPostController extends Controller
         $category->save();
     }
 
+    public function category_post_landing(Request $request)
+    {
+        $category = CategoryPost::find($request->get("id"));
+        $category->show_on_landing = ($request->get("checked") == "true") ? 1 : 0;
+        $category->save();
+    }
+
     public function category_post_ai(Request $request)
     {
         $category = CategoryPost::find($request->get("id"));

@@ -27,10 +27,7 @@ class AiTrendsScreen extends StatelessWidget {
               const SharedHeader(),
               AppSpacing.gapV24,
               _buildAiTrendsSection(hc),
-              AppSpacing.gapV32,
-              _buildBusinessSpecialSection(),
-              AppSpacing.gapV32,
-              _buildReelsMakerSection(hc),
+              // Removed Business Special and Reels Maker
               const SizedBox(height: 100),
             ],
           ),
@@ -46,9 +43,9 @@ class AiTrendsScreen extends StatelessWidget {
     return Column(
       children: [
         SectionHeader(
-          icon: Icons.auto_awesome_rounded,
+          icon: Icons.celebration,
           iconColor: AppColors.indigo500,
-          title: 'ai_trends'.tr,
+          title: 'Greetings', // was 'ai_trends'.tr
           actionText: 'View All',
           trailing: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -71,13 +68,13 @@ class AiTrendsScreen extends StatelessWidget {
         
         // Filter Pills
         Obx(() {
-          if (hc.customPosts.isEmpty) return const SizedBox.shrink();
+          if (hc.greetingCategories.isEmpty) return const SizedBox.shrink();
           return SizedBox(
             height: 40,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: hc.customPosts.length,
+              itemCount: hc.greetingCategories.length,
               separatorBuilder: (_, __) => AppSpacing.gapH12,
               itemBuilder: (context, i) {
                 final isSelected = i == 0;
@@ -90,7 +87,7 @@ class AiTrendsScreen extends StatelessWidget {
                   ),
                   child: Center(
                     child: Text(
-                      hc.customPosts[i]['customCategoryName'] ?? 'category'.tr,
+                      hc.greetingCategories[i]['customCategoryName'] ?? 'Category',
                       style: TextStyle(color: isSelected ? Colors.white : AppColors.gray800, fontWeight: FontWeight.w600, fontSize: 13),
                     ),
                   ),
@@ -105,22 +102,22 @@ class AiTrendsScreen extends StatelessWidget {
         SizedBox(
           height: 220,
           child: Obx(() {
-            if (hc.customPosts.isEmpty) return const SizedBox.shrink();
+            if (hc.greetingCategories.isEmpty) return const SizedBox.shrink();
             return ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: hc.customPosts.length,
+              itemCount: hc.greetingCategories.length,
               itemBuilder: (context, i) {
-                final post = hc.customPosts[i];
+                final post = hc.greetingCategories[i];
                 final img = post['customCategoryIcon'] ?? '';
                 final fullImg = img.toString().startsWith('http') ? img : '${hc.uploadsBaseUrl}/$img';
                 
                 return GestureDetector(
                   onTap: () => Navigator.push(context, MaterialPageRoute(
                     builder: (_) => DetailListScreen(
-                      type: 'custom',
+                      type: 'greeting',
                       id: post['customCategoryId'] ?? 0,
-                      title: post['customCategoryName'] ?? 'custom'.tr,
+                      title: post['customCategoryName'] ?? 'Greetings',
                     ),
                   )),
                   child: Container(

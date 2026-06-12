@@ -687,10 +687,19 @@
                             </div>
                             <div class="table-responsive">
                                 <table class="cf-table">
-                                    <thead><tr><th>Purpose & Image Type</th><th>ZIP File Reference</th><th>Uploaded At</th><th class="text-right">Action</th></tr></thead>
+                                    <thead><tr><th>Preview</th><th>Purpose & Image Type</th><th>ZIP File Reference</th><th>Uploaded At</th><th>Landing</th><th class="text-right">Action</th></tr></thead>
                                     <tbody>
                                         @forelse($business_custom_frames as $frame)
+                                        @php
+                                            $zipFolder = str_replace('.zip', '', $frame->zip_file_path);
+                                            $previewUrl = (App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean') 
+                                                ? Storage::disk('spaces')->url('uploads/template/'.$zipFolder.'/preview.jpg') 
+                                                : asset('uploads/template/'.$zipFolder.'/preview.jpg');
+                                        @endphp
                                         <tr>
+                                            <td>
+                                                <img src="{{ $previewUrl }}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; border: 1px solid #e2e8f0; background: #f8fafc;" onerror="this.src='{{ asset('assets/images/placeholder.png') }}'; this.onerror=null;">
+                                            </td>
                                             <td>
                                                 <div class="d-flex flex-column gap-1">
                                                     <span class="cf-badge cf-badge-purple" style="width:fit-content;">{{$frame->purpose->name ?? 'N/A'}}</span>
@@ -709,6 +718,12 @@
                                                     <div style="font-size: 11px; color: #9ca3af;">{{ $frame->created_at->format('h:i A') }}</div>
                                                 </div>
                                             </td>
+                                            <td>
+                                                <label class="cl-switch cl-switch-green" title="Show on Landing Page">
+                                                    <input type="checkbox" class="zip-landing-switch" data-id="{{$frame->id}}" value="1" @if($frame->show_on_landing==1) checked @endif>
+                                                    <span class="switcher"></span>
+                                                </label>
+                                            </td>
                                             <td class="text-right">
                                                 <form action="{{ url('admin/business-custom-frame-zip/'.$frame->id) }}" method="POST" style="display:inline-block">
                                                     @method('DELETE')
@@ -718,7 +733,7 @@
                                             </td>
                                         </tr>
                                         @empty
-                                        <tr><td colspan="3"><div class="cf-empty-state"><i class="fa-solid fa-file-excel"></i><p>No Frame ZIPs Uploaded</p></div></td></tr>
+                                        <tr><td colspan="6"><div class="cf-empty-state"><i class="fa-solid fa-file-excel"></i><p>No Frame ZIPs Uploaded</p></div></td></tr>
                                         @endforelse
                                     </tbody>
                                 </table>
@@ -930,7 +945,7 @@
 
         $.ajax({
           type: "POST",
-          url: "{{url('admin/business-frame-type')}}",
+          url: "{{url('admin/custom-post-type')}}",
           data: { checked : checked , id : id},
           headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
           success: function(data) {
@@ -970,13 +985,32 @@
         
         $.ajax({
           type: "POST",
-          url: "{{url('admin/business-frame-status')}}",
+          url: "{{url('admin/custom-post-status-bf')}}",
           data: { checked : checked , id : id},
           headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
           success: function(data) {
             new PNotify({
               title: 'Success!',
               text: "Business Frame Status Has Been Changed.",
+              type: 'success'
+            });
+          },
+        });
+      });
+
+      $(".zip-landing-switch").change(function(){
+        var checked = $(this).is(':checked');
+        var id = $(this).data("id");
+        
+        $.ajax({
+          type: "POST",
+          url: "{{url('admin/business-custom-frame-landing')}}",
+          data: { checked : checked , id : id},
+          headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+          success: function(data) {
+            new PNotify({
+              title: 'Success!',
+              text: "Landing Visibility Has Been Changed.",
               type: 'success'
             });
           },

@@ -91,6 +91,7 @@ Route::group(['middleware' => ['auth']], function () {
 
     // Lazy AI Generation for Custom Frames (Just-In-Time)
     Route::post('/generate-frame-content', 'MainController@generateFrameContent')->name('generate.frame.content');
+    Route::post('/editor/ai-content/generate', 'MainController@generateManualAiContent')->name('editor.ai.generate');
 
     // Favorite Frames
     Route::post('/toggle-favorite-frame', 'Api\FrameApiController@toggleFavorite')->name('toggle.favorite.frame');
@@ -102,6 +103,8 @@ Route::group(['middleware' => ['auth']], function () {
     // Photoroom Background Removal API Endpoint (Web Session)
     Route::post('/remove-background', [\App\Http\Controllers\Api\BackgroundRemovalController::class, 'removeBackground'])->name('remove-background');
 
+    // AI Image Generation Endpoint (Google Imagen 3)
+    Route::post('/api/ai/generate-image', [\App\Http\Controllers\AIImageGenerationController::class, 'generate'])->name('ai.generate-image');
 
 });
 
@@ -157,6 +160,8 @@ Route::get('/invoice/{id}', [App\Http\Controllers\InvoiceController::class, 'sho
 Route::get('upload-all-image-digitalOcean', 'HomeController@upload_image_digitalOcean');
 
 // Marketing Landing Pages
+Route::get('/pre-register', 'PreRegistrationController@index')->name('landing.pre_register');
+Route::post('/pre-register', 'PreRegistrationController@store')->name('landing.pre_register.store');
 Route::get('/', 'LandingController@home')->name('landing.home');
 Route::get('/auth-gate', 'LandingController@authGate')->name('landing.auth_gate');
 Route::get('/app-gateway', 'LandingController@appGateway')->name('landing.app_gateway');
@@ -176,7 +181,13 @@ Route::get('/logo-maker', 'LandingController@logoMaker')->name('landing.logo_mak
 Route::get('/video-maker', 'LandingController@videoMaker')->name('landing.video_maker');
 Route::post('/client-log', function(Illuminate\Http\Request $request) { Illuminate\Support\Facades\Log::info('ClientJS Log: ' . $request->message); return response()->json(['status' => 'ok']); });
 
+// Public Mini Website Route
+Route::get('/site/{slug}', 'SiteController@show')->name('site.show');
+
 Route::group(['middleware' => 'admin', 'prefix' => 'admin'], function() {
+    Route::post('/mini-website-template/status', 'Admin\MiniWebsiteTemplateController@status');
+    Route::resource('mini-website-template', 'Admin\MiniWebsiteTemplateController');
+    
     Route::get('/payment-analytics', 'Admin\RetentionAnalyticsController@paymentAnalytics')->name('admin.payment-analytics');
     Route::get('/retention/discounts', 'Admin\RetentionAnalyticsController@discountHistory')->name('admin.retention.discounts');
     Route::get('/retention/quotas', 'Admin\RetentionAnalyticsController@quotaHistory')->name('admin.retention.quotas');

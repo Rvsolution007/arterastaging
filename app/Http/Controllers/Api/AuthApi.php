@@ -1090,21 +1090,6 @@ class AuthApi extends Controller
             }
         }
 
-        // --- GAMIFICATION EXPLOIT FIX ---
-        // Prevent users from downloading the same template multiple times to farm achievements or consume duplicate limits.
-        if (in_array($action, ['download_template', 'create_custom_post', 'create_festival_post'])) {
-            $existing = \App\Models\UserActivity::where('user_id', $userId)
-                ->where('action', $action)
-                ->where('payload->item_type', $itemType)
-                ->where('payload->item_id', $itemId)
-                ->exists();
-                
-            if ($existing) {
-                // Return early so we don't duplicate activity, consume subscription limits twice, or increment achievements.
-                return response()->json(['status' => 'success']);
-            }
-        }
-
         \App\Models\UserActivity::create([
             'user_id' => $userId,
             'action' => $action,
@@ -1132,7 +1117,7 @@ class AuthApi extends Controller
                 // Map the template item_type to the subscription feature key
                 $featureMap = [
                     'festival'               => 'festival_post',
-                    'category'               => 'business_category_post',
+                    'category'               => 'category_post',
                     'custom'                 => 'custom_post',
                     'business_custom_frame'  => 'custom_post',
                     'business_frame'         => 'custom_post',

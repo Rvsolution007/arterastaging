@@ -58,7 +58,7 @@ class CalculateHealthScoreCommand extends Command
                 $usageSum = $user->custom_post_used + 
                             $user->daily_drip_used + 
                             $user->festival_post_used + 
-                            $user->business_category_post_used;
+                            $user->category_post_used;
 
                 if ($usageSum == 0) {
                     $score -= 20;

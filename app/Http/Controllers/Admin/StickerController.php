@@ -205,4 +205,70 @@ class StickerController extends Controller
         $image->$field = $fileName;
         $image->save();
     }
+
+    public function generateAi(Request $request)
+    {
+        $request->validate([
+            'category_name' => 'required|string|max:255'
+        ]);
+
+        $categoryName = $request->category_name;
+        
+        try {
+            $aiService = new \App\Services\VertexAIService(Auth::id() ?? 1);
+            $prompt = "You are an AI that provides emojis for a category. I will give you a category name. You must return exactly 10 standard emoji unicode hex codes (without 'U+', e.g., '1f436') that best represent this category. Output ONLY a comma-separated list of hex codes. No explanation, no extra text.";
+            
+            $aiResponse = $aiService->generateContent($prompt, [
+                ['role' => 'user', 'text' => "Category: " . $categoryName]
+            ]);
+            
+            $hexCodes = array_map('trim', explode(',', $aiResponse['text']));
+            $hexCodes = array_filter($hexCodes, function($h) {
+                return !empty($h) && preg_match('/^[0-9a-fA-F-]+$/', $h);
+            });
+            
+            if (empty($hexCodes)) {
+                return response()->json(['success' => false, 'message' => 'AI failed to generate valid emojis.']);
+            }
+            
+            // Get or create category
+            $category = StickerCategory::firstOrCreate(
+                ['name' => $categoryName],
+                ['status' => 1]
+            );
+            
+            $added = 0;
+            foreach ($hexCodes as $code) {
+                $url = "https://raw.githubusercontent.com/twitter/twemoji/master/assets/72x72/" . strtolower($code) . ".png";
+                $imgData = @file_get_contents($url);
+                
+                if ($imgData) {
+                    $fileName = Str::uuid() . '.png';
+                    
+                    // Save to public/uploads
+                    $publicPath = public_path('uploads/' . $fileName);
+                    file_put_contents($publicPath, $imgData);
+                    
+                    // Save to root uploads to ensure compatibility with XAMPP setup
+                    $rootPath = base_path('uploads/' . $fileName);
+                    if (!is_dir(base_path('uploads'))) {
+                        mkdir(base_path('uploads'), 0755, true);
+                    }
+                    file_put_contents($rootPath, $imgData);
+                    
+                    Sticker::create([
+                        'sticker_category_id' => $category->id,
+                        'image' => $fileName,
+                        'status' => 1,
+                    ]);
+                    $added++;
+                }
+            }
+            
+            return response()->json(['success' => true, 'message' => "Successfully generated and added $added stickers for '$categoryName'."]);
+            
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
 }

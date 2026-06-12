@@ -2114,7 +2114,7 @@ CREATE TABLE `subscription_plan` (
   `business_limit` int(11) DEFAULT NULL,
   `custom_post_edit_limit` int(11) NOT NULL DEFAULT 5 COMMENT 'Max editable Custom Posts (with choose) per month',
   `festival_post_limit` int(11) NOT NULL DEFAULT 0,
-  `business_category_post_limit` int(11) NOT NULL DEFAULT 0,
+  `category_post_limit` int(11) NOT NULL DEFAULT 0,
   `daily_drip_limit` int(11) NOT NULL DEFAULT 15 COMMENT 'Max automated Daily Drip posts per month',
   `magic_cloner_limit` int(11) NOT NULL DEFAULT 1 COMMENT 'Max AI Magic Cloner uses per month',
   `created_at` timestamp NULL DEFAULT NULL,
@@ -2127,8 +2127,8 @@ CREATE TABLE `subscription_plan` (
   `magic_cloner_ad_reward_limit` int(11) NOT NULL DEFAULT 5,
   `festival_post_ad_reward` tinyint(1) NOT NULL DEFAULT 1,
   `festival_post_ad_reward_limit` int(11) NOT NULL DEFAULT 5,
-  `business_category_ad_reward` tinyint(1) NOT NULL DEFAULT 1,
-  `business_category_ad_reward_limit` int(11) NOT NULL DEFAULT 5,
+  `category_ad_reward` tinyint(1) NOT NULL DEFAULT 1,
+  `category_ad_reward_limit` int(11) NOT NULL DEFAULT 5,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -2361,7 +2361,7 @@ CREATE TABLE `users` (
   `business_limit` int(11) DEFAULT 1,
   `custom_post_used` int(11) NOT NULL DEFAULT 0 COMMENT 'Custom Posts used this month',
   `festival_post_used` int(11) NOT NULL DEFAULT 0,
-  `business_category_post_used` int(11) NOT NULL DEFAULT 0,
+  `category_post_used` int(11) NOT NULL DEFAULT 0,
   `photoroom_bg_used` int(11) NOT NULL DEFAULT 0,
   `daily_drip_used` int(11) NOT NULL DEFAULT 0 COMMENT 'Daily Drip posts used this month',
   `magic_cloner_used` int(11) NOT NULL DEFAULT 0 COMMENT 'AI Magic Cloner uses this month',
@@ -2393,7 +2393,7 @@ CREATE TABLE `users` (
   `daily_drip_ad_used` int(11) NOT NULL DEFAULT 0,
   `magic_cloner_ad_used` int(11) NOT NULL DEFAULT 0,
   `festival_post_ad_used` int(11) NOT NULL DEFAULT 0,
-  `business_category_ad_used` int(11) NOT NULL DEFAULT 0,
+  `category_ad_used` int(11) NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`),
   UNIQUE KEY `users_email_unique` (`email`),
   KEY `idx_users_apitoken` (`api_token`(768)),

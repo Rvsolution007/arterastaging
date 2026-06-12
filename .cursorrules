@@ -1,0 +1,10 @@
+# AI Assistant Guidelines for Artera Project
+
+These rules must be strictly followed by any AI agent or coding assistant operating in this repository.
+
+## Custom Template JSON Restriction
+1. **DO NOT MODIFY TEMPLATE JSON:** The AI is strictly prohibited from making direct modifications, updates, or edits to any `json` files associated with the custom templates (e.g., zip files, `skins` folder JSONs, or uploaded template JSONs).
+2. **READ-ONLY FOR JSON:** You may read the JSON files to understand the structure, layers, and configuration.
+3. **SUGGESTIONS ONLY:** If you find a problem in the JSON file (e.g., missing keys, incorrect types, syntax errors, or logic issues), you must output a SUGGESTION to the user explaining what is wrong and how they can fix it manually. Do NOT execute a tool to fix it.
+
+By following these rules, we ensure that the template structures remain exactly as the designer intended, and the AI does not unintentionally break the template configurations.

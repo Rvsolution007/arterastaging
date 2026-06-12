@@ -37,12 +37,12 @@ class UpdateBrandkitSettingsToArtera extends Migration
         ];
 
         $searchPatterns = [
-            'BrandKit',
+            'ArtEra Pixel',
             'Brand Kit',
-            'brandkit',
+            'artera_pixel',
             'brand kit',
-            'Brandkit',
-            'BRANDKIT',
+            'ArtEra Pixel',
+            'ARTERA_PIXEL',
             'BRAND KIT'
         ];
 

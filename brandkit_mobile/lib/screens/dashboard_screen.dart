@@ -84,7 +84,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   _buildNavItem(0, Icons.home_outlined, Icons.home, 'home'.tr.toUpperCase()),
                   _buildNavItem(1, Icons.image_outlined, Icons.image, 'custom'.tr.toUpperCase()),
                   _buildNavItem(2, Icons.storefront_outlined, Icons.storefront, 'business'.tr.toUpperCase()),
-                  _buildNavItem(3, Icons.auto_awesome_outlined, Icons.auto_awesome, 'ai_trends'.tr.toUpperCase()),
+                  _buildNavItem(3, Icons.celebration_outlined, Icons.celebration, 'GREETINGS'),
                   _buildNavItem(4, Icons.menu, Icons.menu, 'more'.tr.toUpperCase()),
                 ],
               ),

@@ -42,6 +42,8 @@ Route::
             Route::get('get-category-post', 'CategoryPostController@get_category_post');
             Route::get('category-get/{id}', 'CategoryPostController@category_get');
             Route::Post('category-post-action', 'CategoryPostController@category_post_action');
+            Route::Post('category-post-landing', 'CategoryPostController@category_post_landing');
+            Route::Post('category-post-ai', 'CategoryPostController@category_post_ai');
 
             Route::resource('festivals', 'FestivalsController');
             Route::Post('festivals-status', 'FestivalsController@festivals_status');
@@ -54,9 +56,11 @@ Route::
             Route::Post('festivals-post-type', 'FestivalsPostController@festivals_post_type');
             Route::get('festival/{id}', 'FestivalsPostController@festival_filter');
             Route::Post('festivals-post-action', 'FestivalsPostController@festivals_post_action');
+            Route::Post('festivals-post-landing', 'FestivalsPostController@festivals_post_landing');
+            Route::Post('festivals-post-ai', 'FestivalsPostController@festivals_post_ai');
 
-            Route::resource('custom-post', 'CustomPostController');
-            Route::Post('custom-post-status', 'CustomPostController@custom_post_status');
+            Route::resource('custom-post-category', 'CustomPostController');
+            Route::Post('custom-post-category-status', 'CustomPostController@custom_post_status');
             Route::Post('custom-feature-status', 'CustomPostController@custom_feature_status');
 
             Route::resource('custom-post-frame', 'CustomPostFrameController');
@@ -64,16 +68,29 @@ Route::
             Route::Post('custom-post-frame-type', 'CustomPostFrameController@custom_post_frame_type');
             Route::get('custom-post-get/{id}', 'CustomPostFrameController@custom_post_get');
             Route::Post('custom-post-frame-action', 'CustomPostFrameController@custom_post_frame_action');
+            Route::Post('custom-post-frame-landing', 'CustomPostFrameController@custom_post_frame_landing');
+
+            Route::resource('greeting-category', 'GreetingCategoryController');
+            Route::Post('greeting-category-status', 'GreetingCategoryController@greeting_category_status');
+            
+            Route::resource('greeting', 'GreetingController');
+            Route::Post('greeting-status', 'GreetingController@greeting_status');
+            Route::Post('greeting-type', 'GreetingController@greeting_type');
+            Route::get('greeting-get/{id}', 'GreetingController@greeting_get');
+            Route::Post('greeting-action', 'GreetingController@greeting_action');
 
             Route::resource('business-category', 'BusinessCategoryController');
             Route::Post('business-category-status', 'BusinessCategoryController@business_category_status');
+            
+            Route::resource('category-background-image', 'CategoryBackgroundImageController');
+            
             Route::resource('business-sub-category', 'BusinessSubCategoryController');
             Route::Post('business-sub-category-status', 'BusinessSubCategoryController@business_sub_category_status');
             Route::get('get-business-sub-category', 'BusinessFrameController@get_business_sub_category');
-            Route::resource('business-frame', 'BusinessFrameController');
-            Route::Post('business-frame-status', 'BusinessFrameController@business_frame_status');
-            Route::Post('business-frame-type', 'BusinessFrameController@business_frame_type');
-            Route::get('business-category-get/{id}', 'BusinessFrameController@business_category_get');
+            Route::resource('custom-post', 'BusinessFrameController');
+            Route::Post('custom-post-status-bf', 'BusinessFrameController@business_frame_status');
+            Route::Post('custom-post-type', 'BusinessFrameController@business_frame_type');
+            Route::get('custom-post-bcat-get/{id}', 'BusinessFrameController@business_category_get');
             Route::post('custom-frame-purpose-create', 'BusinessFrameController@createCustomFramePurpose');
             Route::post('custom-frame-purpose', 'BusinessFrameController@storeCustomFramePurpose');
             Route::put('custom-frame-purpose/{id}', 'BusinessFrameController@updateCustomFramePurpose');
@@ -81,7 +98,8 @@ Route::
             Route::post('custom-frame-image-type', 'BusinessFrameController@storeCustomFrameImageType');
             Route::post('business-custom-frame-zip', 'BusinessFrameController@storeBusinessCustomFrame');
             Route::delete('business-custom-frame-zip/{id}', 'BusinessFrameController@deleteBusinessCustomFrame');
-            Route::Post('business-frame-action', 'BusinessFrameController@business_frame_action');
+            Route::post('business-custom-frame-landing', 'BusinessFrameController@business_custom_frame_landing');
+            Route::Post('custom-post-action', 'BusinessFrameController@business_frame_action');
 
             Route::resource('general-post', 'GeneralPostController');
             Route::Post('general-post-status', 'GeneralPostController@general_post_status');
@@ -96,6 +114,7 @@ Route::
             Route::resource('sticker-category', 'StickerCategoryController');
             Route::Post('sticker-category-status', 'StickerCategoryController@sticker_category_status');
             Route::resource('sticker', 'StickerController');
+            Route::post('sticker/generate-ai', 'StickerController@generateAi');
             Route::Post('sticker-status', 'StickerController@sticker_status');
             Route::get('sticker-category-get/{id}', 'StickerController@sticker_category_get');
             Route::Post('sticker-action', 'StickerController@sticker_action');
@@ -141,6 +160,9 @@ Route::
             Route::post('reported-errors/bulk-status', 'ClientErrorController@bulkUpdateStatus')->name('admin.reported_errors.bulk_status');
             Route::post('reported-errors/status/{id}', 'ClientErrorController@updateStatus')->name('admin.reported_errors.status');
             Route::delete('reported-errors/{id}', 'ClientErrorController@destroy')->name('admin.reported_errors.destroy');
+            Route::post('reported-errors/ai-analyze/{id}', 'ClientErrorController@analyzeWithAi')->name('admin.reported_errors.ai_analyze');
+            Route::post('reported-errors/ai-batch-analyze', 'ClientErrorController@batchAnalyze')->name('admin.reported_errors.ai_batch');
+            Route::post('reported-errors/toggle-auto-analyze', 'ClientErrorController@toggleAutoAnalyze')->name('admin.reported_errors.toggle_auto');
 
             Route::resource('business', 'BusinessController');
             Route::Post('business-status', 'BusinessController@business_status');
@@ -275,6 +297,7 @@ Route::
             // Phase 8 God View
             Route::get('god-view', 'GodViewController@index')->name('admin.god_view');
             Route::get('god-view/resolve/{id}', 'GodViewController@resolveAlert')->name('admin.god_view.resolve');
+
 
             Route::post('churn/generate-lead-strategy/{id}', 'ChurnController@generateLeadStrategy')->name('admin.churn.generate-lead-strategy');
 

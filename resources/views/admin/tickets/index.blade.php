@@ -238,6 +238,9 @@
                         @if($t->ai_rating && $t->ai_rating <= 3)
                             <span class="badge badge-danger mr-1" style="font-size: 0.65rem;" title="Generated from In-App Feedback Loop"><i class="fa fa-star text-white"></i> NPS Feedback</span>
                         @endif
+                        @if($t->category === 'editor')
+                            <span class="badge badge-info mr-1" style="font-size: 0.65rem; background: #3b82f6; color: white;" title="From Editor Screen"><i class="fa-solid fa-pen-to-square"></i> Editor</span>
+                        @endif
                         #{{ $t->id }} - {{ Str::limit($t->subject, 30) }}
                     </div>
                     <div class="ticket-meta">
@@ -300,6 +303,7 @@ function loadTicket(id, element) {
                     <div>
                         <h5 class="table-panel-title">#${t.id} - ${t.subject}</h5>
                         <div style="font-size: 0.8rem; color: #64748b; margin-top: 2px;">User: <strong class="text-dark">${t.user ? t.user.name : 'Unknown'}</strong>
+                        ${t.category === 'editor' ? `<span class="ml-3 badge badge-info" style="background: #3b82f6; color: white; font-size: 0.7rem;"><i class="fa-solid fa-pen-to-square"></i> Editor Chat</span>` : ''}
                         ${t.ai_rating ? `<span class="ml-3" style="color: #f59e0b; font-weight: bold;"><i class="fa-solid fa-star"></i> ${t.ai_rating}/5 User Rating</span>` : ''}
                         </div>
                     </div>

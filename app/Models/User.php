@@ -46,12 +46,13 @@ class User extends Authenticatable
         "custom_post_used",
         "daily_drip_used",
         "festival_post_used",
-        "business_category_post_used",
+        "category_post_used",
         "photoroom_bg_used",
+        "ai_image_used",
         "custom_post_ad_used",
         "daily_drip_ad_used",
         "festival_post_ad_used",
-        "business_category_ad_used",
+        "category_ad_used",
         "limits_reset_at",
     ];
 
@@ -108,12 +109,13 @@ class User extends Authenticatable
                 'custom_post_used' => 0,
                 'daily_drip_used' => 0,
                 'festival_post_used' => 0,
-                'business_category_post_used' => 0,
+                'category_post_used' => 0,
                 'photoroom_bg_used' => 0,
+                'ai_image_used' => 0,
                 'custom_post_ad_used' => 0,
                 'daily_drip_ad_used' => 0,
                 'festival_post_ad_used' => 0,
-                'business_category_ad_used' => 0,
+                'category_ad_used' => 0,
                 'limits_reset_at' => now(),
             ]);
         }
@@ -136,8 +138,9 @@ class User extends Authenticatable
         $limitMap = [
             'custom_post'            => ['used' => 'custom_post_used',            'limit' => 'custom_post_edit_limit'],
             'festival_post'          => ['used' => 'festival_post_used',          'limit' => 'festival_post_limit'],
-            'business_category_post' => ['used' => 'business_category_post_used', 'limit' => 'business_category_post_limit'],
+            'category_post' => ['used' => 'category_post_used', 'limit' => 'category_post_limit'],
             'photoroom_bg'           => ['used' => 'photoroom_bg_used',           'limit' => 'photoroom_bg_limit'],
+            'ai_image'               => ['used' => 'ai_image_used',               'limit' => 'ai_image_limit'],
         ];
 
         if (!isset($limitMap[$feature])) return false;
@@ -160,8 +163,9 @@ class User extends Authenticatable
         $fieldMap = [
             'custom_post'            => 'custom_post_used',
             'festival_post'          => 'festival_post_used',
-            'business_category_post' => 'business_category_post_used',
+            'category_post' => 'category_post_used',
             'photoroom_bg'           => 'photoroom_bg_used',
+            'ai_image'               => 'ai_image_used',
         ];
 
         $this->increment($fieldMap[$feature]);
@@ -185,8 +189,9 @@ class User extends Authenticatable
         $limitMap = [
             'custom_post'            => ['used' => 'custom_post_used',            'limit' => 'custom_post_edit_limit'],
             'festival_post'          => ['used' => 'festival_post_used',          'limit' => 'festival_post_limit'],
-            'business_category_post' => ['used' => 'business_category_post_used', 'limit' => 'business_category_post_limit'],
+            'category_post' => ['used' => 'category_post_used', 'limit' => 'category_post_limit'],
             'photoroom_bg'           => ['used' => 'photoroom_bg_used',           'limit' => 'photoroom_bg_limit'],
+            'ai_image'               => ['used' => 'ai_image_used',               'limit' => 'ai_image_limit'],
         ];
 
         if (!isset($limitMap[$feature])) return 0;
@@ -211,7 +216,7 @@ class User extends Authenticatable
         $adMap = [
             'custom_post'            => ['enabled' => 'custom_post_ad_reward',       'limit' => 'custom_post_ad_reward_limit',       'used' => 'custom_post_ad_used'],
             'festival_post'          => ['enabled' => 'festival_post_ad_reward',     'limit' => 'festival_post_ad_reward_limit',     'used' => 'festival_post_ad_used'],
-            'business_category_post' => ['enabled' => 'business_category_ad_reward', 'limit' => 'business_category_ad_reward_limit', 'used' => 'business_category_ad_used'],
+            'category_post' => ['enabled' => 'category_ad_reward', 'limit' => 'category_ad_reward_limit', 'used' => 'category_ad_used'],
         ];
 
         if (!isset($adMap[$feature])) return false;
@@ -237,7 +242,7 @@ class User extends Authenticatable
         $adMap = [
             'custom_post'            => 'custom_post_ad_used',
             'festival_post'          => 'festival_post_ad_used',
-            'business_category_post' => 'business_category_ad_used',
+            'category_post' => 'category_ad_used',
         ];
 
         if (!isset($adMap[$feature])) return false;
@@ -259,7 +264,7 @@ class User extends Authenticatable
         $limits = [
             'custom_post'            => ['base' => 'custom_post_edit_limit',       'used' => 'custom_post_used',            'ad_limit' => 'custom_post_ad_reward_limit',       'ad_used' => 'custom_post_ad_used'],
             'festival_post'          => ['base' => 'festival_post_limit',          'used' => 'festival_post_used',          'ad_limit' => 'festival_post_ad_reward_limit',     'ad_used' => 'festival_post_ad_used'],
-            'business_category_post' => ['base' => 'business_category_post_limit', 'used' => 'business_category_post_used', 'ad_limit' => 'business_category_ad_reward_limit', 'ad_used' => 'business_category_ad_used'],
+            'category_post' => ['base' => 'category_post_limit', 'used' => 'category_post_used', 'ad_limit' => 'category_ad_reward_limit', 'ad_used' => 'category_ad_used'],
         ];
 
         if (!isset($limits[$feature])) return 'locked';
@@ -375,15 +380,15 @@ class User extends Authenticatable
                     'post_ad_flow_free' => $this->getPostAdFlow('festival_post', false),
                     'post_ad_flow_paid' => $this->getPostAdFlow('festival_post', true),
                 ],
-                'business_category_post' => [
-                    'base_limit' => $plan ? $plan->business_category_post_limit : 0,
-                    'used' => $this->business_category_post_used,
-                    'ad_limit' => $plan ? $plan->business_category_ad_reward_limit : 0,
-                    'ad_used' => $this->business_category_ad_used,
-                    'state' => $this->getAdState('business_category_post'),
-                    'max_ad_uses' => $plan ? $plan->business_category_ad_reward : 0,
-                    'post_ad_flow_free' => $this->getPostAdFlow('business_category_post', false),
-                    'post_ad_flow_paid' => $this->getPostAdFlow('business_category_post', true),
+                'category_post' => [
+                    'base_limit' => $plan ? $plan->category_post_limit : 0,
+                    'used' => $this->category_post_used,
+                    'ad_limit' => $plan ? $plan->category_ad_reward_limit : 0,
+                    'ad_used' => $this->category_ad_used,
+                    'state' => $this->getAdState('category_post'),
+                    'max_ad_uses' => $plan ? $plan->category_ad_reward : 0,
+                    'post_ad_flow_free' => $this->getPostAdFlow('category_post', false),
+                    'post_ad_flow_paid' => $this->getPostAdFlow('category_post', true),
                 ],
             ]
         ];

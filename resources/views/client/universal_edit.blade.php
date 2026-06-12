@@ -4,6 +4,7 @@
 @section('styles')
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Roboto:wght@400;700;900&family=Poppins:wght@400;700;900&family=Montserrat:wght@400;700;900&family=Bebas+Neue&family=Pacifico&family=Dancing+Script:wght@400;700&family=Playfair+Display:wght@400;700;900&family=Oswald:wght@400;700&family=Lato:wght@400;700;900&family=Open+Sans:wght@400;700;800&family=Raleway:wght@400;700;900&family=Abril+Fatface&family=Comfortaa:wght@400;700&family=Righteous&family=Varela+Round&family=Caveat:wght@400;700&family=Lobster&display=swap" rel="stylesheet">
     <style>
+    #toast-container { z-index: 999999 !important; }
     /* CRITICAL: Disable parent scrolling */
     #main-content {
         overflow: hidden !important;
@@ -767,6 +768,7 @@
                         @php $frameImgType = $frame->image_type ?? 'full'; @endphp
                         <div class="frame-item {{ $index === 0 ? 'selected' : '' }}"
                             style="position: relative; background: #f1f5f9; cursor: pointer; overflow: hidden;"
+                            data-db-id="{{ $frame->db_id ?? $id ?? '' }}"
                             data-config="{{ json_encode($fConfig) }}"
                             data-category-id="{{ $frame->category_id ?? 'all' }}"
                             data-theme="{{ $frame->theme ?? 'all' }}"
@@ -810,6 +812,12 @@
                         <i data-lucide="shopping-bag"></i>
                     </div>
                     <span class="tool-label">Products</span>
+                </div>
+                <div class="tool-item" onclick="openAiTextModal()">
+                    <div class="tool-icon" style="background: linear-gradient(135deg, #f0fdf4, #dcfce7); color: #16a34a;">
+                        <i data-lucide="sparkles"></i>
+                    </div>
+                    <span class="tool-label">AI Text</span>
                 </div>
                 <div class="tool-item" onclick="addSticker()">
                     <div class="tool-icon"><i data-lucide="smile-plus"></i></div>
@@ -868,6 +876,7 @@
             <div id="attachTool" class="tool-btn" onclick="openReplaceSelectionModal()" style="display:none;"><div class="tool-btn-icon"><i data-lucide="image-plus"></i></div><span class="tool-btn-label">Replace</span><input type="file" id="attachInput" class="hidden" accept="image/*" onchange="attachImage(this)"></div>
             <div id="detachTool" class="tool-btn" onclick="detachImage()" style="display:none;"><div class="tool-btn-icon"><i data-lucide="image-minus"></i></div><span class="tool-btn-label">Detach</span></div>
             <div id="removeBgTool" class="tool-btn" onclick="removeBackgroundFromActiveObject()" style="display:none;"><div class="tool-btn-icon"><i data-lucide="scissors"></i></div><span class="tool-btn-label" id="removeBgLabel">Remove BG</span></div>
+            <div id="aiImageTool" class="tool-btn" onclick="openAIGenerationModal()" style="display:none;"><div class="tool-btn-icon" style="color:#8b5cf6;"><i data-lucide="sparkles"></i></div><span class="tool-btn-label" style="color:#8b5cf6;">AI ✨</span></div>
             <div id="contextualColorTool" class="tool-btn" onclick="document.getElementById('colorInput').click()"><div class="tool-btn-icon" style="border-bottom:4px solid #7d2ae8;"><i data-lucide="palette"></i></div><span class="tool-btn-label">Color</span><input type="color" id="colorInput" class="hidden" oninput="changeColor(this.value)"></div>
             <div id="contextualLayersTool" class="tool-btn" onclick="toggleLayersModal()"><div class="tool-btn-icon"><i data-lucide="layers"></i></div><span class="tool-btn-label">Layers</span></div>
             <div id="deleteTool" class="tool-btn" onclick="removeActiveElement()"><div class="tool-btn-icon" style="color:#ef4444;"><i data-lucide="trash-2"></i></div><span class="tool-btn-label" style="color:#ef4444;">Delete</span></div>
@@ -897,6 +906,42 @@
             </div>
         </div>
     </div>
+
+    <!-- AI Generation Modal -->
+    <div id="aiGenerationModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:7000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);" onclick="closeAIGenerationModal()">
+        <div class="products-panel" style="animation:scaleUp 0.3s cubic-bezier(0.16,1,0.3,1);padding:24px 20px;border-radius:24px;background:#fff;width:90%;max-width:400px;box-shadow: 0 20px 40px rgba(0,0,0,0.2);" onclick="event.stopPropagation()">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="width:36px;height:36px;background:linear-gradient(135deg,#8b5cf6,#d946ef);border-radius:10px;display:flex;align-items:center;justify-content:center;color:white;"><i data-lucide="sparkles" style="width:20px;height:20px;"></i></div>
+                    <h3 style="margin:0;font-size:18px;font-weight:800;color:#1e293b;">AI Generate</h3>
+                </div>
+                <button onclick="closeAIGenerationModal()" style="background:#f1f5f9;border:none;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#64748b;cursor:pointer;transition:all 0.2s;"><i data-lucide="x" style="width:18px;height:18px;"></i></button>
+            </div>
+            
+            <div style="margin-bottom:16px;">
+                <label style="display:block;font-size:13px;font-weight:700;color:#475569;margin-bottom:6px;">Prompt <span style="color:#ef4444;">*</span></label>
+                <textarea id="aiPromptInput" rows="3" placeholder="Describe the image you want to generate..." style="width:100%;border:2px solid #e2e8f0;border-radius:12px;padding:12px;font-size:14px;color:#1e293b;outline:none;transition:border-color 0.2s;resize:none;" onfocus="this.style.borderColor='#8b5cf6'" onblur="this.style.borderColor='#e2e8f0'"></textarea>
+                <div style="display:flex;justify-content:flex-end;margin-top:6px;">
+                    <button onclick="autoSuggestPrompt()" style="background:transparent;border:none;color:#8b5cf6;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;"><i data-lucide="wand-2" style="width:14px;height:14px;"></i> Auto-suggest</button>
+                </div>
+            </div>
+
+            <div style="margin-bottom:24px;">
+                <label style="display:block;font-size:13px;font-weight:700;color:#475569;margin-bottom:6px;">Reference Image (Optional)</label>
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <button onclick="document.getElementById('aiReferenceInput').click()" style="background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:10px;padding:10px 16px;color:#64748b;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:8px;"><i data-lucide="upload-cloud" style="width:16px;height:16px;"></i> Upload Reference</button>
+                    <input type="file" id="aiReferenceInput" class="hidden" accept="image/*" onchange="previewAiReference(this)">
+                    <img id="aiReferencePreview" src="" style="width:40px;height:40px;border-radius:8px;object-fit:cover;display:none;border:1px solid #e2e8f0;">
+                    <button id="aiReferenceRemoveBtn" onclick="removeAiReference()" style="display:none;background:#fee2e2;color:#ef4444;border:none;width:24px;height:24px;border-radius:50%;cursor:pointer;"><i data-lucide="x" style="width:14px;height:14px;"></i></button>
+                </div>
+            </div>
+
+            <button id="aiGenerateBtn" onclick="generateAiImage()" style="width:100%;background:linear-gradient(135deg,#8b5cf6,#d946ef);color:white;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 8px 16px rgba(139,92,246,0.3);transition:transform 0.2s;">
+                <i data-lucide="sparkles" style="width:18px;height:18px;"></i> Generate Image
+            </button>
+        </div>
+    </div>
+    <style>@keyframes scaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }</style>
 
     <div id="layersModal" onclick="this.style.display='none'">
         <div class="layers-box" onclick="event.stopPropagation()">
@@ -957,6 +1002,74 @@
             </div>
         </div>
     </div>
+
+    <!-- ═══ AI Text Modal ═══ -->
+    <div id="aiTextModal" onclick="closeAiTextModal(event)" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
+        <div class="products-panel" onclick="event.stopPropagation()" style="position: relative; width: 100%; max-width: 450px; background: white; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; max-height: 90vh;">
+            <div class="products-panel-header" style="padding: 16px 20px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
+                <div class="products-panel-title" style="font-weight: 700; font-size: 16px; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="sparkles" style="color: #16a34a;"></i>
+                    Generate Content via ArtEra AI
+                </div>
+                <button class="products-panel-close" onclick="closeAiTextModal()" style="background: none; border: none; cursor: pointer; color: #64748b;"><i data-lucide="x"></i></button>
+            </div>
+            
+            <div id="aiTextStep1" style="padding: 20px; overflow-y: auto;">
+                <p style="font-size: 14px; color: #475569; margin-bottom: 12px; font-weight: 500;">Select a product to generate text based on its details:</p>
+                <select id="aiTextProductSelect" class="search-input" style="width: 100%; margin-bottom: 20px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; color: #0f172a; outline: none;">
+                    <option value="">-- No Product (Manual Prompt Only) --</option>
+                </select>
+                
+                <p style="font-size: 14px; color: #475569; margin-bottom: 8px; font-weight: 500;">Or describe what you want the AI to write about:</p>
+                <textarea id="aiTextManualPrompt" class="search-input" rows="4" style="width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; resize: none; font-size: 14px; color: #0f172a; outline: none;" placeholder="e.g. Write a promotional post for a 20% discount on summer clothes..."></textarea>
+                
+                <p style="font-size: 14px; color: #475569; margin-bottom: 8px; margin-top: 16px; font-weight: 500;">Output Language:</p>
+                <select id="aiTextLanguage" class="search-input" style="width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; color: #0f172a; outline: none;">
+                    <option value="English">English</option>
+                    <option value="Hindi">हिन्दी (Hindi)</option>
+                    <option value="Hinglish">Hinglish (Hindi in English script)</option>
+                    <option value="Gujarati">ગુજરાતી (Gujarati)</option>
+                    <option value="Marathi">मराठी (Marathi)</option>
+                    <option value="Tamil">தமிழ் (Tamil)</option>
+                    <option value="Telugu">తెలుగు (Telugu)</option>
+                    <option value="Kannada">ಕನ್ನಡ (Kannada)</option>
+                    <option value="Malayalam">മലയാളം (Malayalam)</option>
+                    <option value="Bengali">বাংলা (Bengali)</option>
+                    <option value="Punjabi">ਪੰਜਾਬੀ (Punjabi)</option>
+                    <option value="Urdu">اردو (Urdu)</option>
+                    <option value="Arabic">العربية (Arabic)</option>
+                    <option value="Spanish">Español (Spanish)</option>
+                    <option value="French">Français (French)</option>
+                    <option value="Portuguese">Português (Portuguese)</option>
+                    <option value="German">Deutsch (German)</option>
+                    <option value="Japanese">日本語 (Japanese)</option>
+                    <option value="Korean">한국어 (Korean)</option>
+                    <option value="Chinese">中文 (Chinese)</option>
+                </select>
+
+                <button id="btnGenerateAiText" class="btn-action" style="width: 100%; background: #16a34a; color: white; border-radius: 8px; margin-top: 20px; padding: 12px; font-weight: 600; font-size: 15px;" onclick="generateAiText()">
+                    Generate Content
+                </button>
+            </div>
+
+            <div id="aiTextStepLoading" style="display: none; text-align: center; padding: 60px 20px;">
+                <div style="width: 40px; height: 40px; border: 3px solid #e2e8f0; border-top: 3px solid #16a34a; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto;"></div>
+                <p style="margin-top: 16px; font-size: 15px; font-weight: 600; color: #475569;">Generating AI Text...</p>
+                <p style="margin-top: 4px; font-size: 13px; color: #94a3b8;">This might take a few seconds.</p>
+            </div>
+
+            <div id="aiTextStep2" style="display: none; padding: 20px; overflow-y: auto; display: flex; flex-direction: column;">
+                <p style="font-size: 14px; color: #475569; margin-bottom: 16px; font-weight: 500;">Review and edit the generated text:</p>
+                <div id="aiTextInputsContainer" style="display: flex; flex-direction: column; gap: 12px;"></div>
+                <button class="btn-action" style="width: 100%; background: #4f46e5; color: white; border-radius: 8px; margin-top: 20px; padding: 12px; font-weight: 600; font-size: 15px;" onclick="applyAiText()">
+                    Apply to Design
+                </button>
+                <button class="btn-action" style="width: 100%; background: #f1f5f9; color: #475569; border-radius: 8px; margin-top: 8px; padding: 12px; font-weight: 600; font-size: 15px;" onclick="document.getElementById('aiTextStep2').style.display='none'; document.getElementById('aiTextStep1').style.display='block';">
+                    Back
+                </button>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @section('scripts')
@@ -984,6 +1097,7 @@ var POST_AI_DATA = @json(
         : null
 );
 
+var globalBaseConfig = null;
 var fCanvas = null;
 var activeObject = null;
 var isFrameHidden = false;
@@ -1249,6 +1363,7 @@ var CANVAS_H = 1080;
 
 // ── Canvas Init ──
 var currentZoom = 1;
+var _mobileLockedWidth = 0; // Lock canvas width on mobile to prevent keyboard-triggered shrinking
 
 function initCanvas() {
     fCanvas = new fabric.Canvas('fabric-canvas', {
@@ -1258,6 +1373,7 @@ function initCanvas() {
         preserveObjectStacking: true,
         selection: true,
         enableRetinaScaling: true,
+        allowTouchScrolling: false
     });
 
     // Scale canvas to fit the screen using Fabric's native zoom
@@ -1271,26 +1387,228 @@ function initCanvas() {
     fCanvas.on('object:moving', () => updateImageActionPosition());
     fCanvas.on('object:scaling', () => updateImageActionPosition());
 
-    // ── WORKAROUND: Fabric.js findTarget misses objects when canvas has zoom + iframe embed ──
-    // Manual fallback using containsPoint which correctly handles viewport-transformed coordinates.
+    // ── SELECTION + DRAG WORKAROUND ──
+    // Fabric.js findTarget can miss objects when canvas is zoomed.
+    // This manual handler ensures both SELECT and DRAG always work.
+    let _manualDragTarget = null, _manualDragPtr = null, _manualDragLeft = 0, _manualDragTop = 0, _manualDragging = false;
+
     fCanvas.on('mouse:down', function(opt) {
-        if (!opt.target) {
-            const ptr = fCanvas.getPointer(opt.e, true);
+        let target = opt.target;
+
+        // Fallback selection: if Fabric missed the object, find it manually
+        if (!target) {
+            const ptr = fCanvas.getPointer(opt.e, true); // viewport coords (same space as oCoords)
+            const point = new fabric.Point(ptr.x, ptr.y);
             const objects = fCanvas.getObjects();
             for (let i = objects.length - 1; i >= 0; i--) {
                 const obj = objects[i];
-                if (obj.selectable && obj.evented && obj.visible && obj.containsPoint(ptr)) {
+                if (!obj.selectable || !obj.evented || !obj.visible) continue;
+                if (obj.containsPoint(point)) {
+                    target = obj;
                     fCanvas.setActiveObject(obj);
                     fCanvas.requestRenderAll();
                     break;
                 }
             }
         }
+
+        // Start drag tracking for manual fallback
+        if (target && target.selectable) {
+            _manualDragTarget = target;
+            _manualDragPtr = fCanvas.getPointer(opt.e);
+            _manualDragLeft = target.left;
+            _manualDragTop = target.top;
+            _manualDragging = false;
+        }
+    });
+
+    fCanvas.on('mouse:move', function(opt) {
+        if (!_manualDragTarget) return;
+        // If Fabric's native drag is active, let it handle everything
+        if (fCanvas._currentTransform) return;
+        // Manual drag fallback
+        const ptr = fCanvas.getPointer(opt.e);
+        const dx = ptr.x - _manualDragPtr.x;
+        const dy = ptr.y - _manualDragPtr.y;
+        if (!_manualDragging && Math.abs(dx) < 3 && Math.abs(dy) < 3) return; // deadzone
+        _manualDragging = true;
+        if (!_manualDragTarget.lockMovementX) _manualDragTarget.set('left', _manualDragLeft + dx);
+        if (!_manualDragTarget.lockMovementY) _manualDragTarget.set('top', _manualDragTop + dy);
+        _manualDragTarget.setCoords();
+        fCanvas.requestRenderAll();
+    });
+
+    fCanvas.on('mouse:up', function() {
+        if (_manualDragTarget && _manualDragging) {
+            _manualDragTarget.setCoords();
+            fCanvas.fire('object:modified', { target: _manualDragTarget });
+        }
+        _manualDragTarget = null;
+        _manualDragging = false;
     });
     // ── END WORKAROUND ──
+    // ── Smart Flex-Margin Auto-Layout System ──
+    const MIN_MARGIN = 30; // 30px minimum margin requested by user
 
-    // Undo/Redo tracking hooks
-    fCanvas.on('object:modified', saveCanvasState);
+    const solveFlexLayout = () => {
+        const canvasH = fCanvas.internalH || fCanvas.getHeight();
+        const MAX_BOTTOM = canvasH - 30; // 30px padding at bottom
+        
+        const allObjects = fCanvas.getObjects();
+        let loopCount = 0;
+        let needsFontShrink = false;
+        
+        do {
+            needsFontShrink = false;
+            
+            // 1. Identify Text Sources & Check Width Constraint
+            const textSources = [];
+            allObjects.forEach(obj => {
+                if (obj.type !== 'textbox' && obj.type !== 'i-text' && obj.type !== 'text') return;
+                
+                // --- WIDTH CONSTRAINT FIX ---
+                // Do NOT shrink font horizontally! Just enforce the original fixed width so it wraps natively.
+                const origW = obj._jsonOrigWidth || obj._origWidth;
+                if (origW > 0 && obj.type === 'textbox') {
+                    if (Math.abs(obj.width - origW) > 1) {
+                        obj.set('width', origW);
+                    }
+                }
+                
+                if (typeof obj._origHeight === 'undefined') return;
+                const currentH = obj.getScaledHeight ? obj.getScaledHeight() : (obj.height * obj.scaleY);
+                const delta = currentH - obj._origHeight;
+                
+                if (Math.abs(delta) >= 1) {
+                    textSources.push({
+                        obj: obj,
+                        delta: delta,
+                        origBottom: obj._origBottom,
+                        origLeft: obj._origLeft,
+                        origRight: obj._origRight,
+                        shrinkableGap: 0,
+                        appliedCompression: 0
+                    });
+                }
+            });
+
+            if (textSources.length === 0) break; // Nothing to do
+
+            // 2. Determine shrinkable gap between TextSource and the Rigid Block below it
+            textSources.forEach(src => {
+                let minGap = 9999;
+                allObjects.forEach(obj => {
+                    if (src.obj === obj) return;
+                    if (obj._isDecorativeShape && obj.selectable === false) return;
+                    if (typeof obj._origTop === 'undefined') return;
+                    
+                    const isBelow = obj._origTop >= (src.origBottom - 5);
+                    
+                    if (isBelow) {
+                        const gap = obj._origTop - src.origBottom;
+                        if (gap < minGap) minGap = gap;
+                    }
+                });
+                
+                if (minGap === 9999) minGap = 0;
+                src.shrinkableGap = Math.max(0, minGap - MIN_MARGIN);
+            });
+
+            // 3. Calculate natural bottom and total overflow for Rigid Block
+            let maxNaturalBottom = 0;
+            
+            allObjects.forEach(obj => {
+                if (obj._isDecorativeShape && obj.selectable === false) return;
+                if (typeof obj._origTop === 'undefined') return;
+                
+                let totalShift = 0;
+                textSources.forEach(src => {
+                    if (src.obj === obj) return;
+                    const isBelow = obj._origTop >= (src.origBottom - 5);
+                    if (isBelow) {
+                        totalShift += src.delta;
+                    }
+                });
+
+                if (Math.abs(totalShift) > 0 || textSources.some(s => s.obj === obj)) {
+                    const naturalTop = obj._origTop + totalShift;
+                    const currentH = obj.getScaledHeight ? obj.getScaledHeight() : (obj.height * obj.scaleY);
+                    const naturalBottom = naturalTop + currentH;
+                    if (naturalBottom > maxNaturalBottom) {
+                        maxNaturalBottom = naturalBottom;
+                    }
+                }
+            });
+
+            let overflow = maxNaturalBottom - MAX_BOTTOM;
+
+            // 4. Resolve overflow by reducing shifts (compressing the Single Gap)
+            if (overflow > 0) {
+                textSources.forEach(src => {
+                    if (overflow <= 0) return;
+                    if (src.shrinkableGap > 0) {
+                        const amountToCompress = Math.min(overflow, src.shrinkableGap);
+                        src.appliedCompression = amountToCompress;
+                        overflow -= amountToCompress;
+                    } else {
+                        src.appliedCompression = 0;
+                    }
+                });
+
+                if (overflow > 0) {
+                    // Still overflows! Shrink font!
+                    textSources.forEach(src => {
+                        if (src.obj.fontSize > 10) {
+                            src.obj.set('fontSize', src.obj.fontSize - 1);
+                            if (src.obj.initDimensions) src.obj.initDimensions();
+                            needsFontShrink = true;
+                        }
+                    });
+                    continue; // Restart layout loop
+                }
+            } else {
+                textSources.forEach(src => src.appliedCompression = 0);
+            }
+
+            // 5. Apply Final Rigid Positions
+            allObjects.forEach(obj => {
+                if (obj._isDecorativeShape && obj.selectable === false) return;
+                if (typeof obj._origTop === 'undefined') return;
+                
+                let finalShift = 0;
+                textSources.forEach(src => {
+                    if (src.obj === obj) return;
+                    const isBelow = obj._origTop >= (src.origBottom - 5);
+                    if (isBelow) {
+                        // The entire block below receives the EXACT same reduced shift
+                        finalShift += (src.delta - src.appliedCompression);
+                    }
+                });
+
+                const finalTop = obj._origTop + finalShift;
+                if (Math.abs(finalTop - obj.top) >= 1) {
+                    obj.set('top', finalTop);
+                    obj.setCoords();
+                }
+            });
+
+        } while (needsFontShrink && loopCount++ < 100);
+
+        fCanvas.renderAll();
+    };
+
+    // Expose to global scope
+    window.solveFlexLayout = solveFlexLayout;
+    window.applyAutoLayoutAll = solveFlexLayout; // Map legacy calls to new engine
+    window.applyAutoLayout = solveFlexLayout;
+    fCanvas.on('text:changed', function(e) {
+        if (e.target) solveFlexLayout();
+    });
+
+    fCanvas.on('object:modified', function(e) {
+        if (e.target && e.target.type === 'textbox') solveFlexLayout();
+        saveCanvasState();
+    });
     fCanvas.on('object:added', saveCanvasState);
     fCanvas.on('object:removed', saveCanvasState);
 
@@ -1303,6 +1621,15 @@ function initCanvas() {
     // Add business info elements
     if (!HIDE_BRANDING && BUSINESS) {
         addBusinessElements();
+    }
+
+    // ── MOBILE TOUCH FIX ──
+    // Force the browser to pass touchmove events to FabricJS instead of scrolling the page
+    const canvasContainer = document.querySelector('.canvas-container');
+    if (canvasContainer) {
+        canvasContainer.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+        }, { passive: false });
     }
 }
 
@@ -1317,9 +1644,7 @@ function fitCanvasToScreen() {
     const scale = Math.min(maxW / intW, maxH / intH, 1);
     currentZoom = scale;
 
-    // Fabric.js native zoom — this correctly remaps mouse coordinates
     fCanvas.setZoom(scale);
-    // Set the physical canvas size to the scaled dimensions
     fCanvas.setWidth(intW * scale);
     fCanvas.setHeight(intH * scale);
     if (fCanvas.calcOffset) fCanvas.calcOffset();
@@ -1385,14 +1710,32 @@ function loadBackgroundImage(url) {
 }
 
 // ── Resize Canvas (for frame configs with different aspect ratios) ──
+// DO NOT CHANGE THIS FUNCTION — it is locked to prevent mobile canvas shrinking.
+// On mobile (Android WebView), opening the keyboard triggers a window resize event
+// that reduces innerHeight. If we recalculate scale using height, the canvas shrinks
+// to a tiny size. Instead, we lock the width on first render and only use width-based
+// scaling on mobile. Desktop uses both width and height constraints.
 function resizeCanvas(w, h) {
     fCanvas.internalW = w;
     fCanvas.internalH = h;
     const wrapper = document.getElementById('canvas-wrapper');
     const section = wrapper.parentElement;
-    const maxW = section.offsetWidth - 32;
-    const maxH = window.innerHeight * 0.50;
-    const scale = Math.min(maxW / w, maxH / h, 1);
+    let maxW = section.offsetWidth - 32;
+    
+    let scale;
+    if (window.innerWidth < 768) {
+        // Mobile: Lock the width on first call so keyboard doesn't shrink canvas
+        if (_mobileLockedWidth <= 0) {
+            _mobileLockedWidth = maxW;
+        }
+        maxW = _mobileLockedWidth;
+        scale = Math.min(maxW / w, 1);
+    } else {
+        // Desktop: Fit both width and height
+        const maxH = window.innerHeight * 0.65;
+        scale = Math.min(maxW / w, maxH / h, 1);
+    }
+
     currentZoom = scale;
     fCanvas.setZoom(scale);
     fCanvas.setWidth(w * scale);
@@ -1615,6 +1958,7 @@ function showContextualBar(obj) {
     d('attachTool', canReplaceDetach); 
     d('detachTool', canReplaceDetach);
     d('removeBgTool', isRemovableBg);
+    d('aiImageTool', isImage);
     
     d('contextualColorTool', canColor); 
     d('contextualLayersTool', true); 
@@ -1746,39 +2090,15 @@ async function performLocalBgRemoval(dataURL, label, overlay, targetObj) {
 }
 
 function replaceBgImage(resultImageURL, targetObj, overlay, label) {
-    fabric.Image.fromURL(resultImageURL, (newImg) => {
-        if (!newImg) {
-            alert("Background removal failed: could not create new image.");
-            if (overlay) overlay.style.display = 'none';
-            if (label) label.innerText = "Remove BG";
-            return;
-        }
-        newImg.set({
-            left: targetObj.left,
-            top: targetObj.top,
-            scaleX: targetObj.scaleX,
-            scaleY: targetObj.scaleY,
-            angle: targetObj.angle,
-            originX: targetObj.originX,
-            originY: targetObj.originY,
-            _objectType: targetObj._objectType,
-            _label: targetObj._label,
-            _businessKey: targetObj._businessKey
-        });
-        const idx = fCanvas.getObjects().indexOf(targetObj);
-        fCanvas.remove(targetObj);
-        fCanvas.insertAt(newImg, idx >= 0 ? idx : fCanvas.getObjects().length, false);
-
-        if (targetObj._businessKey && businessObjects[targetObj._businessKey]) {
-            businessObjects[targetObj._businessKey] = newImg;
-        }
-
-        fCanvas.setActiveObject(newImg);
-        fCanvas.renderAll();
-
+    // Ensure the target is active so replaceActiveImageWithUrl works perfectly
+    fCanvas.setActiveObject(targetObj);
+    activeObject = targetObj;
+    
+    // Use the robust replacement function that handles slots, masking, and scale perfectly
+    replaceActiveImageWithUrl(resultImageURL, null, null, () => {
         if (overlay) overlay.style.display = 'none';
         if (label) label.innerText = "Remove BG";
-    }, { crossOrigin: 'anonymous' });
+    });
 }
 
 // ── Text ──
@@ -2121,13 +2441,55 @@ function changeFrame(url, element) {
         }
 
         if (ca && ca !== 'null' && ca !== 'undefined' && ca !== '') {
-            try { currentFrameConfig = JSON.parse(ca); applyFrameConfig(currentFrameConfig, isBase); } catch(e) { currentFrameConfig = null; applyFrameConfig(null, isBase); }
+            try { 
+                currentFrameConfig = JSON.parse(ca); 
+                
+                // --- PREVENT DUPLICATE FRAME LOADING ---
+                // Instead of comparing JSON (unreliable due to AI text injection, encoding diffs),
+                // check if the canvas ALREADY contains the same text layers this config wants to add.
+                if (_baseTemplateRendered && currentFrameConfig.layers) {
+                    const existingLabels = new Set();
+                    fCanvas.getObjects().forEach(obj => {
+                        if (obj._label) existingLabels.add(obj._label);
+                    });
+                    
+                    const configTextLabels = currentFrameConfig.layers
+                        .filter(l => l.type === 'text' && l.name)
+                        .map(l => l.name);
+                    
+                    if (configTextLabels.length > 0) {
+                        const allExist = configTextLabels.every(name => existingLabels.has(name));
+                        if (allExist) {
+                            console.log('[FRAME] All text layers from this config already exist on canvas. Skipping duplicate overlay. Labels:', configTextLabels);
+                            return; // Abort - this would create duplicate text
+                        }
+                    }
+                }
+                // ---------------------------------------
+
+                applyFrameConfig(currentFrameConfig, isBase); 
+            } catch(e) { 
+                currentFrameConfig = null; 
+                applyFrameConfig(null, isBase); 
+            }
         } else { currentFrameConfig = null; applyFrameConfig(null, isBase); }
     }
 }
 
 // ── Apply Frame Config ──
+var _baseTemplateRendered = false; // Flag: has the base template already been drawn?
 async function applyFrameConfig(config, isBaseTemplate = false) {
+    // ── BULLETPROOF DUPLICATE GUARD ──
+    // If base template was already rendered, and this call is ALSO trying to render the base template,
+    // that means we're about to draw duplicate layers. Abort.
+    if (isBaseTemplate && _baseTemplateRendered) {
+        console.warn('[applyFrameConfig] BASE TEMPLATE ALREADY RENDERED. Skipping duplicate call.');
+        return;
+    }
+    if (isBaseTemplate) {
+        _baseTemplateRendered = true;
+    }
+
     if (!isBaseTemplate) {
         // Remove old overlay frame layers
         frameOverlayObjects.forEach(o => fCanvas.remove(o)); frameOverlayObjects = [];
@@ -2233,7 +2595,12 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
         }
 
         // Resolve asset paths
-        const skinBase = document.getElementById('activeFrameImg-source').value;
+        let skinBaseRaw = document.getElementById('activeFrameImg-source').value;
+        let skinBase = skinBaseRaw;
+        try {
+            const urlObj = new URL(skinBaseRaw);
+            skinBase = window.location.origin + urlObj.pathname + urlObj.search;
+        } catch(e) {}
         const skinDir = skinBase.substring(0, skinBase.lastIndexOf('/') + 1);
         const templateDir = skinDir.split('/skins/')[0] + '/';
         const fontsBase = templateDir + 'fonts/';
@@ -2513,8 +2880,9 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
                                 img.set({ selectable: false, evented: false, hasControls: false });
                             }
 
-                            const idx = config.layers.indexOf(layer);
-                            fCanvas.insertAt(img, isBaseTemplate ? idx : (fCanvas.getObjects().length));
+                            img.setCoords();
+
+                            fCanvas.add(img);
                             
                             if (isBaseTemplate && isFrameSlot) {
                                 frameImageObjects.push(img);
@@ -2682,12 +3050,6 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
                 let tOriginY = isRotatedText ? 'center' : 'top';
                 let tTop = isRotatedText ? (ly + lh / 2) : ly;
 
-                // Center the address vertically to accommodate 1 or 2 lines perfectly
-                if (textBKey === 'address' && !isRotatedText) {
-                    tOriginY = 'center';
-                    tTop = ly + (lh / 2);
-                }
-
                 // Create text at ORIGINAL Photoshop font size
                 const t = new fabric.Textbox(displayText, {
                     left: tLeft, 
@@ -2705,10 +3067,20 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
                     shadow: fShadow,
                     width: lw,
                     editable: true, _isFrameLayer: isOverlay, _objectType: 'text',
+                    name: layerOrigName,
+                    _layerName: layerOrigName,
                     _label: layerOrigName || 'Text',
                     _businessKey: textBKey,
+                    _ai_max_chars: layer.ai_max_chars || layer.max_chars,
+                    _ai_role: layer.ai_role || '',
+                    _jsonOrigHeight: lh, // Store the original JSON bounding box height for auto-layout baseline
+                    _jsonOrigFontSize: origSize, // Store original font size to calculate shrunk baseline
+                    visible: (layer.visible === false || layer.visible === 0 || layer.visible === '0' || layer.visible === 'false') ? false : true,
+                    opacity: (layer.opacity !== undefined) ? (layer.opacity / 255) : 1,
                     objectCaching: false,
                 });
+
+                t.setCoords();
 
                 // --- PREPARE FOR GROUPED AUTO-SCALING ---
                 let baseName = (layerOrigName || 'text').replace(/[\d\s_]+$/, '').toLowerCase();
@@ -2738,19 +3110,47 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
         }
 
         // --- GROUPED AUTO-SCALING (CANVA-STYLE) ---
-        console.log('[DIAG] Starting grouped auto-scaling. Groups:', Object.keys(textGroups));
-        for (let baseName in textGroups) {
-            let group = textGroups[baseName];
-            if (group.length === 0) continue;
-            
-            let requiredFontSizes = [];
+        // For normal (non-AI) templates: use grouped font scaling to fit text in bounding boxes.
+        // For AI templates: use individual height-constrained auto-shrink per text layer.
+        // DO NOT CHANGE — locked for AI content auto-adjust.
+        if (!aiConfig) {
+            console.log('[DIAG] Starting grouped auto-scaling. Groups:', Object.keys(textGroups));
+            for (let baseName in textGroups) {
+                let group = textGroups[baseName];
+                if (group.length === 0) continue;
+                
+                let requiredFontSizes = [];
             
             // 1. Simulate shrinking/upscaling for each item in the group
             for (let item of group) {
                 let currentSize = item.origSize;
                 
+                // --- CRITICAL FIX FOR TEXT OVERLAPPING ---
+                // If the Photoshop bounding box (item.lh) is artificially huge, wrapping text won't trigger shrinking.
+                // We find the actual distance to the next text element directly below this one to cap the safe height.
+                let distToNext = item.lh;
+                frameOverlayObjects.forEach(obj => {
+                    if (obj === item.t) return;
+                    if (obj.type === 'textbox' || obj.type === 'text' || obj.type === 'i-text') {
+                        // Check horizontal intersection
+                        let myL = item.t.left - (item.t.originX === 'center' ? item.t.width/2 : (item.t.originX === 'right' ? item.t.width : 0));
+                        let myR = myL + item.t.width;
+                        let oL = obj.left - (obj.originX === 'center' ? obj.width/2 : (obj.originX === 'right' ? obj.width : 0));
+                        let oR = oL + obj.width;
+                        let isHorizOverlap = (myL < oR && myR > oL);
+                        
+                        if (isHorizOverlap && obj.top > item.t.top + 5) {
+                            let dist = obj.top - item.t.top;
+                            if (dist < distToNext) {
+                                distToNext = dist;
+                            }
+                        }
+                    }
+                });
+
                 // Define safe margins (10% vertical padding, 5% horizontal padding)
-                let safeHeight = item.lh * 0.90;
+                // Use the strictly capped distToNext as the max height so we don't bleed into the next line
+                let safeHeight = distToNext * 0.90;
                 let safeWidth = item.lw * 0.95;
 
                 // Auto-upscale slightly if text is smaller than safe box
@@ -2793,6 +3193,7 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
                     item.t.initDimensions();
                 }
             }
+        }
         }
 
         // --- POST-PROCESS ICON COLORS ---
@@ -2870,7 +3271,30 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
         // UNFREEZE canvas and render everything in one perfect frame
         console.log('[DIAG] Final renderAll. isBaseTemplate:', isBaseTemplate, 'Total objects:', fCanvas.getObjects().length);
         fCanvas.renderOnAddRemove = prevRenderOnAdd;
+
+        // Recalculate interaction coordinates for ALL objects after auto-scaling changed sizes
+        fCanvas.getObjects().forEach(obj => obj.setCoords());
+
+        // ── Auto-Layout Baseline Capture ──
+        // Capture EXACT visual dimensions as the baseline
+        fCanvas.getObjects().forEach(obj => {
+            if (typeof obj._origTop === 'undefined') {
+                obj._origTop = obj.top;
+                obj._origHeight = obj.getScaledHeight ? obj.getScaledHeight() : (obj.height * obj.scaleY);
+                obj._origBottom = obj._origTop + obj._origHeight;
+                obj._origLeft = obj.left;
+                obj._origWidth = obj.getScaledWidth ? obj.getScaledWidth() : (obj.width * obj.scaleX);
+                obj._origRight = obj._origLeft + obj._origWidth;
+            }
+        });
+
         fCanvas.renderAll();
+
+        // ── Run Auto-Layout for AI-modified content ──
+        if (aiConfig) {
+            console.log('[AI-LAYOUT-INIT] AI content detected — running flex layout');
+            solveFlexLayout();
+        }
         
         // Recalculate canvas offsets — critical for iframe embeds (Flutter WebView)
         if (fCanvas.calcOffset) fCanvas.calcOffset();
@@ -2903,10 +3327,15 @@ async function loadFont(name, iName, base) {
 
     for (const ext of ['.ttf','.otf','.woff']) {
         let fontUrl = `${base}${encodeURIComponent(baseName)}${ext}?v=${Date.now()}`;
-        try { 
-            const f = new FontFace(iName, `url("${fontUrl}")`); 
-            const l = await f.load(); 
-            document.fonts.add(l); 
+        try {
+            // Fetch font as blob first — this bypasses Android WebView FontFace CORS issues
+            const resp = await fetch(fontUrl);
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const blob = await resp.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const f = new FontFace(iName, `url("${blobUrl}")`);
+            const l = await f.load();
+            document.fonts.add(l);
             return true; 
         } catch(e) { 
             failedUrls.push({ url: fontUrl, error: e.toString() });
@@ -2914,31 +3343,18 @@ async function loadFont(name, iName, base) {
         }
     }
     
-    // DEBUG: Show font loading errors on screen
-    let debugDiv = document.getElementById('font-debug-panel');
-    if (!debugDiv) {
-        debugDiv = document.createElement('div');
-        debugDiv.id = 'font-debug-panel';
-        debugDiv.style.position = 'fixed';
-        debugDiv.style.top = '10px';
-        debugDiv.style.left = '10px';
-        debugDiv.style.right = '10px';
-        debugDiv.style.backgroundColor = 'rgba(255,0,0,0.8)';
-        debugDiv.style.color = 'white';
-        debugDiv.style.padding = '10px';
-        debugDiv.style.zIndex = '99999';
-        debugDiv.style.fontSize = '12px';
-        debugDiv.style.maxHeight = '200px';
-        debugDiv.style.overflow = 'auto';
-        document.body.appendChild(debugDiv);
-    }
-    debugDiv.innerHTML += `<p><strong>Font Failed:</strong> ${baseName}<br><small>${failedUrls.map(f => f.url + ': ' + f.error).join('<br>')}</small></p>`;
+    // Log font loading failure to console only (no red debug overlay in production)
+    console.warn('[Font] Failed to load:', baseName, failedUrls);
 
     return false;
 }
 
 // ── Export ──
 function trackWebDownload(type, id, thumbnail) {
+    let finalId = id;
+    @if(isset($frame_id) && $frame_id)
+        finalId = '{{ $frame_id }}';
+    @endif
     fetch('{{ route("api.track-activity") }}', {
         method: 'POST',
         headers: {
@@ -2949,7 +3365,7 @@ function trackWebDownload(type, id, thumbnail) {
             userId: '{{ auth()->id() }}',
             action: 'download_template',
             item_type: type,
-            item_id: id,
+            item_id: finalId,
             platform: 'Web',
             downloaded_image: thumbnail
         })
@@ -2996,7 +3412,7 @@ function attachImage(input) {
     reader.readAsDataURL(input.files[0]); input.value = '';
 }
 
-function replaceActiveImageWithUrl(imageUrl, productId = null, mode = null) {
+function replaceActiveImageWithUrl(imageUrl, productId = null, mode = null, callback = null) {
     if (!activeObject || activeObject.type !== 'image') return;
     const isFrameSlot = activeObject._isFrameImage === true && activeObject._slotWidth !== undefined;
     
@@ -3023,6 +3439,7 @@ function replaceActiveImageWithUrl(imageUrl, productId = null, mode = null) {
             fCanvas.setActiveObject(newImg); activeObject = newImg; fCanvas.renderAll();
             saveCanvasState();
             if (productId) trackProductSelection(productId, imageUrl, mode);
+            if (typeof callback === 'function') callback();
             return;
         }
 
@@ -3307,12 +3724,57 @@ function toggleLayersModal() {
     fCanvas.discardActiveObject(); fCanvas.renderAll();
     const modal = document.getElementById('layersModal'), c = document.getElementById('layersContainer'); c.innerHTML = '';
     fCanvas.getObjects().filter(o => !o._isGuideLine).forEach(obj => {
-        let icon = 'type', label = obj._label || obj.text || 'Component';
-        if (obj.type === 'textbox') { icon = 'type'; label = obj._label || (obj.text ? obj.text.substring(0,20) : 'Text'); }
-        else if (obj._objectType === 'sticker') { icon = 'smile'; } else if (obj._objectType === 'logo' || obj.type === 'image') { icon = 'image'; label = obj._label || 'Image'; }
-        const item = document.createElement('div'); item.className = 'layer-item';
-        item.innerHTML = `<i data-lucide="${icon}"></i><span class="layer-text">${label}</span>`;
-        item.onclick = () => { modal.style.display = 'none'; setTimeout(() => { fCanvas.setActiveObject(obj); fCanvas.renderAll(); }, 50); };
+        let icon = 'type', label = 'Component';
+        
+        if (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text') { 
+            icon = 'type'; 
+            if (obj.text && obj.text.trim() !== '') {
+                let cleanText = obj.text.replace(/\n/g, ' ');
+                label = cleanText.length > 25 ? cleanText.substring(0, 25) + '...' : cleanText;
+            } else {
+                label = obj._label || 'Text';
+            }
+        } else {
+            label = obj._label || 'Component';
+            if (obj._objectType === 'sticker') { icon = 'smile'; } 
+            else if (obj._objectType === 'logo' || obj.type === 'image') { icon = 'image'; label = obj._label || 'Image'; }
+        }
+        
+        let previewHtml = `<i data-lucide="${icon}"></i>`;
+        if (obj.type !== 'textbox' && obj.type !== 'i-text' && obj.type !== 'text') {
+            try {
+                if (obj.type === 'image' && obj._element && obj._element.src) {
+                    previewHtml = `<img src="${obj._element.src}" style="width:28px;height:28px;object-fit:contain;border-radius:4px;background:#f1f5f9;border:1px solid #e2e8f0;" />`;
+                } else if (typeof obj.toDataURL === 'function') {
+                    let dataUrl = obj.toDataURL({ format: 'png', multiplier: 0.1 });
+                    previewHtml = `<img src="${dataUrl}" style="width:28px;height:28px;object-fit:contain;border-radius:4px;background:#f1f5f9;border:1px solid #e2e8f0;" />`;
+                }
+            } catch(e) {}
+        }
+
+        const item = document.createElement('div'); 
+        item.className = 'layer-item';
+        item.innerHTML = `
+            ${previewHtml}
+            <span class="layer-text" style="flex:1; font-weight: 500; color: #334155; font-size: 14px;">${label}</span>
+            <button class="layer-edit-btn" style="background:#e0e7ff;border:none;border-radius:6px;padding:6px 14px;color:#4f46e5;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;cursor:pointer; transition: all 0.2s;">
+                <i data-lucide="edit-2" style="width:14px;height:14px;"></i> Edit
+            </button>
+        `;
+        
+        // When clicking anywhere on the item OR the edit button, select the object and open the tool menu
+        item.onclick = (e) => { 
+            e.stopPropagation();
+            modal.style.display = 'none'; 
+            setTimeout(() => { 
+                fCanvas.setActiveObject(obj); 
+                fCanvas.renderAll(); 
+                // Explicitly call onObjectSelected so the bottom toolbar shows up with color/text options
+                if (typeof onObjectSelected === 'function') {
+                    onObjectSelected({ target: obj });
+                }
+            }, 100); 
+        };
         c.appendChild(item);
     });
     modal.style.display = 'flex'; if (window.lucide) window.lucide.createIcons();
@@ -3336,7 +3798,12 @@ function renderFrameThumbnails() {
         const scaleDown = Math.min(thumbW / designW, thumbH / designH);
 
         // Derive fonts dir from skins dir (go up from /skins/DesignName to /fonts)
-        const fontsDir = skinsDir.split('/skins/')[0] + '/fonts';
+        let finalSkinsDir = skinsDir;
+        try {
+            const urlObj = new URL(skinsDir);
+            finalSkinsDir = window.location.origin + urlObj.pathname + urlObj.search;
+        } catch(e) {}
+        const fontsDir = finalSkinsDir.split('/skins/')[0] + '/fonts';
 
         // Load fonts first, then render
         const fontsToLoad = [];
@@ -3347,9 +3814,12 @@ function renderFrameThumbnails() {
                     fontsToLoad.push(fontName);
                     try {
                         const fontUrl = `${fontsDir}/${encodeURIComponent(fontName)}.ttf`;
-                        const fontFace = new FontFace(fontName, `url(${fontUrl})`);
-                        document.fonts.add(fontFace);
-                        fontFace.load().catch(() => {});
+                        fetch(fontUrl).then(r => r.ok ? r.blob() : Promise.reject()).then(blob => {
+                            const blobUrl = URL.createObjectURL(blob);
+                            const fontFace = new FontFace(fontName, `url(${blobUrl})`);
+                            document.fonts.add(fontFace);
+                            fontFace.load().catch(() => {});
+                        }).catch(() => {});
                     } catch(e) {}
                 }
             }
@@ -3487,6 +3957,7 @@ window.addEventListener('DOMContentLoaded', () => {
     };
 
     const baseConfig = @json($baseConfigObj);
+    globalBaseConfig = baseConfig;
     if (baseConfig) {
         try {
             const si = document.getElementById('activeFrameImg-source');
@@ -3504,22 +3975,16 @@ window.addEventListener('DOMContentLoaded', () => {
                     console.timeEnd('[DIAG] Base config render');
                     console.log('[DIAG] Base config done. Objects on canvas:', fCanvas.getObjects().length);
                     
-                    // Chain overlay immediately after base
-                    console.time('[DIAG] Frame overlay');
-                    const firstFrame = document.querySelector('.frame-item.selected');
-                    if (firstFrame) {
-                        const frameUrl = firstFrame.getAttribute('onclick');
-                        const urlMatch = frameUrl ? frameUrl.match(/changeFrame\('([^']+)'/) : null;
-                        try {
-                            if (urlMatch && typeof changeFrame === 'function') {
-                                changeFrame(urlMatch[1], firstFrame);
-                            } else {
-                                firstFrame.click();
-                            }
-                        } catch(e) { console.error('[DIAG] Frame overlay error:', e); }
-                        console.timeEnd('[DIAG] Frame overlay');
-                    }
+                    // ── BULLETPROOF FIX FOR DUPLICATE LAYERS ──
+                    // If baseConfig exists, we have already rendered the full template.
+                    // We must NOT automatically apply the first frame from the bottom bar, 
+                    // because it will just overlay the exact same template again and cause duplicate text/images!
+                    // The user can manually click a frame if they want to add a border.
+                    
                     console.timeEnd('[DIAG] Total init time');
+                    
+                    // Clear the 'selected' class from frame items so the user knows no overlay is active yet
+                    document.querySelectorAll('.frame-item').forEach(i => i.classList.remove('selected'));
                     
                     setTimeout(() => {
                         isHistoryTracking = true;
@@ -3537,7 +4002,19 @@ window.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => applyFirstFrameOverlay(), 500);
     }
 });
-window.addEventListener('resize', () => { if (fCanvas) { const { w, h } = getInternalSize(); resizeCanvas(w, h); } });
+// DO NOT CHANGE — locked to prevent mobile canvas shrinking on keyboard open.
+// On mobile, we track the last known viewport width. If only the HEIGHT changed
+// (keyboard opened/closed), we skip resizing entirely. Only width changes trigger resize.
+var _lastResizeWidth = window.innerWidth;
+window.addEventListener('resize', () => {
+    if (!fCanvas) return;
+    const newW = window.innerWidth;
+    // On mobile: skip resize if only height changed (keyboard open/close)
+    if (newW < 768 && newW === _lastResizeWidth) return;
+    _lastResizeWidth = newW;
+    const { w, h } = getInternalSize();
+    resizeCanvas(w, h);
+});
 
 // ── Favorite Frame Logic ──
 function toggleFavoriteFrame(e, frameId, btnElement) {
@@ -3983,6 +4460,297 @@ function doFilterProducts(query) {
     } else if (noResultsEl) {
         noResultsEl.style.display = 'none';
     }
+}
+
+// ── AI Image Generation ──
+var currentAiRefFile = null;
+
+function openAIGenerationModal() {
+    if (!activeObject || activeObject.type !== 'image') {
+        alert('Please select an image layer first.');
+        return;
+    }
+    document.getElementById('aiGenerationModal').style.display = 'flex';
+    document.getElementById('aiPromptInput').value = '';
+    removeAiReference();
+    if (window.lucide) window.lucide.createIcons();
+    
+    // Auto-fill prompt if there's a JSON hint
+    if (activeObject._frameHint) {
+        document.getElementById('aiPromptInput').value = activeObject._frameHint;
+    } else if (POST_AI_DATA && POST_AI_DATA.prompt_hint) {
+        document.getElementById('aiPromptInput').value = POST_AI_DATA.prompt_hint;
+    }
+}
+
+function closeAIGenerationModal() {
+    document.getElementById('aiGenerationModal').style.display = 'none';
+}
+
+function autoSuggestPrompt() {
+    const fallbackPrompts = [
+        "A hyper-realistic studio shot of a modern product, bright lighting, soft shadows",
+        "A beautiful minimalist background with subtle geometric shapes and warm pastel colors",
+        "A professional 3D rendering of an abstract background with smooth waves",
+        "A flat lay composition on a marble table with soft natural window light"
+    ];
+    document.getElementById('aiPromptInput').value = fallbackPrompts[Math.floor(Math.random() * fallbackPrompts.length)];
+}
+
+function previewAiReference(input) {
+    if (input.files && input.files[0]) {
+        currentAiRefFile = input.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('aiReferencePreview').src = e.target.result;
+            document.getElementById('aiReferencePreview').style.display = 'block';
+            document.getElementById('aiReferenceRemoveBtn').style.display = 'flex';
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function removeAiReference() {
+    currentAiRefFile = null;
+    document.getElementById('aiReferenceInput').value = '';
+    document.getElementById('aiReferencePreview').src = '';
+    document.getElementById('aiReferencePreview').style.display = 'none';
+    document.getElementById('aiReferenceRemoveBtn').style.display = 'none';
+}
+
+async function generateAiImage() {
+    const prompt = document.getElementById('aiPromptInput').value.trim();
+    if (!prompt) {
+        toastr.error('Please enter a prompt.');
+        return;
+    }
+    
+    if (!activeObject || activeObject.type !== 'image') {
+        toastr.error('Please select an image to replace.');
+        return;
+    }
+    
+    const btn = document.getElementById('aiGenerateBtn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<div style="width:16px;height:16px;border:2px solid #fff;border-top:2px solid transparent;border-radius:50%;animation:spin 1s linear infinite;"></div> Generating...';
+    btn.disabled = true;
+    
+    try {
+        let base64Ref = null;
+        if (currentAiRefFile) {
+            base64Ref = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(currentAiRefFile);
+            });
+        }
+        
+        const payload = {
+            _token: '{{ csrf_token() }}',
+            prompt: prompt,
+            slot_width: activeObject.width * activeObject.scaleX,
+            slot_height: activeObject.height * activeObject.scaleY,
+            template_id: '{{ $item->id ?? null }}'
+        };
+        
+        if (base64Ref) payload.reference_image = base64Ref;
+        
+        const response = await fetch('{{ route("ai.generate-image") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.message || 'API Error');
+        }
+        
+        if (data.success && data.url) {
+            replaceActiveImageWithUrl(data.url);
+            closeAIGenerationModal();
+            alert('AI Image generated and placed successfully!');
+        } else {
+            throw new Error('Invalid response from server.');
+        }
+        } catch (e) {
+        alert(e.message || 'Failed to generate image.');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        if (window.lucide) window.lucide.createIcons();
+    }
+}
+
+// ── AI Text Generation Modal Logic ──
+function openAiTextModal() {
+    document.getElementById('aiTextModal').style.display = 'flex';
+    document.getElementById('aiTextStep1').style.display = 'block';
+    document.getElementById('aiTextStepLoading').style.display = 'none';
+    document.getElementById('aiTextStep2').style.display = 'none';
+    document.getElementById('aiTextManualPrompt').value = '';
+    
+    const select = document.getElementById('aiTextProductSelect');
+    select.innerHTML = '<option value="">-- No Product (Manual Prompt Only) --</option>';
+    
+    if (myProductsData && myProductsData.has_products) {
+        Object.values(myProductsData.groups).forEach(products => {
+            products.forEach(p => {
+                select.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+            });
+        });
+    } else if (!myProductsData) {
+        // Fetch if not loaded yet
+        fetch(`{{ route('my.product.images') }}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    myProductsData = data;
+                    if (data.has_products) {
+                        Object.values(data.groups).forEach(products => {
+                            products.forEach(p => {
+                                select.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+                            });
+                        });
+                    }
+                }
+            }).catch(e => console.error(e));
+    }
+}
+
+function closeAiTextModal(e) {
+    if (e && e.target !== document.getElementById('aiTextModal')) return;
+    document.getElementById('aiTextModal').style.display = 'none';
+}
+
+async function generateAiText() {
+    const currentFrame = document.querySelector('.frame-item.selected');
+    let dbId = '{{ $id ?? '' }}';
+    if (currentFrame) {
+        dbId = currentFrame.getAttribute('data-db-id') || dbId;
+    }
+
+    // Collect text layers from canvas
+    const canvasLayers = [];
+    fCanvas.getObjects().forEach(obj => {
+        if (obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox') {
+            // Skip frame overlay layers (business contact details, footers, etc.)
+            if (obj._isFrameLayer) return;
+            // Skip hidden or fully transparent layers
+            if (obj.visible === false || obj.opacity === 0) return;
+            
+            let layerName = obj._layerName || obj.name || obj.id || ('text_' + canvasLayers.length);
+            
+            // Save it back to ensure applyAiText uses the EXACT same name
+            obj._layerName = layerName;
+
+            const currentText = (obj.text || '').trim();
+            const skipPatterns = ['www.', 'http', '.com', '.in', '@', '+91', 'phone', 'email', 'website', 'address'];
+            const isSkippable = skipPatterns.some(p => currentText.toLowerCase().includes(p));
+            if (!isSkippable && currentText.length > 0) {
+                let maxLimit = obj._ai_max_chars ? parseInt(obj._ai_max_chars) : Math.max(currentText.length * 2, 50);
+                if (isNaN(maxLimit) || maxLimit <= 0) maxLimit = Math.max(currentText.length * 2, 50);
+                
+                canvasLayers.push({
+                    name: layerName,
+                    current_text: currentText,
+                    max_chars: maxLimit,
+                    ai_role: obj._ai_role || ''
+                });
+            }
+        }
+    });
+
+    if (canvasLayers.length === 0) {
+        toastr.error('No text layers found on canvas.');
+        return;
+    }
+
+    const productId = document.getElementById('aiTextProductSelect').value;
+    const manualPrompt = document.getElementById('aiTextManualPrompt').value.trim();
+    const language = document.getElementById('aiTextLanguage').value;
+
+    document.getElementById('aiTextStep1').style.display = 'none';
+    document.getElementById('aiTextStepLoading').style.display = 'block';
+
+    try {
+        const response = await fetch('{{ route("editor.ai.generate") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({
+                _token: '{{ csrf_token() }}',
+                frame_id: dbId,
+                product_id: productId,
+                manual_prompt: manualPrompt,
+                canvas_layers: canvasLayers,
+                language: language
+            })
+        });
+
+        const data = await response.json();
+        if (data.success && data.content) {
+            const container = document.getElementById('aiTextInputsContainer');
+            container.innerHTML = '';
+            for (const [key, text] of Object.entries(data.content)) {
+                container.innerHTML += `
+                    <div style="margin-bottom: 12px; text-align: left;">
+                        <label style="font-size: 12px; font-weight: 600; color: #64748b; margin-bottom: 4px; display: block;">${key}</label>
+                        <textarea class="ai-generated-input search-input" data-layer-name="${key}" style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; resize: vertical; font-size: 14px; outline: none; color: #0f172a;" rows="3">${text}</textarea>
+                    </div>
+                `;
+            }
+            document.getElementById('aiTextStepLoading').style.display = 'none';
+            document.getElementById('aiTextStep2').style.display = 'flex';
+        } else {
+            throw new Error(data.message || 'Failed to generate content');
+        }
+    } catch (e) {
+        alert(e.message || 'Error communicating with AI service');
+        document.getElementById('aiTextStepLoading').style.display = 'none';
+        document.getElementById('aiTextStep1').style.display = 'block';
+    }
+}
+
+function applyAiText() {
+    const inputs = document.querySelectorAll('.ai-generated-input');
+    const newValues = {};
+    inputs.forEach(inp => {
+        newValues[inp.getAttribute('data-layer-name')] = inp.value.trim();
+    });
+
+    let textIndex = 0;
+    
+    fCanvas.getObjects().forEach(obj => {
+        if (obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox') {
+            const currentText = (obj.text || '').trim();
+            if (obj._isFrameLayer) return;
+            
+            const skipPatterns = ['www.', 'http', '.com', '.in', '@', '+91', 'phone', 'email', 'website', 'address'];
+            const isSkippable = skipPatterns.some(p => currentText.toLowerCase().includes(p));
+            
+            if (!isSkippable && currentText.length > 0) {
+                const layerName = obj._layerName || obj.name || obj.id || ('text_' + textIndex);
+                if (newValues[layerName]) {
+                    // Reset font size to original JSON size BEFORE applying new text
+                    // This allows the flex layout engine to start from a clean slate
+                    if (obj._jsonOrigFontSize > 0) {
+                        obj.set('fontSize', obj._jsonOrigFontSize);
+                    }
+                    obj.set('text', newValues[layerName]);
+                    if (obj.initDimensions) obj.initDimensions();
+                    obj.setCoords();
+                }
+                textIndex++;
+            }
+        }
+    });
+    
+    // Call the new unified Flex-Margin Layout engine
+    solveFlexLayout();
+
+    closeAiTextModal();
+    toastr.success('AI content applied to design.');
 }
 </script>
 <script>

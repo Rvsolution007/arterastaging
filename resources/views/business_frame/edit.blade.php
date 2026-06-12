@@ -24,7 +24,7 @@
         </div>
     @endif
 
-    {!! Form::open(['route' =>['business-frame.update',$businessFrame->id],'method'=>'PATCH','files'=>true]) !!}
+    {!! Form::open(['route' =>['custom-post.update',$businessFrame->id],'method'=>'PATCH','files'=>true]) !!}
     {!! Form::hidden('user_id',optional(Auth::user())->id)!!}
     {!! Form::hidden('id',$businessFrame->id)!!}
     <div class="row">

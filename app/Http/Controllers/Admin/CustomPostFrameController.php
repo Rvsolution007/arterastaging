@@ -382,6 +382,13 @@ class CustomPostFrameController extends Controller
         $category->save();
     }
 
+    public function custom_post_frame_landing(Request $request)
+    {
+        $category = CustomPostFrame::find($request->get("id"));
+        $category->show_on_landing = ($request->get("checked") == "true") ? 1 : 0;
+        $category->save();
+    }
+
     public function custom_post_frame_action(Request $request)
     {
         $ids = explode(",", $request->select_post);

@@ -14,7 +14,7 @@ return new class extends Migration
     public function up()
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->integer('photoroom_bg_used')->default(0)->after('business_category_post_used');
+            $table->integer('photoroom_bg_used')->default(0)->after('category_post_used');
         });
     }
 

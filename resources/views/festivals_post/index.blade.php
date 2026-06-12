@@ -78,6 +78,21 @@
       background-color: #9c27b0; /* Purple for AI */
     }
 
+    /* Landing Column (8th column) */
+    td:nth-child(8) .ui-switcher[aria-checked=false]:before {
+      content: 'No';
+      right: 10px;
+    }
+
+    td:nth-child(8) .ui-switcher[aria-checked=true]:before {
+      content: 'Yes';
+      left: 10px;
+    }
+
+    td:nth-child(8) .ui-switcher[aria-checked=true] {
+      background-color: #f39c12; /* Orange for Landing */
+    }
+
     .ui-switcher:after {
       background-color: #ffffff;
       content: '\0020';
@@ -197,6 +212,7 @@
                   <th>Status</th>
                   <th>Type</th>
                   <th>AI</th>
+                  <th>Landing</th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -241,6 +257,12 @@
                     <td class="align-middle">
                       <input class="ai-switch-ajax" type="checkbox" data-id="{{$frame->id}}" value="1"
                         @if($frame->is_ai == 1) checked @endif>
+                    </td>
+                    <td class="align-middle">
+                      @if($tab != 'video')
+                      <input class="landing-switch-ajax" type="checkbox" data-id="{{$frame->id}}" value="1"
+                        @if($frame->show_on_landing == 1) checked @endif>
+                      @endif
                     </td>
                     <td class="align-middle">
                       <div class="btn-group">
@@ -405,6 +427,7 @@
     $.switcher('.festivals-switch-ajax');
     $.switcher('.type-switch-ajax');
     $.switcher('.ai-switch-ajax');
+    $.switcher('.landing-switch-ajax');
     $.switcher('.video-switch-ajax');
     $.switcher('.video-type-switch-ajax');
 
@@ -559,6 +582,25 @@
           new PNotify({
             title: 'Success!',
             text: "AI Status Has Been Changed.",
+            type: 'success'
+          });
+        },
+      });
+    });
+
+    $(document).on('change', ".landing-switch-ajax", function () {
+      var checked = $(this).is(':checked');
+      var id = $(this).data("id");
+
+      $.ajax({
+        type: "POST",
+        url: "{{url('admin/festivals-post-landing')}}",
+        data: { checked: checked, id: id },
+        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+        success: function (data) {
+          new PNotify({
+            title: 'Success!',
+            text: "Landing Visibility Changed.",
             type: 'success'
           });
         },

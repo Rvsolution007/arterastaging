@@ -79,7 +79,7 @@ input:checked + .slider:before {
             <h3 class="card-title float-left">
                 Custom Category
             </h3>
-            <a href="{{ route('custom-post.create')}}" class="btn btn-success float-right">Add New</a>
+            <a href="{{ route('custom-post-category.create')}}" class="btn btn-success float-right">Add New</a>
         </div> 
       
       <div class="card-body table-responsive table-bordered table-striped">
@@ -113,11 +113,11 @@ input:checked + .slider:before {
               </td>
               <td class="align-middle">
                 <div class="btn-group text-center">
-                    <a href="{{url('admin/custom-post/'.$row->id.'/edit') }}"><button type="button" class="btn btn-success"><span aria-hidden="true" class="fa fa-edit"></span></button></a>
+                    <a href="{{url('admin/custom-post-category/'.$row->id.'/edit') }}"><button type="button" class="btn btn-success"><span aria-hidden="true" class="fa fa-edit"></span></button></a>
                     <a data-id="{{$row->id}}" data-toggle="modal" data-target="#myModal"><button type="button" class="btn btn-danger ml-2"><span aria-hidden="true" class="fa fa-trash"></span></button></a>
                 </div>
               </div>
-                {!! Form::open(['url' => 'admin/custom-post/'.$row->id,'method'=>'DELETE','class'=>'form-horizontal','id'=>'form_'.$row->id]) !!}
+                {!! Form::open(['url' => 'admin/custom-post-category/'.$row->id,'method'=>'DELETE','class'=>'form-horizontal','id'=>'form_'.$row->id]) !!}
                 {!! Form::hidden("id",$row->id) !!}
                 {!! Form::close() !!}
               </td>
@@ -178,7 +178,7 @@ input:checked + .slider:before {
 
       $.ajax({
         type: "POST",
-        url: "{{url('admin/custom-post-status')}}",
+        url: "{{url('admin/custom-post-category-status')}}",
         data: { checked : checked , id : id},
         headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
         success: function(data) {

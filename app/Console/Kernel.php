@@ -57,6 +57,9 @@ class Kernel extends ConsoleKernel
         $schedule->command('system:monitor')->everyFiveMinutes()->runInBackground(); // Task 36
         $schedule->command('ai:detect-anomalies')->hourly()->runInBackground(); // Task 37
         $schedule->command('competitor:track')->dailyAt('00:00')->runInBackground(); // Task 39
+
+        // AI Error Analysis - Daily scan of unanalyzed client errors
+        $schedule->command('artera:ai-error-scan --limit=30')->dailyAt('04:00')->runInBackground();
     }
 
     /**

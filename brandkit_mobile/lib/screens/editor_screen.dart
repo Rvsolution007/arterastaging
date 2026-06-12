@@ -62,7 +62,8 @@ class _EditorScreenState extends State<EditorScreen> {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId') ?? '';
     final baseUrl = ApiService.baseUrl.replaceAll('/123456', '');
-    final targetUrl = '/edit/${widget.type}/${widget.id}?design=${Uri.encodeComponent(widget.designUrl)}';
+    final frameId = widget.frameData['frameId'];
+    final targetUrl = '/edit/${widget.type}/${widget.id}?design=${Uri.encodeComponent(widget.designUrl)}&frame_id=$frameId';
     
 
     final editorUrl = '$baseUrl/webview-login?user_id=$userId&redirect=${Uri.encodeComponent(targetUrl)}';
@@ -82,7 +83,8 @@ class _EditorScreenState extends State<EditorScreen> {
       final userId = prefs.getString('userId') ?? '';
       
       final baseUrl = ApiService.baseUrl.replaceAll('/123456', '');
-      final targetUrl = '/edit/${widget.type}/${widget.id}?design=${Uri.encodeComponent(widget.designUrl)}';
+      final frameId = widget.frameData['frameId'];
+      final targetUrl = '/edit/${widget.type}/${widget.id}?design=${Uri.encodeComponent(widget.designUrl)}&frame_id=$frameId';
       
       // Route through webview-login to sync the API token to the Web Session
       final editorUrl = '$baseUrl/webview-login?user_id=$userId&redirect=${Uri.encodeComponent(targetUrl)}';
@@ -91,6 +93,8 @@ class _EditorScreenState extends State<EditorScreen> {
       
       _controller = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
+        ..clearCache()
+        ..clearLocalStorage()
         ..setNavigationDelegate(NavigationDelegate(
           onPageStarted: (url) {
             debugPrint('[Editor] Page started: $url');
@@ -119,7 +123,7 @@ class _EditorScreenState extends State<EditorScreen> {
               if (widget.type == 'festival') {
                 featureKey = 'festival_post';
               } else if (widget.type == 'category' || widget.type == 'business_custom') {
-                featureKey = 'business_category_post';
+                featureKey = 'category_post';
               }
 
               final adController = Get.find<AdController>();
@@ -302,7 +306,7 @@ class _EditorScreenState extends State<EditorScreen> {
                     child: Container(
                       height: MediaQuery.of(context).size.height * 0.75,
                       color: Colors.white,
-                      child: const AiChatScreen(),
+                      child: const AiChatScreen(source: 'editor'),
                     ),
                   ),
                 );
@@ -343,7 +347,7 @@ class _EditorScreenState extends State<EditorScreen> {
                   child: Container(
                     height: MediaQuery.of(context).size.height * 0.75,
                     color: Colors.white,
-                    child: const AiChatScreen(),
+                    child: const AiChatScreen(source: 'editor'),
                   ),
                 ),
               );

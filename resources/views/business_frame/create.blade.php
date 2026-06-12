@@ -33,7 +33,7 @@
                     </div>
                 @endif
 
-                {!! Form::open(['route' => 'business-frame.store', 'method' => 'post', 'files' => true]) !!}
+                {!! Form::open(['route' => 'custom-post.store', 'method' => 'post', 'files' => true]) !!}
                 {!! Form::hidden('user_id', optional(Auth::user())->id)!!}
                 <div class="row">
                     <div class="col-12">

@@ -11,7 +11,7 @@ class CustomPostFrame extends Model
     protected $table = "custom_post_frame";
 
     protected $fillable = [
-        'custom_frame_type','custom_post_id','user_id','language_id','zip_name','frame_image','status',"paid","height","width","image_type","aspect_ratio","fingerprint"
+        'custom_frame_type','custom_post_id','user_id','language_id','zip_name','frame_image','status',"paid","height","width","image_type","aspect_ratio","fingerprint","show_on_landing"
     ];
 
     protected $casts = [

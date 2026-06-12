@@ -61,7 +61,7 @@ class SubscriptionController extends Controller
             'business_limit' => 'required',
             'custom_post_edit_limit' => 'required|numeric',
             'festival_post_limit' => 'required|numeric',
-            'business_category_post_limit' => 'required|numeric'
+            'category_post_limit' => 'required|numeric'
         ]);
 
         if ($validation->fails()) {
@@ -82,14 +82,15 @@ class SubscriptionController extends Controller
                 "business_limit" =>  $request->get("business_limit"),
                 "custom_post_edit_limit" => $request->get("custom_post_edit_limit", 0),
                 "festival_post_limit" => $request->get("festival_post_limit", 0),
-                "business_category_post_limit" => $request->get("business_category_post_limit", 0),
+                "category_post_limit" => $request->get("category_post_limit", 0),
                 "photoroom_bg_limit" => $request->get("photoroom_bg_limit", 0),
+                "ai_image_limit" => $request->get("ai_image_limit", 0),
                 "custom_post_ad_reward_limit" => $request->get("custom_post_ad_reward_limit", 5),
                 "festival_post_ad_reward_limit" => $request->get("festival_post_ad_reward_limit", 5),
-                "business_category_ad_reward_limit" => $request->get("business_category_ad_reward_limit", 5),
+                "category_ad_reward_limit" => $request->get("category_ad_reward_limit", 5),
                 "custom_post_ad_reward" => $request->get("custom_post_ad_reward_limit", 5) > 0 ? 1 : 0,
                 "festival_post_ad_reward" => $request->get("festival_post_ad_reward_limit", 5) > 0 ? 1 : 0,
-                "business_category_ad_reward" => $request->get("business_category_ad_reward_limit", 5) > 0 ? 1 : 0,
+                "category_ad_reward" => $request->get("category_ad_reward_limit", 5) > 0 ? 1 : 0,
                 "google_product_enable" => ($request->get("google_product_enable"))?1:0,
                 "google_product_id" =>  $request->get("google_product_id"),
             ])->id;
@@ -133,14 +134,15 @@ class SubscriptionController extends Controller
             $subscription->business_limit = $request->business_limit;
             $subscription->custom_post_edit_limit = $request->get("custom_post_edit_limit", 0);
             $subscription->festival_post_limit = $request->get("festival_post_limit", 0);
-            $subscription->business_category_post_limit = $request->get("business_category_post_limit", 0);
+            $subscription->category_post_limit = $request->get("category_post_limit", 0);
             $subscription->photoroom_bg_limit = $request->get("photoroom_bg_limit", 0);
+            $subscription->ai_image_limit = $request->get("ai_image_limit", 0);
             $subscription->custom_post_ad_reward_limit = $request->get("custom_post_ad_reward_limit", 5);
             $subscription->festival_post_ad_reward_limit = $request->get("festival_post_ad_reward_limit", 5);
-            $subscription->business_category_ad_reward_limit = $request->get("business_category_ad_reward_limit", 5);
+            $subscription->category_ad_reward_limit = $request->get("category_ad_reward_limit", 5);
             $subscription->custom_post_ad_reward = $request->get("custom_post_ad_reward_limit", 5) > 0 ? 1 : 0;
             $subscription->festival_post_ad_reward = $request->get("festival_post_ad_reward_limit", 5) > 0 ? 1 : 0;
-            $subscription->business_category_ad_reward = $request->get("business_category_ad_reward_limit", 5) > 0 ? 1 : 0;
+            $subscription->category_ad_reward = $request->get("category_ad_reward_limit", 5) > 0 ? 1 : 0;
             $subscription->google_product_enable = ($request->google_product_enable)?1:0;
             $subscription->google_product_id = $request->google_product_id;
             $subscription->save();

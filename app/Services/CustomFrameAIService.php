@@ -35,6 +35,11 @@ class CustomFrameAIService
      */
     public static function generateForUser(int $frameId, int $userId, bool $forceRegenerate = false): ?array
     {
+        // Prevent auto-generation if user has no products
+        if (!Product::where('user_id', $userId)->exists()) {
+            return null;
+        }
+
         // Reset last log
         self::$lastLog = ['product_id' => null, 'raw_prompt' => null, 'raw_response' => null, 'tokens_used' => 0, 'error' => null];
 
@@ -65,6 +70,11 @@ class CustomFrameAIService
      */
     public static function generateForUserWithProduct(int $frameId, int $userId, int $productId, bool $forceRegenerate = false): ?array
     {
+        // Prevent auto-generation if user has no products
+        if (!Product::where('user_id', $userId)->exists()) {
+            return null;
+        }
+
         // Reset last log
         self::$lastLog = ['product_id' => null, 'raw_prompt' => null, 'raw_response' => null, 'tokens_used' => 0, 'error' => null];
 
@@ -208,10 +218,9 @@ class CustomFrameAIService
                 $generated = self::getFallbackContent($textLayers);
             }
 
-            // Enforce character limits (with ellipsis for clean cut-offs)
             foreach ($textLayers as $tl) {
-                if (isset($generated[$tl['name']]) && mb_strlen($generated[$tl['name']]) > $tl['ai_max_chars']) {
-                    $generated[$tl['name']] = \Illuminate\Support\Str::limit($generated[$tl['name']], $tl['ai_max_chars'], '...');
+                if (isset($generated[$tl['name']]) && is_string($generated[$tl['name']])) {
+                    $generated[$tl['name']] = trim($generated[$tl['name']]);
                 }
             }
 
@@ -233,6 +242,152 @@ class CustomFrameAIService
                 'generated_content' => $generated,
             ]
         );
+
+        return $generated;
+    }
+
+    /**
+     * Generate manual AI content via prompt or specific product.
+     */
+    public static function generateManualContent(int $frameId, int $userId, ?int $productId = null, ?string $manualPrompt = null, array $canvasLayers = [], string $language = 'English'): ?array
+    {
+        self::$lastLog = ['product_id' => null, 'raw_prompt' => null, 'raw_response' => null, 'tokens_used' => 0, 'error' => null];
+
+        $textLayers = [];
+        $purposeText = "A promotional marketing design.";
+        $dataReq = 'single_column';
+        $globalRule = '';
+
+        // Priority 1: Use canvas_layers sent from frontend (works for ALL template types)
+        if (!empty($canvasLayers)) {
+            foreach ($canvasLayers as $cl) {
+                $textLayers[] = [
+                    'name' => $cl['name'] ?? 'text_layer',
+                    'ai_role' => !empty($cl['ai_role']) ? $cl['ai_role'] : 'Write engaging marketing text suitable for this layout element.',
+                    'ai_max_chars' => $cl['max_chars'] ?? 60,
+                    'default_text' => $cl['current_text'] ?? '',
+                ];
+            }
+            \Log::info("AI Generate: Using " . count($textLayers) . " canvas layers from frontend.");
+        }
+
+        // Priority 2: Try DB lookup for BusinessCustomFrame (has json_rules with ai_role etc.)
+        if (empty($textLayers) && $frameId > 0) {
+            $frame = BusinessCustomFrame::with('purpose')->find($frameId);
+            if ($frame && $frame->json_rules) {
+                $jsonRules = json_decode($frame->json_rules, true);
+                if ($jsonRules && isset($jsonRules['layers'])) {
+                    $globalRule = $jsonRules['ai_global_rule'] ?? '';
+                    if ($frame->purpose) {
+                        $purposeText = $frame->purpose->ai_prompt ?? $purposeText;
+                        $dataReq = $frame->purpose->data_requirement ?? 'single_column';
+                    }
+                    foreach ($jsonRules['layers'] as $layer) {
+                        $type = $layer['type'] ?? '';
+                        if ($type === 'text' || $type === 'i-text' || $type === 'textbox') {
+                            $layerName = $layer['name'] ?? $layer['id'] ?? 'text_layer';
+                            $low = strtolower($layerName);
+                            if (in_array($low, ['website', 'email', 'number', 'phone', 'address', 'phoneicon', 'mailicon', 'webicon', 'addressicon'])) continue;
+                            $textLayers[] = [
+                                'name' => $layerName,
+                                'ai_role' => $layer['ai_role'] ?? 'Write engaging marketing text suitable for this layout.',
+                                'ai_max_chars' => $layer['ai_max_chars'] ?? 60,
+                                'default_text' => $layer['text'] ?? '',
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+
+        if (empty($textLayers)) {
+            self::$lastLog['error'] = "No text layers found to generate content for frame #{$frameId}.";
+            \Log::error("CustomFrameAIService::generateManualContent - " . self::$lastLog['error']);
+            return null;
+        }
+
+        // Build prompt context
+        $purposePrompt = "";
+        $productData = [];
+
+        if (!empty($manualPrompt)) {
+            $purposePrompt = "User's Manual Instruction: " . $manualPrompt;
+        } else {
+            $productData = self::getProductContext($userId, $dataReq, $productId);
+            self::$lastLog['product_id'] = $productData['_product_id'] ?? null;
+            $purposePrompt = $purposeText;
+            $purposePrompt = str_replace('{product_name}', $productData['title'] ?? 'Premium Product', $purposePrompt);
+            $purposePrompt = str_replace('{product_price}', $productData['price'] ?? '', $purposePrompt);
+            $purposePrompt = str_replace('{product_description}', $productData['description'] ?? '', $purposePrompt);
+            $purposePrompt = str_replace('{business_name}', $productData['business_name'] ?? '', $purposePrompt);
+
+            foreach ($productData as $key => $value) {
+                if (is_string($value)) {
+                    $purposePrompt = str_replace('{' . $key . '}', $value, $purposePrompt);
+                }
+            }
+        }
+
+        $layerInstructions = "Generate content for these text layers as a JSON object.\nEach key is the layer name, each value is the generated text.\n\n";
+        foreach ($textLayers as $tl) {
+            $layerInstructions .= "- \"{$tl['name']}\": {$tl['ai_role']} (MAX {$tl['ai_max_chars']} characters)\n";
+        }
+
+        $systemPrompt = "You are a professional social media content designer AI.\n\n";
+        if (!empty($globalRule)) {
+            $systemPrompt .= "GLOBAL DESIGN RULE: {$globalRule}\n\n";
+        }
+        $systemPrompt .= "CONTEXT:\n{$purposePrompt}\n\n";
+        if (!empty($productData)) {
+            $systemPrompt .= "PRODUCT DATA:\n" . json_encode($productData, JSON_UNESCAPED_UNICODE) . "\n\n";
+        }
+        $languageInstruction = "5. LANGUAGE: You MUST write ALL content strictly in {$language} language only. Ignore the language of the existing/current text in layers. Every single text value in your JSON output must be in {$language}.\n";
+        $systemPrompt .= "STRICT INSTRUCTIONS:\n1. Output ONLY a raw, valid JSON object.\n2. Keys must exactly match the layer names (keys stay as-is, only values change).\n3. EXTREMELY STRICT CHARACTER LIMITS: Truncate response to stay under the limit.\n4. Engaging social media copy.\n" . $languageInstruction . "\n" . $layerInstructions;
+
+        self::$lastLog['raw_prompt'] = $systemPrompt;
+
+        try {
+            $vertexAI = new VertexAIService($userId);
+            if (!$vertexAI->isConfigured()) {
+                self::$lastLog['error'] = "AI not configured for user #{$userId}.";
+                \Log::error("CustomFrameAIService - " . self::$lastLog['error']);
+                return self::getFallbackContent($textLayers);
+            }
+
+            $result = $vertexAI->generateContent($systemPrompt, [
+                ['role' => 'user', 'text' => 'Generate the content now. Output ONLY the JSON object.']
+            ]);
+
+            $responseText = $result['text'] ?? '';
+            self::$lastLog['raw_response'] = $responseText;
+            self::$lastLog['tokens_used'] = $result['total_tokens'] ?? 0;
+
+            if (preg_match('/```(?:json)?\s*(.*?)\s*```/is', $responseText, $matches)) {
+                $responseText = trim($matches[1]);
+            } else if (preg_match('/\{.*\}/is', $responseText, $matches)) {
+                $responseText = trim($matches[0]);
+            } else {
+                $responseText = trim($responseText);
+            }
+
+            $generated = json_decode($responseText, true);
+
+            if (!$generated || !is_array($generated)) {
+                self::$lastLog['error'] = "Invalid JSON response from AI.";
+                $generated = self::getFallbackContent($textLayers);
+            }
+
+            foreach ($textLayers as $tl) {
+                if (isset($generated[$tl['name']]) && is_string($generated[$tl['name']])) {
+                    $generated[$tl['name']] = trim($generated[$tl['name']]);
+                }
+            }
+
+        } catch (\Exception $e) {
+            self::$lastLog['error'] = $e->getMessage();
+            \Log::error("CustomFrameAIService AI exception: " . $e->getMessage());
+            $generated = self::getFallbackContent($textLayers);
+        }
 
         return $generated;
     }

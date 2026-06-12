@@ -231,11 +231,11 @@
                                 <div class="row align-items-center">
                                     <div class="col-sm-6">
                                         <label class="small text-muted font-weight-bold mb-1">Base Limit</label>
-                                        {!! Form::number('business_category_post_limit', $subscription->business_category_post_limit,['class' => 'form-control form-control-sm','required','min'=>0]) !!}
+                                        {!! Form::number('category_post_limit', $subscription->category_post_limit,['class' => 'form-control form-control-sm','required','min'=>0]) !!}
                                     </div>
                                     <div class="col-sm-6">
                                         <label class="small text-muted font-weight-bold mb-1">Max Ad Uses</label>
-                                        {!! Form::number('business_category_ad_reward_limit', $subscription->business_category_ad_reward_limit ?? 5, ['class' => 'form-control form-control-sm', 'min'=>0]) !!}
+                                        {!! Form::number('category_ad_reward_limit', $subscription->category_ad_reward_limit ?? 5, ['class' => 'form-control form-control-sm', 'min'=>0]) !!}
                                     </div>
                                 </div>
                             </div>
@@ -254,6 +254,27 @@
                                     <div class="col-sm-6">
                                         <label class="small text-muted font-weight-bold mb-1">Base Limit</label>
                                         {!! Form::number('photoroom_bg_limit', $subscription->photoroom_bg_limit,['class' => 'form-control form-control-sm','required','min'=>0]) !!}
+                                    </div>
+                                    <div class="col-sm-6 pt-2 pt-sm-0">
+                                        <small class="text-muted"><i class="fas fa-info-circle text-info"></i> Paid API — no AdMob extension.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Image Generation Limit -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="feature-card p-3">
+                                <div class="feature-header">
+                                    <h6 class="font-weight-bold text-dark mb-0">AI Image Generate</h6>
+                                    <small class="text-muted">Max Imagen 3 API uses</small>
+                                </div>
+                                <div class="row align-items-center">
+                                    <div class="col-sm-6">
+                                        <label class="small text-muted font-weight-bold mb-1">Base Limit</label>
+                                        {!! Form::number('ai_image_limit', $subscription->ai_image_limit ?? 0,['class' => 'form-control form-control-sm','required','min'=>0]) !!}
                                     </div>
                                     <div class="col-sm-6 pt-2 pt-sm-0">
                                         <small class="text-muted"><i class="fas fa-info-circle text-info"></i> Paid API — no AdMob extension.</small>

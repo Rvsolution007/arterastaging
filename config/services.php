@@ -37,4 +37,10 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URL', '/auth/google/callback'),
     ],
 
+    'runpod' => [
+        'api_key' => env('RUNPOD_API_KEY'),
+        'flux_endpoint_id' => env('RUNPOD_FLUX_ENDPOINT_ID'),
+        'wan_endpoint_id' => env('RUNPOD_WAN_ENDPOINT_ID'),
+    ],
+
 ];

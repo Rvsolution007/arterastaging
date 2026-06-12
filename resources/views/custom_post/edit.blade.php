@@ -24,7 +24,7 @@
             </div>
         @endif
 
-        {!! Form::open(['route' =>['custom-post.update',$customPost->id],'method'=>'PATCH','files'=>true]) !!}
+        {!! Form::open(['route' =>['custom-post-category.update',$customPost->id],'method'=>'PATCH','files'=>true]) !!}
         {!! Form::hidden('user_id',optional(Auth::user())->id)!!}
         {!! Form::hidden('id',$customPost->id)!!}
         <div class="row">

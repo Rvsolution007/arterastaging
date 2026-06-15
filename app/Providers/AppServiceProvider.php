@@ -27,19 +27,15 @@ class AppServiceProvider extends ServiceProvider
     public function boot()
     {
         // Force HTTPS on any non-localhost domain (staging, production, etc.)
-        // This does NOT depend on APP_ENV — it checks the actual hostname
-        $host = request()->getHost();
-        $isLocal = in_array($host, ['localhost', '127.0.0.1']) || str_starts_with($host, '192.168.');
+        // Get actual domain, bypassing proxy issues where request()->getHost() returns localhost
+        $httpHost = $_SERVER['HTTP_X_FORWARDED_HOST'] ?? $_SERVER['HTTP_HOST'] ?? request()->getHost();
+        $isLocal = in_array($httpHost, ['localhost', '127.0.0.1']) || str_starts_with($httpHost, '192.168.');
         
         if (!$isLocal) {
             URL::forceScheme('https');
-            // Also force the root URL to use https if APP_URL was set with http
-            $appUrl = config('app.url');
-            if ($appUrl && str_starts_with($appUrl, 'http://')) {
-                $appUrl = str_replace('http://', 'https://', $appUrl);
-                config(['app.url' => $appUrl]);
-                URL::forceRootUrl($appUrl);
-            }
+            // Force the root URL to use the actual domain we are on.
+            // This completely fixes the issue where asset() incorrectly appends /Artera/ to CSS URLs
+            URL::forceRootUrl('https://' . $httpHost);
         }
         
         Paginator::useBootstrapFour();

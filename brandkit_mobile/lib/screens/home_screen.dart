@@ -372,8 +372,8 @@ class _HomeScreenState extends State<HomeScreen> {
         onAction: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomPostsScreen()))
       ),
       AppSpacing.gapV16,
-      const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16.0),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: SizedBox(
           height: 170,
           child: ComingSoonWidget(title: 'Custom Posts'),

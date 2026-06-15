@@ -844,6 +844,14 @@
             <input type="range" id="fontSizeSlider" min="10" max="200" value="24" style="width:100%;height:6px;appearance:none;background:#e2e8f0;border-radius:3px;outline:none;" oninput="changeFontSize(this.value)">
         </div>
 
+        <div id="scaleControl" class="tool-sub-panel" style="display:none; flex-direction:column; align-items:center;">
+            <div style="font-size:14px;font-weight:800;color:#1e293b;margin-bottom:12px;">Object Size</div>
+            <div style="display:flex; gap: 16px;">
+                <button onclick="scaleObject(-0.05)" style="padding:10px 30px;background:#f1f5f9;border:none;border-radius:8px;font-size:18px;font-weight:800;cursor:pointer;color:#4f46e5;box-shadow: 0 2px 4px rgba(0,0,0,0.05);"><i data-lucide="minus"></i></button>
+                <button onclick="scaleObject(0.05)" style="padding:10px 30px;background:#4f46e5;border:none;border-radius:8px;font-size:18px;font-weight:800;cursor:pointer;color:white;box-shadow: 0 4px 10px rgba(79,70,229,0.3);"><i data-lucide="plus"></i></button>
+            </div>
+        </div>
+
         <div id="nudgeControl" class="tool-sub-panel" style="display:none; flex-direction:column; align-items:center;">
             <div style="font-size:14px;font-weight:800;color:#1e293b;margin-bottom:12px;">Nudge Position</div>
             <div style="display:grid; grid-template-columns: 48px 48px 48px; grid-template-rows: 48px 48px; gap:8px;">
@@ -2200,7 +2208,29 @@ function changeColor(v) {
         saveCanvasState();
     }
 }
-function toggleSizePanel() { const p = document.getElementById('fontSizeControl'); p.style.display = p.style.display === 'block' ? 'none' : 'block'; }
+function toggleSizePanel() { 
+    closeAllPanels();
+    if (activeObject && (activeObject.type === 'textbox' || activeObject.type === 'i-text')) {
+        const p = document.getElementById('fontSizeControl'); 
+        p.style.display = p.style.display === 'block' ? 'none' : 'block'; 
+    } else {
+        const p = document.getElementById('scaleControl'); 
+        p.style.display = p.style.display === 'flex' ? 'none' : 'flex'; 
+    }
+}
+function scaleObject(delta) {
+    if (!activeObject) return;
+    const newScaleX = activeObject.scaleX + delta;
+    const newScaleY = activeObject.scaleY + delta;
+    if (newScaleX > 0.05 && newScaleY > 0.05) {
+        activeObject.set({ scaleX: newScaleX, scaleY: newScaleY });
+        activeObject.setCoords();
+        fCanvas.renderAll();
+        if (typeof saveCanvasState === 'function' && typeof isHistoryTracking !== 'undefined' && isHistoryTracking) {
+            saveCanvasState();
+        }
+    }
+}
 function toggleNudgePanel() { 
     const p = document.getElementById('nudgeControl'); 
     p.style.display = p.style.display === 'flex' ? 'none' : 'flex';
@@ -2272,7 +2302,7 @@ function removeActiveElement() {
 // ── Panels ──
 function toggleFontList() { const p = document.getElementById('fontPanel'); p.style.display = p.style.display === 'flex' ? 'none' : 'flex'; }
 function closeAllPanels() {
-    ['framePanel','frameColorPanel','fontPanel','fontSizeControl','nudgeControl'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+    ['framePanel','frameColorPanel','fontPanel','fontSizeControl','scaleControl','nudgeControl'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
 }
 function toggleFilterMenu() { fCanvas.discardActiveObject(); fCanvas.renderAll(); document.getElementById('filterMenu').classList.toggle('active'); }
 function filterFrames(catId, label, el) {

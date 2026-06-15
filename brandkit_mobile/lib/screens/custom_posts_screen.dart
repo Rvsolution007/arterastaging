@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import '../widgets/coming_soon_widget.dart';
 
 class CustomPostsScreen extends StatelessWidget {
-  final int categoryId;
-  final String categoryName;
+  final int? initialCategoryId;
 
   const CustomPostsScreen({
     super.key,
-    required this.categoryId,
-    required this.categoryName,
+    this.initialCategoryId,
   });
 
   @override
@@ -16,7 +14,7 @@ class CustomPostsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(categoryName, style: const TextStyle(color: Colors.black)),
+        title: const Text('Custom Posts', style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),

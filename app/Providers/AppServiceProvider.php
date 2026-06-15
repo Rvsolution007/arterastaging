@@ -5,6 +5,7 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\URL;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -25,12 +26,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        if (env('APP_ENV') !== 'local' && request()->server('HTTP_X_FORWARDED_PROTO') == 'https') {
-            \Illuminate\Support\Facades\URL::forceScheme('https');
-        } elseif (env('APP_ENV') !== 'local' && strpos(env('APP_URL'), 'https://') === 0) {
-            \Illuminate\Support\Facades\URL::forceScheme('https');
-        } else {
-            \Illuminate\Support\Facades\URL::forceScheme('https'); // Force HTTPS on staging/prod anyway
+        // Force HTTPS for all generated URLs (asset(), url(), route()) on non-local environments
+        // This is critical for staging/production behind reverse proxies (EasyPanel, Nginx, etc.)
+        if (config('app.env') !== 'local') {
+            URL::forceScheme('https');
+        } elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+            URL::forceScheme('https');
         }
         
         Paginator::useBootstrapFour();
@@ -54,13 +55,6 @@ class AppServiceProvider extends ServiceProvider
             }
         } catch (\Exception $e) {
             // Ignore if DB not ready
-        }
-
-        // Force HTTPS for all assets and routes when behind a proxy like EasyPanel
-        if (config('app.env') !== 'local') {
-            \Illuminate\Support\Facades\URL::forceScheme('https');
-        } elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
-            \Illuminate\Support\Facades\URL::forceScheme('https');
         }
     }
 }

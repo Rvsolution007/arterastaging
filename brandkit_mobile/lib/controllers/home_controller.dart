@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import '../config/app_config.dart';
 import 'subscription_controller.dart';
 import '../services/notification_service.dart';
 
@@ -398,7 +399,10 @@ class HomeController extends GetxController {
     // Extract base URL from ApiService and build uploads path
     final apiBase = ApiService.baseUrl;
     final uri = Uri.parse(apiBase);
-    final baseUrl = '${uri.scheme}://${uri.host}${uri.port != 80 && uri.port != 443 ? ':${uri.port}' : ''}/Artera/uploads';
+    final hostPart = '${uri.scheme}://${uri.host}${uri.port != 80 && uri.port != 443 ? ':${uri.port}' : ''}';
+    // On local, uploads are at /Artera/uploads; on staging/prod, at /uploads
+    final uploadsPath = AppConfig.isLocal ? '/Artera/uploads' : '/uploads';
+    final baseUrl = '$hostPart$uploadsPath';
     debugPrint('[HomeCtrl] Generated uploadsBaseUrl: $baseUrl');
     return baseUrl;
   }

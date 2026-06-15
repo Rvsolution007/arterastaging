@@ -11,14 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('app_translations', function (Blueprint $table) {
-            $table->id();
-            $table->string('language_code', 10)->unique();
-            $table->string('title');
-            $table->integer('status')->default(1);
-            $table->json('translations')->nullable();
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('app_translations')) {
+            Schema::create('app_translations', function (Blueprint $table) {
+                $table->id();
+                $table->string('language_code', 10)->unique();
+                $table->string('title');
+                $table->integer('status')->default(1);
+                $table->json('translations')->nullable();
+                $table->timestamps();
+            });
+        }
     }
 
     /**

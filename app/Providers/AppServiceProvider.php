@@ -16,7 +16,21 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register()
     {
-        //
+        // ==========================================
+        // DEVOPS: Intercept ASSET_URL early!
+        // ==========================================
+        // The UrlGenerator singleton captures config('app.asset_url') VERY early.
+        // If the staging .env file has a broken ASSET_URL or APP_URL (e.g. with /Artera),
+        // we MUST override it here in register() before the singleton is created.
+        $request = request();
+        $host = $request->header('X-Forwarded-Host') ?? $request->header('Host') ?? $request->getHost();
+        $host = explode(':', $host)[0];
+        
+        $isLocal = in_array($host, ['localhost', '127.0.0.1', '::1']) || str_starts_with($host, '192.168.') || str_ends_with($host, '.test');
+        
+        if (!$isLocal) {
+            config(['app.asset_url' => 'https://' . $host]);
+        }
     }
 
     /**

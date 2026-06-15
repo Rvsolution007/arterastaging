@@ -32,58 +32,111 @@ class InteractiveLayer extends StatelessWidget {
       
       final double x = (layerConfig['x'] ?? 0).toDouble() * scale;
       final double y = (layerConfig['y'] ?? 0).toDouble() * scale;
-      final double w = (layerConfig['w'] ?? layerConfig['width'] ?? 0).toDouble() * scale;
-      final double h = (layerConfig['h'] ?? layerConfig['height'] ?? 0).toDouble() * scale;
+      double rawW = (layerConfig['w'] ?? layerConfig['width'] ?? 0).toDouble();
+      double rawH = (layerConfig['h'] ?? layerConfig['height'] ?? 0).toDouble();
+
+      // For frames lacking explicit dimensions, force them to 100% canvas size
+      if ((layerName == '_frame_bg' || layerName == '_frame' || layerName == 'frame') && (rawW <= 0 || rawH <= 0)) {
+        rawW = (controller.templateConfig['info']?['width'] ?? controller.templateConfig['width'] ?? 1080).toDouble();
+        rawH = (controller.templateConfig['info']?['height'] ?? controller.templateConfig['height'] ?? 1080).toDouble();
+      }
+
+      final double opacity = (layerConfig['opacity'] ?? 1.0).toDouble();
+      if (opacity <= 0.0) return const SizedBox.shrink();
+
+      final double layerScaleX = (layerConfig['scaleX'] ?? 1.0).toDouble();
+      final double layerScaleY = (layerConfig['scaleY'] ?? 1.0).toDouble();
+
+      final double w = rawW * layerScaleX * scale;
+      final double h = rawH * layerScaleY * scale;
       final double angle = (layerConfig['angle'] ?? 0).toDouble();
 
-      return Positioned(
-        left: x,
-        top: y,
-        width: w > 0 ? w : null,
-        height: h > 0 ? h : null,
-        child: Transform.rotate(
-          angle: angle * math.pi / 180,
-          child: GestureDetector(
-            onTap: () {
-              controller.selectLayer(layerName);
-            },
-            onPanUpdate: isSelected ? (details) {
-              // Update position
-              final dx = details.delta.dx / scale;
-              final dy = details.delta.dy / scale;
-              final newX = (layerConfig['x'] ?? 0).toDouble() + dx;
-              final newY = (layerConfig['y'] ?? 0).toDouble() + dy;
-              
-              controller.updateLayerBounds(
-                layerName, 
-                newX, 
-                newY, 
-                (layerConfig['w'] ?? layerConfig['width'] ?? 0).toDouble(), 
-                (layerConfig['h'] ?? layerConfig['height'] ?? 0).toDouble(), 
-                angle
-              );
-            } : null,
-            onPanEnd: isSelected ? (_) => controller.commitLayerChange() : null,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                child,
-                if (isSelected)
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFF6366F1), width: 2),
-                      ),
+      // For layers with zero/missing dimensions, use the child's intrinsic size
+      // but cap it to prevent unbounded overflow
+      final bool isText = layerConfig['type'] == 'text';
+      final double? posW = w > 0 ? w : null;
+      final double? posH = (h > 0 && !isText) ? h : null;
+
+      final bool canInteract = true;
+
+      Widget layerContent = Transform.rotate(
+        angle: angle * math.pi / 180,
+        child: canInteract ? GestureDetector(
+          onTap: () {
+            controller.selectLayer(layerName);
+          },
+          onPanUpdate: isSelected ? (details) {
+            final layers = controller.templateConfig['layers'] as List<dynamic>?;
+            final currentLayer = layers?.firstWhere((l) => (l['name'] ?? l['id']).toString() == layerName, orElse: () => null);
+            if (currentLayer == null) return;
+
+            // Update position using synchronous state to prevent drag jitter
+            final dx = details.delta.dx / scale;
+            final dy = details.delta.dy / scale;
+            final currentX = (currentLayer['x'] ?? 0).toDouble();
+            final currentY = (currentLayer['y'] ?? 0).toDouble();
+            
+            controller.updateLayerBounds(
+              layerName, 
+              currentX + dx, 
+              currentY + dy, 
+              (currentLayer['w'] ?? currentLayer['width'] ?? 0).toDouble(), 
+              (currentLayer['h'] ?? currentLayer['height'] ?? 0).toDouble(), 
+              angle
+            );
+          } : null,
+          onPanEnd: isSelected ? (_) => controller.commitLayerChange() : null,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              child,
+              if (isSelected)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: const Color(0xFF6366F1), width: 2),
                     ),
                   ),
-                if (isSelected)
-                  ..._buildHandles(),
-              ],
-            ),
+                ),
+              if (isSelected)
+                ..._buildHandles(),
+            ],
           ),
-        ),
+        ) : child,
+      );
+
+      final String just = (layerConfig['justification']?.toString().toLowerCase().trim()) ?? 'left';
+      double? finalLeft;
+      double? finalRight;
+      
+      if (posW != null) {
+        // If width is known, always use left: x and width: posW
+        // The container inside will handle the right alignment
+        finalLeft = x;
+      } else {
+        // If width is unknown, alignment determines origin
+        if (just == 'right') {
+          // Web editor: originX = right, tLeft = x. Right edge is at x!
+          final double canvasW = (controller.templateConfig['info']?['width'] ?? controller.templateConfig['width'] ?? 1080).toDouble() * scale;
+          finalRight = canvasW - x;
+        } else if (just == 'center') {
+          // Fallback, not strictly perfect without width
+          finalLeft = x; 
+        } else {
+          finalLeft = x;
+        }
+      }
+
+      return Positioned(
+        left: finalLeft,
+        right: finalRight,
+        top: y,
+        width: posW,
+        height: posH,
+        child: layerContent,
       );
     });
+
   }
 
   List<Widget> _buildHandles() {

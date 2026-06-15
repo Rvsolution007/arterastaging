@@ -346,6 +346,9 @@ class HomeApi extends Controller
 
     private function injectDynamicBackgroundImageArray($parsedJson, $userId)
     {
+        // Bypass injection so the custom template retains its original background
+        return $parsedJson;
+        
         \Illuminate\Support\Facades\Log::info("DEBUG API injectBG: Started for user $userId");
         if (!$parsedJson || !isset($parsedJson['layers']) || !$userId) {
             \Illuminate\Support\Facades\Log::info("DEBUG API injectBG: Missing json, layers, or userId. Aborting.");
@@ -1206,13 +1209,24 @@ class HomeApi extends Controller
                     }
                 }
 
+                $image_val = ($c->frame_image)?((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$c->frame_image):asset('uploads/'.$c->frame_image)):"";
+                if(empty($image_val) && $c->zip_name) {
+                    if(StorageSetting::getStorageSetting('storage') == 'DigitalOcean') {
+                        $image_val = Storage::disk('spaces')->url('uploads/template/'.$c->zip_name.'/preview.jpg');
+                    } else {
+                        if(file_exists('./uploads/template/'.$c->zip_name.'/preview.jpg')) {
+                            $image_val = asset('uploads/template/'.$c->zip_name.'/preview.jpg');
+                        }
+                    }
+                }
+
                 $data[] = array(
                     "postId" => $c->custom_post->name."".$c->id,
                     "id" => $c->custom_post_id,
                     "type" => "custom ".$c->custom_frame_type,
                     "is_template" => true,
                     "language" => $c->language->title,
-                    "image" => ($c->frame_image)?((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$c->frame_image):asset('uploads/'.$c->frame_image)):"",
+                    "image" => $image_val,
                     "is_paid" => ($c->paid==1)?true:false,
                     "height" => $c->height,
                     "width" => $c->width,
@@ -3861,10 +3875,21 @@ class HomeApi extends Controller
                         }
                     }
                 }
+                $image_val = ($cc->frame_image) ? ((StorageSetting::getStorageSetting('storage') == 'DigitalOcean') ? Storage::disk('spaces')->url('uploads/'.$cc->frame_image) : asset('uploads/'.$cc->frame_image)) : '';
+                if(empty($image_val) && $zip_name) {
+                    if(StorageSetting::getStorageSetting('storage') == 'DigitalOcean') {
+                        $image_val = Storage::disk('spaces')->url('uploads/template/'.$zip_name.'/preview.jpg');
+                    } else {
+                        if(file_exists('./uploads/template/'.$zip_name.'/preview.jpg')) {
+                            $image_val = asset('uploads/template/'.$zip_name.'/preview.jpg');
+                        }
+                    }
+                }
+
                 $frames_data[] = [
                     'frameId' => $cc->id,
                     'type' => 'custom',
-                    'image' => ($cc->frame_image) ? ((StorageSetting::getStorageSetting('storage') == 'DigitalOcean') ? Storage::disk('spaces')->url('uploads/'.$cc->frame_image) : asset('uploads/'.$cc->frame_image)) : '',
+                    'image' => $image_val,
                     'language' => $cc->language ? $cc->language->title : 'All',
                     'languageId' => $cc->language_id ?? 0,
                     'isPaid' => ($cc->paid == 1) ? true : false,
@@ -4121,6 +4146,49 @@ class HomeApi extends Controller
             'status' => 'Success',
             'message' => 'Withdraw request submitted successfully.',
         ], 200);
+    }
+
+    public function generateAiContent(Request $request)
+    {
+        $userId = $request->get('userId');
+        if (!$userId) {
+            return response()->json(['success' => false, 'message' => 'Not authenticated'], 401);
+        }
+
+        $frameId = $request->input('frame_id');
+        $productId = $request->input('product_id');
+        $manualPrompt = $request->input('manual_prompt');
+        $canvasLayers = $request->input('canvas_layers', []);
+        $language = $request->input('language', 'English');
+
+        \Log::info("Mobile AI Generate called", [
+            'frame_id' => $frameId, 'user_id' => $userId, 
+            'canvas_layers_count' => count($canvasLayers),
+            'language' => $language
+        ]);
+
+        if (empty($canvasLayers)) {
+            return response()->json(['success' => false, 'message' => 'No text layers found'], 400);
+        }
+
+        $content = \App\Services\CustomFrameAIService::generateManualContent(
+            $frameId ? (int) $frameId : 0, 
+            $userId, 
+            $productId ? (int) $productId : null, 
+            $manualPrompt,
+            $canvasLayers,
+            $language
+        );
+
+        if ($content === null) {
+            $err = \App\Services\CustomFrameAIService::$lastLog['error'] ?? 'Unknown error';
+            return response()->json(['success' => false, 'message' => 'Could not generate content: ' . $err], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'content' => $content,
+        ]);
     }
 
     public function getFaqs()

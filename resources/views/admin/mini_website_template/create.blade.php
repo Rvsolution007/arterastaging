@@ -210,7 +210,12 @@ Dynamic Data Placeholders (Use EXACTLY as written, they will be string-replaced 
 - [[EMAIL]] (Email Address)
 - [[ADDRESS]] (Physical Address)
 - [[WEBSITE]] (Website Link)
+- [[MAP_URL]] (Google Maps Link)
+- [[WHATSAPP_NUMBER]] (WhatsApp Number with country code, e.g. 919876543210)
+- [[CLIENTS_COUNT]] (e.g. 5000+)
+- [[YEARS_EXPERIENCE]] (e.g. 10+)
 - [[ABOUT_US]] (Company Description)
+- [[PRODUCTS_SERVICES]] (Products & Services Description)
 - [[FACEBOOK]], [[TWITTER]], [[INSTAGRAM]], [[YOUTUBE]], [[LINKEDIN]] (Social Media URLs)
 
 Sections to Include (Top to Bottom):
@@ -218,19 +223,26 @@ Sections to Include (Top to Bottom):
 2. Profile: A circular Logo overlapping the header, centered, with [[BUSINESS_NAME]] below it.
 3. Quick Actions (4 Circular Buttons in a row): 
    - Call (tel:[[PHONE]])
-   - WhatsApp (https://wa.me/[[PHONE]])
-   - Location (map link or '#')
+   - WhatsApp (https://wa.me/[[WHATSAPP_NUMBER]])
+   - Location ([[MAP_URL]])
    - Email (mailto:[[EMAIL]])
 4. Contact Details List (Icon + Text layout):
    - Address pin icon: [[ADDRESS]]
    - Envelope icon: [[EMAIL]]
    - Globe icon: [[WEBSITE]]
    - Phone icon: [[PHONE]]
-5. Social Links: 5 circular outline icons in a row (Facebook, Twitter, Instagram, Youtube, Linkedin) linking to their respective placeholders.
-6. About Us Section: 
+5. Stats/Highlights Row (3 boxes):
+   - Clients: [[CLIENTS_COUNT]]
+   - Experience: [[YEARS_EXPERIENCE]] Years
+   - Support: 24/7
+6. Social Links: 5 circular outline icons in a row (Facebook, Twitter, Instagram, Youtube, Linkedin) linking to their respective placeholders.
+7. About Us Section: 
    - Section Title: "ABOUT US" (styled in Primary Color)
    - "Business Name : [[BUSINESS_NAME]]"
    - Description text: [[ABOUT_US]]
+8. Services/Products Section:
+   - Section Title: "OUR SERVICES"
+   - Description text: [[PRODUCTS_SERVICES]]
    
 Do NOT write markdown, explanations, or backticks. Output ONLY the raw HTML code with inline CSS/JS.`;
 

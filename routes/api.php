@@ -106,7 +106,9 @@ Route::
             // Mini Website API
             Route::get('/mini-website/templates', 'MiniWebsiteApiController@templates');
             Route::post('/mini-website/generate', 'MiniWebsiteApiController@generate');
+            Route::post('/mini-website/update/{id}', 'MiniWebsiteApiController@update');
             Route::get('/mini-website/my-links', 'MiniWebsiteApiController@myLinks');
+            Route::post('/mini-website/delete/{id}', 'MiniWebsiteApiController@delete');
 
             Route::post('/create-payment', 'HomeApi@addPayment');
             Route::post('stripe-payment', 'HomeApi@stripePayment');
@@ -143,6 +145,7 @@ Route::
             Route::get('/referral-detail', 'HomeApi@referral_detail');
 
             Route::get('/user-custom-frame', 'HomeApi@userCustomFrame');
+            Route::post('/editor/ai-content/generate', 'HomeApi@generateAiContent');
 
             Route::get('/get-video', 'HomeApi@getVideo');
             Route::post('/coupon-code-validation', 'HomeApi@coupon_code_validation');

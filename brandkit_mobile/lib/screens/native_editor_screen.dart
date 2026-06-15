@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:convert';
+import '../config/app_config.dart';
 import '../controllers/native_editor_controller.dart';
+import '../services/api_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 import '../utils/app_colors.dart';
 import '../widgets/editor_canvas_widget.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'ai_chat_screen.dart';
 
 class NativeEditorScreen extends StatefulWidget {
@@ -87,11 +92,55 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
     }
 
     // Initialize controller with config
+    // Use designUrl as the base template image for brightness detection
+    String baseImg = widget.frameData['baseImgUrl'] ?? '';
+    if (baseImg.isEmpty) baseImg = widget.designUrl;
+    if (baseImg.isEmpty) baseImg = widget.frameData['image'] ?? '';
+    
+    // Final fallback: extract from background layer in config
+    if (baseImg.isEmpty && config['layers'] != null) {
+      for (var layer in config['layers']) {
+        if (layer['is_background'] == true || layer['name'] == 'bg' || layer['name'] == 'image1') {
+          baseImg = layer['src'] ?? '';
+          if (baseImg.isNotEmpty) break;
+        }
+      }
+    }
+    
+    // Ensure baseImg is absolute
+    if (baseImg.isNotEmpty && !baseImg.startsWith('http')) {
+      String baseUrl = templateBaseUrl.isNotEmpty ? templateBaseUrl : AppConfig.baseUrl.replaceAll('/123456', '') + '/public';
+      if (baseImg.startsWith('../')) {
+        baseImg = '$baseUrl/${baseImg.replaceFirst('../', '')}';
+      } else if (baseImg.startsWith('uploads/')) {
+        baseImg = '$baseUrl/$baseImg';
+      } else {
+        baseImg = '$baseUrl/skins/$baseImg';
+      }
+    }
+    
+    debugPrint('╔══════════════════════════════════════════════════════');
+    debugPrint('║ [INIT] widget.type="${widget.type}"');
+    debugPrint('║ [INIT] designUrl="${widget.designUrl}"');
+    debugPrint('║ [INIT] frameData.image="${widget.frameData['image']}"');
+    debugPrint('║ [INIT] frameData.type="${widget.frameData['type']}"');
+    debugPrint('║ [INIT] templateBaseUrl="$templateBaseUrl"');
+    debugPrint('║ [INIT] baseImg="$baseImg"');
+    debugPrint('║ [INIT] config.info=${config['info']}');
+    debugPrint('║ [INIT] config.layers.length=${(config['layers'] as List?)?.length ?? 0}');
+    if (config['layers'] != null) {
+      for (var layer in config['layers']) {
+        debugPrint('║ [INIT]   layer: name="${layer['name'] ?? layer['id']}" type="${layer['type']}" src="${layer['src'] ?? 'N/A'}"');
+      }
+    }
+    debugPrint('╚══════════════════════════════════════════════════════');
+    
     controller.initConfig(
       config,
       templateBaseUrl,
       widget.frameData['uploadsBaseUrl'] ?? '',
-      widget.frameData['baseImgUrl'] ?? '',
+      baseImg,
+      widget.type,
     );
   }
 
@@ -110,7 +159,14 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close, color: Colors.black87, size: 24),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            if (controller.selectedLayerId.value.isNotEmpty) {
+              controller.selectLayer('');
+              controller.activeTool.value = '';
+            } else {
+              Navigator.pop(context);
+            }
+          },
         ),
         title: const Text(
           'Edit Design',
@@ -146,55 +202,38 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: const Icon(Icons.arrow_back_ios_new, size: 16, color: Colors.black87),
-                ),
-                const SizedBox(width: 8),
-                Flexible(
+
+                Expanded(
                   child: Text(
                     _getTypeTitle(),
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: 12),
-                Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF3B28CC),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.grid_view, color: Colors.white, size: 18),
-                    onPressed: () => Navigator.pop(context),
-                    constraints: const BoxConstraints(),
-                    padding: const EdgeInsets.all(6),
-                  ),
-                ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 IconButton(
-                  icon: const Icon(Icons.undo, color: Colors.black54, size: 22),
+                  icon: const Icon(Icons.undo, color: Colors.black54, size: 18),
                   onPressed: () => controller.undo(),
                   constraints: const BoxConstraints(),
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.redo, color: Colors.black54, size: 22),
+                  icon: const Icon(Icons.redo, color: Colors.black54, size: 18),
                   onPressed: () => controller.redo(),
                   constraints: const BoxConstraints(),
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 4),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF3B28CC),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                    minimumSize: const Size(0, 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                    minimumSize: const Size(0, 32),
                   ),
                   onPressed: () {},
-                  child: const Text('Download', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                  child: const Text('Download', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                 ),
               ],
             ),
@@ -209,36 +248,51 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                 color: const Color(0xFFE2E8F0), // Match web canvas area background
                 width: double.infinity,
                 child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20.0),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 15,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: Obx(() {
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return Obx(() {
                         if (controller.templateConfig.isEmpty) {
                           return const Center(child: Text('No template data found.'));
                         }
                         
-                        // Calculate optimal width based on screen size minus padding
-                        final maxWidth = MediaQuery.of(context).size.width - 40;
+                        // Calculate best fit dimensions to ensure 100% visibility
+                        final config = controller.templateConfig;
+                        final double designW = (config['info']?['width'] ?? config['width'] ?? 1080).toDouble();
+                        final double designH = (config['info']?['height'] ?? config['height'] ?? 1080).toDouble();
+                        
+                        final double screenW = constraints.maxWidth;
+                        final double availableH = constraints.maxHeight;
+                        
+                        double bestWidth = screenW;
+                        double calcHeight = bestWidth * (designH / designW);
+                        
+                        if (calcHeight > availableH) {
+                          calcHeight = availableH;
+                          bestWidth = calcHeight * (designW / designH);
+                        }
 
-                        return EditorCanvasWidget(
-                          config: Map<String, dynamic>.from(controller.templateConfig),
-                          width: maxWidth,
-                          uploadsBaseUrl: controller.uploadsBaseUrl,
-                          templateBaseUrl: controller.templateBaseUrl,
-                          baseImgUrl: controller.baseImgUrl,
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 15,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                          child: EditorCanvasWidget(
+                            config: Map<String, dynamic>.from(controller.templateConfig),
+                            width: bestWidth,
+                            uploadsBaseUrl: controller.uploadsBaseUrl,
+                            templateBaseUrl: controller.templateBaseUrl,
+                            baseImgUrl: controller.baseImgUrl,
+                            editorType: widget.type,
+                          ),
                         );
-                      }),
-                    ),
+                      });
+                    }
                   ),
                 ),
               ),
@@ -246,6 +300,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
           ),
           // Bottom Area: Contextual OR Main tools
           Obx(() {
+            final _ = controller.templateConfig.values.toList(); // trigger rebuild on config change
             if (controller.selectedLayerId.value.isNotEmpty) {
               return _buildContextualToolbar();
             }
@@ -272,6 +327,235 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
     }
   }
 
+  Map<String, dynamic>? _getActiveLayer() {
+    if (controller.selectedLayerId.value.isEmpty) return null;
+    final layers = controller.templateConfig['layers'];
+    if (layers == null) return null;
+    
+    for (var l in layers) {
+      if ((l['name'] ?? l['id']).toString() == controller.selectedLayerId.value) {
+        return l as Map<String, dynamic>;
+      }
+    }
+    return null;
+  }
+
+  Widget _buildInlineEditPanel() {
+    final layer = _getActiveLayer();
+    if (layer == null) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextFormField(
+              initialValue: layer['text'] ?? '',
+              onChanged: (val) {
+                controller.updateLayerProperty(layer['name'] ?? layer['id'], 'text', val);
+              },
+              decoration: InputDecoration(
+                hintText: 'Enter text',
+                isDense: true,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.check_circle, color: Color(0xFF5538EE)),
+            onPressed: () {
+              controller.activeTool.value = '';
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInlineNudgePanel() {
+    final layer = _getActiveLayer();
+    if (layer == null) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.keyboard_arrow_left, size: 32),
+            onPressed: () => controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'x', (layer['x'] ?? 0) - 5),
+          ),
+          Column(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.keyboard_arrow_up, size: 32),
+                onPressed: () => controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'y', (layer['y'] ?? 0) - 5),
+              ),
+              IconButton(
+                icon: const Icon(Icons.keyboard_arrow_down, size: 32),
+                onPressed: () => controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'y', (layer['y'] ?? 0) + 5),
+              ),
+            ],
+          ),
+          IconButton(
+            icon: const Icon(Icons.keyboard_arrow_right, size: 32),
+            onPressed: () => controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'x', (layer['x'] ?? 0) + 5),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInlineFontPanel() {
+    final layer = _getActiveLayer();
+    if (layer == null) return const SizedBox.shrink();
+    final List<String> fonts = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Oswald', 'Playfair Display', 'Merriweather', 'Nunito', 'Poppins', 'Raleway'];
+    return Container(
+      height: 50,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: fonts.length,
+        itemBuilder: (context, index) {
+          final font = fonts[index];
+          final isSelected = layer['fontFamily'] == font;
+          return GestureDetector(
+            onTap: () => controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'fontFamily', font),
+            child: Container(
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFF5538EE) : Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(font, style: TextStyle(color: isSelected ? Colors.white : Colors.black87, fontFamily: font)),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildInlineSizePanel() {
+    final layer = _getActiveLayer();
+    if (layer == null) return const SizedBox.shrink();
+    double currentSize = (layer['fontSize'] ?? layer['font_size'] ?? layer['size'] ?? 48.0).toDouble();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          const Icon(Icons.text_fields, size: 16),
+          Expanded(
+            child: Slider(
+              value: currentSize,
+              min: 8.0,
+              max: 200.0,
+              activeColor: const Color(0xFF5538EE),
+              onChanged: (val) {
+                controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'fontSize', val);
+              },
+            ),
+          ),
+          const Icon(Icons.text_fields, size: 24),
+        ],
+      ),
+    );
+  }
+
+  void _showColorPickerDialog(Map<String, dynamic> layer) {
+    Color currentColor = Color(int.tryParse((layer['font_color'] ?? layer['tint_color'] ?? layer['color']?.toString() ?? '#000000').replaceFirst('#', '0xFF')) ?? 0xFF000000);
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        Color pickerColor = currentColor;
+        return AlertDialog(
+          title: const Text('Colour picker'),
+          content: SingleChildScrollView(
+            child: ColorPicker(
+              pickerColor: pickerColor,
+              onColorChanged: (color) {
+                pickerColor = color;
+              },
+              pickerAreaHeightPercent: 0.8,
+              enableAlpha: false,
+              displayThumbColor: true,
+              paletteType: PaletteType.hsv,
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: const Text('Apply'),
+              onPressed: () {
+                final hex = '#${pickerColor.value.toRadixString(16).padLeft(8, '0').substring(2)}';
+                controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'color', hex);
+                controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'font_color', hex);
+                controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'tint_color', hex);
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildInlineColorPanel() {
+    final layer = _getActiveLayer();
+    if (layer == null) return const SizedBox.shrink();
+    final List<Color> colors = [Colors.black, Colors.white, Colors.red, Colors.pink, Colors.purple, Colors.deepPurple, Colors.indigo, Colors.blue, Colors.lightBlue, Colors.cyan, Colors.teal, Colors.green, Colors.lightGreen, Colors.lime, Colors.yellow, Colors.amber, Colors.orange, Colors.deepOrange, Colors.brown, Colors.grey];
+    String colorToHex(Color color) => '#${color.value.toRadixString(16).padLeft(8, '0').substring(2)}';
+    
+    return Container(
+      height: 40,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: colors.length + 1,
+        itemBuilder: (context, index) {
+          if (index == colors.length) {
+            return GestureDetector(
+              onTap: () {
+                _showColorPickerDialog(layer);
+              },
+              child: Container(
+                width: 36, height: 36,
+                margin: const EdgeInsets.only(right: 12),
+                decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.transparent, border: Border.all(color: Colors.grey)),
+                child: const Icon(Icons.colorize, color: Colors.black54, size: 18),
+              ),
+            );
+          }
+          final color = colors[index];
+          final hex = colorToHex(color);
+          final activeColor = (layer['font_color'] ?? layer['tint_color'] ?? layer['color'])?.toString().toUpperCase() ?? '';
+          final isSelected = activeColor == hex.toUpperCase();
+          return GestureDetector(
+            onTap: () {
+              controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'color', hex);
+              controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'font_color', hex);
+              controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'tint_color', hex);
+            },
+            child: Container(
+              width: 36,
+              height: 36,
+              margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                border: Border.all(color: isSelected ? const Color(0xFF5538EE) : Colors.black12, width: isSelected ? 2 : 1),
+              ),
+              child: isSelected ? const Icon(Icons.check, size: 18, color: Colors.white) : null,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildContextualToolbar() {
     return Container(
       decoration: BoxDecoration(
@@ -282,86 +566,84 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
         ],
       ),
       child: SafeArea(
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildToolItem(Icons.edit_outlined, 'Edit', () {
-                final layer = controller.templateConfig['layers'].firstWhere(
-                    (l) => l['name'] == controller.selectedLayerId.value,
-                    orElse: () => null);
-                if (layer != null && layer['type'] == 'text') {
-                  _showEditModal(layer);
-                }
-              }),
-              _buildToolItem(Icons.open_with, 'Nudge', () {
-                final layer = controller.templateConfig['layers'].firstWhere(
-                    (l) => l['name'] == controller.selectedLayerId.value,
-                    orElse: () => null);
-                if (layer != null) {
-                  _showNudgeModal(layer);
-                }
-              }),
-              _buildToolItem(Icons.text_fields, 'Font', () {
-                final layer = controller.templateConfig['layers'].firstWhere(
-                    (l) => l['name'] == controller.selectedLayerId.value,
-                    orElse: () => null);
-                if (layer != null && layer['type'] == 'text') {
-                  _showFontModal(layer);
-                }
-              }),
-              _buildToolItem(Icons.format_size, 'Size', () {
-                final layer = controller.templateConfig['layers'].firstWhere(
-                    (l) => l['name'] == controller.selectedLayerId.value,
-                    orElse: () => null);
-                if (layer != null && layer['type'] == 'text') {
-                  _showSizeModal(layer);
-                }
-              }),
-              _buildToolItem(Icons.format_bold, 'Bold', () {
-                final layer = controller.templateConfig['layers'].firstWhere(
-                    (l) => l['name'] == controller.selectedLayerId.value,
-                    orElse: () => null);
-                if (layer != null && layer['type'] == 'text') {
-                  final isBold = layer['weight'] == 'bold';
-                  controller.updateLayerProperty(layer['name'], 'weight', isBold ? 'normal' : 'bold');
-                }
-              }),
-              _buildToolItem(Icons.format_italic, 'Italic', () {
-                final layer = controller.templateConfig['layers'].firstWhere(
-                    (l) => l['name'] == controller.selectedLayerId.value,
-                    orElse: () => null);
-                if (layer != null && layer['type'] == 'text') {
-                  final isItalic = layer['style'] == 'italic';
-                  controller.updateLayerProperty(layer['name'], 'style', isItalic ? 'normal' : 'italic');
-                }
-              }),
-              _buildToolItem(Icons.palette_outlined, 'Color', () {
-                final layer = controller.templateConfig['layers'].firstWhere(
-                    (l) => l['name'] == controller.selectedLayerId.value,
-                    orElse: () => null);
-                if (layer != null && layer['type'] == 'text') {
-                  _showColorPickerModal(layer);
-                }
-              }, iconColor: const Color(0xFF7D2AE8)),
-              _buildToolItem(Icons.layers_outlined, 'Layers', () {
-                _showLayersModal(context);
-              }),
-              _buildToolItem(Icons.delete_outline, 'Delete', () {
-                controller.deleteLayer(controller.selectedLayerId.value);
-              }, iconColor: Colors.red),
-            ],
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildToolBtn(Icons.edit_outlined, 'Edit', () {
+                    final layer = _getActiveLayer();
+                    if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
+                      controller.activeTool.value = controller.activeTool.value == 'Edit' ? '' : 'Edit';
+                    }
+                  }),
+                  _buildToolBtn(Icons.open_with, 'Nudge', () {
+                    final layer = _getActiveLayer();
+                    if (layer != null) {
+                      controller.activeTool.value = controller.activeTool.value == 'Nudge' ? '' : 'Nudge';
+                    }
+                  }),
+                  _buildToolBtn(Icons.text_fields, 'Font', () {
+                    final layer = _getActiveLayer();
+                    if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
+                      controller.activeTool.value = controller.activeTool.value == 'Font' ? '' : 'Font';
+                    }
+                  }),
+                  _buildToolBtn(Icons.format_size, 'Size', () {
+                    final layer = _getActiveLayer();
+                    if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
+                      controller.activeTool.value = controller.activeTool.value == 'Size' ? '' : 'Size';
+                    }
+                  }),
+                  _buildToolBtn(Icons.format_bold, 'Bold', () {
+                    final layer = _getActiveLayer();
+                    if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
+                      final isBold = layer['weight'] == 'bold';
+                      controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'weight', isBold ? 'normal' : 'bold');
+                    }
+                  }, isSelected: _getActiveLayer()?['weight'] == 'bold'),
+                  _buildToolBtn(Icons.format_italic, 'Italic', () {
+                    final layer = _getActiveLayer();
+                    if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
+                      final isItalic = layer['style'] == 'italic';
+                      controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'style', isItalic ? 'normal' : 'italic');
+                    }
+                  }, isSelected: _getActiveLayer()?['style'] == 'italic'),
+                  _buildToolBtn(Icons.palette_outlined, 'Color', () {
+                    final layer = _getActiveLayer();
+                    if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
+                      controller.activeTool.value = controller.activeTool.value == 'Color' ? '' : 'Color';
+                    }
+                  }),
+                  _buildToolBtn(Icons.layers_outlined, 'Layers', () {
+                    _showLayersModal(context);
+                  }),
+                  _buildToolBtn(Icons.delete_outline, 'Delete', () {
+                    controller.deleteLayer(controller.selectedLayerId.value);
+                  }, iconColor: Colors.redAccent),
+                ],
+              ),
+            ),
+            Obx(() {
+               if (controller.activeTool.value == 'Edit') return _buildInlineEditPanel();
+               if (controller.activeTool.value == 'Nudge') return _buildInlineNudgePanel();
+               if (controller.activeTool.value == 'Font') return _buildInlineFontPanel();
+               if (controller.activeTool.value == 'Size') return _buildInlineSizePanel();
+               if (controller.activeTool.value == 'Color') return _buildInlineColorPanel();
+               return const SizedBox.shrink();
+            }),
+            Obx(() => SizedBox(height: controller.activeTool.value.isNotEmpty ? 16 : 0)),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildBottomTools() {
-    final isCustomType = widget.type == 'custom' || widget.type == 'business_custom' || widget.type == 'business_custom_frame';
-    
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -371,176 +653,129 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
         ],
       ),
       child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 1. Contact info badges — show for all templates
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  _buildFieldBadge('NAME', '_b_name'),
-                  _buildFieldBadge('LOGO', '_b_logo'),
-                  _buildIconBadge(Icons.phone_android, '_b_phone'),
-                  _buildIconBadge(Icons.mail_outline, '_b_email'),
-                  _buildIconBadge(Icons.location_on_outlined, '_b_address'),
-                  _buildIconBadge(Icons.language, '_b_website'),
-                  _buildFieldBadge('FRAME', '_frame_bg'),
-                  _buildFieldBadge('FRAME COLOR', '_frame_color', alwaysBlue: true),
-                ],
-              ),
-            ),
-            
-            // 2. Select Frame section — show for all templates
-            Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 1. Contact info badges — show for all templates
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    const Text('Select Frame', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Row(
-                        children: [
-                          Text('All Themes', style: TextStyle(fontSize: 12)),
-                          Icon(Icons.arrow_drop_down, size: 20),
-                        ],
-                      ),
-                    ),
+                    _buildFieldBadge('NAME', '_b_name,name,business_name'),
+                    _buildFieldBadge('LOGO', '_b_logo,logo'),
+                    _buildIconBadge(Icons.phone_android, '_b_phone,phone_icon,mobile_icon,call_icon'),
+                    _buildFieldBadge('MOBILE', 'mobile,phone,phone_text,mobile_text'),
+                    _buildIconBadge(Icons.mail_outline, '_b_email,email_icon'),
+                    _buildFieldBadge('EMAIL', 'email,email_text'),
+                    _buildIconBadge(Icons.location_on_outlined, '_b_address,address_icon,location_icon'),
+                    _buildFieldBadge('ADDRESS', 'address,location,address_text,location_text'),
+                    _buildIconBadge(Icons.language, '_b_website,web_icon,website_icon'),
+                    _buildFieldBadge('WEBSITE', 'web,website,web_text,website_text'),
+                    _buildFieldBadge('FRAME', '_frame_bg,_frame,frame,Frame_Bg,bg_frame'),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-              
-              // Frame thumbnails
-              Obx(() {
-                if (controller.isLoadingFrames.value) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))),
-                  );
-                }
-                if (controller.frames.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.all(8),
-                    child: Center(child: Text('No frames found', style: TextStyle(color: Colors.grey, fontSize: 12))),
-                  );
-                }
-                return SizedBox(
-                  height: 80,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: controller.frames.length,
-                    itemBuilder: (context, index) {
-                      final frame = controller.frames[index];
-                      final thumbUrl = frame['thumbnail'] ?? frame['thumbnail_url'] ?? frame['full_url'] ?? '';
-                      return GestureDetector(
-                        onTap: () {
-                          final jsonStr = frame['json'] ?? frame['json_rules'];
-                          if (jsonStr != null) {
-                            try {
-                              final Map<String, dynamic> config = jsonStr is String ? jsonDecode(jsonStr) : jsonStr;
-                              controller.loadNewFrame(config);
-                            } catch (e) {
-                              debugPrint('Error parsing frame config: $e');
-                            }
-                          } else if (frame['full_url'] != null) {
-                            controller.updateLayerProperty('_frame_bg', 'src', frame['full_url']);
-                            controller.updateLayerProperty('_frame_bg', 'opacity', 1.0);
-                          }
-                        },
-                        child: Container(
-                          width: 80,
-                          height: 80,
-                          margin: const EdgeInsets.only(right: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade300),
-                            image: thumbUrl.isNotEmpty
-                                ? DecorationImage(image: NetworkImage(thumbUrl), fit: BoxFit.cover)
-                                : null,
-                          ),
-                          child: thumbUrl.isEmpty ? const Center(child: Icon(Icons.image, color: Colors.grey)) : null,
-                        ),
-                      );
-                    },
-                  ),
-                );
-              }),
-              const SizedBox(height: 12),
-              
-              // Toggle visibility button
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: GestureDetector(
-                  onTap: () {
-                    controller.toggleVisibility('_frame_bg', !controller.isLayerVisible('_frame_bg'));
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5F3FF),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Center(
-                      child: Text(
-                        'TOGGLE FRAME VISIBILITY',
-                        style: TextStyle(color: Color(0xFF5538EE), fontWeight: FontWeight.bold, fontSize: 12),
-                      ),
-                    ),
-                  ),
+              // 2. Select Frame section — hide for custom templates
+              if (!['custom', 'post', 'business_custom_frame'].contains(widget.type.toLowerCase())) ...[
+                const Padding(
+                  padding: EdgeInsets.only(left: 16, right: 16, top: 4),
+                  child: Text('Select Frame', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 ),
-              ),
-              const SizedBox(height: 12),
-            
-
-            // 3. Bottom Toolbar — match web toolbox styling
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16, top: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildToolItem(Icons.image_outlined, 'Add Logo', () {
-                    controller.addLayer({
-                      'name': 'New Logo ${DateTime.now().millisecondsSinceEpoch}',
-                      'type': 'image',
-                      'src': 'https://via.placeholder.com/150',
-                      'x': 540,
-                      'y': 540,
-                      'width': 200,
-                      'height': 200,
-                      'opacity': 1.0,
-                    });
-                    Get.snackbar('Success', 'Added new logo layer');
-                  }),
-                  _buildToolItem(Icons.text_fields, 'Add Text', () {
-                    _showAddTextModal();
-                  }),
-                  _buildToolItem(Icons.shopping_bag_outlined, 'Products', () {
-                    Get.snackbar('Coming Soon', 'Product picker will be implemented here');
-                  }),
-                  _buildToolItem(Icons.auto_awesome, 'AI Text', () {
-                    _showAiTextModal(context);
-                  }, iconColor: Colors.green),
-                  _buildToolItem(Icons.emoji_emotions_outlined, 'Sticker', () {
-                    Get.snackbar('Coming Soon', 'Sticker picker will be implemented here');
-                  }),
-                  _buildToolItem(Icons.layers_outlined, 'Layers', () {
-                    _showLayersModal(context);
-                  }),
-                ],
-              ),
-            ),
-          ],
+                const SizedBox(height: 12),
+                
+                // Frame thumbnails
+                Obx(() {
+                  if (controller.isLoadingFrames.value) {
+                    return const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))),
+                    );
+                  }
+                  if (controller.frames.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Center(child: Text('No frames found', style: TextStyle(color: Colors.grey, fontSize: 12))),
+                    );
+                  }
+                  return SizedBox(
+                    height: 80,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: controller.frames.length,
+                      itemBuilder: (context, index) {
+                        final frame = controller.frames[index];
+                        final thumbUrl = frame['thumbnail'] ?? frame['thumbnail_url'] ?? frame['full_url'] ?? '';
+                        return GestureDetector(
+                          onTap: () {
+                            // Try JSON string first, then parsed config object, then full_url fallback
+                            final jsonStr = frame['json'] ?? frame['json_rules'];
+                            final configObj = frame['config'];
+                            if (jsonStr != null) {
+                              try {
+                                final Map<String, dynamic> config = jsonStr is String ? jsonDecode(jsonStr) : Map<String, dynamic>.from(jsonStr);
+                                controller.loadNewFrame(config);
+                              } catch (e) {
+                                debugPrint('Error parsing frame JSON: $e');
+                              }
+                            } else if (configObj != null) {
+                              try {
+                                final Map<String, dynamic> config = configObj is String ? jsonDecode(configObj) : Map<String, dynamic>.from(configObj);
+                                // Resolve relative src paths using full_url as base
+                                final String fullUrl = (frame['full_url'] ?? '').toString();
+                                if (fullUrl.isNotEmpty && config['layers'] != null) {
+                                  final skinBase = fullUrl.substring(0, fullUrl.lastIndexOf('/') + 1);
+                                  final tplBase = skinBase.replaceAll(RegExp(r'skins/[^/]+/$'), '');
+                                  for (var layer in (config['layers'] as List)) {
+                                    if (layer['src'] != null) {
+                                      String src = layer['src'].toString();
+                                      if (src.startsWith('../') || src.startsWith('./') || !src.startsWith('http')) {
+                                        src = src.replaceAll('../', '');
+                                        layer['src'] = tplBase + src;
+                                      }
+                                    }
+                                  }
+                                }
+                                controller.loadNewFrame(config);
+                              } catch (e) {
+                                debugPrint('Error parsing frame config: $e');
+                              }
+                            } else if (frame['full_url'] != null) {
+                              controller.updateLayerProperty('_frame_bg', 'src', frame['full_url']);
+                              controller.updateLayerProperty('_frame_bg', 'opacity', 1.0);
+                            }
+                          },
+                          child: Container(
+                            width: 80,
+                            height: 80,
+                            margin: const EdgeInsets.only(right: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: thumbUrl.isNotEmpty
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.network(thumbUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.grey)),
+                                  )
+                                : const Icon(Icons.image, color: Colors.grey),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                }),
+                const SizedBox(height: 24),
+              ],
+              const SizedBox(height: 16),
+              // Editing Tools Toolbar
+              _buildEditingToolsBar(),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
@@ -571,6 +806,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
               ),
               Expanded(
                 child: Obx(() {
+                  final _ = controller.templateConfig.length;
                   final layers = List<dynamic>.from(controller.templateConfig['layers'] ?? []);
                   // Reverse so top layers show first
                   final reversedLayers = layers.reversed.toList();
@@ -583,21 +819,24 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                       if (newIndex > oldIndex) {
                         actualNew += 1;
                       }
-                      controller.moveLayer(reversedLayers[oldIndex]['name'], actualNew);
+                      controller.moveLayer((reversedLayers[oldIndex]['name'] ?? reversedLayers[oldIndex]['id']).toString(), actualNew);
                     },
                     itemBuilder: (context, index) {
                       final layer = reversedLayers[index];
                       final isVisible = (layer['opacity'] ?? 1.0) > 0;
+                      final String uniqueKey = (layer['name'] ?? layer['id'] ?? 'layer').toString() + '_$index';
+                      final isText = layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null;
+                      final titleStr = (layer['name'] ?? layer['id'] ?? 'Unnamed Layer').toString().replaceAll(RegExp(r'[-_]'), ' ').toUpperCase();
                       return ListTile(
-                        key: ValueKey(layer['name']),
-                        leading: Icon(layer['type'] == 'text' ? Icons.text_fields : Icons.image, color: Colors.grey),
-                        title: Text(layer['name'] ?? 'Unnamed Layer'),
+                        key: ValueKey(uniqueKey),
+                        leading: Icon(isText ? Icons.text_fields : Icons.image, color: Colors.grey),
+                        title: Text(titleStr, style: const TextStyle(fontSize: 14)),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
                               icon: Icon(isVisible ? Icons.visibility : Icons.visibility_off, color: isVisible ? Colors.blue : Colors.grey),
-                              onPressed: () => controller.toggleVisibility(layer['name'], !isVisible),
+                              onPressed: () => controller.toggleVisibility((layer['name'] ?? layer['id']).toString(), !isVisible),
                             ),
                             const Icon(Icons.drag_handle, color: Colors.grey),
                           ],
@@ -616,7 +855,16 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
 
   void _showAiTextModal(BuildContext context) {
     final TextEditingController promptController = TextEditingController();
+    final RxString selectedLanguage = 'English'.obs;
     final RxBool isGenerating = false.obs;
+    final RxMap<String, TextEditingController> generatedTexts = <String, TextEditingController>{}.obs;
+    final RxBool step2 = false.obs;
+
+    final List<String> languages = [
+      'English', 'Hindi', 'Hinglish', 'Gujarati', 'Marathi', 'Tamil', 'Telugu', 
+      'Kannada', 'Malayalam', 'Bengali', 'Punjabi', 'Urdu', 'Arabic', 'Spanish', 
+      'French', 'Portuguese', 'German', 'Japanese', 'Korean', 'Chinese'
+    ];
 
     showModalBottomSheet(
       context: context,
@@ -629,53 +877,182 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
           child: Container(
             padding: const EdgeInsets.all(24),
             color: Colors.white,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('AI Text Generator', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: promptController,
-                  maxLines: 3,
-                  decoration: InputDecoration(
-                    hintText: 'E.g., Write a promotional text for a new coffee shop...',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: Obx(() => ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF5538EE),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.8),
+            child: Obx(() {
+              if (step2.value) {
+                // STEP 2: Preview & Edit
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Review AI Text', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
                     ),
-                    onPressed: isGenerating.value ? null : () async {
-                      if (promptController.text.trim().isEmpty) return;
-                      isGenerating.value = true;
-                      
-                      // Using the emulator localhost URL
-                      final success = await controller.generateAIText(
-                        promptController.text.trim(), 
-                        'http://10.0.2.2/Artera'
-                      );
-                      
-                      isGenerating.value = false;
-                      if (success) {
-                        Navigator.pop(context);
-                      } else {
-                        Get.snackbar('Error', 'Failed to generate text', backgroundColor: Colors.red, colorText: Colors.white);
-                      }
-                    },
-                    child: isGenerating.value 
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Text('Generate & Apply', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  )),
-                ),
-              ],
-            ),
+                    const SizedBox(height: 8),
+                    const Text('Edit the generated text before applying:', style: TextStyle(color: Colors.black54)),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: generatedTexts.entries.map((e) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(e.key, style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87, fontSize: 13)),
+                                const SizedBox(height: 4),
+                                TextField(
+                                  controller: e.value,
+                                  maxLines: null,
+                                  decoration: InputDecoration(
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                    contentPadding: const EdgeInsets.all(12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: () {
+                              step2.value = false;
+                              generatedTexts.clear();
+                            },
+                            child: const Text('Back'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF5538EE),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: () {
+                              // Apply texts to canvas
+                              generatedTexts.forEach((key, ctrl) {
+                                if (ctrl.text.trim().isNotEmpty) {
+                                  controller.updateLayerProperty(key, 'text', ctrl.text.trim());
+                                }
+                              });
+                              // Also trigger text changes directly to trigger relayout
+                              controller.templateConfig.refresh();
+                              Navigator.pop(context);
+                              Get.snackbar('Success', 'AI text applied successfully', backgroundColor: Colors.green, colorText: Colors.white);
+                            },
+                            child: const Text('Apply to Design', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              }
+
+              // STEP 1: Prompt
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('AI Text Generator', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Describe what you want the AI to write:', style: TextStyle(fontSize: 13, color: Colors.black54)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: promptController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      hintText: 'E.g., Write a promotional text for a new coffee shop...',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.all(12),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Output Language:', style: TextStyle(fontSize: 13, color: Colors.black54)),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade400),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: selectedLanguage.value,
+                        items: languages.map((l) => DropdownMenuItem(value: l, child: Text(l))).toList(),
+                        onChanged: (val) {
+                          if (val != null) selectedLanguage.value = val;
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF5538EE),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: isGenerating.value ? null : () async {
+                        if (promptController.text.trim().isEmpty) return;
+                        isGenerating.value = true;
+                        
+                        final content = await controller.generateAIText(
+                          promptController.text.trim(), 
+                          selectedLanguage.value
+                        );
+                        
+                        isGenerating.value = false;
+                        if (content != null && content.isNotEmpty) {
+                          generatedTexts.clear();
+                          content.forEach((k, v) {
+                            generatedTexts[k] = TextEditingController(text: v.toString());
+                          });
+                          step2.value = true;
+                        } else {
+                          Get.snackbar('Notice', 'Could not generate text for layers. Ensure there are text elements on the template.', backgroundColor: Colors.orange, colorText: Colors.white);
+                        }
+                      },
+                      child: isGenerating.value 
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text('Generate Content', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                    ),
+                  ),
+                ],
+              );
+            }),
           ),
         ),
       ),
@@ -683,27 +1060,48 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
   }
 
   Widget _buildFieldBadge(String text, String layerName, {bool alwaysBlue = false}) {
+    if (alwaysBlue) {
+      return GestureDetector(
+        onTap: () {},
+        child: Container(
+          margin: const EdgeInsets.only(right: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF5538EE),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 11,
+            ),
+          ),
+        ),
+      );
+    }
+    
     return Obx(() {
-      final isVisible = alwaysBlue || controller.isLayerVisible(layerName);
+      final _ = controller.templateConfig.length; // Ensure GetX tracks this scope
+      final isVisible = controller.isLayerVisible(layerName);
       return GestureDetector(
         onTap: () {
-          if (!alwaysBlue) {
-            controller.toggleVisibility(layerName, !isVisible);
-          }
+          controller.toggleVisibility(layerName, !isVisible);
         },
         child: Container(
           margin: const EdgeInsets.only(right: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: isVisible ? const Color(0xFF5538EE) : const Color(0xFFF3F4F6),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
           ),
           child: Text(
             text,
             style: TextStyle(
               color: isVisible ? Colors.white : const Color(0xFF6B7280),
               fontWeight: FontWeight.bold,
-              fontSize: 12,
+              fontSize: 11,
             ),
           ),
         ),
@@ -713,247 +1111,225 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
 
   Widget _buildIconBadge(IconData icon, String layerName) {
     return Obx(() {
+      final _ = controller.templateConfig.length; // Ensure GetX tracks this scope
       final isVisible = controller.isLayerVisible(layerName);
       return GestureDetector(
         onTap: () {
           controller.toggleVisibility(layerName, !isVisible);
         },
         child: Container(
-          margin: const EdgeInsets.only(right: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          margin: const EdgeInsets.only(right: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
           decoration: BoxDecoration(
             color: isVisible ? const Color(0xFF5538EE) : const Color(0xFFF3F4F6),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(6),
           ),
-          child: Icon(icon, color: isVisible ? Colors.white : const Color(0xFF6B7280), size: 20),
+          child: Icon(icon, color: isVisible ? Colors.white : const Color(0xFF6B7280), size: 14),
         ),
       );
     });
   }
 
-  Widget _buildToolItem(IconData icon, String label, VoidCallback onTap, {Color? iconColor}) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        constraints: const BoxConstraints(minWidth: 64),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9), // Slate 100
-                borderRadius: BorderRadius.circular(12),
+  void _showAddTextModal() {
+    final textController = TextEditingController();
+    double selectedSize = 48.0;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Add Text'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: textController,
+                autofocus: true,
+                decoration: const InputDecoration(hintText: 'Enter text here'),
               ),
-              child: Icon(icon, color: const Color(0xFF0F172A), size: 24),
+              const SizedBox(height: 20),
+              Text('Font Size: ${selectedSize.toInt()}'),
+              Slider(
+                value: selectedSize,
+                min: 12,
+                max: 120,
+                divisions: 108,
+                label: selectedSize.round().toString(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedSize = value;
+                  });
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () {
+                if (textController.text.trim().isNotEmpty) {
+                  controller.addLayer({
+                    'name': 'New Text ${DateTime.now().millisecondsSinceEpoch}',
+                    'type': 'text',
+                    'text': textController.text.trim(),
+                    'size': selectedSize,
+                    'color': '#000000',
+                    'x': 540,
+                    'y': 540,
+                    'width': 400,
+                    'height': 100,
+                    'opacity': 1.0,
+                    'z_index': 999,
+                  });
+                }
+                Navigator.pop(context);
+              },
+              child: const Text('Add'),
             ),
-            const SizedBox(height: 6),
-            Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF4B5563), fontWeight: FontWeight.w600)),
           ],
         ),
       ),
     );
   }
 
-  void _showAddTextModal() {
-    final TextEditingController textController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Text'),
-        content: TextField(
-          controller: textController,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'Enter text here'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () {
-              if (textController.text.trim().isNotEmpty) {
-                controller.addLayer({
-                  'name': 'New Text ${DateTime.now().millisecondsSinceEpoch}',
-                  'type': 'text',
-                  'text': textController.text.trim(),
-                  'size': 48,
-                  'color': '#000000',
-                  'x': 540,
-                  'y': 540,
-                  'width': 400,
-                  'height': 100,
-                  'opacity': 1.0,
-                  'z_index': 999,
-                });
-              }
-              Navigator.pop(context);
-            },
-            child: const Text('Add'),
-          ),
+  Widget _buildEditingToolsBar() {
+    final bool isCustom = widget.type.toLowerCase().contains('custom');
+    
+    return Container(
+      height: 75,
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        children: [
+          if (isCustom) _buildToolBtn(Icons.image, 'Logo', _pickAndAddImage),
+          _buildToolBtn(Icons.text_fields, 'Text', _showAddTextModal),
+          if (isCustom) _buildToolBtn(Icons.shopping_bag_outlined, 'Products', _showProductsModal),
+          if (isCustom) _buildToolBtn(Icons.auto_awesome, 'AI Text', () => _showAiTextModal(context)),
+          _buildToolBtn(Icons.emoji_emotions_outlined, 'Sticker', _showStickerModal),
+          if (isCustom) _buildToolBtn(Icons.layers, 'Layers', () => Scaffold.of(context).openEndDrawer()),
         ],
       ),
     );
   }
 
-  void _showEditModal(Map<String, dynamic> layer) {
-    final TextEditingController textController = TextEditingController(text: layer['text'] ?? '');
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Text'),
-        content: TextField(
-          controller: textController,
-          autofocus: true,
-          maxLines: 3,
+  Widget _buildToolBtn(IconData icon, String label, VoidCallback onTap, {Color? iconColor, bool isSelected = false}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(right: 20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFF5538EE) : Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, spreadRadius: 2)],
+              ),
+              child: Icon(icon, color: isSelected ? Colors.white : (iconColor ?? const Color(0xFF5538EE)), size: 24),
+            ),
+            const SizedBox(height: 6),
+            Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.black87)),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () {
-              controller.updateLayerProperty(layer['name'], 'text', textController.text);
-              Navigator.pop(context);
-            },
-            child: const Text('Save'),
-          ),
-        ],
       ),
     );
   }
 
-  void _showFontModal(Map<String, dynamic> layer) {
-    // Basic list of available fonts
-    final List<String> fonts = [
-      'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Oswald',
-      'Playfair Display', 'Merriweather', 'Nunito', 'Poppins', 'Raleway'
-    ];
-    
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          height: 300,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Select Font', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: fonts.length,
-                  itemBuilder: (context, index) {
-                    final font = fonts[index];
-                    return ListTile(
-                      title: Text(font, style: TextStyle(fontFamily: font)),
-                      trailing: layer['fontFamily'] == font ? const Icon(Icons.check, color: Colors.blue) : null,
-                      onTap: () {
-                        controller.updateLayerProperty(layer['name'], 'fontFamily', font);
-                        Navigator.pop(context);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _showSizeModal(Map<String, dynamic> layer) {
-    double currentSize = (layer['size'] ?? 48.0).toDouble();
-    
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return Container(
-              padding: const EdgeInsets.all(24),
-              height: 200,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Text Size: ${currentSize.toInt()}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      const Icon(Icons.text_fields, size: 16),
-                      Expanded(
-                        child: Slider(
-                          value: currentSize,
-                          min: 8.0,
-                          max: 150.0,
-                          onChanged: (val) {
-                            setState(() => currentSize = val);
-                            controller.updateLayerProperty(layer['name'], 'size', val);
-                          },
-                        ),
-                      ),
-                      const Icon(Icons.text_fields, size: 32),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          }
-        );
-      },
-    );
-  }
-
-  void _showColorPickerModal(Map<String, dynamic> layer) {
-    final List<Color> colors = [
-      Colors.black, Colors.white, Colors.red, Colors.pink, Colors.purple,
-      Colors.deepPurple, Colors.indigo, Colors.blue, Colors.lightBlue, Colors.cyan,
-      Colors.teal, Colors.green, Colors.lightGreen, Colors.lime, Colors.yellow,
-      Colors.amber, Colors.orange, Colors.deepOrange, Colors.brown, Colors.grey,
-    ];
-    
-    // helper to format color to hex
-    String colorToHex(Color color) {
-      return '#${color.value.toRadixString(16).padLeft(8, '0').substring(2)}';
+  Future<void> _pickAndAddImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      controller.addLayer({
+        'name': 'Logo ${DateTime.now().millisecondsSinceEpoch}',
+        'type': 'image',
+        'src': pickedFile.path,
+        'isLocal': true,
+        'x': 540,
+        'y': 540,
+        'width': 250,
+        'height': 250,
+        'opacity': 1.0,
+        'z_index': 999,
+        'isUserAdded': true,
+      });
     }
+  }
 
+  void _showProductsModal() {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
+          height: MediaQuery.of(context).size.height * 0.7,
           padding: const EdgeInsets.all(16),
-          height: 350,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Select Color', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text('My Products', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               Expanded(
-                child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 5,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                  ),
-                  itemCount: colors.length,
-                  itemBuilder: (context, index) {
-                    final color = colors[index];
-                    final hex = colorToHex(color);
-                    return GestureDetector(
-                      onTap: () {
-                        controller.updateLayerProperty(layer['name'], 'color', hex);
-                        Navigator.pop(context);
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.black12, width: 1),
+                child: FutureBuilder<http.Response>(
+                  future: ApiService.getUserProducts(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError || !snapshot.hasData) {
+                      return const Center(child: Text('Failed to load products'));
+                    }
+                    try {
+                      final body = jsonDecode(snapshot.data!.body);
+                      final List products = body['data'] ?? [];
+                      if (products.isEmpty) {
+                        return const Center(child: Text('No products found'));
+                      }
+                      return GridView.builder(
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
                         ),
-                        child: layer['color']?.toString().toUpperCase() == hex.toUpperCase() 
-                          ? Icon(Icons.check, color: color == Colors.white ? Colors.black : Colors.white) 
-                          : null,
-                      ),
-                    );
+                        itemCount: products.length,
+                        itemBuilder: (context, index) {
+                          final product = products[index];
+                          final imgUrl = product['processed_url'] ?? product['image'];
+                          final fullUrl = imgUrl.toString().startsWith('http') ? imgUrl : '${controller.uploadsBaseUrl}/$imgUrl';
+                          return GestureDetector(
+                            onTap: () {
+                              controller.addLayer({
+                                'name': 'Product ${product['id']}',
+                                'type': 'image',
+                                'src': fullUrl,
+                                'x': 540,
+                                'y': 540,
+                                'width': 300,
+                                'height': 300,
+                                'opacity': 1.0,
+                                'z_index': 999,
+                                'isUserAdded': true,
+                              });
+                              Navigator.pop(context);
+                            },
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(fullUrl, fit: BoxFit.cover),
+                            ),
+                          );
+                        },
+                      );
+                    } catch (e) {
+                      return const Center(child: Text('Error loading products'));
+                    }
                   },
                 ),
               ),
@@ -964,60 +1340,103 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
     );
   }
 
-  void _showNudgeModal(Map<String, dynamic> layer) {
+
+
+  void _showStickerModal() {
     showModalBottomSheet(
       context: context,
-      barrierColor: Colors.transparent, // Allow seeing the canvas
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
+          height: MediaQuery.of(context).size.height * 0.7,
           padding: const EdgeInsets.all(16),
-          height: 250,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: Colors.white,
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10)],
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Nudge', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const Text('Stickers', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Column(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_drop_up, size: 48),
-                        onPressed: () {
-                          controller.updateLayerProperty(layer['name'], 'y', (layer['y'] ?? 0) - 5);
-                        },
-                      ),
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.arrow_left, size: 48),
-                            onPressed: () {
-                              controller.updateLayerProperty(layer['name'], 'x', (layer['x'] ?? 0) - 5);
+              Expanded(
+                child: FutureBuilder<http.Response>(
+                  // Assume the API is available at root /api/get-sticker or similar
+                  future: http.get(Uri.parse('${AppConfig.baseUrl}/get-sticker')),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError || !snapshot.hasData) {
+                      return const Center(child: Text('Failed to load stickers'));
+                    }
+                    try {
+                      final body = jsonDecode(snapshot.data!.body);
+                      List stickers = [];
+                      
+                      if (body['data'] != null && body['data'] is List) {
+                        final dataList = body['data'] as List;
+                        if (dataList.isNotEmpty && dataList[0] is Map && dataList[0].containsKey('stickerCategoryName')) {
+                          // Nested categorized structure
+                          for (var category in dataList) {
+                            if (category['sticker'] != null && category['sticker'] is List) {
+                              stickers.addAll(category['sticker']);
+                            }
+                          }
+                        } else {
+                          stickers = dataList;
+                        }
+                      } else if (body['stickers'] != null && body['stickers'] is List) {
+                        stickers = body['stickers'];
+                      } else if (body is List) {
+                        stickers = body;
+                      }
+
+                      if (stickers.isEmpty) {
+                        return const Center(child: Text('No stickers found'));
+                      }
+                      return GridView.builder(
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 4,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                        ),
+                        itemCount: stickers.length,
+                        itemBuilder: (context, index) {
+                          final sticker = stickers[index];
+                          final imgUrl = sticker['stickerImage'] ?? sticker['image'] ?? sticker['url'] ?? '';
+                          if (imgUrl.isEmpty) return const SizedBox.shrink();
+                          
+                          final fullUrl = imgUrl.toString().startsWith('http') ? imgUrl : '${controller.uploadsBaseUrl}/$imgUrl';
+                          return GestureDetector(
+                            onTap: () {
+                              controller.addLayer({
+                                'name': 'Sticker ${DateTime.now().millisecondsSinceEpoch}',
+                                'type': 'image',
+                                'src': fullUrl,
+                                'x': 540,
+                                'y': 540,
+                                'width': 200,
+                                'height': 200,
+                                'opacity': 1.0,
+                                'z_index': 999,
+                                'isUserAdded': true,
+                              });
+                              Navigator.pop(context);
                             },
-                          ),
-                          const SizedBox(width: 32),
-                          IconButton(
-                            icon: const Icon(Icons.arrow_right, size: 48),
-                            onPressed: () {
-                              controller.updateLayerProperty(layer['name'], 'x', (layer['x'] ?? 0) + 5);
-                            },
-                          ),
-                        ],
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.arrow_drop_down, size: 48),
-                        onPressed: () {
-                          controller.updateLayerProperty(layer['name'], 'y', (layer['y'] ?? 0) + 5);
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(fullUrl, fit: BoxFit.contain),
+                            ),
+                          );
                         },
-                      ),
-                    ],
-                  ),
-                ],
+                      );
+                    } catch (e) {
+                      return const Center(child: Text('Error parsing stickers'));
+                    }
+                  },
+                ),
               ),
             ],
           ),

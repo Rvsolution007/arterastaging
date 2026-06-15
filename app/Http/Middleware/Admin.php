@@ -11,9 +11,12 @@ class Admin
 {
     public function handle(Request $request, Closure $next)
     {
-        if(Auth::user()->user_type == "Super Admin" || Auth::user()->user_type == "Demo")
-        {
+        if (Auth::check() && (Auth::user()->user_type == "Super Admin" || Auth::user()->user_type == "Demo")) {
             return $next($request);
+        }
+
+        if (!Auth::check()) {
+            return redirect('/login');
         }
 
         return redirect(RouteServiceProvider::HOME);

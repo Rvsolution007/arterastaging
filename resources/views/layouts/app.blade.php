@@ -633,6 +633,19 @@
                     </ul>
                   </li>
 
+            @if(Request::is('admin/mini-website-template*'))
+            @php($miniWebClass = "active")
+            @else
+            @php($miniWebClass = "")
+            @endif
+
+              <li class="nav-item">
+                <a href="{{ url('admin/mini-website-template') }}" class="nav-link {{$miniWebClass}}" style="color: white;">
+                  <i class="nav-icon fa-solid fa-address-card text-info"></i>
+                  <p>Mini Website Templates</p>
+                </a>
+              </li>
+
             @if(Request::is('admin/poster-category*') || Request::is('admin/poster-maker*'))
             @php($class = "menu-open")
             @php($active = "active")

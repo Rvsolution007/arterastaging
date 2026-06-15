@@ -391,9 +391,12 @@ class _HomeScreenState extends State<HomeScreen> {
             itemCount: templates.length,
             itemBuilder: (context, i) {
               final template = templates[i];
-              String imgUrl = template['image'] ?? '';
+              String imgUrl = template['image']?.toString() ?? '';
               // Fix for emulator/local testing where asset() generates public/uploads instead of uploads
               imgUrl = imgUrl.replaceAll('public/uploads', 'uploads');
+              if (imgUrl.isNotEmpty && !imgUrl.startsWith('http')) {
+                imgUrl = '${hc.uploadsBaseUrl}/$imgUrl';
+              }
               
               // Calculate width from aspect ratio
               double ar = 1.0;

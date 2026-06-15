@@ -725,7 +725,7 @@ class _CustomPostPreviewState extends State<CustomPostPreview> {
     if (just == 'center') textAlign = TextAlign.center;
     if (just == 'right') textAlign = TextAlign.right;
 
-    return Text(
+    Widget textWidget = Text(
       textValue,
       textAlign: textAlign,
       style: TextStyle(
@@ -738,6 +738,16 @@ class _CustomPostPreviewState extends State<CustomPostPreview> {
         height: layer['line_height']?.toDouble() ?? 1.1,
       ),
     );
+
+    final double rawW = (layer['w'] ?? layer['width'] ?? 0).toDouble();
+    if (rawW > 0) {
+      textWidget = SizedBox(
+        width: double.infinity,
+        child: textWidget,
+      );
+    }
+
+    return textWidget;
   }
 
   /// Resolves a relative `src` path from the JSON into a full HTTP URL.

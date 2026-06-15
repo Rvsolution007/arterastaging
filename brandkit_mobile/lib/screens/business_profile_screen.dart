@@ -200,26 +200,58 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('userId') ?? '';
 
-      final response = await ApiService.post(endpoint, {
-        if (isNewBusiness) 'userId': userId,
-        if (!isNewBusiness) 'bussinessId': _businessId,
-        'bussinessName': _nameCtrl.text,
-        'bussinessEmail': _emailCtrl.text,
-        'bussinessNumber': _phoneCtrl.text,
-        'bussinessWebsite': _websiteCtrl.text,
-        'bussinessAddress': _addressCtrl.text,
-        'businessCategoryId': _selectedCategoryId,
-        'extra_emails': _extraEmailCtrls.map((c) => c.text).where((t) => t.isNotEmpty).toList(),
-        'extra_mobile_numbers': _extraPhoneCtrls.map((c) => c.text).where((t) => t.isNotEmpty).toList(),
-        'extra_websites': _extraWebsiteCtrls.map((c) => c.text).where((t) => t.isNotEmpty).toList(),
-        'extra_addresses': _extraAddressCtrls.map((c) => c.text).where((t) => t.isNotEmpty).toList(),
-        'hidden_frame_fields': {
-          'emails': hiddenEmails,
-          'mobile_numbers': hiddenPhones,
-          'websites': hiddenWebsites,
-          'addresses': hiddenAddresses,
-        },
-      });
+      dynamic response;
+
+      if (_selectedImage != null) {
+        final fields = <String, String>{
+          if (isNewBusiness) 'userId': userId,
+          if (!isNewBusiness) 'bussinessId': _businessId,
+          'bussinessName': _nameCtrl.text,
+          'bussinessEmail': _emailCtrl.text,
+          'bussinessNumber': _phoneCtrl.text,
+          'bussinessWebsite': _websiteCtrl.text,
+          'bussinessAddress': _addressCtrl.text,
+          'businessCategoryId': _selectedCategoryId,
+          'extra_emails': jsonEncode(_extraEmailCtrls.map((c) => c.text).where((t) => t.isNotEmpty).toList()),
+          'extra_mobile_numbers': jsonEncode(_extraPhoneCtrls.map((c) => c.text).where((t) => t.isNotEmpty).toList()),
+          'extra_websites': jsonEncode(_extraWebsiteCtrls.map((c) => c.text).where((t) => t.isNotEmpty).toList()),
+          'extra_addresses': jsonEncode(_extraAddressCtrls.map((c) => c.text).where((t) => t.isNotEmpty).toList()),
+          'hidden_frame_fields': jsonEncode({
+            'emails': hiddenEmails,
+            'mobile_numbers': hiddenPhones,
+            'websites': hiddenWebsites,
+            'addresses': hiddenAddresses,
+          }),
+        };
+        
+        response = await ApiService.multipartPost(
+          endpoint,
+          fields,
+          fileKey: 'bussinessImage',
+          filePath: _selectedImage!.path,
+        );
+      } else {
+        response = await ApiService.post(endpoint, {
+          if (isNewBusiness) 'userId': userId,
+          if (!isNewBusiness) 'bussinessId': _businessId,
+          'bussinessName': _nameCtrl.text,
+          'bussinessEmail': _emailCtrl.text,
+          'bussinessNumber': _phoneCtrl.text,
+          'bussinessWebsite': _websiteCtrl.text,
+          'bussinessAddress': _addressCtrl.text,
+          'businessCategoryId': _selectedCategoryId,
+          'extra_emails': _extraEmailCtrls.map((c) => c.text).where((t) => t.isNotEmpty).toList(),
+          'extra_mobile_numbers': _extraPhoneCtrls.map((c) => c.text).where((t) => t.isNotEmpty).toList(),
+          'extra_websites': _extraWebsiteCtrls.map((c) => c.text).where((t) => t.isNotEmpty).toList(),
+          'extra_addresses': _extraAddressCtrls.map((c) => c.text).where((t) => t.isNotEmpty).toList(),
+          'hidden_frame_fields': {
+            'emails': hiddenEmails,
+            'mobile_numbers': hiddenPhones,
+            'websites': hiddenWebsites,
+            'addresses': hiddenAddresses,
+          },
+        });
+      }
 
       if (response.statusCode == 200) {
         // Refresh businesses
@@ -305,7 +337,7 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
                         ? Image.file(_selectedImage!, fit: BoxFit.cover)
                         : (_logoUrl.isNotEmpty
                             ? CachedNetworkImage(
-                                imageUrl: '${hc.uploadsBaseUrl}/$_logoUrl',
+                                imageUrl: _logoUrl.startsWith('http') ? _logoUrl : '${hc.uploadsBaseUrl}/$_logoUrl',
                                 fit: BoxFit.cover,
                                 errorWidget: (_, __, ___) => Icon(Icons.storefront_outlined, size: 50, color: AppColors.gray400),
                               )

@@ -76,4 +76,47 @@ class MiniWebsiteController extends GetxController {
       isGenerating.value = false;
     }
   }
+
+  Future<bool> updateWebsite(int siteId, Map<String, String> fields, {String? logoPath, List<int>? logoBytes}) async {
+    try {
+      isGenerating.value = true;
+      final response = await ApiService.multipartPost(
+        '/mini-website/update/$siteId', 
+        fields,
+        fileKey: (logoPath != null || logoBytes != null) ? 'logo' : null,
+        filePath: logoPath,
+        fileBytes: logoBytes,
+        fileName: 'logo.jpg',
+      );
+
+      if (response.statusCode == 200) {
+        await fetchMyLinks();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error updating website: $e');
+      return false;
+    } finally {
+      isGenerating.value = false;
+    }
+  }
+
+  Future<bool> deleteWebsite(int siteId) async {
+    try {
+      isGenerating.value = true;
+      final response = await ApiService.post('/mini-website/delete/$siteId', {});
+      if (response.statusCode == 200) {
+        await fetchMyLinks();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error deleting website: $e');
+      return false;
+    } finally {
+      isGenerating.value = false;
+    }
+  }
 }
+

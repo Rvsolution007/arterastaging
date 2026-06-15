@@ -58,21 +58,26 @@ class _DetailListScreenState extends State<DetailListScreen> {
 
   List<dynamic> get currentFrames {
     if (activeTab == 'images') {
-      return frames.where((f) {
+      List<dynamic> filtered = frames.where((f) {
         bool isAiFrame = f['isAi'] == true;
         bool matchesAi = imageFilter == 'AI' ? isAiFrame : !isAiFrame;
         if (!matchesAi) return false;
 
         // Language filtering:
         if (preferredLanguages.isNotEmpty) {
-          final frameLang = (f['language'] ?? '').toString().trim().toLowerCase();
-          if (frameLang != 'all' && frameLang.isNotEmpty) {
-            bool match = preferredLanguages.any((pref) => pref.trim().toLowerCase() == frameLang);
-            if (!match) return false;
+          bool hasAll = preferredLanguages.any((pref) => pref.trim().toLowerCase() == 'all');
+          if (!hasAll) {
+            final frameLang = (f['language'] ?? '').toString().trim().toLowerCase();
+            if (frameLang != 'all' && frameLang.isNotEmpty) {
+              bool match = preferredLanguages.any((pref) => pref.trim().toLowerCase() == frameLang);
+              if (!match) return false;
+            }
           }
         }
         return true;
       }).toList();
+      debugPrint('[DetailList] Filtered frames: ${filtered.length} out of ${frames.length}');
+      return filtered;
     }
     return videos;
   }
@@ -154,6 +159,7 @@ class _DetailListScreenState extends State<DetailListScreen> {
       
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        debugPrint('[DetailList] Fetched frames! Total count: ${data['frames']?.length ?? 0}');
         setState(() {
           frames = data['frames'] ?? [];
           videos = data['videos'] ?? [];

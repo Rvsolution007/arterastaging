@@ -456,7 +456,7 @@ class HomeApi extends Controller
                             if(is_dir('./uploads/template/'.$zip_name.'/json/')) {
                                 $file = scandir('./uploads/template/'.$zip_name.'/json/', 1);
                                 if(isset($file[0]) && $file[0] != '.' && $file[0] != '..') {
-                                    return file_get_contents(base_path('uploads/template/'.$zip_name.'/json/'.$file[0]));
+                                    return file_get_contents(public_path('uploads/template/'.$zip_name.'/json/'.$file[0]));
                                 }
                             }
                         }
@@ -469,7 +469,7 @@ class HomeApi extends Controller
                     // For DigitalOcean, we assume it's preview.jpg for now, or fallback to similar logic if needed.
                     $preview_img = Storage::disk('spaces')->url('uploads/template/'.$zip_name.'/preview.jpg');
                 } else {
-                    $dir = base_path('uploads/template/'.$zip_name.'/');
+                    $dir = public_path('uploads/template/'.$zip_name.'/');
                     if (is_dir($dir)) {
                         if (file_exists($dir.'preview.jpg')) {
                             $preview_img = asset('uploads/template/'.$zip_name.'/preview.jpg');
@@ -618,7 +618,7 @@ class HomeApi extends Controller
                         if(is_dir('./uploads/template/'.$zip_name.'/json/')) {
                             $file = scandir('./uploads/template/'.$zip_name.'/json/', 1);
                             if(isset($file[0]) && $file[0] != '.' && $file[0] != '..') {
-                                return file_get_contents(base_path('uploads/template/'.$zip_name.'/json/'.$file[0]));
+                                return file_get_contents(public_path('uploads/template/'.$zip_name.'/json/'.$file[0]));
                             }
                         }
                     }
@@ -630,7 +630,7 @@ class HomeApi extends Controller
             if($isDigitalOcean) {
                 $preview_img = Storage::disk('spaces')->url('uploads/template/'.$zip_name.'/preview.jpg');
             } else {
-                $dir = base_path('uploads/template/'.$zip_name.'/');
+                $dir = public_path('uploads/template/'.$zip_name.'/');
                 if (is_dir($dir)) {
                     if (file_exists($dir.'preview.jpg')) {
                         $preview_img = asset('uploads/template/'.$zip_name.'/preview.jpg');
@@ -756,7 +756,7 @@ class HomeApi extends Controller
         }
         else
         {
-            $destinationPath = base_path('uploads');
+            $destinationPath = public_path('uploads');
             $extension = $request->file("profile_image")->getClientOriginalExtension();
             $fileName = Str::uuid() . '.' . $extension;
             $request->file("profile_image")->move($destinationPath, $fileName);
@@ -2882,7 +2882,7 @@ class HomeApi extends Controller
                 if($isDigitalOcean) {
                     $preview_img = Storage::disk('spaces')->url('uploads/template/'.$zip_name.'/preview.jpg');
                 } else {
-                    $dir = base_path('uploads/template/'.$zip_name.'/');
+                    $dir = public_path('uploads/template/'.$zip_name.'/');
                     if (is_dir($dir)) {
                         if (file_exists($dir.'preview.jpg')) {
                             $preview_img = asset('uploads/template/'.$zip_name.'/preview.jpg');
@@ -3259,7 +3259,7 @@ class HomeApi extends Controller
                     if(StorageSetting::getStorageSetting('storage') == 'DigitalOcean') {
                         $preview_img = Storage::disk('spaces')->url('uploads/template/'.$zip_name.'/preview.jpg');
                     } else {
-                        $dir = base_path('uploads/template/'.$zip_name.'/');
+                        $dir = public_path('uploads/template/'.$zip_name.'/');
                         if (is_dir($dir)) {
                             if (file_exists($dir.'preview.jpg')) {
                                 $preview_img = asset('uploads/template/'.$zip_name.'/preview.jpg');
@@ -3649,7 +3649,7 @@ class HomeApi extends Controller
 
     private function upload_image($file,$field,$id)
     {
-        $destinationPath = base_path('uploads');
+        $destinationPath = public_path('uploads');
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);
@@ -3911,7 +3911,7 @@ class HomeApi extends Controller
                     if (StorageSetting::getStorageSetting('storage') == 'DigitalOcean') {
                         $preview_img = Storage::disk('spaces')->url('uploads/template/'.$zip_name.'/preview.jpg');
                     } else {
-                        $dir = base_path('uploads/template/'.$zip_name.'/');
+                        $dir = public_path('uploads/template/'.$zip_name.'/');
                         if (is_dir($dir)) {
                             if (file_exists($dir.'preview.jpg')) {
                                 $preview_img = asset('uploads/template/'.$zip_name.'/preview.jpg');

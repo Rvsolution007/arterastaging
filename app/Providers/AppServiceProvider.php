@@ -25,6 +25,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        if (env('APP_ENV') !== 'local' && request()->server('HTTP_X_FORWARDED_PROTO') == 'https') {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        } elseif (env('APP_ENV') !== 'local' && strpos(env('APP_URL'), 'https://') === 0) {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        } else {
+            \Illuminate\Support\Facades\URL::forceScheme('https'); // Force HTTPS on staging/prod anyway
+        }
+        
         Paginator::useBootstrapFour();
         Schema::defaultStringLength(191);
         

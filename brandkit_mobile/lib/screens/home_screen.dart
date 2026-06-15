@@ -364,124 +364,23 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildCustomPostsSection(HomeController hc) {
-    return Obx(() {
-      final templates = hc.recentCustomPosts;
-      if (templates.isEmpty) {
-        if (hc.isLoading.value) {
-          return const Center(child: Padding(
-            padding: EdgeInsets.all(40.0),
-            child: CircularProgressIndicator(),
-          ));
-        }
-        return const SizedBox.shrink();
-      }
-      return Column(children: [
-        SectionHeader(
-          icon: Icons.work_outline, 
-          title: 'new_custom_posts'.tr, 
-          actionText: 'view_all'.tr, 
-          onAction: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomPostsScreen()))
-        ),
-        AppSpacing.gapV16,
-        SizedBox(
+    return Column(children: [
+      SectionHeader(
+        icon: Icons.work_outline, 
+        title: 'new_custom_posts'.tr, 
+        actionText: 'view_all'.tr, 
+        onAction: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomPostsScreen()))
+      ),
+      AppSpacing.gapV16,
+      const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16.0),
+        child: SizedBox(
           height: 170,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: templates.length,
-            itemBuilder: (context, i) {
-              final template = templates[i];
-              String imgUrl = template['image']?.toString() ?? '';
-              // Fix for emulator/local testing where asset() generates public/uploads instead of uploads
-              imgUrl = imgUrl.replaceAll('public/uploads', 'uploads');
-              if (imgUrl.isNotEmpty && !imgUrl.startsWith('http')) {
-                imgUrl = '${hc.uploadsBaseUrl}/$imgUrl';
-              }
-              
-              // Calculate width from aspect ratio
-              double ar = 1.0;
-              try {
-                final arStr = template['aspect_ratio']?.toString() ?? '1:1';
-                final parts = arStr.split(':');
-                if (parts.length == 2) ar = double.parse(parts[0]) / double.parse(parts[1]);
-              } catch (_) {}
-              final cardWidth = 170.0 * ar;
-              
-              return GestureDetector(
-                onTap: () async {
-                  final AdController adController = Get.find<AdController>();
-                  ApiService.trackActivity(
-                    action: 'select_template',
-                    itemType: 'custom',
-                    itemId: template['id'].toString(),
-                  );
-                  await adController.handleFeatureAccess(
-                    context: context,
-                    feature: 'custom_post',
-                    onAccessGranted: () async {
-                      if (kIsWeb) {
-                        final editorUrl = await ApiService.getWebEditorUrl(
-                          type: template['type'] ?? 'business_custom_frame',
-                          id: template['id'].toString(),
-                          designUrl: imgUrl,
-                        );
-                        final uri = Uri.parse(editorUrl);
-                        if (await canLaunchUrl(uri)) {
-                          await launchUrl(uri, webOnlyWindowName: '_self');
-                        }
-                        return;
-                      }
-
-                      final fc = adController.adConfig.value?.features['custom_post'];
-                      if (fc != null && fc.baseLimit > 0) {
-                        Get.snackbar(
-                          'usage_update'.tr, 
-                          '${fc.used}/${fc.baseLimit} ${'custom_posts_used'.tr}',
-                          snackPosition: SnackPosition.BOTTOM,
-                          backgroundColor: Colors.black87,
-                          colorText: Colors.white,
-                          margin: const EdgeInsets.all(16),
-                          borderRadius: 8,
-                          duration: const Duration(seconds: 2),
-                        );
-                      }
-                      
-                      final editorQuery = Uri(queryParameters: {
-                        'type': template['type'] ?? 'business_custom_frame',
-                        'id': template['id'].toString(),
-                        'designUrl': imgUrl,
-                      }).query;
-                      Get.toNamed(
-                        '/editor?$editorQuery',
-                        arguments: {
-                          'frameData': template,
-                        },
-                      );
-                    }
-                  );
-                },
-                child: Container(
-                  width: cardWidth, height: 170, margin: const EdgeInsets.only(right: 16),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    color: Colors.white,
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))],
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: imgUrl.isNotEmpty
-                      ? Image.network(imgUrl, fit: BoxFit.cover,
-                          width: double.infinity, height: double.infinity,
-                          errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.image, color: Colors.grey)),
-                        )
-                      : const Center(child: Icon(Icons.image, color: Colors.grey)),
-                ),
-              );
-            },
-          ),
+          child: ComingSoonWidget(title: 'Custom Posts'),
         ),
-        AppSpacing.gapV32,
-      ]);
-    });
+      ),
+      AppSpacing.gapV32,
+    ]);
   }
 
   // ── 7. News ──

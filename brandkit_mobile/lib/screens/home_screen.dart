@@ -18,6 +18,7 @@ import '../services/api_service.dart';
 import 'detail_list_screen.dart';
 import 'custom_posts_screen.dart';
 import 'subscription_plans_screen.dart';
+import '../widgets/coming_soon_widget.dart';
 import 'quick_start_wizard_screen.dart';
 import 'notifications_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';

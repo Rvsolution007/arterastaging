@@ -3,8 +3,10 @@
 
 <head>
   <meta charset="utf-8">
-  <!-- DO NOT UNCOMMENT OR ADD upgrade-insecure-requests - IT BREAKS LOCAL MOBILE APP TESTING BY FORCING HTTPS -->
-  <!-- <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"> -->
+  <!-- Automatically upgrade HTTP to HTTPS on staging/production, but leave localhost alone so mobile app testing doesn't break -->
+  @if(request()->getHost() !== 'localhost' && !str_starts_with(request()->getHost(), '192.168.'))
+  <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+  @endif
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>Dashboard - {{App\Models\AppSetting::getAppSetting('app_title')}}</title>

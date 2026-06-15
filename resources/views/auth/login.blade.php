@@ -5,6 +5,10 @@
     <!-- Required meta tags -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <!-- Automatically upgrade HTTP to HTTPS on staging/production -->
+    @if(request()->getHost() !== 'localhost' && !str_starts_with(request()->getHost(), '192.168.'))
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+    @endif
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/css/bootstrap.min.css">
     <title>Login - {{App\Models\AppSetting::getAppSetting('app_title')}}</title>

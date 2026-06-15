@@ -26,16 +26,28 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        // Force HTTPS on any non-localhost domain (staging, production, etc.)
-        // Get actual domain, bypassing proxy issues where request()->getHost() returns localhost
-        $httpHost = $_SERVER['HTTP_X_FORWARDED_HOST'] ?? $_SERVER['HTTP_HOST'] ?? request()->getHost();
-        $isLocal = in_array($httpHost, ['localhost', '127.0.0.1']) || str_starts_with($httpHost, '192.168.');
+        // ==========================================
+        // DEVOPS: Ultimate Flexible URL & Proxy Fix
+        // ==========================================
+        // This handles local, staging, and production environments seamlessly,
+        // ignoring misconfigured .env files and fixing reverse proxy path mangling.
+        
+        $request = request();
+        $host = $request->header('X-Forwarded-Host') ?? $request->header('Host') ?? $request->getHost();
+        $host = explode(':', $host)[0]; // Remove port if present
+        
+        $isLocal = in_array($host, ['localhost', '127.0.0.1', '::1']) || str_starts_with($host, '192.168.') || str_ends_with($host, '.test');
+        $isSecure = $request->isSecure() || $request->header('X-Forwarded-Proto') === 'https';
         
         if (!$isLocal) {
+            // 1. Force HTTPS on all live domains
             URL::forceScheme('https');
-            // Force the root URL to use the actual domain we are on.
-            // This completely fixes the issue where asset() incorrectly appends /Artera/ to CSS URLs
-            URL::forceRootUrl('https://' . $httpHost);
+            
+            // 2. Force the root URL to strictly be the domain name.
+            // This strips out any internal proxy paths (e.g. /Artera) that cause 404s.
+            URL::forceRootUrl('https://' . $host);
+        } elseif ($isLocal && $isSecure) {
+            URL::forceScheme('https');
         }
         
         Paginator::useBootstrapFour();

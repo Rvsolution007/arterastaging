@@ -26,12 +26,20 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        // Force HTTPS for all generated URLs (asset(), url(), route()) on non-local environments
-        // This is critical for staging/production behind reverse proxies (EasyPanel, Nginx, etc.)
-        if (config('app.env') !== 'local') {
+        // Force HTTPS on any non-localhost domain (staging, production, etc.)
+        // This does NOT depend on APP_ENV — it checks the actual hostname
+        $host = request()->getHost();
+        $isLocal = in_array($host, ['localhost', '127.0.0.1']) || str_starts_with($host, '192.168.');
+        
+        if (!$isLocal) {
             URL::forceScheme('https');
-        } elseif (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
-            URL::forceScheme('https');
+            // Also force the root URL to use https if APP_URL was set with http
+            $appUrl = config('app.url');
+            if ($appUrl && str_starts_with($appUrl, 'http://')) {
+                $appUrl = str_replace('http://', 'https://', $appUrl);
+                config(['app.url' => $appUrl]);
+                URL::forceRootUrl($appUrl);
+            }
         }
         
         Paginator::useBootstrapFour();

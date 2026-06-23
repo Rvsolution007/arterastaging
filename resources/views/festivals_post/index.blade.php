@@ -623,11 +623,9 @@
     $(function(){
       $('[data-toggle="tooltip"]').tooltip();
       
-      $.switcher('.festivals-switch-ajax');
       $.switcher('.type-switch-ajax');
       $.switcher('.ai-switch-ajax');
       $.switcher('.landing-switch-ajax');
-      $.switcher('.video-switch-ajax');
       $.switcher('.video-type-switch-ajax');
 
       $(document).on('change', ".type-switch-ajax", function(){

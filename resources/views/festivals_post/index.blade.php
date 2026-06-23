@@ -1,610 +1,772 @@
 @extends("layouts.app")
 
 @section('extra_css')
-  <link href="{{ asset('assets/css/frame.css') }}" rel="stylesheet">
-  <link rel="stylesheet" href="{{ asset('assets/css/clean-switch.css')}}">
-  <style>
+<link href="{{ asset('assets/css/frame.css') }}" rel="stylesheet">
+<link rel="stylesheet" href="{{ asset('assets/css/clean-switch.css')}}">
+<style>
+    /* Modern Dashboard Styling - Adapted from AI Analytics */
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
+    .admin-container {
+        font-family: 'Poppins', sans-serif;
+        padding: 1.5rem;
+        background-color: #f8fafc;
+        min-height: 100vh;
+    }
+
+    .page-title {
+        font-weight: 700;
+        color: #1e293b;
+        font-size: 1.75rem;
+        letter-spacing: -0.025em;
+        margin-bottom: 0.25rem;
+    }
+
+    .page-subtitle {
+        color: #64748b;
+        font-size: 0.95rem;
+        margin-bottom: 0;
+    }
+
+    /* Actions Wrapper */
+    .actions-wrapper {
+        background: #ffffff;
+        padding: 1rem 1.5rem;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 2rem;
+    }
+
+    .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    /* Modern Dropdown/Select Styling */
+    .custom-select-wrapper .select2-container--default .select2-selection--single {
+        height: 42px;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        background-color: #f8fafc;
+        display: flex;
+        align-items: center;
+        padding: 0 10px;
+        transition: all 0.2s ease;
+    }
+
+    .custom-select-wrapper .select2-container--default .select2-selection--single:focus,
+    .custom-select-wrapper .select2-container--default.select2-container--open .select2-selection--single {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        background-color: #ffffff;
+    }
+
+    .custom-select-wrapper .select2-container--default .select2-selection--single .select2-selection__rendered {
+        color: #334155;
+        font-weight: 500;
+        font-size: 0.9rem;
+        line-height: 42px;
+    }
+
+    .custom-select-wrapper .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 40px;
+    }
+
+    /* Buttons */
+    .btn-premium-add {
+        background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+        color: white;
+        border: none;
+        padding: 0.6rem 1.5rem;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 6px -1px rgba(234, 88, 12, 0.3);
+    }
+
+    .btn-premium-add:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 8px -1px rgba(234, 88, 12, 0.4);
+        color: white;
+        text-decoration: none;
+    }
+
+    .btn-premium-action {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+        padding: 0.6rem 1.25rem;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+    }
+
+    .btn-premium-action:hover {
+        background: #e2e8f0;
+        color: #1e293b;
+    }
+
+    /* Bulk Select */
+    .bulk-select-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: #f8fafc;
+        padding: 0.4rem 0.75rem;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .bulk-select-wrapper input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+
+    .bulk-select-wrapper label {
+        margin: 0;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #64748b;
+        cursor: pointer;
+    }
+
+    /* Premium Frame Cards */
+    .frame-card {
+        background: #ffffff;
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.01);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+
+    .frame-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.03);
+    }
+
+    .frame-card-image-wrapper {
+        position: relative;
+        padding-top: 100%; /* Square aspect ratio by default */
+        background: #f1f5f9;
+        overflow: hidden;
+    }
+
+    .frame-card-image-wrapper img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        padding: 10px;
+        transition: transform 0.5s ease;
+    }
+
+    .frame-card:hover .frame-card-image-wrapper img {
+        transform: scale(1.05);
+    }
+
+    .frame-card-overlay {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 10;
+    }
+
+    .frame-card-checkbox {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+        accent-color: #6366f1;
+    }
+
+    .frame-card-content {
+        padding: 1.25rem;
+    }
+
+    .frame-category-name {
+        font-weight: 700;
+        color: #1e293b;
+        font-size: 1rem;
+        margin-bottom: 0.75rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .frame-actions-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-top: 0.75rem;
+        border-top: 1px solid #f1f5f9;
+    }
+
+    .action-icons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .icon-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+    }
+
+    .icon-btn-edit { background: #e0e7ff; color: #4338ca; }
+    .icon-btn-edit:hover { background: #4338ca; color: white; }
+
+    .icon-btn-delete { background: #fee2e2; color: #b91c1c; }
+    .icon-btn-delete:hover { background: #b91c1c; color: white; }
+
+    .switches-group {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    /* UI Switcher Override */
     .ui-switcher {
-      background-color: #bdc1c2;
-      display: inline-block;
-      top: 0;
-      height: 25px;
-      width: 70px;
-      border-radius: 15px;
-      box-sizing: border-box;
-      vertical-align: middle;
-      position: relative;
-      cursor: pointer;
-      transition: border-color 0.25s;
-      box-shadow: inset 1px 1px 1px rgba(0, 0, 0, 0.15);
-    }
-
-    .ui-switcher:before {
-      font-family: sans-serif;
-      font-size: 13px;
-      font-weight: 400;
-      color: #ffffff;
-      line-height: 1;
-      display: inline-block;
-      position: absolute;
-      top: 6px;
-      height: 15px;
-      width: 27px;
-      text-align: center;
-    }
-
-    /* Status Column (5th column) */
-    td:nth-child(5) .ui-switcher[aria-checked=false]:before {
-      content: 'Hide';
-      right: 10px;
-    }
-
-    td:nth-child(5) .ui-switcher[aria-checked=true]:before {
-      content: 'Show';
-      left: 10px;
-    }
-
-    td:nth-child(5) .ui-switcher[aria-checked=true] {
-      background-color: #4CAF50; /* Green for Active */
-    }
-
-    /* Type Column (6th column) */
-    td:nth-child(6) .ui-switcher[aria-checked=false]:before {
-      content: 'Free';
-      right: 10px;
-    }
-
-    td:nth-child(6) .ui-switcher[aria-checked=true]:before {
-      content: 'Paid';
-      left: 10px;
+        width: 54px !important;
+        height: 24px !important;
+        border-radius: 12px !important;
+        background-color: #cbd5e1 !important;
+        border: none !important;
     }
 
     .ui-switcher[aria-checked=true] {
-      background-color: #e91e63;
-    }
-
-    /* AI Column (7th column) */
-    td:nth-child(7) .ui-switcher[aria-checked=false]:before {
-      content: 'No';
-      right: 10px;
-    }
-
-    td:nth-child(7) .ui-switcher[aria-checked=true]:before {
-      content: 'AI';
-      left: 10px;
-    }
-
-    td:nth-child(7) .ui-switcher[aria-checked=true] {
-      background-color: #9c27b0; /* Purple for AI */
-    }
-
-    /* Landing Column (8th column) */
-    td:nth-child(8) .ui-switcher[aria-checked=false]:before {
-      content: 'No';
-      right: 10px;
-    }
-
-    td:nth-child(8) .ui-switcher[aria-checked=true]:before {
-      content: 'Yes';
-      left: 10px;
-    }
-
-    td:nth-child(8) .ui-switcher[aria-checked=true] {
-      background-color: #f39c12; /* Orange for Landing */
+        background-color: #10b981 !important;
     }
 
     .ui-switcher:after {
-      background-color: #ffffff;
-      content: '\0020';
-      display: inline-block;
-      position: absolute;
-      top: 2px;
-      height: 20px;
-      width: 20px;
-      border-radius: 50%;
-      transition: left 0.25s;
-    }
-
-    .ui-switcher[aria-checked=false]:after {
-      left: 5px;
+        width: 18px !important;
+        height: 18px !important;
+        top: 3px !important;
+        left: 3px !important;
     }
 
     .ui-switcher[aria-checked=true]:after {
-      left: 45px;
+        left: 33px !important;
     }
 
-    .table img {
-      width: 60px;
-      height: 60px;
-      object-fit: cover;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      cursor: pointer;
-      transition: transform 0.2s;
+    .ui-switcher:before {
+        display: none !important;
     }
 
-    .table img:hover {
-      transform: scale(1.1);
+    /* Tooltip/Label for switches */
+    .switch-label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #94a3b8;
+        margin-bottom: 2px;
+        display: block;
     }
-  </style>
+
+    /* Clean Switch Override */
+    .cl-switch input[type="checkbox"]:checked + .switcher {
+        background-color: #6366f1 !important;
+    }
+
+</style>
 @endsection
 
 @section('content')
-  <div class="row">
-    <div class="col-md-12">
-      @if (count($errors) > 0)
-        <div class="alert alert-danger">
-          <ul>
-            @foreach ($errors->all() as $error)
-              <li>{{ $error }}</li>
-            @endforeach
-          </ul>
+<div class="admin-container">
+    <!-- Header Section -->
+    <div class="row align-items-center mb-4">
+        <div class="col-md-7">
+            <h1 class="page-title">Festivals Post</h1>
+            <p class="page-subtitle">Manage and curate festival-specific {{ $tab == 'video' ? 'videos' : 'frame templates' }}</p>
         </div>
-      @endif
-      <div class="card card-primary">
-        <div class="card-header">
-          <h3 class="card-title float-left">
-            Festivals Post
-          </h3>
-          <a href="{{ $tab == 'video' ? route('festivals-post.create', ['type' => 'video']) : route('festivals-post.create') }}" class="btn btn-success float-right">Add New</a>
+        <div class="col-md-5 text-right">
+            <a href="{{ $tab == 'video' ? route('festivals-post.create', ['type' => 'video']) : route('festivals-post.create') }}" class="btn-premium-add ml-auto" style="width: fit-content;">
+                <i class="fa fa-plus"></i> Add New {{ $tab == 'video' ? 'Video' : 'Frame' }}
+            </a>
         </div>
+    </div>
 
-        <!-- Tabs Section -->
-        <ul class="nav nav-tabs mt-3 px-3" style="border-bottom: 2px solid #e2e8f0;">
-            <li class="nav-item">
-                <a class="nav-link {{ $tab == 'image' ? 'active' : '' }}" style="font-weight: 600; {{ $tab == 'image' ? 'color: #6366f1; border-bottom: 2px solid #6366f1;' : 'color: #64748b;' }}" href="{{ url('admin/festivals-post?tab=image') }}">Images</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link {{ $tab == 'video' ? 'active' : '' }}" style="font-weight: 600; {{ $tab == 'video' ? 'color: #6366f1; border-bottom: 2px solid #6366f1;' : 'color: #64748b;' }}" href="{{ url('admin/festivals-post?tab=video') }}">Videos</a>
-            </li>
-        </ul>
+    <!-- Tabs Section -->
+    <ul class="nav nav-tabs mb-4" style="border-bottom: 2px solid #e2e8f0;">
+        <li class="nav-item">
+            <a class="nav-link {{ $tab == 'image' ? 'active' : '' }}" style="font-weight: 600; {{ $tab == 'image' ? 'color: #6366f1; border-bottom: 2px solid #6366f1;' : 'color: #64748b;' }}" href="{{ url('admin/festivals-post?tab=image') }}">Images</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {{ $tab == 'video' ? 'active' : '' }}" style="font-weight: 600; {{ $tab == 'video' ? 'color: #6366f1; border-bottom: 2px solid #6366f1;' : 'color: #64748b;' }}" href="{{ url('admin/festivals-post?tab=video') }}">Videos</a>
+        </li>
+    </ul>
 
-        <div class="card-body">
-          <div class="row d-flex justify-content-between mb-3 px-3">
-            <div class="d-flex align-items-center">
-              <div class="mr-3">
-                <select class="form-control select2" id="festival_dropdown" name="festival_dropdown"
-                  onchange="location = this.value;">
-                  <option value="{{url('admin/festivals-post?tab=' . $tab)}}" @if(empty($name)) selected @endif>Select Festivals
-                  </option>
-                  @foreach($festivals as $f)
-                    <option value="{{url('admin/festival/' . $f->id . '?tab=' . $tab)}}" @if(!empty($name) && $name == $f->title) selected
-                    @endif>{{$f->title}}</option>
-                  @endforeach
+    <!-- Actions & Filters Wrapper -->
+    <div class="actions-wrapper">
+        <div class="filter-group">
+            <div class="custom-select-wrapper" style="min-width: 250px;">
+                <select class="form-control select2" id="festival_dropdown" name="festival_dropdown" onchange="location = this.value;">
+                    <option value="{{url('admin/festivals-post?tab=' . $tab)}}" @if(empty($name)) selected @endif>All Festivals</option>
+                    @foreach($festivals as $f)
+                        <option value="{{url('admin/festival/' . $f->id . '?tab=' . $tab)}}" @if(!empty($name) && $name == $f->title) selected @endif>{{$f->title}}</option>
+                    @endforeach
                 </select>
-              </div>
-
-              <div class="checkbox mr-3">
-                <input type="checkbox" id="checkall" style="width: 18px;height: 18px; vertical-align: middle;">
-                <label for="checkall" class="mb-0 ml-1">Select All</label>
-              </div>
-
-              <div class="dropdown">
-                <button class="btn btn-primary dropdown-toggle btn_cust" type="button" data-toggle="dropdown">Action<span
-                    class="caret"></span></button>
-                <ul class="dropdown-menu">
-                  <li><a class="dropdown-item" href="#" data-type="enable" data-toggle="modal"
-                      data-target="#enableModal">Enable</a></li>
-                  <li><a class="dropdown-item" href="#" data-type="disable" data-toggle="modal"
-                      data-target="#disableModal">Disable</a></li>
-                  <li><a class="dropdown-item" href="#" data-type="delete" data-toggle="modal"
-                      data-target="#deleteModal">Delete</a></li>
-                </ul>
-                {!! Form::open(['url' => $tab == 'video' ? 'admin/video-action' : 'admin/festivals-post-action', 'method' => 'POST', 'class' => 'form-horizontal', 'id' => 'form1']) !!}
-                <input type="hidden" name="select_post" value="">
-                <input type="hidden" name="action_type" value="">
-                @if($tab == 'video')
-                    <input type="hidden" name="redirect_to" value="festivals-post">
-                @endif
-                {!! Form::close() !!}
-              </div>
             </div>
-          </div>
+            
+            <div class="bulk-select-wrapper">
+                <input type="checkbox" id="checkall">
+                <label for="checkall">Select All</label>
+            </div>
+        </div>
 
-          <div class="table-responsive p-0">
-            <table class="table table-hover text-nowrap">
-              <thead>
-                <tr>
-                  <th width="50px"></th>
-                  <th>ID</th>
-                  <th>Thumb</th>
-                  <th>Festival</th>
-                  <th>Status</th>
-                  <th>Type</th>
-                  <th>AI</th>
-                  <th>Landing</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                @foreach($data as $frame)
-                  <tr>
-                    <td class="align-middle">
-                      <input type="checkbox" name="post_ids[]" value="{{$frame->id}}" class="post_ids"
-                        style="width: 16px;height: 16px;">
-                    </td>
-                    <td class="align-middle">#{{$frame->id}}</td>
-                    <td class="align-middle">
-                      @if($tab == 'video')
-                        <video width="60" height="60" preload="metadata" style="object-fit: cover; border-radius: 8px;">
-                          <source src="@if(App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean'){{\Storage::disk('spaces')->url('uploads/video/' . $frame->video)}} @else {{asset('uploads/video/' . $frame->video)}} @endif#t=5">
+        <div class="dropdown">
+            <button class="btn btn-premium-action dropdown-toggle" type="button" data-toggle="dropdown">
+                Bulk Actions <i class="fa fa-chevron-down ml-2" style="font-size: 0.8rem;"></i>
+            </button>
+            <div class="dropdown-menu dropdown-menu-right shadow-sm border-0" style="border-radius: 12px; padding: 0.5rem;">
+                <a class="dropdown-item py-2 px-3" href="#" data-type="enable" data-toggle="modal" data-target="#enableModal" style="border-radius: 8px; font-weight: 500;">
+                    <i class="fa fa-check-circle text-success mr-2"></i> Enable Selected
+                </a>
+                <a class="dropdown-item py-2 px-3" href="#" data-type="disable" data-toggle="modal" data-target="#disableModal" style="border-radius: 8px; font-weight: 500;">
+                    <i class="fa fa-times-circle text-warning mr-2"></i> Disable Selected
+                </a>
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item py-2 px-3 text-danger" href="#" data-type="delete" data-toggle="modal" data-target="#deleteModal" style="border-radius: 8px; font-weight: 500;">
+                    <i class="fa fa-trash-alt mr-2"></i> Delete Selected
+                </a>
+            </div>
+            {!! Form::open(['url' => $tab == 'video' ? 'admin/video-action' : 'admin/festivals-post-action','method'=>'POST','class'=>'form-horizontal','id'=>'form1']) !!}
+            <input type="hidden" name="select_post" value="">
+            <input type="hidden" name="action_type" value="">
+            @if($tab == 'video')
+                <input type="hidden" name="redirect_to" value="festivals-post">
+            @endif
+            {!! Form::close() !!}
+        </div>
+    </div>
+
+    @if (count($errors) > 0)
+    <div class="alert alert-danger shadow-sm border-0 mb-4" style="border-radius: 12px;">
+        <ul class="mb-0">
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+    @endif
+
+    <!-- Frame Grid -->
+    <div class="row" id="frame_data">
+        @foreach($data as $frame)
+        <div class="col-xl-3 col-lg-4 col-md-6 col-sm-6">
+            <div class="frame-card">
+                <div class="frame-card-overlay">
+                    <input type="checkbox" name="post_ids[]" value="{{$frame->id}}" class="post_ids frame-card-checkbox">
+                </div>
+                
+                <div class="frame-card-image-wrapper">
+                    @if($tab == 'video')
+                        <video width="100%" height="100%" preload="metadata" style="object-fit: cover;">
+                            <source src="@if(App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean'){{\Storage::disk('spaces')->url('uploads/video/'.$frame->video)}} @else {{asset('uploads/video/'.$frame->video)}} @endif#t=5">
                         </video>
-                      @else
-                        <img
-                          src="@if(App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean'){{\Storage::disk('spaces')->url('uploads/' . $frame->frame_image)}} @else {{asset('uploads/' . $frame->frame_image)}} @endif"
-                          class="img-preview-trigger shadow-sm"
-                          data-url="@if(App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean'){{\Storage::disk('spaces')->url('uploads/' . $frame->frame_image)}} @else {{asset('uploads/' . $frame->frame_image)}} @endif"
-                          alt="Thumb" />
-                      @endif
-                    </td>
-                    <td class="align-middle">
-                      <span class="font-weight-bold">
-                        @if($tab == 'video')
-                            {{$frame->festival->title ?? ''}}
-                        @else
-                            {{$frame->festivals->title ?? ''}}
-                        @endif
-                      </span>
-                    </td>
-                    <td class="align-middle">
-                      <input class="{{ $tab == 'video' ? 'video-switch-ajax' : 'festivals-switch-ajax' }}" type="checkbox" data-id="{{$frame->id}}" value="1"
-                        @if($frame->status == 1) checked @endif>
-                    </td>
-                    <td class="align-middle">
-                      <input class="{{ $tab == 'video' ? 'video-type-switch-ajax' : 'type-switch-ajax' }}" type="checkbox" data-id="{{$frame->id}}" value="1"
-                        @if($frame->paid == 1) checked @endif>
-                    </td>
-                    <td class="align-middle">
-                      <input class="ai-switch-ajax" type="checkbox" data-id="{{$frame->id}}" value="1"
-                        @if($frame->is_ai == 1) checked @endif>
-                    </td>
-                    <td class="align-middle">
-                      @if($tab != 'video')
-                      <input class="landing-switch-ajax" type="checkbox" data-id="{{$frame->id}}" value="1"
-                        @if($frame->show_on_landing == 1) checked @endif>
-                      @endif
-                    </td>
-                    <td class="align-middle">
-                      <div class="btn-group">
-                        @if($tab == 'video')
-                            <a href="{{url('admin/video/' . $frame->id . '/edit?tab=video&redirect_to=festivals-post')}}" class="btn btn-sm btn-success" data-toggle="tooltip" title="Edit">
-                              <i class="fa fa-edit"></i>
+                    @else
+                        <img src="@if(App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean'){{\Storage::disk('spaces')->url('uploads/'.$frame->frame_image)}} @else {{asset('uploads/'.$frame->frame_image)}} @endif" alt="{{$tab == 'video' ? ($frame->festival->title ?? '') : ($frame->festivals->title ?? '')}}" class="img-preview-trigger" data-url="@if(App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean'){{\Storage::disk('spaces')->url('uploads/'.$frame->frame_image)}} @else {{asset('uploads/'.$frame->frame_image)}} @endif" style="cursor: pointer;">
+                    @endif
+                </div>
+
+                <div class="frame-card-content">
+                    <div class="frame-category-name" title="{{$tab == 'video' ? ($frame->festival->title ?? '') : ($frame->festivals->title ?? '')}}">
+                        {{$tab == 'video' ? ($frame->festival->title ?? '') : ($frame->festivals->title ?? '')}}
+                    </div>
+
+                    <div class="frame-actions-row">
+                        <div class="switches-group">
+                            <div class="text-center">
+                                <span class="switch-label">Status</span>
+                                <label class="cl-switch cl-switch-red mb-0">
+                                    <input type="checkbox" class="{{ $tab == 'video' ? 'video-switch-ajax' : 'festivals-switch-ajax' }}" data-id="{{$frame->id}}" value="1" @if($frame->status==1) checked @endif>
+                                    <span class="switcher"></span>
+                                </label>
+                            </div>
+                            <div class="text-center">
+                                <span class="switch-label">Premium</span>
+                                <input class="{{ $tab == 'video' ? 'video-type-switch-ajax' : 'type-switch-ajax' }}" type="checkbox" data-id="{{$frame->id}}" value="1" @if($frame->paid==1) checked @endif>
+                            </div>
+                            <div class="text-center">
+                                <span class="switch-label">AI</span>
+                                <input class="ai-switch-ajax" type="checkbox" data-id="{{$frame->id}}" value="1" @if($frame->is_ai==1) checked @endif>
+                            </div>
+                            @if($tab != 'video')
+                            <div class="text-center">
+                                <span class="switch-label">Landing</span>
+                                <input class="landing-switch-ajax" type="checkbox" data-id="{{$frame->id}}" value="1" @if($frame->show_on_landing==1) checked @endif>
+                            </div>
+                            @endif
+                        </div>
+
+                        <div class="action-icons">
+                            @if($tab == 'video')
+                                <a href="{{url('admin/video/'.$frame->id.'/edit?tab=video&redirect_to=festivals-post')}}" class="icon-btn icon-btn-edit" data-toggle="tooltip" title="Edit Video">
+                                    <i class="fa fa-edit"></i>
+                                </a>
+                            @else
+                                <a href="{{url('admin/festivals-post/'.$frame->id.'/edit')}}" class="icon-btn icon-btn-edit" data-toggle="tooltip" title="Edit Frame">
+                                    <i class="fa fa-edit"></i>
+                                </a>
+                            @endif
+                            <a href="#" data-id="{{$frame->id}}" class="icon-btn icon-btn-delete btn_delete_a" data-toggle="modal" data-target="#myModal" title="Delete">
+                                <i class="fa fa-trash"></i>
                             </a>
-                        @else
-                            <a href="{{url('admin/festivals-post/' . $frame->id . '/edit')}}" class="btn btn-sm btn-success" data-toggle="tooltip" title="Edit">
-                              <i class="fa fa-edit"></i>
-                            </a>
-                        @endif
-                        <button type="button" data-id="{{$frame->id}}" class="btn btn-sm btn-danger ml-2 btn_delete_a"
-                          data-toggle="modal" data-target="#myModal" title="Delete">
-                          <i class="fa fa-trash"></i>
-                        </button>
-                      </div>
-                      @if($tab == 'video')
-                          {!! Form::open(['url' => 'admin/video/' . $frame->id, 'method' => 'DELETE', 'class' => 'form-horizontal', 'id' => 'form_' . $frame->id]) !!}
-                          {!! Form::hidden("redirect_to", "festivals-post") !!}
-                      @else
-                          {!! Form::open(['url' => 'admin/festivals-post/' . $frame->id, 'method' => 'DELETE', 'class' => 'form-horizontal', 'id' => 'form_' . $frame->id]) !!}
-                      @endif
-                      {!! Form::hidden("id", $frame->id) !!}
-                      {!! Form::close() !!}
-                    </td>
-                  </tr>
-                @endforeach
-              </tbody>
-            </table>
-          </div>
-          <div class="card-footer clearfix">
-            <div class="float-right">
-              {{ $data->links() }}
+                        </div>
+                    </div>
+                </div>
+
+                @if($tab == 'video')
+                    {!! Form::open(['url' => 'admin/video/'.$frame->id,'method'=>'DELETE','class'=>'form-horizontal','id'=>'form_'.$frame->id]) !!}
+                    {!! Form::hidden("redirect_to", "festivals-post") !!}
+                @else
+                    {!! Form::open(['url' => 'admin/festivals-post/'.$frame->id,'method'=>'DELETE','class'=>'form-horizontal','id'=>'form_'.$frame->id]) !!}
+                @endif
+                {!! Form::hidden("id",$frame->id) !!}
+                {!! Form::close() !!}
             </div>
-          </div>
         </div>
-      </div>
+        @endforeach
     </div>
-  </div>
 
-  <!-- Modal -->
-  <div id="myModal" class="modal fade" role="dialog">
-    <div class="modal-dialog">
-      <!-- Modal content-->
-      <div class="modal-content">
-        <div class="modal-header">
-          <h4 class="modal-title">Delete</h4>
-          <button type="button" class="close" data-dismiss="modal">&times;</button>
-        </div>
-        <div class="modal-body">
-          <p>Are you sure you want to Delete ?</p>
-        </div>
-        <div class="modal-footer">
-          @if(optional(Auth::user())->user_type == "Demo")
-            <button type="button" class="btn btn-danger ToastrButton">Delete</button>
-          @else
-            <button id="del_btn" class="btn btn-danger" type="button" data-submit="">Delete</button>
-          @endif
-          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-        </div>
-      </div>
+    <!-- Pagination -->
+    <div class="d-flex justify-content-center mt-4">
+        {{ $data->links() }}
     </div>
-  </div>
+</div>
 
-  <!-- Image Preview Modal -->
-  <div id="previewModal" class="modal fade" role="dialog">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h4 class="modal-title">Image Preview</h4>
-          <button type="button" class="close" data-dismiss="modal">&times;</button>
-        </div>
-        <div class="modal-body text-center" style="background: #f8fafc;">
-          <img id="previewImageFull" src=""
-            style="max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-        </div>
+<!-- Modal -->
+<div id="myModal" class="modal fade" role="dialog">
+  <div class="modal-dialog">
+    <!-- Modal content-->
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title">Delete</h4>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to Delete ?</p>
+      </div>
+      <div class="modal-footer">
+        @if(optional(Auth::user())->user_type == "Demo")
+        <button type="button" class="btn btn-danger ToastrButton">Delete</button>
+        @else
+        <button id="del_btn" class="btn btn-danger" type="button" data-submit="">Delete</button>
+        @endif
+        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
       </div>
     </div>
   </div>
+</div>
+<!-- Modal -->
 
-  <!-- enableModal -->
-  <div id="enableModal" class="modal fade" role="dialog">
-    <div class="modal-dialog">
-      <!-- Modal content-->
-      <div class="modal-content">
-        <div class="modal-header">
-          <h4 class="modal-title">Enable</h4>
-          <button type="button" class="close" data-dismiss="modal">&times;</button>
-        </div>
-        <div class="modal-body">
-          <p>Do you really want to perform?</p>
-        </div>
-        <div class="modal-footer">
-          @if(optional(Auth::user())->user_type == "Demo")
-            <button type="button" class="btn btn-danger ToastrButton">Yes</button>
-          @else
-            <button id="enable_btn" class="btn btn-danger" type="button">Yes</button>
-          @endif
-          <button type="button" class="btn btn-default" data-dismiss="modal">No</button>
-        </div>
+<!-- Image Preview Modal -->
+<div id="previewModal" class="modal fade" role="dialog">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title">Image Preview</h4>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body text-center" style="background: #f8fafc;">
+        <img id="previewImageFull" src=""
+          style="max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
       </div>
     </div>
   </div>
-  <!-- enableModal -->
+</div>
 
-  <!-- disableModal -->
-  <div id="disableModal" class="modal fade" role="dialog">
-    <div class="modal-dialog">
-      <!-- Modal content-->
-      <div class="modal-content">
-        <div class="modal-header">
-          <h4 class="modal-title">Disable</h4>
-          <button type="button" class="close" data-dismiss="modal">&times;</button>
-        </div>
-        <div class="modal-body">
-          <p>Do you really want to perform?</p>
-        </div>
-        <div class="modal-footer">
-          @if(optional(Auth::user())->user_type == "Demo")
-            <button type="button" class="btn btn-danger ToastrButton">Yes</button>
-          @else
-            <button id="disable_btn" class="btn btn-danger" type="button">Yes</button>
-          @endif
-          <button type="button" class="btn btn-default" data-dismiss="modal">No</button>
-        </div>
+<!-- enableModal -->
+<div id="enableModal" class="modal fade" role="dialog">
+  <div class="modal-dialog">
+    <!-- Modal content-->
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title">Enable</h4>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Do you really want to perform?</p>
+      </div>
+      <div class="modal-footer">
+        @if(optional(Auth::user())->user_type == "Demo")
+        <button type="button" class="btn btn-danger ToastrButton">Yes</button>
+        @else
+        <button id="enable_btn" class="btn btn-danger" type="button">Yes</button>
+        @endif
+        <button type="button" class="btn btn-default" data-dismiss="modal">No</button>
       </div>
     </div>
   </div>
-  <!-- disableModal -->
+</div>
+<!-- enableModal -->
 
-  <!-- deleteModal -->
-  <div id="deleteModal" class="modal fade" role="dialog">
-    <div class="modal-dialog">
-      <!-- Modal content-->
-      <div class="modal-content">
-        <div class="modal-header">
-          <h4 class="modal-title">Delete</h4>
-          <button type="button" class="close" data-dismiss="modal">&times;</button>
-        </div>
-        <div class="modal-body">
-          <p>Do you really want to perform?</p>
-        </div>
-        <div class="modal-footer">
-          @if(optional(Auth::user())->user_type == "Demo")
-            <button type="button" class="btn btn-danger ToastrButton">Yes</button>
-          @else
-            <button id="bulk_delete_btn" class="btn btn-danger" type="button">Yes</button>
-          @endif
-          <button type="button" class="btn btn-default" data-dismiss="modal">No</button>
-        </div>
+<!-- disableModal -->
+<div id="disableModal" class="modal fade" role="dialog">
+  <div class="modal-dialog">
+    <!-- Modal content-->
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title">Disable</h4>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Do you really want to perform?</p>
+      </div>
+      <div class="modal-footer">
+        @if(optional(Auth::user())->user_type == "Demo")
+        <button type="button" class="btn btn-danger ToastrButton">Yes</button>
+        @else
+        <button id="disable_btn" class="btn btn-danger" type="button">Yes</button>
+        @endif
+        <button type="button" class="btn btn-default" data-dismiss="modal">No</button>
       </div>
     </div>
   </div>
-  <!-- deleteModal -->
+</div>
+<!-- disableModal -->
+
+<!-- deleteModal -->
+<div id="deleteModal" class="modal fade" role="dialog">
+  <div class="modal-dialog">
+    <!-- Modal content-->
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title">Delete</h4>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Do you really want to perform?</p>
+      </div>
+      <div class="modal-footer">
+        @if(optional(Auth::user())->user_type == "Demo")
+        <button type="button" class="btn btn-danger ToastrButton">Yes</button>
+        @else
+        <button id="bulk_delete_btn" class="btn btn-danger" type="button">Yes</button>
+        @endif
+        <button type="button" class="btn btn-default" data-dismiss="modal">No</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- deleteModal -->
 @endsection
 
 @section('script')
-  <script src="{{ asset('assets/js/jquery.switcher.js')}}"></script>
-  <script type="text/javascript">
+<script src="{{ asset('assets/js/jquery.switcher.js')}}"></script>
+<script type="text/javascript">
     $('#festival_dropdown').select2();
-    $.switcher('.festivals-switch-ajax');
-    $.switcher('.type-switch-ajax');
-    $.switcher('.ai-switch-ajax');
-    $.switcher('.landing-switch-ajax');
-    $.switcher('.video-switch-ajax');
-    $.switcher('.video-type-switch-ajax');
-
     var checkarray = [];
-    $("#checkall").click(function () {
+    $("#checkall").click(function() {
       checkarray = [];
       $("input[name='post_ids[]']").not(this).prop('checked', this.checked);
-      $.each($("input[name='post_ids[]']:checked"), function () {
+      $.each($("input[name='post_ids[]']:checked"), function() {
         checkarray.push($(this).val());
       });
       $("input[name='select_post']").val(checkarray);
     });
-
-    $(document).on('click', ".post_ids", function (e) {
+    
+    $(document).on('click', ".post_ids", function(e) {
       if ($(this).prop("checked") == true) {
         checkarray.push($(this).val());
       } else if ($(this).prop("checked") == false) {
-        checkarray.splice($.inArray($(this).val(), checkarray), 1);
+        checkarray.splice($.inArray($(this).val(),checkarray), 1);
       }
       $("input[name='select_post']").val(checkarray);
     });
 
-    $("#enable_btn").on("click", function () {
-      $("#form1").submit();
+    $("#enable_btn").on("click",function(){
+        $("#form1").submit();
     });
 
-    $('#enableModal').on('show.bs.modal', function (e) {
-      $("input[name='action_type']").val("enable");
+    $('#enableModal').on('show.bs.modal', function(e) {
+        $("input[name='action_type']").val("enable");
     });
 
-    $("#disable_btn").on("click", function () {
-      $("#form1").submit();
+    $("#disable_btn").on("click",function(){
+        $("#form1").submit();
     });
 
-    $('#disableModal').on('show.bs.modal', function (e) {
-      $("input[name='action_type']").val("disable");
+    $('#disableModal').on('show.bs.modal', function(e) {
+        $("input[name='action_type']").val("disable");
     });
 
-    $("#bulk_delete_btn").on("click", function () {
-      $("#form1").submit();
+    $("#bulk_delete_btn").on("click",function(){
+        $("#form1").submit();
     });
 
-    $('#deleteModal').on('show.bs.modal', function (e) {
-      $("input[name='action_type']").val("delete");
+    $('#deleteModal').on('show.bs.modal', function(e) {
+        $("input[name='action_type']").val("delete");
     });
 
-    $("#del_btn").on("click", function () {
-      var id = $(this).data("submit");
-      $("#form_" + id).submit();
-    });
+    $(function(){
+      $('[data-toggle="tooltip"]').tooltip();
+      
+      $.switcher('.type-switch-ajax');
+      $.switcher('.ai-switch-ajax');
+      $.switcher('.landing-switch-ajax');
+      $.switcher('.video-type-switch-ajax');
 
-    $('#myModal').on('show.bs.modal', function (e) {
-      var id = e.relatedTarget.dataset.id;
-      $("#del_btn").attr("data-submit", id);
-    });
-
-    $(document).on('click', '.img-preview-trigger', function () {
-      var url = $(this).data('url');
-      $('#previewImageFull').attr('src', url);
-      $('#previewModal').modal('show');
-    });
-
-    $(document).on('change', ".festivals-switch-ajax", function () {
-      var checked = $(this).is(':checked');
-      var id = $(this).data("id");
-
-      $.ajax({
-        type: "POST",
-        url: "{{url('admin/festivals-post-status')}}",
-        data: { checked: checked, id: id },
-        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-        success: function (data) {
-          new PNotify({
-            title: 'Success!',
-            text: "Festivals Post Status Has Been Changed.",
-            type: 'success'
-          });
-        },
+      $(document).on('change', ".type-switch-ajax", function(){
+        var checked = $(this).is(':checked');
+        var id = $(this).data("id");
+        
+        $.ajax({
+          type: "POST",
+          url: "{{url('admin/festivals-post-type')}}",
+          data: { checked : checked , id : id},
+          headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+          success: function(data) {
+            if(data == 1)
+            {
+              new PNotify({
+                title: 'Success!',
+                text: "Festivals Post Set Paid",
+                type: 'success'
+              });
+            }
+            else
+            {
+              new PNotify({
+                title: 'Success!',
+                text: "Festivals Post Set Free",
+                type: 'success'
+              });
+            }
+          },
+        });
       });
-    });
+    
+      $("#del_btn").on("click",function(){
+          var id=$(this).attr("data-submit");
+          $("#form_"+id).submit();
+      });
 
-    $(document).on('change', ".type-switch-ajax", function () {
-      var checked = $(this).is(':checked');
-      var id = $(this).data("id");
+      $('#myModal').on('show.bs.modal', function(e) {
+          var id = e.relatedTarget.dataset.id;
+          $("#del_btn").attr("data-submit",id);
+      });
 
-      $.ajax({
-        type: "POST",
-        url: "{{url('admin/festivals-post-type')}}",
-        data: { checked: checked, id: id },
-        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-        success: function (data) {
-          if (data == 1) {
+      $(document).on('click', '.img-preview-trigger', function () {
+        var url = $(this).data('url');
+        $('#previewImageFull').attr('src', url);
+        $('#previewModal').modal('show');
+      });
+
+      $(document).on('change', ".festivals-switch-ajax", function(){
+        var checked = $(this).is(':checked');
+        var id = $(this).data("id");
+        
+        $.ajax({
+          type: "POST",
+          url: "{{url('admin/festivals-post-status')}}",
+          data: { checked : checked , id : id},
+          headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+          success: function(data) {
             new PNotify({
               title: 'Success!',
-              text: "Festivals Post Set Paid",
+              text: "Festivals Post Status Has Been Changed.",
               type: 'success'
             });
-          }
-          else {
+          },
+        });
+      });
+
+      $(document).on('change', ".video-switch-ajax", function(){
+        var checked = $(this).is(':checked');
+        var id = $(this).data("id");
+        
+        $.ajax({
+          type: "POST",
+          url: "{{url('admin/video-status')}}",
+          data: { checked : checked , id : id},
+          headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+          success: function(data) {
             new PNotify({
               title: 'Success!',
-              text: "Festivals Post Set Free",
+              text: "Video Status Has Been Changed.",
               type: 'success'
             });
-          }
-        },
+          },
+        });
+      });
+
+      $(document).on('change', ".video-type-switch-ajax", function () {
+        var checked = $(this).is(':checked');
+        var id = $(this).data("id");
+        $.ajax({
+          type: "POST",
+          url: "{{url('admin/video-type')}}",
+          data: { checked: checked, id: id },
+          headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+          success: function (data) {
+            if (data == 1) {
+              new PNotify({title: 'Success!', text: "Video Set Paid", type: 'success'});
+            } else {
+              new PNotify({title: 'Success!', text: "Video Set Free", type: 'success'});
+            }
+          },
+        });
+      });
+
+      $(document).on('change', ".ai-switch-ajax", function(){
+        var checked = $(this).is(':checked');
+        var id = $(this).data("id");
+        
+        $.ajax({
+          type: "POST",
+          url: "{{url('admin/festivals-post-ai')}}",
+          data: { checked : checked , id : id},
+          headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+          success: function(data) {
+            new PNotify({
+              title: 'Success!',
+              text: "AI Status Has Been Changed.",
+              type: 'success'
+            });
+          },
+        });
+      });
+
+      $(document).on('change', ".landing-switch-ajax", function(){
+        var checked = $(this).is(':checked');
+        var id = $(this).data("id");
+        
+        $.ajax({
+          type: "POST",
+          url: "{{url('admin/festivals-post-landing')}}",
+          data: { checked : checked , id : id},
+          headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+          success: function(data) {
+            new PNotify({
+              title: 'Success!',
+              text: "Landing Visibility Has Been Changed.",
+              type: 'success'
+            });
+          },
+        });
       });
     });
-
-    $(document).on('change', ".video-switch-ajax", function () {
-      var checked = $(this).is(':checked');
-      var id = $(this).data("id");
-      $.ajax({
-        type: "POST",
-        url: "{{url('admin/video-status')}}",
-        data: { checked: checked, id: id },
-        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-        success: function (data) {
-          new PNotify({title: 'Success!', text: "Video Status Changed.", type: 'success'});
-        },
-      });
-    });
-
-    $(document).on('change', ".video-type-switch-ajax", function () {
-      var checked = $(this).is(':checked');
-      var id = $(this).data("id");
-      $.ajax({
-        type: "POST",
-        url: "{{url('admin/video-type')}}",
-        data: { checked: checked, id: id },
-        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-        success: function (data) {
-          if (data == 1) {
-            new PNotify({title: 'Success!', text: "Video Set Paid", type: 'success'});
-          } else {
-            new PNotify({title: 'Success!', text: "Video Set Free", type: 'success'});
-          }
-        },
-      });
-    });
-
-    $(document).on('change', ".ai-switch-ajax", function () {
-      var checked = $(this).is(':checked');
-      var id = $(this).data("id");
-
-      $.ajax({
-        type: "POST",
-        url: "{{url('admin/festivals-post-ai')}}",
-        data: { checked: checked, id: id },
-        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-        success: function (data) {
-          new PNotify({
-            title: 'Success!',
-            text: "AI Status Has Been Changed.",
-            type: 'success'
-          });
-        },
-      });
-    });
-
-    $(document).on('change', ".landing-switch-ajax", function () {
-      var checked = $(this).is(':checked');
-      var id = $(this).data("id");
-
-      $.ajax({
-        type: "POST",
-        url: "{{url('admin/festivals-post-landing')}}",
-        data: { checked: checked, id: id },
-        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-        success: function (data) {
-          new PNotify({
-            title: 'Success!',
-            text: "Landing Visibility Changed.",
-            type: 'success'
-          });
-        },
-      });
-    });
-  </script>
+</script>
 @endsection

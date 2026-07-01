@@ -316,39 +316,75 @@ class BusinessSubCategoryController extends Controller
     public function import(Request $request)
     {
         $request->validate([
-            'file' => 'required|mimes:csv,txt'
+            'file' => 'required|file'
         ]);
 
         if ($request->hasFile('file')) {
             $file = $request->file('file');
+            $extension = strtolower($file->getClientOriginalExtension());
+            if (!in_array($extension, ['csv', 'txt', 'xls', 'xlsx'])) {
+                return redirect()->back()->with('error', 'Please upload a valid CSV file.');
+            }
+
             $handle = fopen($file->path(), "r");
-            $header = true;
-            
-            while ($csvLine = fgetcsv($handle, 1000, ",")) {
-                if ($header) {
-                    $header = false;
-                    continue; // Skip header row
-                }
-                
+            if (!$handle) {
+                return redirect()->back()->with('error', 'Unable to read the uploaded file.');
+            }
+
+            $header = fgetcsv($handle, 10000, ",");
+            if (!$header) {
+                fclose($handle);
+                return redirect()->back()->with('error', 'CSV file is empty.');
+            }
+
+            while (($csvLine = fgetcsv($handle, 10000, ",")) !== false) {
+                if (empty($csvLine) || (count($csvLine) === 1 && trim($csvLine[0]) === '')) continue;
+
                 $id = isset($csvLine[0]) ? trim($csvLine[0]) : '';
                 $name = isset($csvLine[1]) ? trim($csvLine[1]) : '';
-                $categoryId = isset($csvLine[2]) ? trim($csvLine[2]) : '';
-                $status = isset($csvLine[5]) ? trim($csvLine[5]) : 1;
+                
+                if (empty($name)) continue;
 
-                if(!empty($name) && !empty($categoryId)) {
-                    if (!empty($id)) {
-                        BusinessSubCategory::where('id', $id)->update([
+                // In exported 6-column CSV, parent category name is at index 4. In 3 or 4-column format, it's at index 2.
+                $catVal = trim(count($csvLine) >= 6 ? $csvLine[4] : (isset($csvLine[2]) ? $csvLine[2] : ''));
+                if (empty($catVal)) continue;
+
+                $category = null;
+                if (is_numeric($catVal)) {
+                    $category = BusinessCategory::find($catVal);
+                }
+                if (!$category) {
+                    $category = BusinessCategory::where('name', $catVal)->first();
+                }
+                if (!$category) {
+                    $category = BusinessCategory::create(['name' => $catVal, 'status' => 1]);
+                }
+                $categoryId = $category->id;
+
+                $statusVal = trim(end($csvLine));
+                $status = in_array(strtolower($statusVal), ['1', 'active', 'enabled', 'true', 'yes']) ? 1 : (in_array(strtolower($statusVal), ['0', 'inactive', 'disabled', 'false', 'no']) ? 0 : 1);
+
+                if (!empty($id) && is_numeric($id)) {
+                    $subCat = BusinessSubCategory::find($id);
+                    if ($subCat) {
+                        $subCat->update([
                             'name' => $name,
                             'business_category_id' => $categoryId,
                             'status' => $status
                         ]);
-                    } else {
-                        BusinessSubCategory::create([
-                            'name' => $name,
-                            'business_category_id' => $categoryId,
-                            'status' => $status
-                        ]);
+                        continue;
                     }
+                }
+
+                $subCat = BusinessSubCategory::where('name', $name)->where('business_category_id', $categoryId)->first();
+                if ($subCat) {
+                    $subCat->update(['status' => $status]);
+                } else {
+                    BusinessSubCategory::create([
+                        'name' => $name,
+                        'business_category_id' => $categoryId,
+                        'status' => $status
+                    ]);
                 }
             }
             fclose($handle);

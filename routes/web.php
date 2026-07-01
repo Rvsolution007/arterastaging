@@ -188,6 +188,29 @@ Route::post('/client-log', function(Illuminate\Http\Request $request) { Illumina
 // Public Mini Website Route
 Route::get('/site/{slug}', 'SiteController@show')->name('site.show');
 
+// ============================================
+// SEO Routes — Sitemaps, RSS, HTML Sitemap
+// ============================================
+Route::get('/sitemap.xml', 'SeoController@sitemapIndex')->name('seo.sitemap.index');
+Route::get('/sitemap-pages.xml', 'SeoController@sitemapPages')->name('seo.sitemap.pages');
+Route::get('/sitemap-categories.xml', 'SeoController@sitemapCategories')->name('seo.sitemap.categories');
+Route::get('/sitemap-festivals.xml', 'SeoController@sitemapFestivals')->name('seo.sitemap.festivals');
+Route::get('/sitemap-templates.xml', 'SeoController@sitemapTemplates')->name('seo.sitemap.templates');
+Route::get('/sitemap-blog.xml', 'SeoController@sitemapBlog')->name('seo.sitemap.blog');
+Route::get('/sitemap-images.xml', 'SeoController@sitemapImages')->name('seo.sitemap.images');
+Route::get('/feed', 'SeoController@rssFeed')->name('seo.rss');
+Route::get('/sitemap', 'SeoController@htmlSitemap')->name('seo.sitemap.html');
+
+// ============================================
+// Programmatic SEO — Category & Festival Landing Pages
+// ============================================
+Route::get('/poster-maker', 'ProgrammaticSeoController@posterMakerHub')->name('seo.poster_maker');
+Route::get('/poster-maker/{categorySlug}', 'ProgrammaticSeoController@categoryLanding')->name('seo.category');
+Route::get('/poster-maker/{categorySlug}/{subSlug}', 'ProgrammaticSeoController@subCategoryLanding')->name('seo.subcategory');
+Route::get('/festival-poster', 'ProgrammaticSeoController@festivalHub')->name('seo.festival_hub');
+Route::get('/festival-poster/{festivalSlug}', 'ProgrammaticSeoController@festivalLanding')->name('seo.festival');
+Route::get('/template/{id}/{slug?}', 'ProgrammaticSeoController@templatePage')->name('seo.template');
+
 Route::group(['middleware' => 'admin', 'prefix' => 'admin'], function() {
     Route::post('/mini-website-template/status', 'Admin\MiniWebsiteTemplateController@status');
     Route::resource('mini-website-template', 'Admin\MiniWebsiteTemplateController');

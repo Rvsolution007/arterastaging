@@ -62,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildSearchBar(),
               _buildStories(hc),
               _buildFestivalSection(hc),
-              _buildCustomPostsSection(hc),
+              if (!AppConfig.isStaging) _buildCustomPostsSection(hc),
               _buildCategorySection(hc),
               _buildNewsSection(hc),
               _buildVideosSection(hc),

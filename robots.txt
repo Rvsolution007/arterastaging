@@ -1,2 +1,39 @@
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /admin/
+Disallow: /dashboard
+Disallow: /login
+Disallow: /register
+Disallow: /api/
+Disallow: /setup-wizard
+Disallow: /webview-login
+Disallow: /installation
+Disallow: /debug/
+Disallow: /catalogue-columns
+Disallow: /products
+Disallow: /custom
+Disallow: /business
+Disallow: /notifications
+Disallow: /auth-gate
+Disallow: /edit/
+Disallow: /details/
+Disallow: /edit-post/
+Disallow: /generate-frame-content
+Disallow: /editor/
+Disallow: /remove-background
+Disallow: /forgot-password
+Disallow: /bg-remover
+Disallow: /client-log
+Disallow: /my-product-images
+Disallow: /save-product-selection
+Disallow: /toggle-favorite-frame
+Disallow: /update-preferred-languages
+Disallow: /licence-details
+Disallow: /destroy
+Disallow: /destroydb
+
+# Sitemaps
+Sitemap: https://arterapixel.com/sitemap.xml
+
+# Crawl-delay
+Crawl-delay: 1

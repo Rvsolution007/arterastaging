@@ -269,35 +269,95 @@ class BusinessTypeController extends Controller
     public function import(Request $request)
     {
         $request->validate([
-            'file' => 'required|mimes:csv,txt'
+            'file' => 'required|file'
         ]);
 
         $file = $request->file('file');
-        $csvData = file_get_contents($file);
-        $rows = array_map("str_getcsv", explode("\n", $csvData));
-        $header = array_shift($rows);
+        $extension = strtolower($file->getClientOriginalExtension());
+        if (!in_array($extension, ['csv', 'txt', 'xls', 'xlsx'])) {
+            return redirect()->back()->with('error', 'Please upload a valid CSV file.');
+        }
 
-        foreach ($rows as $row) {
-            if (count($row) >= 5) {
-                $id = trim($row[0]);
-                $name = trim($row[1]);
-                $status = trim($row[4]) === '1' ? 1 : 0;
-                
-                if (empty($name)) continue;
+        $handle = fopen($file->path(), "r");
+        if (!$handle) {
+            return redirect()->back()->with('error', 'Unable to read the uploaded file.');
+        }
 
-                if (!empty($id)) {
-                    $type = BusinessType::find($id);
-                    if ($type) {
-                        $type->update(['name' => $name, 'status' => $status]);
+        $header = fgetcsv($handle, 10000, ",");
+        if (!$header) {
+            fclose($handle);
+            return redirect()->back()->with('error', 'CSV file is empty.');
+        }
+
+        while (($row = fgetcsv($handle, 10000, ",")) !== false) {
+            if (empty($row) || (count($row) === 1 && trim($row[0]) === '')) continue;
+
+            $id = isset($row[0]) ? trim($row[0]) : '';
+            $name = isset($row[1]) ? trim($row[1]) : '';
+            
+            if (empty($name)) continue;
+
+            $statusVal = trim(end($row));
+            $status = in_array(strtolower($statusVal), ['1', 'active', 'enabled', 'true', 'yes']) ? 1 : (in_array(strtolower($statusVal), ['0', 'inactive', 'disabled', 'false', 'no']) ? 0 : 1);
+
+            $subCatVal = trim(isset($row[2]) ? $row[2] : '');
+            $subCategoryId = null;
+
+            if (!empty($subCatVal)) {
+                $subCat = null;
+                if (is_numeric($subCatVal)) {
+                    $subCat = BusinessSubCategory::find($subCatVal);
+                }
+                if (!$subCat) {
+                    $subCat = BusinessSubCategory::where('name', $subCatVal)->first();
+                }
+                if (!$subCat) {
+                    $catVal = trim(isset($row[3]) && count($row) >= 5 ? $row[3] : '');
+                    $categoryId = null;
+                    if (!empty($catVal)) {
+                        $cat = is_numeric($catVal) ? BusinessCategory::find($catVal) : BusinessCategory::where('name', $catVal)->first();
+                        if ($cat) $categoryId = $cat->id;
                     }
-                } else {
-                    // We can't properly assign sub category without its ID, so we skip new creations or assign a default if possible.
-                    // Assuming for now that import updates existing primarily, or if created, it will be unassigned (which might violate DB schema).
-                    // Best is to just attempt to create with null subcategory or ignore new.
-                    // For safety, we will just update existing ones based on ID.
+                    if (!$categoryId) {
+                        $defaultCat = BusinessCategory::first();
+                        if (!$defaultCat) {
+                            $defaultCat = BusinessCategory::create(['name' => 'General', 'status' => 1]);
+                        }
+                        $categoryId = $defaultCat->id;
+                    }
+                    $subCat = BusinessSubCategory::create(['name' => $subCatVal, 'business_category_id' => $categoryId, 'status' => 1]);
+                }
+                $subCategoryId = $subCat->id;
+            }
+
+            if (!empty($id) && is_numeric($id)) {
+                $type = BusinessType::find($id);
+                if ($type) {
+                    $updateData = ['name' => $name, 'status' => $status];
+                    if ($subCategoryId) $updateData['business_sub_category_id'] = $subCategoryId;
+                    $type->update($updateData);
+                    continue;
                 }
             }
+
+            if (!$subCategoryId) {
+                $defaultSub = BusinessSubCategory::first();
+                if (!$defaultSub) {
+                    $defaultCat = BusinessCategory::first() ?? BusinessCategory::create(['name' => 'General', 'status' => 1]);
+                    $defaultSub = BusinessSubCategory::create(['name' => 'General', 'business_category_id' => $defaultCat->id, 'status' => 1]);
+                }
+                $subCategoryId = $defaultSub->id;
+            }
+
+            $type = BusinessType::where('name', $name)->where('business_sub_category_id', $subCategoryId)->first();
+            if ($type) {
+                $type->update(['status' => $status]);
+            } else {
+                BusinessType::create(['name' => $name, 'business_sub_category_id' => $subCategoryId, 'status' => $status]);
+            }
         }
-        return redirect()->back()->with('success', 'Business Types imported successfully. (Note: Only existing records can be updated via import as sub-category mapping is required for new types).');
+        fclose($handle);
+
+        return redirect()->back()->with('success', 'Business Types imported successfully.');
     }
 }

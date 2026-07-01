@@ -312,33 +312,96 @@ class BusinessProductController extends Controller
     public function import(Request $request)
     {
         $request->validate([
-            'file' => 'required|mimes:csv,txt'
+            'file' => 'required|file'
         ]);
 
         $file = $request->file('file');
-        $csvData = file_get_contents($file);
-        $rows = array_map("str_getcsv", explode("\n", $csvData));
-        $header = array_shift($rows);
+        $extension = strtolower($file->getClientOriginalExtension());
+        if (!in_array($extension, ['csv', 'txt', 'xls', 'xlsx'])) {
+            return redirect()->back()->with('error', 'Please upload a valid CSV file.');
+        }
 
-        foreach ($rows as $row) {
-            if (count($row) >= 6) {
-                $id = trim($row[0]);
-                $name = trim($row[1]);
-                $status = trim($row[5]) === '1' ? 1 : 0;
-                
-                if (empty($name)) continue;
+        $handle = fopen($file->path(), "r");
+        if (!$handle) {
+            return redirect()->back()->with('error', 'Unable to read the uploaded file.');
+        }
 
-                if (!empty($id)) {
-                    $product = BusinessProduct::find($id);
-                    if ($product) {
-                        $product->update(['name' => $name, 'status' => $status]);
-                    }
-                } else {
-                    // Similar to business type, creating new ones via CSV without category/sub category mapping is complex.
-                    // We only allow updating existing ones for now via import, or creating unmapped ones if DB allows.
+        $header = fgetcsv($handle, 10000, ",");
+        if (!$header) {
+            fclose($handle);
+            return redirect()->back()->with('error', 'CSV file is empty.');
+        }
+
+        while (($row = fgetcsv($handle, 10000, ",")) !== false) {
+            if (empty($row) || (count($row) === 1 && trim($row[0]) === '')) continue;
+
+            $id = isset($row[0]) ? trim($row[0]) : '';
+            $name = isset($row[1]) ? trim($row[1]) : '';
+            
+            if (empty($name)) continue;
+
+            $statusVal = trim(end($row));
+            $status = in_array(strtolower($statusVal), ['1', 'active', 'enabled', 'true', 'yes']) ? 1 : (in_array(strtolower($statusVal), ['0', 'inactive', 'disabled', 'false', 'no']) ? 0 : 1);
+
+            $catVal = trim(isset($row[2]) ? $row[2] : '');
+            $subCatVal = trim(isset($row[3]) ? $row[3] : '');
+            $typeVal = trim(isset($row[4]) ? $row[4] : '');
+
+            $categoryId = null;
+            if (!empty($catVal)) {
+                $cat = is_numeric($catVal) ? BusinessCategory::find($catVal) : BusinessCategory::where('name', $catVal)->first();
+                if (!$cat) $cat = BusinessCategory::create(['name' => $catVal, 'status' => 1]);
+                $categoryId = $cat->id;
+            } else {
+                $defaultCat = BusinessCategory::first() ?? BusinessCategory::create(['name' => 'General', 'status' => 1]);
+                $categoryId = $defaultCat->id;
+            }
+
+            $subCategoryId = null;
+            if (!empty($subCatVal)) {
+                $subCat = is_numeric($subCatVal) ? BusinessSubCategory::find($subCatVal) : BusinessSubCategory::where('name', $subCatVal)->where('business_category_id', $categoryId)->first();
+                if (!$subCat) $subCat = BusinessSubCategory::create(['name' => $subCatVal, 'business_category_id' => $categoryId, 'status' => 1]);
+                $subCategoryId = $subCat->id;
+            } else {
+                $defaultSub = BusinessSubCategory::where('business_category_id', $categoryId)->first() ?? BusinessSubCategory::create(['name' => 'General', 'business_category_id' => $categoryId, 'status' => 1]);
+                $subCategoryId = $defaultSub->id;
+            }
+
+            $typeId = null;
+            if (!empty($typeVal)) {
+                $type = is_numeric($typeVal) ? BusinessType::find($typeVal) : BusinessType::where('name', $typeVal)->where('business_sub_category_id', $subCategoryId)->first();
+                if (!$type) $type = BusinessType::create(['name' => $typeVal, 'business_sub_category_id' => $subCategoryId, 'status' => 1]);
+                $typeId = $type->id;
+            }
+
+            if (!empty($id) && is_numeric($id)) {
+                $product = BusinessProduct::find($id);
+                if ($product) {
+                    $updateData = ['name' => $name, 'status' => $status, 'business_category_id' => $categoryId, 'business_sub_category_id' => $subCategoryId];
+                    if ($typeId) $updateData['business_type_id'] = $typeId;
+                    $product->update($updateData);
+                    continue;
                 }
             }
+
+            $product = BusinessProduct::where('name', $name)->where('business_sub_category_id', $subCategoryId)->first();
+            if ($product) {
+                $product->update(['status' => $status]);
+            } else {
+                BusinessProduct::create([
+                    'name' => $name,
+                    'slug' => \Illuminate\Support\Str::slug($name) . '-' . time(),
+                    'business_category_id' => $categoryId,
+                    'business_sub_category_id' => $subCategoryId,
+                    'business_type_id' => $typeId,
+                    'keywords' => $name,
+                    'sort_order' => 0,
+                    'status' => $status
+                ]);
+            }
         }
-        return redirect()->back()->with('success', 'Business Products imported successfully. (Note: Only existing records can be updated via import as mappings are required for new products).');
+        fclose($handle);
+
+        return redirect()->back()->with('success', 'Business Products imported successfully.');
     }
 }

@@ -3,8 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-    <title>@yield('title', 'Artera - AI-Powered Digital Marketing')</title>
-    <meta name="description" content="Artera uses advanced AI to instantly generate professional festival posters, business templates, and custom social media content for your brand.">
+    <title>@yield('title', 'Artera — AI-Powered Business Poster Maker App')</title>
+
+    {{-- SEO Head Component — Dynamic meta, OG, schema --}}
+    @hasSection('seo')
+        @yield('seo')
+    @else
+        <meta name="description" content="Artera uses advanced AI to instantly generate professional festival posters, business templates, and custom social media content for your brand.">
+        <link rel="canonical" href="{{ url()->current() }}">
+        <meta property="og:title" content="Artera — AI-Powered Business Poster Maker App">
+        <meta property="og:description" content="Create stunning marketing posters, festival greetings, and social media content in seconds with Artera.">
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="{{ url()->current() }}">
+        <meta property="og:site_name" content="Artera">
+        <meta name="twitter:card" content="summary_large_image">
+    @endif
 
     <!-- Google Fonts — Inter with full weight range -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

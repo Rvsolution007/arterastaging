@@ -86,9 +86,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _buildNavItem(0, Icons.home_outlined, Icons.home, 'home'.tr),
-                    _buildNavItem(1, Icons.image_outlined, Icons.image, 'custom'.tr),
+                    if (!AppConfig.isStaging) _buildNavItem(1, Icons.image_outlined, Icons.image, 'custom'.tr),
                     _buildNavItem(2, Icons.storefront_outlined, Icons.storefront, 'business'.tr),
-                    _buildNavItem(3, Icons.celebration_outlined, Icons.celebration, 'Greetings'),
+                    if (!AppConfig.isStaging) _buildNavItem(3, Icons.celebration_outlined, Icons.celebration, 'Greetings'),
                     _buildNavItem(4, Icons.menu, Icons.menu, 'more'.tr),
                   ],
                 ),

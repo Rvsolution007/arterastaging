@@ -151,34 +151,59 @@ class ProductTypeController extends Controller
     public function import(Request $request)
     {
         $request->validate([
-            'file' => 'required|mimes:csv,txt'
+            'file' => 'required|file'
         ]);
 
         $file = $request->file('file');
-        $csvData = file_get_contents($file);
-        $rows = array_map("str_getcsv", explode("\n", $csvData));
-        $header = array_shift($rows);
+        $extension = strtolower($file->getClientOriginalExtension());
+        if (!in_array($extension, ['csv', 'txt', 'xls', 'xlsx'])) {
+            return redirect()->back()->with('error', 'Please upload a valid CSV file.');
+        }
 
-        foreach ($rows as $row) {
-            if (count($row) >= 4) {
-                $id = trim($row[0]);
-                $name = trim($row[1]);
-                $slug = trim($row[2]);
-                $status = trim($row[3]) === '1' ? 1 : 0;
-                
-                if (empty($name)) continue;
-                if (empty($slug)) $slug = \Str::slug($name);
+        $handle = fopen($file->path(), "r");
+        if (!$handle) {
+            return redirect()->back()->with('error', 'Unable to read the uploaded file.');
+        }
 
-                if (!empty($id)) {
-                    $type = ProductType::find($id);
-                    if ($type) {
-                        $type->update(['name' => $name, 'slug' => $slug, 'status' => $status]);
-                    }
-                } else {
-                    ProductType::create(['name' => $name, 'slug' => $slug, 'status' => $status]);
+        $header = fgetcsv($handle, 10000, ",");
+        if (!$header) {
+            fclose($handle);
+            return redirect()->back()->with('error', 'CSV file is empty.');
+        }
+
+        while (($row = fgetcsv($handle, 10000, ",")) !== false) {
+            if (empty($row) || (count($row) === 1 && trim($row[0]) === '')) continue;
+
+            $id = isset($row[0]) ? trim($row[0]) : '';
+            $name = isset($row[1]) ? trim($row[1]) : '';
+            
+            if (empty($name)) continue;
+
+            $slug = isset($row[2]) ? trim($row[2]) : '';
+            if (empty($slug) || strtolower($slug) === 'active' || strtolower($slug) === 'inactive' || $slug === '1' || $slug === '0') {
+                $slug = \Str::slug($name);
+            }
+
+            $statusVal = trim(end($row));
+            $status = in_array(strtolower($statusVal), ['1', 'active', 'enabled', 'true', 'yes']) ? 1 : (in_array(strtolower($statusVal), ['0', 'inactive', 'disabled', 'false', 'no']) ? 0 : 1);
+
+            if (!empty($id) && is_numeric($id)) {
+                $type = ProductType::find($id);
+                if ($type) {
+                    $type->update(['name' => $name, 'slug' => $slug, 'status' => $status]);
+                    continue;
                 }
             }
+
+            $type = ProductType::where('name', $name)->first();
+            if ($type) {
+                $type->update(['slug' => $slug, 'status' => $status]);
+            } else {
+                ProductType::create(['name' => $name, 'slug' => $slug, 'status' => $status]);
+            }
         }
+        fclose($handle);
+
         return redirect()->back()->with('success', 'Product Types imported successfully.');
     }
 }

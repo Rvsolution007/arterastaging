@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'dart:convert';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../config/app_config.dart';
 import '../controllers/native_editor_controller.dart';
 import '../services/api_service.dart';
@@ -10,6 +12,12 @@ import '../utils/app_colors.dart';
 import '../widgets/editor_canvas_widget.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'ai_chat_screen.dart';
+import 'dart:ui' as ui;
+import 'dart:typed_data';
+import 'package:flutter/rendering.dart';
+import 'package:gal/gal.dart';
+import '../services/download_service.dart';
+import '../controllers/subscription_controller.dart';
 
 class NativeEditorScreen extends StatefulWidget {
   final String type;
@@ -31,6 +39,59 @@ class NativeEditorScreen extends StatefulWidget {
 
 class _NativeEditorScreenState extends State<NativeEditorScreen> {
   late NativeEditorController controller;
+
+  // --- AI State (persistent across modal open/close) ---
+  final TextEditingController _aiPromptController = TextEditingController();
+  final TextEditingController _aiHiringRoleController = TextEditingController();
+  final TextEditingController _aiHiringReqController = TextEditingController();
+  final RxString _aiSelectedLanguage = 'English'.obs;
+  final RxMap<String, String> _aiUploadedImages = <String, String>{}.obs;
+  Map<String, dynamic>? _aiSelectedProduct;
+  final RxString _aiCurrentStep = 'menu'.obs; // 'menu', 'customPrompt', 'review', 'hiring_questionnaire'
+  final RxMap<String, TextEditingController> _aiGeneratedTexts = <String, TextEditingController>{}.obs;
+
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final GlobalKey _canvasKey = GlobalKey();
+
+  Future<void> _exportAndSave() async {
+    controller.selectedLayerId.value = '';
+    await Future.delayed(const Duration(milliseconds: 100));
+    try {
+      final boundary = _canvasKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return;
+      final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return;
+      final Uint8List pngBytes = byteData.buffer.asUint8List();
+      final fileName = "artera_design_${DateTime.now().millisecondsSinceEpoch}";
+      if (!await Gal.hasAccess(toAlbum: true)) {
+        await Gal.requestAccess(toAlbum: true);
+      }
+      await Gal.putImageBytes(pngBytes, name: fileName);
+      await DownloadService.saveDownload(pngBytes, isVideo: false, fileName: fileName);
+      bool isPaid = false;
+      if (widget.type == 'festival' || widget.type == 'category') {
+        isPaid = widget.frameData['isPaid'] == true;
+      } else {
+        isPaid = true; // Custom templates are always paid
+      }
+
+      await ApiService.trackActivity(
+        action: 'download_template',
+        itemType: widget.type,
+        itemId: widget.id.toString(),
+        isPremium: isPaid,
+      );
+      try { await Get.find<SubscriptionController>().refreshFromApi(); } catch (_) {}
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Design saved to gallery successfully!'), backgroundColor: Colors.green));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save design: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -100,7 +161,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
     // Final fallback: extract from background layer in config
     if (baseImg.isEmpty && config['layers'] != null) {
       for (var layer in config['layers']) {
-        if (layer['is_background'] == true || layer['name'] == 'bg' || layer['name'] == 'image1') {
+        if (layer['is_background'] == true || (layer['is_background'] == null && (layer['name'] == 'bg' || layer['name'] == 'image1'))) {
           baseImg = layer['src'] ?? '';
           if (baseImg.isNotEmpty) break;
         }
@@ -153,6 +214,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: const Color(0xFFF3F4F6),
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -232,7 +294,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                     minimumSize: const Size(0, 32),
                   ),
-                  onPressed: () {},
+                  onPressed: _exportAndSave,
                   child: const Text('Download', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                 ),
               ],
@@ -271,24 +333,27 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                           bestWidth = calcHeight * (designW / designH);
                         }
 
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 15,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
-                          ),
-                          child: EditorCanvasWidget(
-                            config: Map<String, dynamic>.from(controller.templateConfig),
-                            width: bestWidth,
-                            uploadsBaseUrl: controller.uploadsBaseUrl,
-                            templateBaseUrl: controller.templateBaseUrl,
-                            baseImgUrl: controller.baseImgUrl,
-                            editorType: widget.type,
+                        return RepaintBoundary(
+                          key: _canvasKey,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 15,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
+                            ),
+                            child: EditorCanvasWidget(
+                              config: Map<String, dynamic>.from(controller.templateConfig),
+                              width: bestWidth,
+                              uploadsBaseUrl: controller.uploadsBaseUrl,
+                              templateBaseUrl: controller.templateBaseUrl,
+                              baseImgUrl: controller.baseImgUrl,
+                              editorType: widget.type,
+                            ),
                           ),
                         );
                       });
@@ -438,7 +503,14 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
   Widget _buildInlineSizePanel() {
     final layer = _getActiveLayer();
     if (layer == null) return const SizedBox.shrink();
+    
     double currentSize = (layer['fontSize'] ?? layer['font_size'] ?? layer['size'] ?? 48.0).toDouble();
+    double minSize = 8.0;
+    double maxSize = 400.0;
+    
+    if (currentSize < minSize) currentSize = minSize;
+    if (currentSize > maxSize) currentSize = maxSize;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -447,8 +519,8 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
           Expanded(
             child: Slider(
               value: currentSize,
-              min: 8.0,
-              max: 200.0,
+              min: minSize,
+              max: maxSize,
               activeColor: const Color(0xFF5538EE),
               onChanged: (val) {
                 controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'fontSize', val);
@@ -557,6 +629,10 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
   }
 
   Widget _buildContextualToolbar() {
+    final activeLayer = _getActiveLayer();
+    final bool isText = activeLayer != null && (activeLayer['type'] == 'text' || activeLayer['type'] == 'i-text' || activeLayer['text'] != null);
+    final bool isImage = activeLayer != null && (activeLayer['type'] == 'image' || activeLayer['type'] == 'icon' || activeLayer['src'] != null);
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -575,7 +651,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildToolBtn(Icons.edit_outlined, 'Edit', () {
+                  if (isText) _buildToolBtn(Icons.edit_outlined, 'Edit', () {
                     final layer = _getActiveLayer();
                     if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
                       controller.activeTool.value = controller.activeTool.value == 'Edit' ? '' : 'Edit';
@@ -587,41 +663,52 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                       controller.activeTool.value = controller.activeTool.value == 'Nudge' ? '' : 'Nudge';
                     }
                   }),
-                  _buildToolBtn(Icons.text_fields, 'Font', () {
+                  if (isText) _buildToolBtn(Icons.text_fields, 'Font', () {
                     final layer = _getActiveLayer();
                     if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
                       controller.activeTool.value = controller.activeTool.value == 'Font' ? '' : 'Font';
                     }
                   }),
-                  _buildToolBtn(Icons.format_size, 'Size', () {
+                  if (isText) _buildToolBtn(Icons.format_size, 'Size', () {
                     final layer = _getActiveLayer();
                     if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
                       controller.activeTool.value = controller.activeTool.value == 'Size' ? '' : 'Size';
                     }
                   }),
-                  _buildToolBtn(Icons.format_bold, 'Bold', () {
+                  if (isText) _buildToolBtn(Icons.format_bold, 'Bold', () {
                     final layer = _getActiveLayer();
                     if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
                       final isBold = layer['weight'] == 'bold';
                       controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'weight', isBold ? 'normal' : 'bold');
                     }
                   }, isSelected: _getActiveLayer()?['weight'] == 'bold'),
-                  _buildToolBtn(Icons.format_italic, 'Italic', () {
+                  if (isText) _buildToolBtn(Icons.format_italic, 'Italic', () {
                     final layer = _getActiveLayer();
                     if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
                       final isItalic = layer['style'] == 'italic';
                       controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'style', isItalic ? 'normal' : 'italic');
                     }
                   }, isSelected: _getActiveLayer()?['style'] == 'italic'),
-                  _buildToolBtn(Icons.palette_outlined, 'Color', () {
+                  if (isText) _buildToolBtn(Icons.palette_outlined, 'Color', () {
                     final layer = _getActiveLayer();
                     if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
                       controller.activeTool.value = controller.activeTool.value == 'Color' ? '' : 'Color';
                     }
                   }),
-                  _buildToolBtn(Icons.layers_outlined, 'Layers', () {
-                    _showLayersModal(context);
+                  
+                  if (isImage) _buildToolBtn(Icons.change_circle_outlined, 'Replace', () {
+                    _showReplaceOptions();
                   }),
+                  if (isImage) _buildToolBtn(Icons.flip, 'Mirror', () {
+                    final layer = _getActiveLayer();
+                    if (layer != null) {
+                      bool currentFlipX = layer['flipX'] == true || layer['flipX'] == 'true';
+                      controller.updateLayerProperties(controller.selectedLayerId.value, {
+                        'flipX': !currentFlipX,
+                      });
+                    }
+                  }),
+
                   _buildToolBtn(Icons.delete_outline, 'Delete', () {
                     controller.deleteLayer(controller.selectedLayerId.value);
                   }, iconColor: Colors.redAccent),
@@ -677,8 +764,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                   ],
                 ),
               ),
-              // 2. Select Frame section — hide for custom templates
-              if (!['custom', 'post', 'business_custom_frame'].contains(widget.type.toLowerCase())) ...[
+              // 2. Select Frame section — always show
                 const Padding(
                   padding: EdgeInsets.only(left: 16, right: 16, top: 4),
                   child: Text('Select Frame', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
@@ -769,8 +855,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                   );
                 }),
                 const SizedBox(height: 24),
-              ],
-              const SizedBox(height: 16),
+              // end of frame section
               // Editing Tools Toolbar
               _buildEditingToolsBar(),
               const SizedBox(height: 8),
@@ -782,6 +867,8 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
   }
 
   void _showLayersModal(BuildContext context) {
+    final ScrollController scrollController = ScrollController();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -807,19 +894,59 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
               Expanded(
                 child: Obx(() {
                   final _ = controller.templateConfig.length;
-                  final layers = List<dynamic>.from(controller.templateConfig['layers'] ?? []);
+                  final _updateTrigger = controller.layerUpdateTrigger.value;
+
+                  final allLayers = List<dynamic>.from(controller.templateConfig['layers'] ?? []);
+                  final frameLayersCount = allLayers.where((l) => l['_is_frame_layer'] == true || l['_isFrameLayer'] == true).length;
+                  final customLayers = allLayers.where((l) => l['_is_frame_layer'] != true && l['_isFrameLayer'] != true).toList();
+                  final customLayersCount = customLayers.length;
+                  
                   // Reverse so top layers show first
-                  final reversedLayers = layers.reversed.toList();
-                  return ReorderableListView.builder(
-                    itemCount: reversedLayers.length,
-                    onReorder: (oldIndex, newIndex) {
-                      // Adjust indices because we reversed the list for display
-                      final actualOld = layers.length - 1 - oldIndex;
-                      var actualNew = layers.length - 1 - newIndex;
+                  final reversedLayers = customLayers.reversed.toList();
+                  
+                  final scrollbarWidget = Scrollbar(
+                    controller: scrollController,
+                    thumbVisibility: true,
+                    thickness: 6,
+                    radius: const Radius.circular(10),
+                    child: ReorderableListView.builder(
+                      scrollController: scrollController,
+                      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                      itemCount: reversedLayers.length,
+                      onReorder: (oldIndex, newIndex) {
+                      int adjustedNewIndex = newIndex;
                       if (newIndex > oldIndex) {
-                        actualNew += 1;
+                        adjustedNewIndex -= 1;
                       }
-                      controller.moveLayer((reversedLayers[oldIndex]['name'] ?? reversedLayers[oldIndex]['id']).toString(), actualNew);
+                      
+                      final item = reversedLayers[oldIndex];
+                      final itemId = (item['name'] ?? item['id']).toString();
+                      
+                      int targetCustomIndex = customLayersCount - 1 - adjustedNewIndex;
+                      
+                      final newAllLayers = List.of(allLayers);
+                      newAllLayers.removeWhere((l) => (l['name'] ?? l['id']).toString() == itemId);
+                      
+                      final remainingCustomLayers = newAllLayers.where((l) => l['_is_frame_layer'] != true && l['_isFrameLayer'] != true).toList();
+                      
+                      int actualNew;
+                      if (targetCustomIndex >= remainingCustomLayers.length) {
+                        if (remainingCustomLayers.isEmpty) {
+                          actualNew = newAllLayers.length;
+                        } else {
+                          actualNew = newAllLayers.indexOf(remainingCustomLayers.last) + 1;
+                        }
+                      } else if (targetCustomIndex < 0) {
+                        if (remainingCustomLayers.isEmpty) {
+                          actualNew = 0;
+                        } else {
+                          actualNew = newAllLayers.indexOf(remainingCustomLayers.first);
+                        }
+                      } else {
+                        actualNew = newAllLayers.indexOf(remainingCustomLayers[targetCustomIndex]);
+                      }
+                      
+                      controller.moveLayer(itemId, actualNew);
                     },
                     itemBuilder: (context, index) {
                       final layer = reversedLayers[index];
@@ -827,23 +954,107 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                       final String uniqueKey = (layer['name'] ?? layer['id'] ?? 'layer').toString() + '_$index';
                       final isText = layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null;
                       final titleStr = (layer['name'] ?? layer['id'] ?? 'Unnamed Layer').toString().replaceAll(RegExp(r'[-_]'), ' ').toUpperCase();
+                      debugPrint('[LAYERS_MODAL] Layer: name=${layer['name']} type=${layer['type']} src=${(layer['src'] ?? '').toString().substring(0, (layer['src'] ?? '').toString().length > 80 ? 80 : (layer['src'] ?? '').toString().length)} iconName=${layer['iconName']} _is_frame=${layer['_is_frame_layer']}');
+                      Widget previewWidget;
+                      if (isText) {
+                        String txt = (layer['text']?.toString() ?? 'T').trim();
+                        if (txt.isEmpty) txt = 'T';
+                        previewWidget = Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.grey.shade300)),
+                          child: Center(
+                            child: Text(
+                              txt.characters.take(2).toString(),
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87, fontSize: 16),
+                            ),
+                          ),
+                        );
+                      } else {
+                        String src = (layer['src'] ?? '').toString();
+                        if (src.startsWith('data:')) {
+                          try {
+                            final base64String = src.split(',').last;
+                            previewWidget = ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: Image.memory(base64Decode(base64String), width: 40, height: 40, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image, color: Colors.grey)),
+                            );
+                          } catch (e) {
+                            previewWidget = const Icon(Icons.image, color: Colors.grey);
+                          }
+                        } else if (src.isNotEmpty) {
+                          String finalUrl = src;
+                          if (!src.startsWith('http')) {
+                            String baseUrl = controller.templateBaseUrl;
+                            if (src.startsWith('../')) {
+                              finalUrl = '$baseUrl/${src.replaceFirst('../', '')}';
+                            } else if (src.contains('/')) {
+                              finalUrl = '$baseUrl/$src';
+                            } else {
+                              finalUrl = '$baseUrl/skins/$src';
+                            }
+                          }
+                          if (finalUrl.startsWith('http') && finalUrl.contains(' ')) {
+                            finalUrl = Uri.encodeFull(finalUrl);
+                          }
+                          previewWidget = ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: CachedNetworkImage(
+                              imageUrl: finalUrl,
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                              errorWidget: (_, __, ___) => Container(color: Colors.grey.shade100, child: const Icon(Icons.image, color: Colors.grey)),
+                              placeholder: (_, __) => Container(color: Colors.grey.shade200, width: 40, height: 40),
+                            ),
+                          );
+                        } else if (layer['type'] == 'icon' || (layer['iconName'] != null && layer['iconName'].toString().isNotEmpty)) {
+                          previewWidget = Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.grey.shade300)),
+                            child: const Icon(Icons.star, color: Colors.grey),
+                          );
+                        } else {
+                          previewWidget = Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.grey.shade300)),
+                            child: const Icon(Icons.category, color: Colors.grey),
+                          );
+                        }
+                      }
+
                       return ListTile(
                         key: ValueKey(uniqueKey),
-                        leading: Icon(isText ? Icons.text_fields : Icons.image, color: Colors.grey),
-                        title: Text(titleStr, style: const TextStyle(fontSize: 14)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        leading: previewWidget,
+                        title: Text(titleStr, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
-                              icon: Icon(isVisible ? Icons.visibility : Icons.visibility_off, color: isVisible ? Colors.blue : Colors.grey),
-                              onPressed: () => controller.toggleVisibility((layer['name'] ?? layer['id']).toString(), !isVisible),
+                              icon: const Icon(Icons.edit, color: Color(0xFF5538EE), size: 22),
+                              onPressed: () {
+                                Navigator.pop(context);
+                                controller.selectLayer((layer['name'] ?? layer['id']).toString());
+                              },
+                              tooltip: 'Edit Layer',
                             ),
-                            const Icon(Icons.drag_handle, color: Colors.grey),
+                            IconButton(
+                              icon: Icon(isVisible ? Icons.visibility : Icons.visibility_off, color: isVisible ? Colors.black54 : Colors.grey.shade400, size: 22),
+                              onPressed: () => controller.toggleVisibility((layer['name'] ?? layer['id']).toString(), !isVisible),
+                              tooltip: isVisible ? 'Hide' : 'Show',
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.drag_handle, color: Colors.grey, size: 24),
                           ],
                         ),
                       );
                     },
-                  );
+                  ), // End ReorderableListView.builder
+                  ); // End Scrollbar
+                  return scrollbarWidget;
                 }),
               ),
             ],
@@ -854,11 +1065,21 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
   }
 
   void _showAiTextModal(BuildContext context) {
-    final TextEditingController promptController = TextEditingController();
-    final RxString selectedLanguage = 'English'.obs;
     final RxBool isGenerating = false.obs;
-    final RxMap<String, TextEditingController> generatedTexts = <String, TextEditingController>{}.obs;
-    final RxBool step2 = false.obs;
+    
+    // Check if purpose is Hiring
+    final String catName = (widget.frameData['customCategoryName'] ?? '').toString().toLowerCase();
+    final bool isHiring = catName.contains('hiring') || catName.contains('job');
+
+    // Count text layers to see if we need requirements
+    final layers = controller.templateConfig['layers'] as List<dynamic>? ?? [];
+    int textLayerCount = 0;
+    for (var layer in layers) {
+      if (layer['type'] == 'text') textLayerCount++;
+    }
+    final bool askRequirements = textLayerCount > 1;
+
+    _aiCurrentStep.value = isHiring ? 'hiring_questionnaire' : 'menu'; // Reset on open
 
     final List<String> languages = [
       'English', 'Hindi', 'Hinglish', 'Gujarati', 'Marathi', 'Tamil', 'Telugu', 
@@ -866,21 +1087,49 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
       'French', 'Portuguese', 'German', 'Japanese', 'Korean', 'Chinese'
     ];
 
+    // Detect image slots from template layers
+    final List<Map<String, dynamic>> imageSlots = [];
+    for (var layer in layers) {
+      if (layer['type'] == 'image' && layer['is_background'] != true) {
+        final name = (layer['name'] ?? layer['id'] ?? '').toString().toLowerCase();
+        if ((name.contains('image') || name.contains('pic') || name.contains('photo') || name.contains('product')) &&
+            !name.contains('logo') && !name.contains('bg') && !name.contains('background')) {
+          imageSlots.add(Map<String, dynamic>.from(layer));
+        }
+      }
+    }
+    
+    // Auto-select first product if available and none selected (skip if hiring)
+    if (_aiSelectedProduct == null && !isHiring) {
+      ApiService.getUserProducts().then((res) {
+        if (res.statusCode == 200) {
+          try {
+            final data = jsonDecode(res.body);
+            final List products = data['data'] ?? data['products']?['data'] ?? [];
+            if (products.isNotEmpty) {
+              setState(() => _aiSelectedProduct = products.first);
+            }
+          } catch (_) {}
+        }
+      });
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      barrierColor: Colors.transparent, // Make background fully visible
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
         child: ClipRRect(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           child: Container(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(16),
             color: Colors.white,
-            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.8),
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.40),
             child: Obx(() {
-              if (step2.value) {
-                // STEP 2: Preview & Edit
+              // ==================== REVIEW STEP ====================
+              if (_aiCurrentStep.value == 'review') {
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -889,10 +1138,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text('Review AI Text', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(context),
-                        ),
+                        IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -901,20 +1147,63 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                     Expanded(
                       child: ListView(
                         shrinkWrap: true,
-                        children: generatedTexts.entries.map((e) {
+                        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                        physics: const BouncingScrollPhysics(),
+                        children: _aiGeneratedTexts.entries.map((e) {
+                          bool isCaption = e.key.toLowerCase() == 'caption';
                           return Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.only(bottom: 8),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(e.key, style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87, fontSize: 13)),
-                                const SizedBox(height: 4),
-                                TextField(
-                                  controller: e.value,
-                                  maxLines: null,
-                                  decoration: InputDecoration(
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                                    contentPadding: const EdgeInsets.all(12),
+                                if (isCaption)
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text('Social Media Caption', 
+                                          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87, fontSize: 13)),
+                                      InkWell(
+                                        onTap: () {
+                                          Clipboard.setData(ClipboardData(text: e.value.text));
+                                          Get.snackbar('Copied', 'Caption copied to clipboard!', 
+                                              snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.black87, colorText: Colors.white);
+                                        },
+                                        child: const Row(children: [
+                                          Icon(Icons.copy, size: 14, color: Color(0xFF5538EE)),
+                                          SizedBox(width: 4),
+                                          Text('Copy', style: TextStyle(color: Color(0xFF5538EE), fontSize: 12, fontWeight: FontWeight.bold)),
+                                        ]),
+                                      ),
+                                    ],
+                                  ),
+                                if (isCaption) const SizedBox(height: 4),
+                                Focus(
+                                  onFocusChange: (hasFocus) {
+                                    if (hasFocus && !isCaption) {
+                                      controller.selectLayer(e.key);
+                                    }
+                                  },
+                                  child: TextField(
+                                    controller: e.value,
+                                    minLines: isCaption ? 1 : null,
+                                    maxLines: isCaption ? 5 : null,
+                                    onTap: () {
+                                      if (!isCaption) {
+                                        controller.selectLayer(e.key);
+                                      }
+                                    },
+                                    decoration: InputDecoration(
+                                      labelText: isCaption ? null : 'Replaces: ${e.key}',
+                                      labelStyle: const TextStyle(fontSize: 12, color: Colors.black54),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                        borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
+                                      ),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      fillColor: isCaption ? Colors.blue.shade50 : null,
+                                      filled: isCaption,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -929,35 +1218,44 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                         Expanded(
                           child: OutlinedButton(
                             style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
-                            onPressed: () {
-                              step2.value = false;
-                              generatedTexts.clear();
-                            },
+                            onPressed: () => _aiCurrentStep.value = isHiring ? 'hiring_questionnaire' : 'menu',
                             child: const Text('Back'),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: () {
+                              if (isGenerating.value) return;
+                              _aiCurrentStep.value = isHiring ? 'hiring_questionnaire' : 'customPrompt';
+                            },
+                            child: const Text('\u{1F504} Retry'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         Expanded(
                           flex: 2,
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF5538EE),
-                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             onPressed: () {
-                              // Apply texts to canvas
-                              generatedTexts.forEach((key, ctrl) {
-                                if (ctrl.text.trim().isNotEmpty) {
+                              _aiGeneratedTexts.forEach((key, ctrl) {
+                                if (key.toLowerCase() != 'caption' && ctrl.text.trim().isNotEmpty) {
                                   controller.updateLayerProperty(key, 'text', ctrl.text.trim());
                                 }
                               });
-                              // Also trigger text changes directly to trigger relayout
                               controller.templateConfig.refresh();
-                              Navigator.pop(context);
+                              Navigator.pop(ctx);
                               Get.snackbar('Success', 'AI text applied successfully', backgroundColor: Colors.green, colorText: Colors.white);
                             },
                             child: const Text('Apply to Design', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -969,88 +1267,330 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                 );
               }
 
-              // STEP 1: Prompt
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              // ==================== MENU STEP ====================
+              if (_aiCurrentStep.value == 'menu') {
+                return SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('AI Text Generator', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('AI Content Generator', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      // Product Selection Header (Hide if Hiring)
+                      if (!isHiring) StatefulBuilder(
+                        builder: (context2, setStateBuilder) => GestureDetector(
+                          onTap: () async {
+                            final product = await _pickProductForAI();
+                            if (product != null) {
+                              setStateBuilder(() => _aiSelectedProduct = product);
+                              setState(() => _aiSelectedProduct = product);
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(12),
+                              color: _aiSelectedProduct != null ? Colors.white : Colors.grey.shade50,
+                            ),
+                            child: _aiSelectedProduct != null 
+                              ? Row(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: (_aiSelectedProduct!['_display_image'] ?? '').toString().isNotEmpty
+                                          ? Image.network(
+                                              _aiSelectedProduct!['_display_image'].toString(),
+                                              width: 48, height: 48, fit: BoxFit.cover,
+                                              errorBuilder: (c,e,s) => Container(width: 48, height: 48, color: Colors.grey.shade200, child: const Icon(Icons.image, color: Colors.grey)),
+                                            )
+                                          : Container(width: 48, height: 48, color: Colors.grey.shade200, child: const Icon(Icons.image, color: Colors.grey)),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _aiSelectedProduct!['_display_name'] ?? _aiSelectedProduct!['title'] ?? _aiSelectedProduct!['name'] ?? 'Selected Product',
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                                          ),
+                                          if ((_aiSelectedProduct!['_display_category'] ?? _aiSelectedProduct!['category_name'] ?? '').toString().isNotEmpty)
+                                            Text(_aiSelectedProduct!['_display_category'] ?? _aiSelectedProduct!['category_name'] ?? '', 
+                                              style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                                          if ((_aiSelectedProduct!['_display_price'] ?? _aiSelectedProduct!['price'] ?? '').toString().isNotEmpty)
+                                            Text('\u20B9${_aiSelectedProduct!['_display_price'] ?? _aiSelectedProduct!['price']}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.w600, fontSize: 14)),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(Icons.swap_horiz, color: Colors.black54),
+                                  ],
+                                )
+                              : Row(
+                                  children: [
+                                    Container(
+                                      width: 40, height: 40,
+                                      decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(8)),
+                                      child: const Icon(Icons.add_shopping_cart, color: Colors.black54),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Expanded(
+                                      child: Text('Select a Product (Optional)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                                    ),
+                                    const Icon(Icons.arrow_drop_down),
+                                  ],
+                                ),
+                          ),
+                        ),
+                      ),
+                      if (!isHiring) const SizedBox(height: 24),
+                      // Tier 2: Enhance with AI
+                      _buildAiOptionTile(
+                        icon: Icons.auto_awesome,
+                        title: 'Enhance with AI',
+                        subtitle: 'Make text more professional (1 credit)',
+                        color: const Color(0xFF5538EE),
+                        onTap: () {
+                          if (_aiSelectedProduct == null) {
+                            Get.snackbar('Product Required', 'Please select a product first.');
+                            return;
+                          }
+                          _performTier2Generation(isGenerating);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      // Tier 3: Custom Prompt
+                      _buildAiOptionTile(
+                        icon: Icons.edit_note,
+                        title: 'Custom Prompt',
+                        subtitle: 'Write your own instructions (1 credit)',
+                        color: Colors.orange,
+                        onTap: () => _aiCurrentStep.value = 'customPrompt',
+                      ),
+                      if (isGenerating.value)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 24.0),
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
+                    ],
+                  ),
+                );
+              }
+
+              // ==================== HIRING QUESTIONNAIRE STEP ====================
+              if (_aiCurrentStep.value == 'hiring_questionnaire') {
+                return SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('AI Hiring Post Generator', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      const Text('आप किस Role/Post के लिए हायर कर रहे हैं?', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87)),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _aiHiringRoleController,
+                        decoration: InputDecoration(
+                          hintText: 'e.g., Graphic Designer, Sales Executive...',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                      ),
+                      if (askRequirements) ...[
+                        const SizedBox(height: 16),
+                        const Text('कोई खास Requirement या Salary?', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87)),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _aiHiringReqController,
+                          decoration: InputDecoration(
+                            hintText: 'e.g., 2 years experience, 25k salary...',
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                      const Text('Language:', style: TextStyle(fontSize: 13, color: Colors.black54)),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade400),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            isExpanded: true,
+                            value: _aiSelectedLanguage.value,
+                            items: languages.map((l) => DropdownMenuItem(value: l, child: Text(l))).toList(),
+                            onChanged: (val) {
+                              if (val != null) _aiSelectedLanguage.value = val;
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF5538EE),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: isGenerating.value ? null : () async {
+                            if (_aiHiringRoleController.text.trim().isEmpty) {
+                              Get.snackbar('Error', 'Please enter a role/post.');
+                              return;
+                            }
+                            
+                            // Build the prompt based on context
+                            String contextPrompt = "Generate a concise and catchy hiring post text for the role of '${_aiHiringRoleController.text.trim()}'.";
+                            if (askRequirements && _aiHiringReqController.text.trim().isNotEmpty) {
+                              contextPrompt += " Important requirements/salary: '${_aiHiringReqController.text.trim()}'.";
+                            }
+                            
+                            // Extract existing text from template to provide context
+                            final existingTexts = layers
+                              .where((l) => l['type'] == 'text' && (l['text'] ?? '').toString().trim().isNotEmpty)
+                              .map((l) => l['text'])
+                              .toList();
+                            
+                            if (existingTexts.isNotEmpty) {
+                              contextPrompt += " The text must seamlessly replace or complement this existing template content: ${existingTexts.join(', ')}. Keep it short enough to fit the design constraints.";
+                            }
+                            
+                            isGenerating.value = true;
+                            final content = await controller.generateAIText(
+                              contextPrompt, 
+                              _aiSelectedLanguage.value,
+                            );
+                            isGenerating.value = false;
+                            
+                            if (content != null && content.isNotEmpty) {
+                              _aiGeneratedTexts.clear();
+                              content.forEach((k, v) {
+                                _aiGeneratedTexts[k] = TextEditingController(text: v.toString());
+                              });
+                              _aiCurrentStep.value = 'review';
+                            } else {
+                              Get.snackbar('Notice', 'Could not generate text. Ensure template has text layers.', 
+                                  backgroundColor: Colors.orange, colorText: Colors.white);
+                            }
+                          },
+                          child: isGenerating.value 
+                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                              : const Text('Generate with AI', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  const Text('Describe what you want the AI to write:', style: TextStyle(fontSize: 13, color: Colors.black54)),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: promptController,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      hintText: 'E.g., Write a promotional text for a new coffee shop...',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.all(12),
+                );
+              }
+
+              // ==================== CUSTOM PROMPT STEP ====================
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back),
+                          padding: EdgeInsets.zero,
+                          alignment: Alignment.centerLeft,
+                          onPressed: () => _aiCurrentStep.value = isHiring ? 'hiring_questionnaire' : 'menu',
+                        ),
+                        const Expanded(child: Text('Custom Prompt', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+                        IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('Output Language:', style: TextStyle(fontSize: 13, color: Colors.black54)),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade400),
-                      borderRadius: BorderRadius.circular(12),
+                    const SizedBox(height: 16),
+                    const Text('Describe what you want the AI to write:', style: TextStyle(fontSize: 13, color: Colors.black54)),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _aiPromptController,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText: 'E.g., Write a promotional text for a new coffee shop...',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.all(12),
+                      ),
                     ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        isExpanded: true,
-                        value: selectedLanguage.value,
-                        items: languages.map((l) => DropdownMenuItem(value: l, child: Text(l))).toList(),
-                        onChanged: (val) {
-                          if (val != null) selectedLanguage.value = val;
+                    const SizedBox(height: 16),
+                    const Text('Output Language:', style: TextStyle(fontSize: 13, color: Colors.black54)),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade400),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          isExpanded: true,
+                          value: _aiSelectedLanguage.value,
+                          items: languages.map((l) => DropdownMenuItem(value: l, child: Text(l))).toList(),
+                          onChanged: (val) {
+                            if (val != null) _aiSelectedLanguage.value = val;
+                          },
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF5538EE),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: isGenerating.value ? null : () async {
+                          if (_aiPromptController.text.trim().isEmpty) {
+                            Get.snackbar('Error', 'Please enter a prompt first.');
+                            return;
+                          }
+                          isGenerating.value = true;
+                          final content = await controller.generateAIText(
+                            _aiPromptController.text.trim(), 
+                            _aiSelectedLanguage.value,
+                            product: _aiSelectedProduct,
+                          );
+                          isGenerating.value = false;
+                          if (content != null && content.isNotEmpty) {
+                            _aiGeneratedTexts.clear();
+                            content.forEach((k, v) {
+                              _aiGeneratedTexts[k] = TextEditingController(text: v.toString());
+                            });
+                            _aiCurrentStep.value = 'review';
+                          } else {
+                            Get.snackbar('Notice', 'Could not generate text. Ensure template has text layers.', 
+                                backgroundColor: Colors.orange, colorText: Colors.white);
+                          }
                         },
+                        child: isGenerating.value 
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Text('Generate Content', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF5538EE),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      onPressed: isGenerating.value ? null : () async {
-                        if (promptController.text.trim().isEmpty) return;
-                        isGenerating.value = true;
-                        
-                        final content = await controller.generateAIText(
-                          promptController.text.trim(), 
-                          selectedLanguage.value
-                        );
-                        
-                        isGenerating.value = false;
-                        if (content != null && content.isNotEmpty) {
-                          generatedTexts.clear();
-                          content.forEach((k, v) {
-                            generatedTexts[k] = TextEditingController(text: v.toString());
-                          });
-                          step2.value = true;
-                        } else {
-                          Get.snackbar('Notice', 'Could not generate text for layers. Ensure there are text elements on the template.', backgroundColor: Colors.orange, colorText: Colors.white);
-                        }
-                      },
-                      child: isGenerating.value 
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Text('Generate Content', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               );
             }),
           ),
@@ -1058,6 +1598,366 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
       ),
     );
   }
+
+  // ==================== AI HELPER METHODS ====================
+
+  Widget _buildAiOptionTile({required IconData icon, required String title, required String subtitle, required Color color, required VoidCallback onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade200),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+              child: Icon(icon, color: color),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  const SizedBox(height: 2),
+                  Text(subtitle, style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _performTier1Generation() {
+    if (_aiSelectedProduct == null) return;
+    final product = _aiSelectedProduct!;
+    final pName = (product['_display_name'] ?? product['title'] ?? product['name'] ?? '').toString();
+    final pDesc = (product['description'] ?? product['short_description'] ?? '').toString();
+    final pPrice = (product['_display_price'] ?? product['price'] ?? '').toString();
+    final imgUrl = (product['_display_image'] ?? product['image_url'] ?? product['processed_url'] ?? product['image'] ?? '').toString();
+    final fullUrl = imgUrl.startsWith('http') ? imgUrl : (imgUrl.isNotEmpty ? '${controller.uploadsBaseUrl}/$imgUrl' : '');
+
+    final layers = controller.templateConfig['layers'] as List<dynamic>? ?? [];
+    bool imageMapped = false;
+
+    for (var layer in layers) {
+      final lName = (layer['name'] ?? '').toString().toLowerCase();
+      if (layer['type'] == 'text') {
+        if (lName == 'title' || lName == 'heading1' || lName.startsWith('title')) {
+          controller.updateLayerProperty(layer['name'], 'text', pName);
+        } else if (lName == 'description' || lName == 'desc') {
+          controller.updateLayerProperty(layer['name'], 'text', pDesc);
+        } else if (lName == 'price' || lName.contains('price')) {
+          controller.updateLayerProperty(layer['name'], 'text', pPrice);
+        }
+      } else if (layer['type'] == 'image' && !imageMapped) {
+        if ((lName == 'image1' || lName.contains('product')) && layer['is_background'] != true) {
+          controller.updateLayerProperty(layer['name'], 'src', fullUrl);
+          imageMapped = true;
+        }
+      }
+    }
+    controller.templateConfig.refresh();
+    Get.snackbar('Smart Generate', 'Product details applied instantly!', backgroundColor: Colors.green, colorText: Colors.white);
+  }
+
+  Future<void> _performTier2Generation(RxBool isGenerating) async {
+    isGenerating.value = true;
+    final product = _aiSelectedProduct!;
+    final pName = (product['_display_name'] ?? product['title'] ?? product['name'] ?? '').toString();
+    final pDesc = (product['description'] ?? product['short_description'] ?? '').toString();
+    final autoPrompt = 'Write compelling marketing text for this product that perfectly aligns with the template\'s purpose (e.g. sale, hiring, festival, etc). Highlight the key features.';
+    _aiPromptController.text = autoPrompt;
+
+    final content = await controller.generateAIText(autoPrompt, _aiSelectedLanguage.value, product: product);
+    isGenerating.value = false;
+    if (content != null && content.isNotEmpty) {
+      _aiGeneratedTexts.clear();
+      content.forEach((k, v) {
+        _aiGeneratedTexts[k] = TextEditingController(text: v.toString());
+      });
+      _aiCurrentStep.value = 'review';
+    } else {
+      Get.snackbar('Notice', 'Could not generate enhanced text.', backgroundColor: Colors.orange, colorText: Colors.white);
+    }
+  }
+
+  Future<Map<String, dynamic>?> _pickProductForAI() async {
+    Map<String, dynamic>? selected;
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.75,
+          decoration: const BoxDecoration(
+            color: Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              // Drag Handle
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40, height: 4,
+                decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40, height: 40,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(colors: [Color(0xFF6366F1), Color(0xFF9333EA)]),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.inventory_2, color: Colors.white, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Select Product', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1E293B))),
+                          Text('Choose a product for AI content', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+                    IconButton(icon: const Icon(Icons.close, color: Color(0xFF94A3B8)), onPressed: () => Navigator.pop(sheetCtx)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Product List
+              Expanded(
+                child: FutureBuilder<http.Response>(
+                  future: ApiService.getUserProducts(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(color: Color(0xFF6366F1)),
+                          SizedBox(height: 16),
+                          Text('Loading your products...', style: TextStyle(color: Colors.grey)),
+                        ],
+                      ));
+                    }
+                    if (!snapshot.hasData) return const Center(child: Text('Failed to load products'));
+                    try {
+                      final body = jsonDecode(snapshot.data!.body);
+                      // Debug: print actual API response keys
+                      debugPrint('[ProductPickerAI] API keys: ${body.keys.toList()}');
+                      
+                      // Try multiple possible data structures
+                      List products = [];
+                      if (body['products'] != null && body['products']['data'] != null) {
+                        products = body['products']['data'];
+                      } else if (body['data'] != null && body['data'] is List) {
+                        products = body['data'];
+                      } else if (body['data'] != null && body['data']['data'] != null) {
+                        products = body['data']['data'];
+                      }
+                      
+                      debugPrint('[ProductPickerAI] Found ${products.length} products');
+                      if (products.isNotEmpty) {
+                        debugPrint('[ProductPickerAI] First product keys: ${(products.first as Map).keys.toList()}');
+                        debugPrint('[ProductPickerAI] First product: ${products.first}');
+                      }
+                      
+                      if (products.isEmpty) {
+                        return Center(child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.inventory_2_outlined, size: 56, color: Colors.grey.shade300),
+                            const SizedBox(height: 12),
+                            const Text('No products found', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 4),
+                            const Text('Add products from My Business section', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                          ],
+                        ));
+                      }
+                      
+                      return ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: products.length,
+                        itemBuilder: (context, index) {
+                          final product = products[index];
+                          
+                          // Try all possible field names for image
+                          final imgUrl = (product['image_url'] ?? product['processed_url'] ?? product['image'] ?? '').toString();
+                          final fullUrl = imgUrl.isEmpty ? '' : (imgUrl.startsWith('http') ? imgUrl : '${controller.uploadsBaseUrl}/$imgUrl');
+                          
+                          // Try all possible field names for title/name
+                          final productName = (product['title'] ?? product['name'] ?? product['sku'] ?? 'Product ${index + 1}').toString();
+                          final categoryName = (product['category_name'] ?? product['category'] ?? '').toString();
+                          final price = product['price']?.toString() ?? '';
+                          
+                          return GestureDetector(
+                            onTap: () {
+                              selected = Map<String, dynamic>.from(product);
+                              // Ensure we normalize the keys for downstream usage
+                              selected!['_display_name'] = productName;
+                              selected!['_display_image'] = fullUrl;
+                              selected!['_display_category'] = categoryName;
+                              selected!['_display_price'] = price;
+                              Navigator.pop(sheetCtx);
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 10),
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: const Color(0xFFF1F5F9)),
+                                boxShadow: const [BoxShadow(color: Color(0x08000000), blurRadius: 4, offset: Offset(0, 1))],
+                              ),
+                              child: Row(
+                                children: [
+                                  // Product Image
+                                  Container(
+                                    width: 56, height: 56,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(14),
+                                      color: const Color(0xFFF8FAFC),
+                                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(14),
+                                      child: fullUrl.isNotEmpty
+                                          ? Image.network(fullUrl, fit: BoxFit.cover,
+                                              errorBuilder: (c,e,s) => const Icon(Icons.inventory_2_outlined, color: Color(0xFF94A3B8), size: 24))
+                                          : const Icon(Icons.inventory_2_outlined, color: Color(0xFF94A3B8), size: 24),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  // Product Info
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(productName,
+                                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
+                                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                                        if (categoryName.isNotEmpty) ...[
+                                          const SizedBox(height: 3),
+                                          Text(categoryName,
+                                            style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500)),
+                                        ],
+                                        if (price.isNotEmpty) ...[
+                                          const SizedBox(height: 2),
+                                          Text('\u20B9$price',
+                                            style: const TextStyle(fontSize: 13, color: Colors.green, fontWeight: FontWeight.w600)),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  // Arrow
+                                  Container(
+                                    width: 32, height: 32,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF8FAFC), shape: BoxShape.circle,
+                                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                                    ),
+                                    child: const Icon(Icons.arrow_forward_ios, size: 12, color: Color(0xFF94A3B8)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    } catch (e) {
+                      debugPrint('[ProductPickerAI] Error: $e');
+                      return Center(child: Text('Error loading products: $e'));
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    return selected;
+
+  }
+
+  void _showProductSelectionForSlot(String slotName) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.6,
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Select Product for $slotName', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              Expanded(
+                child: FutureBuilder<http.Response>(
+                  future: ApiService.getUserProducts(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                    if (!snapshot.hasData) return const Center(child: Text('Failed'));
+                    try {
+                      final body = jsonDecode(snapshot.data!.body);
+                      final List products = body['data'] ?? body['products']?['data'] ?? [];
+                      if (products.isEmpty) return const Center(child: Text('No products found'));
+                      return ListView.builder(
+                        itemCount: products.length,
+                        itemBuilder: (context, index) {
+                          final product = products[index];
+                          final imgUrl = (product['processed_url'] ?? product['image'] ?? '').toString();
+                          final fullUrl = imgUrl.startsWith('http') ? imgUrl : '${controller.uploadsBaseUrl}/$imgUrl';
+                          return ListTile(
+                            leading: ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: Image.network(fullUrl, width: 50, height: 50, fit: BoxFit.cover,
+                                  errorBuilder: (c,e,s) => const Icon(Icons.image)),
+                            ),
+                            title: Text(product['name'] ?? ''),
+                            onTap: () {
+                              _aiUploadedImages[slotName] = fullUrl;
+                              controller.updateLayerProperty(slotName, 'src', fullUrl);
+                              controller.templateConfig.refresh();
+                              Navigator.pop(sheetCtx);
+                            },
+                          );
+                        },
+                      );
+                    } catch (e) {
+                      return const Center(child: Text('Error'));
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+
 
   Widget _buildFieldBadge(String text, String layerName, {bool alwaysBlue = false}) {
     if (alwaysBlue) {
@@ -1083,6 +1983,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
     }
     
     return Obx(() {
+      final _layerUpdate = controller.layerUpdateTrigger.value;
       final _ = controller.templateConfig.length; // Ensure GetX tracks this scope
       final isVisible = controller.isLayerVisible(layerName);
       return GestureDetector(
@@ -1111,6 +2012,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
 
   Widget _buildIconBadge(IconData icon, String layerName) {
     return Obx(() {
+      final _layerUpdate = controller.layerUpdateTrigger.value;
       final _ = controller.templateConfig.length; // Ensure GetX tracks this scope
       final isVisible = controller.isLayerVisible(layerName);
       return GestureDetector(
@@ -1208,7 +2110,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
           if (isCustom) _buildToolBtn(Icons.shopping_bag_outlined, 'Products', _showProductsModal),
           if (isCustom) _buildToolBtn(Icons.auto_awesome, 'AI Text', () => _showAiTextModal(context)),
           _buildToolBtn(Icons.emoji_emotions_outlined, 'Sticker', _showStickerModal),
-          if (isCustom) _buildToolBtn(Icons.layers, 'Layers', () => Scaffold.of(context).openEndDrawer()),
+          if (isCustom) _buildToolBtn(Icons.layers, 'Layers', () => _showLayersModal(context)),
         ],
       ),
     );
@@ -1255,6 +2157,60 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
         'opacity': 1.0,
         'z_index': 999,
         'isUserAdded': true,
+      });
+    }
+  }
+
+  void _showReplaceOptions() {
+    final layerId = controller.selectedLayerId.value;
+    if (layerId.isEmpty) return;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text('Replace Image', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Choose from Gallery'),
+              onTap: () async {
+                Navigator.pop(context);
+                final picker = ImagePicker();
+                final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+                if (pickedFile != null) {
+                  controller.updateLayerProperties(layerId, {
+                    'src': pickedFile.path,
+                    'isLocal': true,
+                  });
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.auto_awesome_mosaic),
+              title: const Text('Choose from Stickers'),
+              onTap: () {
+                Navigator.pop(context);
+                _showStickerModal(replaceLayerId: layerId);
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _detachImage() {
+    if (controller.selectedLayerId.value.isNotEmpty) {
+      controller.updateLayerProperties(controller.selectedLayerId.value, {
+        'src': '',
+        'isLocal': false,
       });
     }
   }
@@ -1342,104 +2298,151 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
 
 
 
-  void _showStickerModal() {
+  void _showStickerModal({String? replaceLayerId}) {
+    String searchQuery = '';
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return Container(
-          height: MediaQuery.of(context).size.height * 0.7,
-          padding: const EdgeInsets.all(16),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Stickers', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              Expanded(
-                child: FutureBuilder<http.Response>(
-                  // Assume the API is available at root /api/get-sticker or similar
-                  future: http.get(Uri.parse('${AppConfig.baseUrl}/get-sticker')),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (snapshot.hasError || !snapshot.hasData) {
-                      return const Center(child: Text('Failed to load stickers'));
-                    }
-                    try {
-                      final body = jsonDecode(snapshot.data!.body);
-                      List stickers = [];
-                      
-                      if (body['data'] != null && body['data'] is List) {
-                        final dataList = body['data'] as List;
-                        if (dataList.isNotEmpty && dataList[0] is Map && dataList[0].containsKey('stickerCategoryName')) {
-                          // Nested categorized structure
-                          for (var category in dataList) {
-                            if (category['sticker'] != null && category['sticker'] is List) {
-                              stickers.addAll(category['sticker']);
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.7,
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(replaceLayerId != null ? 'Choose Placeholder' : 'Stickers', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Search...',
+                      prefixIcon: const Icon(Icons.search),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onSubmitted: (val) {
+                      setState(() {
+                        searchQuery = val;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: FutureBuilder<http.Response>(
+                      future: searchQuery.isEmpty 
+                          ? http.get(Uri.parse('${AppConfig.baseUrl}/get-sticker'))
+                          : http.post(Uri.parse('${AppConfig.baseUrl}/search-sticker'), body: {'keyword': searchQuery}),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        if (snapshot.hasError || !snapshot.hasData) {
+                          return const Center(child: Text('Failed to load stickers'));
+                        }
+                        try {
+                          final body = jsonDecode(snapshot.data!.body);
+                          List stickers = [];
+                          
+                          if (body['data'] != null && body['data'] is List) {
+                            final dataList = body['data'] as List;
+                            if (dataList.isNotEmpty && dataList[0] is Map && dataList[0].containsKey('stickerCategoryName')) {
+                              for (var category in dataList) {
+                                if (category['sticker'] != null && category['sticker'] is List) {
+                                  stickers.addAll(category['sticker']);
+                                }
+                              }
+                            } else {
+                              stickers = dataList;
+                            }
+                          } else if (body['stickers'] != null && body['stickers'] is List) {
+                            stickers = body['stickers'];
+                          } else if (body is List) {
+                            stickers = body;
+                          } else if (body['data'] != null && body['data'] is Map && body['data']['StickerCategory'] != null) {
+                            // Native app get-sticker format
+                            for(var category in body['data']['StickerCategory']) {
+                               if (category['sticker'] != null) {
+                                  stickers.addAll(category['sticker']);
+                               }
                             }
                           }
-                        } else {
-                          stickers = dataList;
-                        }
-                      } else if (body['stickers'] != null && body['stickers'] is List) {
-                        stickers = body['stickers'];
-                      } else if (body is List) {
-                        stickers = body;
-                      }
 
-                      if (stickers.isEmpty) {
-                        return const Center(child: Text('No stickers found'));
-                      }
-                      return GridView.builder(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 4,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                        ),
-                        itemCount: stickers.length,
-                        itemBuilder: (context, index) {
-                          final sticker = stickers[index];
-                          final imgUrl = sticker['stickerImage'] ?? sticker['image'] ?? sticker['url'] ?? '';
-                          if (imgUrl.isEmpty) return const SizedBox.shrink();
-                          
-                          final fullUrl = imgUrl.toString().startsWith('http') ? imgUrl : '${controller.uploadsBaseUrl}/$imgUrl';
-                          return GestureDetector(
-                            onTap: () {
-                              controller.addLayer({
-                                'name': 'Sticker ${DateTime.now().millisecondsSinceEpoch}',
-                                'type': 'image',
-                                'src': fullUrl,
-                                'x': 540,
-                                'y': 540,
-                                'width': 200,
-                                'height': 200,
-                                'opacity': 1.0,
-                                'z_index': 999,
-                                'isUserAdded': true,
-                              });
-                              Navigator.pop(context);
-                            },
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.network(fullUrl, fit: BoxFit.contain),
+                          if (stickers.isEmpty) {
+                            return const Center(child: Text('No stickers found'));
+                          }
+                          return GridView.builder(
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 4,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
                             ),
+                            itemCount: stickers.length,
+                            itemBuilder: (context, index) {
+                              final sticker = stickers[index];
+                              final imgUrl = sticker['stickerImage'] ?? sticker['image'] ?? sticker['url'] ?? '';
+                              if (imgUrl.isEmpty) return const SizedBox.shrink();
+                              
+                              final fullUrl = imgUrl.toString().startsWith('http') ? imgUrl : '${controller.uploadsBaseUrl}/$imgUrl';
+                              return GestureDetector(
+                                onTap: () {
+                                  if (replaceLayerId != null) {
+                                    controller.updateLayerProperties(replaceLayerId, {
+                                      'src': fullUrl,
+                                      'isLocal': false,
+                                    });
+                                  } else {
+                                    controller.addLayer({
+                                      'name': 'Sticker ${DateTime.now().millisecondsSinceEpoch}',
+                                      'type': 'image',
+                                      'src': fullUrl,
+                                      'x': 540,
+                                      'y': 540,
+                                      'width': 200,
+                                      'height': 200,
+                                      'opacity': 1.0,
+                                      'z_index': 999,
+                                      'isUserAdded': true,
+                                    });
+                                  }
+                                  Navigator.pop(context);
+                                },
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    fullUrl, 
+                                    fit: BoxFit.contain,
+                                    loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return Center(
+                                        child: CircularProgressIndicator(
+                                          value: loadingProgress.expectedTotalBytes != null
+                                              ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                              : null,
+                                        ),
+                                      );
+                                    },
+                                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.grey),
+                                  ),
+                                ),
+                              );
+                            },
                           );
-                        },
-                      );
-                    } catch (e) {
-                      return const Center(child: Text('Error parsing stickers'));
-                    }
-                  },
-                ),
+                        } catch (e) {
+                          return const Center(child: Text('Error parsing stickers'));
+                        }
+                      },
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          }
         );
       },
     );

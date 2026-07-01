@@ -19,6 +19,11 @@ class BusinessCustomFrame extends Model
         'json_rules',
         'status',
         'show_on_landing',
+        'tags',
+    ];
+
+    protected $casts = [
+        'tags' => 'array',
     ];
 
     public function purpose()

@@ -1,6 +1,10 @@
+import '../utils/safe_double.dart';
 import 'package:flutter/material.dart';
+
 import 'package:get/get.dart';
+
 import '../controllers/native_editor_controller.dart';
+
 import 'dart:math' as math;
 
 class InteractiveLayer extends StatelessWidget {
@@ -20,36 +24,46 @@ class InteractiveLayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<NativeEditorController>();
-    final isBackground = layerConfig['is_background'] == true ||
-        layerName.toLowerCase() == 'bg' ||
-        layerName.toLowerCase() == 'background';
 
-    // If background, just return the child without gestures (can't drag background)
-    if (isBackground) return child;
 
     return Obx(() {
+      final _layerUpdate = controller.layerUpdateTrigger.value;
+      final _ = controller.templateConfig.values.toList(); // Force GetX to track config changes like opacity
       final isSelected = controller.selectedLayerId.value == layerName;
       
-      final double x = (layerConfig['x'] ?? 0).toDouble() * scale;
-      final double y = (layerConfig['y'] ?? 0).toDouble() * scale;
-      double rawW = (layerConfig['w'] ?? layerConfig['width'] ?? 0).toDouble();
-      double rawH = (layerConfig['h'] ?? layerConfig['height'] ?? 0).toDouble();
+      final double x = safeDouble(layerConfig['x'] ?? 0) * scale;
+      double y = safeDouble(layerConfig['y'] ?? 0) * scale;
+      
+      // RC-6: Point Text Y-offset correction (matches web editor's Fabric.js em-box adjustment)
+      // Web editor: for Point text, renders at y - fontSize*0.12 (Fabric em-box vs visual bounds).
+      // On export, adds the offset back. So JSON Y = original PSD Y.
+      // Native must also subtract the offset for Point text to match web positioning.
+      if (layerConfig['type'] == 'text' && layerConfig['kind']?.toString().toLowerCase() == 'point') {
+        final double rawSize = safeDouble(layerConfig['fontSize'] ?? layerConfig['font_size'] ?? layerConfig['size'] ?? 16);
+        final double docPPI = safeDouble(controller.templateConfig['info']?['ppi'] ?? 72);
+        final double ppiScale = docPPI / 72.0;
+        final double layerScaleYForFont = safeDouble(layerConfig['scaleY'] ?? layerConfig['scaleX'] ?? 1.0);
+        final double effectiveFontSize = rawSize * ppiScale * layerScaleYForFont * scale;
+        y -= (effectiveFontSize * 0.12);
+      }
+      double rawW = safeDouble(layerConfig['w'] ?? layerConfig['width'] ?? 0);
+      double rawH = safeDouble(layerConfig['h'] ?? layerConfig['height'] ?? 0);
 
       // For frames lacking explicit dimensions, force them to 100% canvas size
       if ((layerName == '_frame_bg' || layerName == '_frame' || layerName == 'frame') && (rawW <= 0 || rawH <= 0)) {
-        rawW = (controller.templateConfig['info']?['width'] ?? controller.templateConfig['width'] ?? 1080).toDouble();
-        rawH = (controller.templateConfig['info']?['height'] ?? controller.templateConfig['height'] ?? 1080).toDouble();
+        rawW = safeDouble(controller.templateConfig['info']?['width'] ?? controller.templateConfig['width'] ?? 1080);
+        rawH = safeDouble(controller.templateConfig['info']?['height'] ?? controller.templateConfig['height'] ?? 1080);
       }
 
-      final double opacity = (layerConfig['opacity'] ?? 1.0).toDouble();
+      final double opacity = safeDouble(layerConfig['opacity'] ?? 1.0);
       if (opacity <= 0.0) return const SizedBox.shrink();
 
-      final double layerScaleX = (layerConfig['scaleX'] ?? 1.0).toDouble();
-      final double layerScaleY = (layerConfig['scaleY'] ?? 1.0).toDouble();
+      final double layerScaleX = safeDouble(layerConfig['scaleX'] ?? 1.0);
+      final double layerScaleY = safeDouble(layerConfig['scaleY'] ?? 1.0);
 
       final double w = rawW * layerScaleX * scale;
       final double h = rawH * layerScaleY * scale;
-      final double angle = (layerConfig['angle'] ?? 0).toDouble();
+      final double angle = safeDouble(layerConfig['angle'] ?? 0);
 
       // For layers with zero/missing dimensions, use the child's intrinsic size
       // but cap it to prevent unbounded overflow
@@ -58,6 +72,9 @@ class InteractiveLayer extends StatelessWidget {
       final double? posH = (h > 0 && !isText) ? h : null;
 
       final bool canInteract = true;
+
+      // Check if we need to show diagnostics for this specific layer
+      final bool showDiag = layerName == 'layer_22' || layerName == 'ellipse_1' || layerName == 'ellipse_1-2';
 
       Widget layerContent = Transform.rotate(
         angle: angle * math.pi / 180,
@@ -73,15 +90,15 @@ class InteractiveLayer extends StatelessWidget {
             // Update position using synchronous state to prevent drag jitter
             final dx = details.delta.dx / scale;
             final dy = details.delta.dy / scale;
-            final currentX = (currentLayer['x'] ?? 0).toDouble();
-            final currentY = (currentLayer['y'] ?? 0).toDouble();
+            final currentX = safeDouble(currentLayer['x'] ?? 0);
+            final currentY = safeDouble(currentLayer['y'] ?? 0);
             
             controller.updateLayerBounds(
               layerName, 
               currentX + dx, 
               currentY + dy, 
-              (currentLayer['w'] ?? currentLayer['width'] ?? 0).toDouble(), 
-              (currentLayer['h'] ?? currentLayer['height'] ?? 0).toDouble(), 
+              safeDouble(currentLayer['w'] ?? currentLayer['width'] ?? 0), 
+              safeDouble(currentLayer['h'] ?? currentLayer['height'] ?? 0), 
               angle
             );
           } : null,
@@ -89,7 +106,11 @@ class InteractiveLayer extends StatelessWidget {
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              child,
+              SizedBox(
+                width: posW,
+                height: posH,
+                child: child,
+              ),
               if (isSelected)
                 Positioned.fill(
                   child: Container(
@@ -117,7 +138,7 @@ class InteractiveLayer extends StatelessWidget {
         // If width is unknown, alignment determines origin
         if (just == 'right') {
           // Web editor: originX = right, tLeft = x. Right edge is at x!
-          final double canvasW = (controller.templateConfig['info']?['width'] ?? controller.templateConfig['width'] ?? 1080).toDouble() * scale;
+          final double canvasW = safeDouble(controller.templateConfig['info']?['width'] ?? controller.templateConfig['width'] ?? 1080) * scale;
           finalRight = canvasW - x;
         } else if (just == 'center') {
           // Fallback, not strictly perfect without width
@@ -166,3 +187,5 @@ class InteractiveLayer extends StatelessWidget {
     );
   }
 }
+
+

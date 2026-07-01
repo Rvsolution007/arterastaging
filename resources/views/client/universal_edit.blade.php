@@ -516,7 +516,7 @@
     .image-type-filter-btn:active { transform: scale(0.95); }
     </style>
     <!-- Fabric.js v5 — Canvas editor library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+    <script src="{{ asset('assets/js/fabric.min.js') }}"></script>
 @endsection
 
 @section('content')
@@ -2572,6 +2572,22 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
         const prevRenderOnAdd = fCanvas.renderOnAddRemove;
         fCanvas.renderOnAddRemove = false;
 
+        // --- FLATTEN LAYERS ---
+        // V4 Extractors generate nested groups (type: "group", children: []).
+        function flattenLayersList(layers) {
+            let flat = [];
+            if (!layers || !Array.isArray(layers)) return flat;
+            layers.forEach(l => {
+                if (l.type === 'group' && Array.isArray(l.children)) {
+                    flat = flat.concat(flattenLayersList(l.children));
+                } else {
+                    flat.push(l);
+                }
+            });
+            return flat;
+        }
+        config.layers = flattenLayersList(config.layers);
+
         // Determine design resolution
         let dW = (config.info && config.info.width) || 0;
         let dH = (config.info && config.info.height) || 0;
@@ -2729,7 +2745,7 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
                 }
             }
 
-            if (layer.type === 'image') {
+            if (layer.type === 'image' || layer.type === 'shape') {
                 let src = layer.src;
                 let isAIMapped = false;
                 let isFrameSlot = lname.startsWith('image'); // e.g. "image1", "Image 1"
@@ -3046,9 +3062,17 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
                 // Adobe Standard Point-to-Pixel Conversion
                 // Formula: pixel_size = point_size × (document_ppi / 72)
                 // This is the EXACT same formula Photoshop uses internally.
-                let rawFontPt = layer.font_size || layer.size || 20;
-                let docPPI = (config.info && config.info.ppi) || 72;
-                let origSize = rawFontPt * (docPPI / 72) * overlayScaleY;
+                let docPPI = (config.info && config.info.ppi) || (config.info && config.info.dpi) || 72;
+                let origSize = 20;
+                
+                // V4 Extractors provide `size` directly in Document Pixels
+                if (layer.size) {
+                    origSize = layer.size * overlayScaleY;
+                } else {
+                    // Fallback for very old JSON files
+                    let rawFontPt = layer.font_size || 20;
+                    origSize = rawFontPt * (docPPI / 72) * overlayScaleY;
+                }
 
                 let fShadow = null;
                 if (layer.shadow) {
@@ -4817,3 +4841,4 @@ function applyAiText() {
 */
 </script>
 @endsection
+

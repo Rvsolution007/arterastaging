@@ -154,6 +154,15 @@
                                 {!! Form::text('name',$category->name,['class' => 'form-control-premium','required','placeholder'=>'Enter sub category name']) !!}
                             </div>
 
+                            <div class="form-group mb-4" style="display: flex; align-items: center; gap: 12px;">
+                                <input type="hidden" name="has_business_type" value="0">
+                                <input type="checkbox" name="has_business_type" id="has_business_type" value="1" {{ $category->has_business_type ? 'checked' : '' }} style="width: 24px; height: 24px; cursor: pointer;">
+                                <div>
+                                    <label for="has_business_type" class="form-label-premium mb-0" style="cursor: pointer;">Has Business Type</label>
+                                    <p style="margin-bottom: 0; font-size: 0.85rem; color: #64748b;">Check this if this sub-category should require Business Types.</p>
+                                </div>
+                            </div>
+
                             <div class="form-group mb-4">
                                 {!! Form::label('icon','Sub Category Icon', ['class' => 'form-label-premium']) !!}
                                 <input class="form-control-premium" type="file" id="image" name="icon" style="padding: 0.5rem 1rem;">

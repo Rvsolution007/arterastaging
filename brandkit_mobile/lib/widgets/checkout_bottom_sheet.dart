@@ -10,8 +10,16 @@ import '../controllers/subscription_controller.dart';
 class CheckoutBottomSheet extends StatefulWidget {
   final Map<String, dynamic> plan;
   final String planType; // 'Monthly' or 'Yearly'
+  final bool isUpgrade;
+  final Map<String, dynamic>? upgradePreview;
 
-  const CheckoutBottomSheet({super.key, required this.plan, this.planType = 'Yearly'});
+  const CheckoutBottomSheet({
+    super.key,
+    required this.plan,
+    this.planType = 'Yearly',
+    this.isUpgrade = false,
+    this.upgradePreview,
+  });
 
   @override
   State<CheckoutBottomSheet> createState() => _CheckoutBottomSheetState();
@@ -35,20 +43,23 @@ class _CheckoutBottomSheetState extends State<CheckoutBottomSheet> {
   void initState() {
     super.initState();
     // Determine price based on planType
-    if (widget.planType == 'Monthly') {
-      final mDiscount = (widget.plan['monthlyDiscountPrice'] ?? 0) as num;
-      final mBase = (widget.plan['monthlyPrice'] ?? 0) as num;
-      _basePrice = (mDiscount > 0 && mDiscount < mBase) ? mDiscount : mBase;
+    if (widget.isUpgrade && widget.upgradePreview != null) {
+      _basePrice = (widget.upgradePreview!['amount_to_pay'] ?? 0) as num;
     } else {
-      final yDiscount = (widget.plan['yearlyDiscountPrice'] ?? 0) as num;
-      final yBase = (widget.plan['yearlyPrice'] ?? 0) as num;
-      // Fallback to old columns if new ones are 0
-      if (yDiscount > 0 || yBase > 0) {
-        _basePrice = (yDiscount > 0 && yDiscount < yBase) ? yDiscount : yBase;
+      if (widget.planType == 'Monthly') {
+        final mDiscount = (widget.plan['monthlyDiscountPrice'] ?? 0) as num;
+        final mBase = (widget.plan['monthlyPrice'] ?? 0) as num;
+        _basePrice = (mDiscount > 0 && mDiscount < mBase) ? mDiscount : mBase;
       } else {
-        final dp = widget.plan['discountPrice'] ?? 0;
-        final pp = widget.plan['planPrice'] ?? 0;
-        _basePrice = (dp > 0 && dp < pp) ? dp : pp;
+        final yDiscount = (widget.plan['yearlyDiscountPrice'] ?? 0) as num;
+        final yBase = (widget.plan['yearlyPrice'] ?? 0) as num;
+        if (yDiscount > 0 || yBase > 0) {
+          _basePrice = (yDiscount > 0 && yDiscount < yBase) ? yDiscount : yBase;
+        } else {
+          final dp = widget.plan['discountPrice'] ?? 0;
+          final pp = widget.plan['planPrice'] ?? 0;
+          _basePrice = (dp > 0 && dp < pp) ? dp : pp;
+        }
       }
     }
     
@@ -228,24 +239,42 @@ class _CheckoutBottomSheetState extends State<CheckoutBottomSheet> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppColors.gray200),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(widget.plan['planName'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text('${widget.planType} Plan', style: TextStyle(color: AppColors.gray500, fontSize: 13)),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(widget.plan['planName'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          Text('${widget.planType} Plan', style: TextStyle(color: AppColors.gray500, fontSize: 13)),
+                        ],
+                      ),
+                      Text('₹${widget.isUpgrade && widget.upgradePreview != null ? widget.upgradePreview!['new_plan_price'] : _basePrice}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                     ],
                   ),
-                  Text('₹$_basePrice', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                  if (widget.isUpgrade && widget.upgradePreview != null && (widget.upgradePreview!['credit_applied'] ?? 0) > 0) ...[
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Divider(),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Unused Plan Credit (${widget.upgradePreview!['remaining_days']} Days)', style: const TextStyle(color: Colors.green, fontSize: 13, fontWeight: FontWeight.w600)),
+                        Text('- ₹${widget.upgradePreview!['credit_applied']}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 16)),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
             const SizedBox(height: 16),
 
-            // Coupon Code
-            if (_appliedCouponCode == null)
+            // Coupon Code (Hide for upgrades)
+            if (!widget.isUpgrade) ...[
+              if (_appliedCouponCode == null)
               Row(
                 children: [
                   Expanded(
@@ -290,6 +319,7 @@ class _CheckoutBottomSheetState extends State<CheckoutBottomSheet> {
                   ],
                 ),
               ),
+            ],
             
             const SizedBox(height: 24),
             

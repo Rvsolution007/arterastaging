@@ -174,7 +174,7 @@ class VertexAIService
             $headers['Authorization'] = "Bearer " . $this->getAccessToken();
         }
 
-        $response = Http::withHeaders($headers)->timeout(60)->post($endpoint, $body);
+        $response = Http::withHeaders($headers)->timeout(300)->post($endpoint, $body);
 
         if (!$response->successful()) {
             $err = $response->json();

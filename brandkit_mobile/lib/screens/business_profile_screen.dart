@@ -11,6 +11,8 @@ import '../controllers/home_controller.dart';
 import '../services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../widgets/multi_select_dropdown.dart';
+import '../widgets/cascading_business_dropdowns.dart';
 class BusinessProfileScreen extends StatefulWidget {
   final Map<String, dynamic>? business;
   final bool isNew;
@@ -44,8 +46,41 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
   Set<TextEditingController> _hiddenAddresses = {};
   
   String _selectedCategoryId = '1';
+  List<String> _selectedSubCategoryIds = [];
+  List<String> _selectedBusinessTypeIds = [];
+  bool _hasTypesForSelectedSubCategory = false;
+  List<String> _selectedProductIds = [];
+  final Map<String, String> _initialProductNames = {};
+  
+  // ── Per-Category Selection Cache ──
+  // Saves selections when user switches category, restores when they switch back
+  final Map<String, Map<String, dynamic>> _categoryCacheMap = {};
+  int _cascadingKey = 0; // Force rebuild key for CascadingBusinessDropdowns
+  int _productKey = 0;   // Force rebuild key for Products MultiSelectDropdown
+  
   String _logoUrl = '';
   String _businessId = '';
+
+  Future<List<Map<String, dynamic>>> _fetchProducts(String query) async {
+    if (_selectedSubCategoryIds.isEmpty) return [];
+    if (_hasTypesForSelectedSubCategory && _selectedBusinessTypeIds.isEmpty) {
+      return [];
+    }
+    
+    try {
+      final res = await ApiService.post('/business-products/search', {
+        'business_sub_category_id': _selectedSubCategoryIds.join(','),
+        'business_type_id': _selectedBusinessTypeIds.join(','),
+        'query': query,
+      });
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        List<dynamic> list = data['data'] ?? [];
+        return list.map((e) => Map<String, dynamic>.from(e)).toList();
+      }
+    } catch (_) {}
+    return [];
+  }
 
   @override
   void initState() {
@@ -99,6 +134,24 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
       catId = hc.profileCategories.first['businessCategoryId']?.toString() ?? hc.profileCategories.first['id']?.toString() ?? '1';
     }
     _selectedCategoryId = catId;
+
+    // Multi-Select IDs
+    _selectedSubCategoryIds = getBizList('business_sub_category_ids', hc.businessSubCategoryIds.toList());
+    _selectedBusinessTypeIds = getBizList('business_type_ids', hc.businessTypeIds.toList());
+    
+    if (widget.isNew) {
+      _selectedProductIds = [];
+    } else if (useHc) {
+      _selectedProductIds = hc.products.map((p) => p['id'].toString()).toList();
+      for (var p in hc.products) {
+        _initialProductNames[p['id'].toString()] = p['name']?.toString() ?? '';
+      }
+    } else {
+      _selectedProductIds = (biz['products'] as List<dynamic>? ?? []).map((e) => e['id'].toString()).toList();
+      for (var p in (biz['products'] as List<dynamic>? ?? [])) {
+        _initialProductNames[p['id'].toString()] = p['name']?.toString() ?? '';
+      }
+    }
 
     List<String> extEmails = getBizList('extra_emails', hc.extraEmails);
     List<String> extPhones = getBizList('extra_mobile_numbers', hc.extraPhones);
@@ -212,6 +265,9 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
           'bussinessWebsite': _websiteCtrl.text,
           'bussinessAddress': _addressCtrl.text,
           'businessCategoryId': _selectedCategoryId,
+          'businessSubCategoryIds': _selectedSubCategoryIds.join(','),
+          'businessTypeIds': _selectedBusinessTypeIds.join(','),
+          'product_ids': _selectedProductIds.join(','),
           'extra_emails': jsonEncode(_extraEmailCtrls.map((c) => c.text).where((t) => t.isNotEmpty).toList()),
           'extra_mobile_numbers': jsonEncode(_extraPhoneCtrls.map((c) => c.text).where((t) => t.isNotEmpty).toList()),
           'extra_websites': jsonEncode(_extraWebsiteCtrls.map((c) => c.text).where((t) => t.isNotEmpty).toList()),
@@ -240,6 +296,9 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
           'bussinessWebsite': _websiteCtrl.text,
           'bussinessAddress': _addressCtrl.text,
           'businessCategoryId': _selectedCategoryId,
+          'businessSubCategoryIds': _selectedSubCategoryIds,
+          'businessTypeIds': _selectedBusinessTypeIds,
+          'product_ids': _selectedProductIds,
           'extra_emails': _extraEmailCtrls.map((c) => c.text).where((t) => t.isNotEmpty).toList(),
           'extra_mobile_numbers': _extraPhoneCtrls.map((c) => c.text).where((t) => t.isNotEmpty).toList(),
           'extra_websites': _extraWebsiteCtrls.map((c) => c.text).where((t) => t.isNotEmpty).toList(),
@@ -321,7 +380,11 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
           children: [
             // Logo Upload
             Center(
-              child: Stack(
+              child: Column(
+                children: [
+                  const Text('Upload Business Logo', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.gray800)),
+                  const SizedBox(height: 12),
+                  Stack(
                 children: [
                   Container(
                     width: 120,
@@ -361,13 +424,72 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
                   )
                 ],
               ),
+                ],
+              ),
             ),
             AppSpacing.gapV32,
             
             // Form Fields
             _buildInputField('Business Name', Icons.business, _nameCtrl),
             AppSpacing.gapV16,
-            _buildCategoryDropdown(),
+            CascadingBusinessDropdowns(
+              key: ValueKey('cascade_$_cascadingKey'),
+              initialCategoryId: _selectedCategoryId,
+              initialSubCategoryIds: _selectedSubCategoryIds,
+              initialBusinessTypeIds: _selectedBusinessTypeIds,
+              onSelected: (categoryId, subCategoryIds, businessTypeIds, hasTypes) {
+                // If category changed, cache old selections & try restore from cache
+                if (categoryId != _selectedCategoryId && categoryId.isNotEmpty) {
+                  // Save current category's selections to cache
+                  if (_selectedCategoryId.isNotEmpty) {
+                    _categoryCacheMap[_selectedCategoryId] = {
+                      'subCategoryIds': List<String>.from(_selectedSubCategoryIds),
+                      'businessTypeIds': List<String>.from(_selectedBusinessTypeIds),
+                      'productIds': List<String>.from(_selectedProductIds),
+                      'hasTypes': _hasTypesForSelectedSubCategory,
+                    };
+                  }
+                  
+                  // Check if new category has cached selections
+                  final cached = _categoryCacheMap[categoryId];
+                  setState(() {
+                    _selectedCategoryId = categoryId;
+                    if (cached != null) {
+                      _selectedSubCategoryIds = List<String>.from(cached['subCategoryIds'] ?? []);
+                      _selectedBusinessTypeIds = List<String>.from(cached['businessTypeIds'] ?? []);
+                      _selectedProductIds = List<String>.from(cached['productIds'] ?? []);
+                      _hasTypesForSelectedSubCategory = cached['hasTypes'] ?? false;
+                    } else {
+                      _selectedSubCategoryIds = subCategoryIds;
+                      _selectedBusinessTypeIds = businessTypeIds;
+                      _selectedProductIds = [];
+                      _hasTypesForSelectedSubCategory = hasTypes;
+                    }
+                    _cascadingKey++;
+                    _productKey++;
+                  });
+                } else {
+                  // Same category — normal update
+                  setState(() {
+                    _selectedCategoryId = categoryId;
+                    _selectedSubCategoryIds = subCategoryIds;
+                    _selectedBusinessTypeIds = businessTypeIds;
+                    _hasTypesForSelectedSubCategory = hasTypes;
+                    _selectedProductIds.clear();
+                    _productKey++;
+                  });
+                }
+              },
+            ),
+            AppSpacing.gapV16,
+            MultiSelectDropdown(
+              key: ValueKey('products_$_productKey'),
+              title: 'Products / Services',
+              initialSelectedIds: _selectedProductIds,
+              initialSelectedNames: _initialProductNames,
+              fetchItems: _fetchProducts,
+              onChanged: (ids) => setState(() => _selectedProductIds = ids),
+            ),
             AppSpacing.gapV16,
             _buildDynamicInputFields('Email Address', Icons.email_outlined, _emailCtrl, _extraEmailCtrls, _hiddenEmails, () {
               setState(() => _extraEmailCtrls.add(TextEditingController()));
@@ -408,55 +530,6 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildCategoryDropdown() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text('Business Category', style: AppTextStyles.labelSmall),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.gray100),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              )
-            ],
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: _selectedCategoryId,
-              isExpanded: true,
-              icon: Icon(Icons.arrow_drop_down, color: AppColors.gray400),
-              items: hc.profileCategories.map<DropdownMenuItem<String>>((dynamic cat) {
-                final id = cat['businessCategoryId']?.toString() ?? cat['id']?.toString() ?? '';
-                final name = cat['businessCategoryName']?.toString() ?? cat['name']?.toString() ?? 'Category';
-                return DropdownMenuItem<String>(
-                  value: id,
-                  child: Text(name, style: AppTextStyles.bodyMedium),
-                );
-              }).toList(),
-              onChanged: (String? newValue) {
-                if (newValue != null) {
-                  setState(() {
-                    _selectedCategoryId = newValue;
-                  });
-                }
-              },
-            ),
-          ),
-        ),
-      ],
     );
   }
 

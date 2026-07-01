@@ -12,6 +12,8 @@ class BusinessSubCategory extends Model
 
     protected $fillable = [
         'name',
+        'slug',
+        'has_business_type',
         'business_category_id',
         'icon',
         'status',
@@ -27,5 +29,15 @@ class BusinessSubCategory extends Model
     public function business_category()
     {
         return $this->hasOne("App\Models\BusinessCategory", "id", "business_category_id");
+    }
+
+    public function types()
+    {
+        return $this->hasMany(BusinessType::class, 'business_sub_category_id');
+    }
+
+    public function products()
+    {
+        return $this->hasMany(BusinessProduct::class, 'business_sub_category_id');
     }
 }

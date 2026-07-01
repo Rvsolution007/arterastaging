@@ -56,6 +56,18 @@
         <div class="row">
             <div class="col-12">
                 <div class="form-group row">
+                    {!! Form::label('has_business_type','Has Business Type', ['class' => 'col-sm-3 col-form-label']) !!}
+                    <div class="col-sm-4" style="display:flex; align-items:center;">
+                        <input type="checkbox" name="has_business_type" id="has_business_type" value="1" style="width:20px; height:20px; margin-right:10px;">
+                        <span style="font-size:0.9rem; color:#64748b;">If checked, this sub-category will require a Business Type.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="form-group row">
                     {!! Form::label('icon',' Select Image', ['class' => 'col-sm-3 col-form-label']) !!}
                     <div class="col-sm-4"><input class="form-control" type="file" id="image" name="icon" required></div>
                 </div>

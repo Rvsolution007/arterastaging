@@ -44,7 +44,7 @@ class PosterCategoryController extends Controller
                 "name" => $request->get("name"),
             ]);
 
-            return redirect()->route("poster-category.index");
+            return redirect()->route("Frame-category.index");
         }
     }
 
@@ -76,7 +76,7 @@ class PosterCategoryController extends Controller
             $category->name = $request->get("name");
             $category->save();
 
-            return redirect()->route('poster-category.index');
+            return redirect()->route('Frame-category.index');
         }
     }
 
@@ -101,6 +101,6 @@ class PosterCategoryController extends Controller
         PosterCategory::find($id)->delete();
         PosterMaker::where('poster_category_id',$id)->delete();
     
-        return redirect()->route('poster-category.index');
+        return redirect()->route('Frame-category.index');
     }
 }

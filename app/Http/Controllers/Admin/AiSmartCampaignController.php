@@ -151,15 +151,20 @@ class AiSmartCampaignController extends Controller
             "image" => $fileName ?? null,
             "type" => $type,
             "type_id" => $type_id,
+            "external_link" => ($type == 'externalLink') ? $request->external_link : null,
         ]);
 
         $fcmService = new FcmService();
         if ($fcmService->isConfigured()) {
             $imageFullUrl = null;
             if ($fileName) {
-                $imageFullUrl = (StorageSetting::getStorageSetting('storage') == 'DigitalOcean') 
-                    ? Storage::disk('spaces')->url('uploads/' . $fileName) 
-                    : asset('uploads/' . $fileName);
+                if (StorageSetting::getStorageSetting('storage') == 'DigitalOcean') {
+                    $imageFullUrl = Storage::disk('spaces')->url('uploads/' . $fileName);
+                } else {
+                    // Use url() helper which uses the request host (e.g. 192.168.1.34)
+                    // instead of env('APP_URL') which might be 'localhost' and unreachable from mobile
+                    $imageFullUrl = rtrim(url('/'), '/') . '/uploads/' . $fileName;
+                }
             }
 
             $fcmResult = $fcmService->sendNotification(

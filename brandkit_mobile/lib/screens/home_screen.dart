@@ -19,9 +19,11 @@ import 'detail_list_screen.dart';
 import 'custom_posts_screen.dart';
 import 'subscription_plans_screen.dart';
 import '../widgets/coming_soon_widget.dart';
+import '../config/app_config.dart';
 import 'quick_start_wizard_screen.dart';
 import 'notifications_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'search_screen.dart';
 
 import 'achievements_screen.dart';
 
@@ -101,7 +103,16 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildSearchBar() {
     return Padding(
       padding: const EdgeInsets.only(left: 16, right: 16, top: 4, bottom: 16),
-      child: SearchBarWidget(hintText: 'search_categories_festivals'.tr),
+      child: SearchBarWidget(
+        hintText: 'search_categories_festivals'.tr,
+        readOnly: true,
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SearchScreen()),
+          );
+        },
+      ),
     );
   }
 
@@ -377,7 +388,42 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: SizedBox(
           height: 170,
-          child: ComingSoonWidget(title: 'Custom Posts'),
+          child: !AppConfig.isLocal 
+              ? const ComingSoonWidget(title: 'Custom Posts')
+              : Obx(() {
+                  if (hc.customPosts.isEmpty) {
+                    return Center(child: Text('No custom posts available', style: AppTextStyles.bodyMedium));
+                  }
+                  return ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: hc.customPosts.length,
+                    itemBuilder: (context, i) {
+                      final cat = hc.customPosts[i];
+                      final catId = cat['customCategoryId'] ?? 0;
+                      return GestureDetector(
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CustomPostsScreen(initialCategoryId: catId))),
+                        child: Container(
+                          width: 140, margin: const EdgeInsets.only(right: 16),
+                          decoration: BoxDecoration(color: AppColors.gray200, borderRadius: BorderRadius.circular(16)),
+                          clipBehavior: Clip.antiAlias,
+                          child: Stack(
+                            children: [
+                              Image.network('${hc.uploadsBaseUrl}/${cat['image']}', fit: BoxFit.cover, width: double.infinity, height: double.infinity, errorBuilder: (c, e, s) => Container(color: AppColors.gray300)),
+                              Positioned(
+                                bottom: 0, left: 0, right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.black87, Colors.transparent], begin: Alignment.bottomCenter, end: Alignment.topCenter)),
+                                  child: Text(cat['customCategoryName'] ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                }),
         ),
       ),
       AppSpacing.gapV32,

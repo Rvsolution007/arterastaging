@@ -1,12 +1,20 @@
+import '../utils/safe_double.dart';
 import 'package:get/get.dart';
+
 import 'package:flutter/material.dart';
+
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'dart:ui' as ui;
 import '../config/app_config.dart';
+
 import '../services/api_service.dart';
+
 import '../controllers/home_controller.dart';
+
 
 class NativeEditorController extends GetxController {
   // The complete living JSON configuration of the template
@@ -21,6 +29,7 @@ class NativeEditorController extends GetxController {
   
   // The currently active contextual tool (e.g. 'Edit', 'Font', 'Nudge')
   final RxString activeTool = ''.obs;
+  final RxInt layerUpdateTrigger = 0.obs; // Forces Obx rebuild on layer property changes
 
   @override
   void onInit() {
@@ -42,7 +51,9 @@ class NativeEditorController extends GetxController {
       if (Get.isRegistered<HomeController>()) {
         bcId = Get.find<HomeController>().businessCategoryId.value;
       }
-      final response = await ApiService.get('/get-all-frames?business_category_id=$bcId');
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('userId') ?? '';
+      final response = await ApiService.get('/get-all-frames?business_category_id=$bcId&userId=$userId');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data is Map && data['success'] == true) {
@@ -97,8 +108,8 @@ class NativeEditorController extends GetxController {
     bool hasFrame = layers.any((l) => l['_businessKey'] != null || l['_isFrameLayer'] == true);
     if (hasFrame) return;
 
-    final double cW = ((templateConfig['info']?['width'] ?? templateConfig['width'] ?? 1080) as num).toDouble();
-    final double cH = ((templateConfig['info']?['height'] ?? templateConfig['height'] ?? 1080) as num).toDouble();
+    final double cW = safeDouble((templateConfig['info']?['width'] ?? templateConfig['width'] ?? 1080) as num);
+    final double cH = safeDouble((templateConfig['info']?['height'] ?? templateConfig['height'] ?? 1080) as num);
 
     // Default business layers (matching web editor addBusinessElements)
     
@@ -222,17 +233,17 @@ class NativeEditorController extends GetxController {
     for (var layer in layers) {
       final String layerName = (layer['name'] ?? layer['id'] ?? '').toString().toLowerCase();
       final bool isBg = layer['is_background'] == true || 
-                        ['image1', 'main_image', 'bg', 'background', '_frame_bg'].contains(layerName);
+                        (layer['is_background'] == null && ['image1', 'main_image', 'bg', 'background', '_frame_bg'].contains(layerName));
       
       if (!isBg && (layer['type'] == 'image' || layer['type'] == 'rect' || layer['type'] == 'shape')) {
         bool isContactIcon = ['phone', 'email', 'website', 'address', 'social'].any((e) => layerName.contains(e));
         if (!isContactIcon || layer['type'] != 'image') {
-          double pw = ((layer['w'] ?? layer['width'] ?? 0) as num).toDouble();
-          double ph = ((layer['h'] ?? layer['height'] ?? 0) as num).toDouble();
+          double pw = safeDouble((layer['w'] ?? layer['width'] ?? 0) as num);
+          double ph = safeDouble((layer['h'] ?? layer['height'] ?? 0) as num);
           if (pw > 50 && ph > 10) {
             shapeLayers.add({
-              'x': ((layer['x'] ?? 0) as num).toDouble(),
-              'y': ((layer['y'] ?? 0) as num).toDouble(),
+              'x': safeDouble((layer['x'] ?? 0) as num),
+              'y': safeDouble((layer['y'] ?? 0) as num),
               'w': pw,
               'h': ph,
             });
@@ -319,15 +330,27 @@ class NativeEditorController extends GetxController {
     final layers = templateConfig['layers'] as List<dynamic>?;
     if (layers == null) return;
 
-    final names = layerName.split(',').map((e) => e.trim().toLowerCase()).toList();
+    final targets = layerName.split(',').map((e) => e.trim().toLowerCase()).toList();
 
     for (var layer in layers) {
-      final name = (layer['name'] ?? layer['id']).toString().toLowerCase();
-      if (names.contains(name)) {
+      final String rawName = (layer['name'] ?? layer['id']).toString().toLowerCase().trim();
+      final String nameWithoutSpaces = rawName.replaceAll(RegExp(r'[\s\-_]'), '');
+      
+      bool matches = false;
+      for (String target in targets) {
+        final t = target.replaceAll(RegExp(r'[\s\-_]'), '');
+        if (nameWithoutSpaces == t) {
+          matches = true;
+          break;
+        }
+      }
+      
+      if (matches) {
         layer['opacity'] = isVisible ? 1.0 : 0.0;
       }
     }
     
+    layerUpdateTrigger.value++; // Force explicit UI rebuild
     templateConfig.refresh();
     _pushHistory();
   }
@@ -336,11 +359,22 @@ class NativeEditorController extends GetxController {
     final layers = templateConfig['layers'] as List<dynamic>?;
     if (layers == null) return false;
 
-    final names = layerName.split(',').map((e) => e.trim().toLowerCase()).toList();
+    final targets = layerName.split(',').map((e) => e.trim().toLowerCase()).toList();
 
     for (var layer in layers) {
-      final name = (layer['name'] ?? layer['id']).toString().toLowerCase();
-      if (names.contains(name)) {
+      final String rawName = (layer['name'] ?? layer['id']).toString().toLowerCase().trim();
+      final String nameWithoutSpaces = rawName.replaceAll(RegExp(r'[\s\-_]'), '');
+      
+      bool matches = false;
+      for (String target in targets) {
+        final t = target.replaceAll(RegExp(r'[\s\-_]'), '');
+        if (nameWithoutSpaces == t) {
+          matches = true;
+          break;
+        }
+      }
+      
+      if (matches) {
         return (layer['opacity'] ?? 1.0) > 0.0;
       }
     }
@@ -354,6 +388,23 @@ class NativeEditorController extends GetxController {
     for (var layer in layers) {
       if ((layer['name'] ?? layer['id']).toString() == layerName) {
         layer[property] = value;
+        break;
+      }
+    }
+    
+    templateConfig.refresh();
+    _pushHistory();
+  }
+
+  void updateLayerProperties(String layerName, Map<String, dynamic> properties) {
+    final layers = templateConfig['layers'] as List<dynamic>?;
+    if (layers == null) return;
+
+    for (var layer in layers) {
+      if ((layer['name'] ?? layer['id']).toString() == layerName) {
+        properties.forEach((key, value) {
+          layer[key] = value;
+        });
         break;
       }
     }
@@ -403,7 +454,7 @@ class NativeEditorController extends GetxController {
 
   // --- API INTEGRATIONS ---
 
-  Future<Map<String, dynamic>?> generateAIText(String prompt, String language) async {
+  Future<Map<String, dynamic>?> generateAIText(String prompt, String language, {Map<String, dynamic>? product}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('userId') ?? '';
@@ -426,18 +477,42 @@ class NativeEditorController extends GetxController {
           if (!isContactInfo) {
             final String currentText = (layer['text'] ?? '').toString().trim();
             final bool isSkippable = ['www.', 'http', '.com', '.in', '@', '+91'].any((p) => currentText.toLowerCase().contains(p));
+            final bool isAiProtected = layer['ai_protected'] == true || layer['ai_protected'] == '1' || layer['ai_protected'] == 1;
             
-            if (!isSkippable && currentText.isNotEmpty) {
-              int maxChars = (layer['_ai_max_chars'] != null) ? int.tryParse(layer['_ai_max_chars'].toString()) ?? 0 : 0;
+            if (!isSkippable && currentText.isNotEmpty && !isAiProtected) {
+              int maxChars = (layer['ai_max_chars'] != null) ? int.tryParse(layer['ai_max_chars'].toString()) ?? 0 
+                           : (layer['_ai_max_chars'] != null) ? int.tryParse(layer['_ai_max_chars'].toString()) ?? 0 : 0;
+                           
               if (maxChars <= 0) {
-                maxChars = (currentText.length * 2).clamp(50, 1000);
+                // Auto-calculate maximum capacity based on physical dimensions
+                double w = double.tryParse(layer['w']?.toString() ?? '0') ?? 0;
+                double h = double.tryParse(layer['h']?.toString() ?? '0') ?? 0;
+                double size = double.tryParse(layer['size']?.toString() ?? '20') ?? 20;
+                
+                if (w > 0 && h > 0 && size > 0) {
+                  // Average character width is roughly 55% of font size
+                  double charWidth = size * 0.55;
+                  int charsPerLine = (w / charWidth).floor();
+                  
+                  // Average line height is roughly 1.2x font size
+                  double lineHeight = size * 1.2;
+                  int lines = (h / lineHeight).floor();
+                  if (lines < 1) lines = 1;
+                  
+                  maxChars = charsPerLine * lines;
+                }
+                
+                // Fallback if dimensions are missing or very weird
+                if (maxChars <= 0) {
+                  maxChars = (currentText.length * 2).clamp(50, 1000);
+                }
               }
               
               canvasLayers.add({
                 'name': layer['name'] ?? layer['id'] ?? 'text_${canvasLayers.length}',
                 'current_text': currentText,
                 'max_chars': maxChars,
-                'ai_role': layer['_ai_role'] ?? ''
+                'ai_role': layer['ai_role'] ?? layer['_ai_role'] ?? ''
               });
             }
           }
@@ -455,6 +530,18 @@ class NativeEditorController extends GetxController {
         'canvas_layers': canvasLayers,
         'language': language,
       };
+
+      // Add product data if available
+      if (product != null) {
+        payload['product_id'] = (product['id'] ?? '').toString();
+        payload['product_name'] = (product['_display_name'] ?? product['title'] ?? product['name'] ?? '').toString();
+        payload['product_description'] = (product['description'] ?? product['short_description'] ?? '').toString();
+        payload['product_price'] = (product['_display_price'] ?? product['price'] ?? '').toString();
+        payload['product_category'] = (product['_display_category'] ?? product['category_name'] ?? product['category'] ?? '').toString();
+        payload['product_sku'] = (product['sku'] ?? '').toString();
+      }
+
+      debugPrint('[AI Generate] Payload: $payload');
 
       final response = await ApiService.post('/editor/ai-content/generate?userId=$userId', payload);
 
@@ -514,7 +601,7 @@ class NativeEditorController extends GetxController {
         if (l['_is_frame_layer'] == true) return false;
         
         final name = (l['name'] ?? l['id'] ?? '').toString().toLowerCase();
-        final bool isBg = l['is_background'] == true || name == 'image1' || name == 'main_image' || name == 'bg' || name.contains('background');
+        final bool isBg = l['is_background'] == true || (l['is_background'] == null && (name == 'image1' || name == 'main_image' || name == 'bg' || name.contains('background')));
         final bool isUserAdded = name.startsWith('new ') || name.startsWith('logo ') || name.startsWith('product ') || name.startsWith('sticker ') || name.startsWith('text ');
         
         if (type == 'business_custom_frame' || type == 'custom') {
@@ -529,16 +616,29 @@ class NativeEditorController extends GetxController {
         try { configJson = jsonDecode(configJson); } catch(e) {}
       }
 
-      double canvasW = (templateConfig['info']?['width'] ?? templateConfig['width'] ?? 1080).toDouble();
-      double canvasH = (templateConfig['info']?['height'] ?? templateConfig['height'] ?? 1080).toDouble();
+      dynamic templateInfo = templateConfig['info'];
+      if (templateInfo is String) {
+        try { templateInfo = jsonDecode(templateInfo); } catch(e) {}
+      }
+      double canvasW = safeDouble(templateInfo?['width'] ?? templateConfig['width'] ?? 1080);
+      double canvasH = safeDouble(templateInfo?['height'] ?? templateConfig['height'] ?? 1080);
       
-      double frameW = (newFrameJson['width'] ?? configJson?['info']?['width'] ?? configJson?['width'] ?? 0).toDouble();
-      double frameH = (newFrameJson['height'] ?? configJson?['info']?['height'] ?? configJson?['height'] ?? 0).toDouble();
+      dynamic frameInfo = newFrameJson['info'];
+      if (frameInfo is String) {
+        try { frameInfo = jsonDecode(frameInfo); } catch(e) {}
+      }
+      dynamic configInfo = configJson?['info'];
+      if (configInfo is String) {
+        try { configInfo = jsonDecode(configInfo); } catch(e) {}
+      }
+
+      double frameW = safeDouble(newFrameJson['width'] ?? frameInfo?['width'] ?? configInfo?['width'] ?? configJson?['width'] ?? 0);
+      double frameH = safeDouble(newFrameJson['height'] ?? frameInfo?['height'] ?? configInfo?['height'] ?? configJson?['height'] ?? 0);
       
       if (frameW <= 0 || frameH <= 0) {
         for (var layer in newLayers) {
-          double r = ((layer['x'] ?? 0) as num).toDouble() + ((layer['width'] ?? layer['w'] ?? 0) as num).toDouble();
-          double b = ((layer['y'] ?? 0) as num).toDouble() + ((layer['height'] ?? layer['h'] ?? 0) as num).toDouble();
+          double r = safeDouble((layer['x'] ?? 0) as num) + safeDouble((layer['width'] ?? layer['w'] ?? 0) as num);
+          double b = safeDouble((layer['y'] ?? 0) as num) + safeDouble((layer['height'] ?? layer['h'] ?? 0) as num);
           if (r > frameW) frameW = r;
           if (b > frameH) frameH = b;
         }
@@ -550,14 +650,14 @@ class NativeEditorController extends GetxController {
       double scaleY = canvasH / frameH;
 
       List<Map<String, dynamic>> shapeLayers = [];
-      double docPPI = 300.0;
+      double docPPI = 72.0;
       try {
         if (newFrameJson['info'] != null) {
           if (newFrameJson['info'] is String) {
             final parsedInfo = jsonDecode(newFrameJson['info']);
-            if (parsedInfo['ppi'] != null) docPPI = (parsedInfo['ppi'] as num).toDouble();
+            if (parsedInfo['ppi'] != null) docPPI = safeDouble(parsedInfo['ppi'] as num);
           } else if (newFrameJson['info']['ppi'] != null) {
-            docPPI = (newFrameJson['info']['ppi'] as num).toDouble();
+            docPPI = safeDouble(newFrameJson['info']['ppi'] as num);
           }
         }
       } catch (e) {
@@ -566,29 +666,65 @@ class NativeEditorController extends GetxController {
       double ppiScale = docPPI / 72.0;
 
       for (var newLayer in newLayers) {
-        double rawW = ((newLayer['w'] ?? newLayer['width'] ?? 0) as num).toDouble();
-        double rawH = ((newLayer['h'] ?? newLayer['height'] ?? 0) as num).toDouble();
+        double rawW = safeDouble((newLayer['w'] ?? newLayer['width'] ?? 0) as num);
+        double rawH = safeDouble((newLayer['h'] ?? newLayer['height'] ?? 0) as num);
         String name = (newLayer['name'] ?? newLayer['id'] ?? '').toString();
         String layerName = name.toLowerCase();
 
         newLayer['_is_frame_layer'] = true;
+
+        if (newLayer['type'] == 'image' && newLayer['src'] != null) {
+          String srcStr = newLayer['src'].toString();
+          if (!srcStr.startsWith('http') && !srcStr.startsWith('data:')) {
+            String base = ApiService.baseUrl.replaceAll('/api', '');
+            if (!base.endsWith('/')) {
+              base += '/';
+            }
+            
+            String frameBaseUrl = base;
+            if (newFrameJson['full_url'] != null) {
+              String fullUrl = newFrameJson['full_url'].toString();
+              int skinsIndex = fullUrl.indexOf('/skins/');
+              if (skinsIndex != -1) {
+                frameBaseUrl = fullUrl.substring(0, skinsIndex) + '/';
+              }
+            }
+
+            if (srcStr.startsWith('data:') || srcStr.startsWith('http')) {
+              newLayer['src'] = srcStr;
+            } else if (srcStr.startsWith('../')) {
+              newLayer['src'] = '$frameBaseUrl${srcStr.replaceFirst('../', '')}';
+            } else if (srcStr.startsWith('uploads/')) {
+              newLayer['src'] = '$base$srcStr';
+            } else {
+              newLayer['src'] = '${frameBaseUrl}skins/$srcStr';
+            }
+          }
+          
+          // Server zip extraction replaces spaces with hyphens.
+          // Replace proactively to avoid a 404 delay before the fallback kicks in.
+          // This must run even if the URL already starts with 'http' (e.g. from native_editor_screen.dart)
+          if (!newLayer['src'].toString().startsWith('data:')) {
+            newLayer['src'] = newLayer['src'].toString().replaceAll(' ', '-').replaceAll('%20', '-');
+          }
+        }
 
         if ((layerName == '_frame_bg' || layerName == '_frame' || layerName == 'frame') && (rawW <= 0 || rawH <= 0)) {
           rawW = frameW;
           rawH = frameH;
         }
 
-        if (newLayer['x'] != null) newLayer['x'] = (newLayer['x'] as num).toDouble() * scaleX;
-        if (newLayer['y'] != null) newLayer['y'] = (newLayer['y'] as num).toDouble() * scaleY;
+        if (newLayer['x'] != null) newLayer['x'] = safeDouble(newLayer['x'] as num) * scaleX;
+        if (newLayer['y'] != null) newLayer['y'] = safeDouble(newLayer['y'] as num) * scaleY;
         
         if (newLayer['w'] != null) newLayer['w'] = rawW * scaleX;
         if (newLayer['width'] != null) newLayer['width'] = rawW * scaleX;
         if (newLayer['h'] != null) newLayer['h'] = rawH * scaleY;
         if (newLayer['height'] != null) newLayer['height'] = rawH * scaleY;
         
-        if (newLayer['fontSize'] != null) newLayer['fontSize'] = (newLayer['fontSize'] as num).toDouble() * ppiScale * scaleY;
-        if (newLayer['font_size'] != null) newLayer['font_size'] = (newLayer['font_size'] as num).toDouble() * ppiScale * scaleY;
-        if (newLayer['size'] != null) newLayer['size'] = (newLayer['size'] as num).toDouble() * ppiScale * scaleY;
+        if (newLayer['fontSize'] != null) newLayer['fontSize'] = safeDouble(newLayer['fontSize'] as num) * ppiScale * scaleY;
+        if (newLayer['font_size'] != null) newLayer['font_size'] = safeDouble(newLayer['font_size'] as num) * ppiScale * scaleY;
+        if (newLayer['size'] != null) newLayer['size'] = safeDouble(newLayer['size'] as num) * ppiScale * scaleY;
 
         newLayer['_isFrameLayer'] = true;
         
@@ -642,13 +778,13 @@ class NativeEditorController extends GetxController {
         }
 
         if (newLayer['type'] == 'image' || newLayer['type'] == 'rect' || newLayer['type'] == 'shape') {
-          if (newLayer['is_background'] != true && !['image1', 'main_image', 'bg', 'background', '_frame_bg'].contains(layerName)) {
+          if (newLayer['is_background'] != true && !(newLayer['is_background'] == null && ['image1', 'main_image', 'bg', 'background', '_frame_bg'].contains(layerName))) {
             if (newLayer['type'] != 'image' || !['phone', 'email', 'website', 'address', 'social'].any((e) => layerName.contains(e))) {
               if (newLayer['type'] != 'image' || rawW > 200 || rawH > 200) {
-               double px = ((newLayer['x'] ?? 0) as num).toDouble();
-               double py = ((newLayer['y'] ?? 0) as num).toDouble();
-               double pw = ((newLayer['w'] ?? newLayer['width'] ?? 0) as num).toDouble();
-               double ph = ((newLayer['h'] ?? newLayer['height'] ?? 0) as num).toDouble();
+               double px = safeDouble((newLayer['x'] ?? 0) as num);
+               double py = safeDouble((newLayer['y'] ?? 0) as num);
+               double pw = safeDouble((newLayer['w'] ?? newLayer['width'] ?? 0) as num);
+               double ph = safeDouble((newLayer['h'] ?? newLayer['height'] ?? 0) as num);
                if (pw > 50 && ph > 10) {
                  shapeLayers.add({'x': px, 'y': py, 'w': pw, 'h': ph});
                }
@@ -658,18 +794,57 @@ class NativeEditorController extends GetxController {
         }
       }
 
-      // 1. Initial Render: Add new layers instantly so the UI feels fast.
+      // 1. Find the maximum z_index from native/preserved layers
+      int maxNativeZIndex = 0;
+      for (var l in preservedLayers) {
+        int z = (l['z_index'] ?? 0) is int ? (l['z_index'] ?? 0) : ((l['z_index'] ?? 0) as num).toInt();
+        if (z > maxNativeZIndex) maxNativeZIndex = z;
+      }
+
+      // 2. Boost all frame layer z_index values so they render ON TOP of native layers
+      for (var newLayer in newLayers) {
+        int frameZ = (newLayer['z_index'] ?? 0) is int ? (newLayer['z_index'] ?? 0) : ((newLayer['z_index'] ?? 0) as num).toInt();
+        newLayer['z_index'] = maxNativeZIndex + frameZ + 1;
+      }
+
+      // 3. For custom templates: Remove native layers whose _businessKey matches a frame layer's _businessKey
+      //    This prevents duplicate logos, phone icons, etc.
+      if (type == 'business_custom_frame' || type == 'custom') {
+        final Set<String> frameBusinessKeys = {};
+        for (var nl in newLayers) {
+          final bk = nl['_businessKey'];
+          if (bk != null && bk.toString().isNotEmpty) {
+            frameBusinessKeys.add(bk.toString());
+          }
+        }
+        if (frameBusinessKeys.isNotEmpty) {
+          preservedLayers.removeWhere((l) {
+            if (l['_is_frame_layer'] == true) return false; // Don't touch other frame layers
+            final bk = l['_businessKey'];
+            if (bk != null && frameBusinessKeys.contains(bk.toString())) {
+              debugPrint('[FRAME] Removing native layer with businessKey=$bk to avoid duplicate');
+              return true;
+            }
+            return false;
+          });
+        }
+      }
+
+      // 4. Add frame layers after preserved layers
       for (var newLayer in newLayers) {
         preservedLayers.add(newLayer);
       }
       
+      // 5. Deduplicate: within the same source (frame vs native), remove duplicates by name.
+      //    Frame layers should NOT overwrite native layers with different purposes even if same name.
       final seenNames = <String>{};
       final uniqueLayers = <Map<String, dynamic>>[];
       for (var layer in preservedLayers.reversed) {
         final name = (layer['name'] ?? layer['id'] ?? '').toString();
         if (name.isNotEmpty) {
-          if (!seenNames.contains(name)) {
-            seenNames.add(name);
+          String dedupeKey = layer['_is_frame_layer'] == true ? 'frame_$name' : 'native_$name';
+          if (!seenNames.contains(dedupeKey)) {
+            seenNames.add(dedupeKey);
             uniqueLayers.add(layer);
           }
         } else {
@@ -719,11 +894,11 @@ class NativeEditorController extends GetxController {
         dynamic bgLayer;
         try {
           bgLayer = preservedLayers.firstWhere(
-            (l) => l['name'] == 'image1' || 
+            (l) => l['is_background'] == true || 
+                   (l['is_background'] == null && (l['name'] == 'image1' || 
                    l['name'] == 'main_image' || 
                    l['name'] == 'bg' || 
-                   l['name'] == 'background' || 
-                   l['is_background'] == true,
+                   l['name'] == 'background')),
           );
         } catch (_) {
           bgLayer = null;
@@ -891,19 +1066,19 @@ class NativeEditorController extends GetxController {
     if (!isText && !isIcon) return false;
 
     final String layerName = (layer['name'] ?? layer['id'] ?? '').toString();
-    final double textX = (layer['x'] ?? 0).toDouble();
-    final double textY = (layer['y'] ?? 0).toDouble();
-    final double textW = (layer['w'] ?? layer['width'] ?? 0).toDouble();
-    final double textH = (layer['h'] ?? layer['height'] ?? 0).toDouble();
+    final double textX = safeDouble(layer['x'] ?? 0);
+    final double textY = safeDouble(layer['y'] ?? 0);
+    final double textW = safeDouble(layer['w'] ?? layer['width'] ?? 0);
+    final double textH = safeDouble(layer['h'] ?? layer['height'] ?? 0);
     final double textCenterX = textX + textW / 2;
     final double textCenterY = textY + textH / 2;
 
     bool overlapsShape = false;
     for (var shape in shapeLayers) {
-      final double sx = (shape['x'] ?? 0).toDouble();
-      final double sy = (shape['y'] ?? 0).toDouble();
-      final double sw = (shape['w'] ?? shape['width'] ?? 0).toDouble();
-      final double sh = (shape['h'] ?? shape['height'] ?? 0).toDouble();
+      final double sx = safeDouble(shape['x'] ?? 0);
+      final double sy = safeDouble(shape['y'] ?? 0);
+      final double sw = safeDouble(shape['w'] ?? shape['width'] ?? 0);
+      final double sh = safeDouble(shape['h'] ?? shape['height'] ?? 0);
 
       if (textCenterX >= sx && textCenterX <= (sx + sw) &&
           textCenterY >= sy && textCenterY <= (sy + sh)) {
@@ -940,3 +1115,5 @@ class NativeEditorController extends GetxController {
     return changed;
   }
 }
+
+

@@ -346,9 +346,7 @@ class HomeApi extends Controller
 
     private function injectDynamicBackgroundImageArray($parsedJson, $userId)
     {
-        // Bypass injection so the custom template retains its original background
-        return $parsedJson;
-        
+        // Background injection using the explicit is_background flag
         \Illuminate\Support\Facades\Log::info("DEBUG API injectBG: Started for user $userId");
         if (!$parsedJson || !isset($parsedJson['layers']) || !$userId) {
             \Illuminate\Support\Facades\Log::info("DEBUG API injectBG: Missing json, layers, or userId. Aborting.");
@@ -363,34 +361,39 @@ class HomeApi extends Controller
 
         $businessCategoryId = $business->business_category_id;
         \Illuminate\Support\Facades\Log::info("DEBUG API injectBG: Found business category ID: $businessCategoryId for user $userId");
-        $bgLayerIndex = -1;
-
-        foreach ($parsedJson['layers'] as $i => $layer) {
-            if (isset($layer['type']) && $layer['type'] === 'image' && isset($layer['name'])) {
-                $name = strtolower($layer['name']);
-                if (str_contains($name, 'background') || str_contains($name, 'bg')) {
-                    $bgLayerIndex = $i;
-                    \Illuminate\Support\Facades\Log::info("DEBUG API injectBG: Found background layer at index $i with name {$layer['name']}");
-                    break;
+        foreach ($parsedJson['layers'] as $i => &$layer) {
+            $isBg = false;
+            $isPlaceholder = false;
+            if (isset($layer['type']) && $layer['type'] === 'image') {
+                if (isset($layer['is_placeholder']) && ($layer['is_placeholder'] == true || $layer['is_placeholder'] == 1)) {
+                    $isPlaceholder = true;
+                }
+                if (isset($layer['is_background']) && $layer['is_background'] == true) {
+                    $isBg = true;
+                } elseif (isset($layer['name'])) {
+                    $name = strtolower($layer['name']);
+                    if (str_contains($name, 'background') || $name === 'bg') {
+                        $isBg = true;
+                    }
                 }
             }
-        }
 
-        if ($bgLayerIndex >= 0) {
-            $bgLayer = $parsedJson['layers'][$bgLayerIndex];
-            if (isset($bgLayer['w']) && isset($bgLayer['h']) && $bgLayer['h'] > 0) {
-                $ratio = $bgLayer['w'] / $bgLayer['h'];
+            if (($isBg || $isPlaceholder) && isset($layer['w']) && isset($layer['h']) && $layer['h'] > 0) {
+                \Illuminate\Support\Facades\Log::info("DEBUG API injectBG: Found BG layer at index $i");
+                $ratio = $layer['w'] / $layer['h'];
                 $aspectRatioEnum = null;
                 
-                if (abs($ratio - 1) < 0.1) {
+                if (abs($ratio - 1) <= 0.25) {
                     $aspectRatioEnum = '1:1';
-                } elseif (abs($ratio - 1.77) < 0.2) {
+                } elseif ($ratio >= 1.25) {
                     $aspectRatioEnum = '16:9';
-                } elseif (abs($ratio - 0.56) < 0.2) {
+                } elseif ($ratio <= 0.75) {
                     $aspectRatioEnum = '9:16';
+                } else {
+                    $aspectRatioEnum = '1:1';
                 }
                 
-                \Illuminate\Support\Facades\Log::info("DEBUG API injectBG: Layer dimensions {$bgLayer['w']}x{$bgLayer['h']}, ratio $ratio, mapped to aspect enum: " . ($aspectRatioEnum ?? 'NONE'));
+                \Illuminate\Support\Facades\Log::info("DEBUG API injectBG: Layer dimensions {$layer['w']}x{$layer['h']}, ratio $ratio, mapped to aspect enum: $aspectRatioEnum");
 
                 if ($aspectRatioEnum) {
                     $randomBg = \App\Models\CategoryBackgroundImage::where('business_category_id', $businessCategoryId)
@@ -398,17 +401,13 @@ class HomeApi extends Controller
                                     ->inRandomOrder()
                                     ->first();
                     if ($randomBg) {
-                        $parsedJson['layers'][$bgLayerIndex]['src'] = '../../../../' . $randomBg->image;
+                        $layer['src'] = url($randomBg->image);
                         \Illuminate\Support\Facades\Log::info("DEBUG API injectBG: Successfully replaced BG with image ID {$randomBg->id} ({$randomBg->image})");
                     } else {
                         \Illuminate\Support\Facades\Log::info("DEBUG API injectBG: No random background found in DB for category $businessCategoryId and ratio $aspectRatioEnum");
                     }
                 }
-            } else {
-                \Illuminate\Support\Facades\Log::info("DEBUG API injectBG: Found BG layer, but missing valid width/height.");
             }
-        } else {
-            \Illuminate\Support\Facades\Log::info("DEBUG API injectBG: No background layer found in JSON.");
         }
 
         return $parsedJson;
@@ -465,11 +464,15 @@ class HomeApi extends Controller
                 }
 
                 $preview_img = "";
+                $templateBaseUrl = "";
                 if($isDigitalOcean) {
                     // For DigitalOcean, we assume it's preview.jpg for now, or fallback to similar logic if needed.
                     $preview_img = Storage::disk('spaces')->url('uploads/template/'.$zip_name.'/preview.jpg');
+                    $templateBaseUrl = Storage::disk('spaces')->url('uploads/template/'.$zip_name);
                 } else {
                     $dir = public_path('uploads/template/'.$zip_name.'/');
+                    $templateBaseUrl = asset('uploads/template/'.$zip_name);
+                    $templateBaseUrl = str_replace('public/uploads', 'uploads', $templateBaseUrl);
                     if (is_dir($dir)) {
                         if (file_exists($dir.'preview.jpg')) {
                             $preview_img = asset('uploads/template/'.$zip_name.'/preview.jpg');
@@ -477,8 +480,11 @@ class HomeApi extends Controller
                         } elseif (file_exists($dir.'preview.png')) {
                             $preview_img = asset('uploads/template/'.$zip_name.'/preview.png');
                             $preview_img = str_replace('public/uploads', 'uploads', $preview_img);
+                        } elseif (file_exists($dir.'preview.webp')) {
+                            $preview_img = asset('uploads/template/'.$zip_name.'/preview.webp');
+                            $preview_img = str_replace('public/uploads', 'uploads', $preview_img);
                         } else {
-                            $files = glob($dir . '*.{jpg,jpeg,png}', GLOB_BRACE);
+                            $files = glob($dir . '*.{jpg,jpeg,png,webp}', GLOB_BRACE);
                             if (!empty($files)) {
                                 $preview_img = asset('uploads/template/'.$zip_name.'/'.basename($files[0]));
                                 $preview_img = str_replace('public/uploads', 'uploads', $preview_img);
@@ -545,6 +551,7 @@ class HomeApi extends Controller
                     "is_template" => true,
                     "language" => "All",
                     "image" => $preview_img,
+                    "templateBaseUrl" => $templateBaseUrl,
                     "is_paid" => false,
                     "height" => $frame->height ?? 1080,
                     "width" => $frame->width ?? 1080,
@@ -556,10 +563,20 @@ class HomeApi extends Controller
                 );
             }
 
+                $allTags = \App\Models\BusinessCustomFrame::where('custom_frame_purpose_id', $c->id)
+                    ->where('status', 1)
+                    ->pluck('tags')
+                    ->flatten()
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->toArray();
+
                 $data[] = array(
                     "customCategoryId" => $c->id,
                     "customCategoryName" => $c->name,
                     "customCategoryIcon" => ($c->icon)?($isDigitalOcean?Storage::disk('spaces')->url('uploads/'.$c->icon):asset('uploads/'.$c->icon)):"",
+                    "tags" => $allTags,
                     "posts" => $posts
                 );
             }
@@ -587,10 +604,16 @@ class HomeApi extends Controller
         $limit = $request->get('limit', 20);
         $page = $request->get('page', 1);
 
-        $custom_frame_paginator = \App\Models\BusinessCustomFrame::where("custom_frame_purpose_id", $categoryId)
-            ->where("status", 1)
-            ->orderBy('id', 'desc')
-            ->paginate($limit);
+        $tag = $request->get('tag');
+
+        $query = \App\Models\BusinessCustomFrame::where("custom_frame_purpose_id", $categoryId)
+            ->where("status", 1);
+            
+        if (!empty($tag)) {
+            $query->whereJsonContains('tags', $tag);
+        }
+
+        $custom_frame_paginator = $query->orderBy('id', 'desc')->paginate($limit);
             
         \Illuminate\Support\Facades\Log::info("DEBUG API customPostPaginated: Hit for category $categoryId, page $page. Found {$custom_frame_paginator->count()} frames.");
 
@@ -703,6 +726,7 @@ class HomeApi extends Controller
                 "aspect_ratio" => $frame->aspect_ratio ?? "1:1",
                 "name" => ($zip_name)?$zip_name:"",
                 "json" => ($zip_name)?$json_data:"",
+                "tags" => $frame->tags ?? [],
                 "created_at" => $frame->created_at ? $frame->created_at->toISOString() : null,
             );
         }
@@ -1241,6 +1265,16 @@ class HomeApi extends Controller
         foreach($business_category as $business)
         {
             $businessFrame = BusinessFrame::where("business_category_id",$business->id)->where('status',1)->inRandomOrder()->get();
+            
+            $userId = $request->userId ?? (auth('sanctum')->id() ?? auth()->id());
+            if ($userId) {
+                $userBusiness = \App\Models\Business::where('user_id', $userId)->where('is_default', 1)->first() 
+                             ?? \App\Models\Business::where('user_id', $userId)->first();
+                if ($userBusiness) {
+                    $mainController = app(\App\Http\Controllers\MainController::class);
+                    $businessFrame = $mainController->filterFramesByBusinessData($businessFrame, $userBusiness);
+                }
+            }
                     
             foreach ($businessFrame as $frame) 
             {
@@ -1263,7 +1297,8 @@ class HomeApi extends Controller
 
     public function getBusiness(Request $request)
     {
-        $business = Business::where('user_id',$request->userId)
+        $userId = $request->userId ?? (auth('sanctum')->id() ?? auth()->id());
+        $business = Business::where('user_id', $userId)
             ->where('status',1)
             ->orderBy('is_default', 'DESC')
             ->orderBy('id', 'ASC')
@@ -1273,6 +1308,25 @@ class HomeApi extends Controller
         {
             foreach ($business as $b) {
                 $category = BusinessCategory::find($b->business_category_id);
+                $products = [];
+                foreach(\App\Models\BusinessProductMapping::where('business_id', $b->id)->with('product')->get() as $mapping) {
+                    if ($mapping->product) {
+                        $products[] = [
+                            'id' => $mapping->product->id,
+                            'name' => $mapping->product->name,
+                        ];
+                    }
+                }
+                
+                $pendingProducts = [];
+                foreach(\App\Models\BusinessProductRequest::where('business_id', $b->id)->whereIn('status', ['pending', 'approved'])->get() as $req) {
+                    $pendingProducts[] = [
+                        'id' => $req->id,
+                        'name' => $req->requested_name,
+                        'status' => $req->status,
+                        'resolved_product_id' => $req->resolved_product_id
+                    ];
+                }
 
                 $data[] = array(
                     "id" => $b->id,
@@ -1294,6 +1348,11 @@ class HomeApi extends Controller
                     "extra_addresses" => $b->extra_addresses ?? [],
                     "hidden_frame_fields" => $b->hidden_frame_fields ?? [],
                     "business_category_id" => $b->business_category_id,
+                    "business_sub_category_ids" => $b->sub_categories()->pluck('business_sub_category_id')->toArray() ?? [],
+                    "business_type_id" => $b->business_type_id,
+                    "business_type_ids" => $b->types()->pluck('business_type_id')->toArray() ?? [],
+                    "products" => $products,
+                    "pendingCustomProducts" => $pendingProducts,
                 );
             }
         }
@@ -1348,6 +1407,7 @@ class HomeApi extends Controller
                 "website" => $request->get("bussinessWebsite"),
                 "user_id" => $request->get("userId"),
                 "business_category_id" => $request->get("businessCategoryId"),
+                "business_type_id" => $request->get("businessTypeId"),
                 "is_default" => 1,
                 "extra_emails" => $request->has('extra_emails') ? (is_string($request->get('extra_emails')) ? json_decode($request->get('extra_emails'), true) : $request->get('extra_emails')) : null,
                 "extra_mobile_numbers" => $request->has('extra_mobile_numbers') ? (is_string($request->get('extra_mobile_numbers')) ? json_decode($request->get('extra_mobile_numbers'), true) : $request->get('extra_mobile_numbers')) : null,
@@ -1355,6 +1415,48 @@ class HomeApi extends Controller
                 "extra_addresses" => $request->has('extra_addresses') ? (is_string($request->get('extra_addresses')) ? json_decode($request->get('extra_addresses'), true) : $request->get('extra_addresses')) : null,
                 "hidden_frame_fields" => $request->has('hidden_frame_fields') ? (is_string($request->get('hidden_frame_fields')) ? json_decode($request->get('hidden_frame_fields'), true) : $request->get('hidden_frame_fields')) : null,
             ])->id;
+
+            $businessUpdate = Business::find($id);
+
+            // Handle sub category ids if passed
+            if($request->get('businessSubCategoryIds')) {
+                $subCatIds = $request->get('businessSubCategoryIds');
+                if(is_string($subCatIds)) {
+                    $subCatIds = json_decode($subCatIds, true) ?? explode(',', $subCatIds);
+                }
+                if (is_array($subCatIds)) {
+                    $businessUpdate->sub_categories()->sync(array_filter($subCatIds));
+                    // Keep JSON array for legacy backwards compatibility just in case
+                    $businessUpdate->business_sub_category_ids = array_filter($subCatIds);
+                }
+            }
+
+            // Handle business type ids if passed
+            if($request->get('businessTypeIds')) {
+                $typeIds = $request->get('businessTypeIds');
+                if(is_string($typeIds)) {
+                    $typeIds = json_decode($typeIds, true) ?? explode(',', $typeIds);
+                }
+                if (is_array($typeIds)) {
+                    $businessUpdate->types()->sync(array_filter($typeIds));
+                }
+            }
+            
+            $businessUpdate->save();
+
+            $productIds = $request->get('product_ids');
+            if ($productIds) {
+                if (is_string($productIds)) {
+                    $productIds = json_decode($productIds, true) ?? explode(',', $productIds);
+                }
+                if (is_array($productIds)) {
+                    foreach ($productIds as $pId) {
+                        if($pId) {
+                            \App\Models\BusinessProductMapping::create(['business_id' => $id, 'business_product_id' => $pId]);
+                        }
+                    }
+                }
+            }
 
             if(StorageSetting::getStorageSetting("storage") == "DigitalOcean")
             {
@@ -1380,6 +1482,25 @@ class HomeApi extends Controller
 
             foreach ($business as $b) {
                 $category = BusinessCategory::find($b->business_category_id);
+                $products = [];
+                foreach(\App\Models\BusinessProductMapping::where('business_id', $b->id)->with('product')->get() as $mapping) {
+                    if ($mapping->product) {
+                        $products[] = [
+                            'id' => $mapping->product->id,
+                            'name' => $mapping->product->name,
+                        ];
+                    }
+                }
+                
+                $pendingProducts = [];
+                foreach(\App\Models\BusinessProductRequest::where('business_id', $b->id)->whereIn('status', ['pending', 'approved'])->get() as $req) {
+                    $pendingProducts[] = [
+                        'id' => $req->id,
+                        'name' => $req->requested_name,
+                        'status' => $req->status,
+                        'resolved_product_id' => $req->resolved_product_id
+                    ];
+                }
 
                 $data[] = array(
                     "id" => $b->id,
@@ -1396,6 +1517,12 @@ class HomeApi extends Controller
                     ),
                     "isDefault" => ($b->is_default == 1)?true:false,
                     "hidden_frame_fields" => $b->hidden_frame_fields ?? [],
+                    "business_category_id" => $b->business_category_id,
+                    "business_sub_category_ids" => $b->sub_categories()->pluck('business_sub_category_id')->toArray() ?? [],
+                    "business_type_id" => $b->business_type_id,
+                    "business_type_ids" => $b->types()->pluck('business_type_id')->toArray() ?? [],
+                    "products" => $products,
+                    "pendingCustomProducts" => $pendingProducts,
                 );
             }
 
@@ -1440,6 +1567,29 @@ class HomeApi extends Controller
             if ($request->filled('businessCategoryId')) {
                 $business->business_category_id = $request->get("businessCategoryId");
             }
+            if ($request->filled('businessTypeId')) {
+                $business->business_type_id = $request->get("businessTypeId");
+            }
+            if ($request->filled('businessSubCategoryIds')) {
+                $subCatIds = $request->get('businessSubCategoryIds');
+                if(is_string($subCatIds)) {
+                    $subCatIds = json_decode($subCatIds, true) ?? explode(',', $subCatIds);
+                }
+                if (is_array($subCatIds)) {
+                    $business->sub_categories()->sync(array_filter($subCatIds));
+                    // Keep JSON array for legacy backwards compatibility just in case
+                    $business->business_sub_category_ids = array_filter($subCatIds);
+                }
+            }
+            if ($request->filled('businessTypeIds')) {
+                $typeIds = $request->get('businessTypeIds');
+                if(is_string($typeIds)) {
+                    $typeIds = json_decode($typeIds, true) ?? explode(',', $typeIds);
+                }
+                if (is_array($typeIds)) {
+                    $business->types()->sync(array_filter($typeIds));
+                }
+            }
             if ($request->has('extra_emails')) {
                 $business->extra_emails = is_string($request->get('extra_emails')) ? json_decode($request->get('extra_emails'), true) : $request->get('extra_emails');
             }
@@ -1456,6 +1606,21 @@ class HomeApi extends Controller
                 $business->hidden_frame_fields = is_string($request->get('hidden_frame_fields')) ? json_decode($request->get('hidden_frame_fields'), true) : $request->get('hidden_frame_fields');
             }
             $business->save();
+
+            if ($request->has('product_ids')) {
+                $productIds = $request->get('product_ids');
+                if (is_string($productIds)) {
+                    $productIds = json_decode($productIds, true) ?? explode(',', $productIds);
+                }
+                if (is_array($productIds)) {
+                    \App\Models\BusinessProductMapping::where('business_id', $business->id)->delete();
+                    foreach ($productIds as $pId) {
+                        if($pId) {
+                            \App\Models\BusinessProductMapping::create(['business_id' => $business->id, 'business_product_id' => $pId]);
+                        }
+                    }
+                }
+            }
 
             if(StorageSetting::getStorageSetting("storage") == "DigitalOcean")
             {
@@ -1479,6 +1644,25 @@ class HomeApi extends Controller
 
             $b = Business::find($business->id);
             $category = BusinessCategory::find($b->business_category_id);
+            $products = [];
+            foreach(\App\Models\BusinessProductMapping::where('business_id', $b->id)->with('product')->get() as $mapping) {
+                if ($mapping->product) {
+                    $products[] = [
+                        'id' => $mapping->product->id,
+                        'name' => $mapping->product->name,
+                    ];
+                }
+            }
+            
+            $pendingProducts = [];
+            foreach(\App\Models\BusinessProductRequest::where('business_id', $b->id)->whereIn('status', ['pending', 'approved'])->get() as $req) {
+                $pendingProducts[] = [
+                    'id' => $req->id,
+                    'name' => $req->requested_name,
+                    'status' => $req->status,
+                    'resolved_product_id' => $req->resolved_product_id
+                ];
+            }
 
             $data[] = array(
                 "id" => $b->id,
@@ -1499,6 +1683,12 @@ class HomeApi extends Controller
                 "extra_websites" => $b->extra_websites ?? [],
                 "extra_addresses" => $b->extra_addresses ?? [],
                 "hidden_frame_fields" => $b->hidden_frame_fields ?? [],
+                "business_category_id" => $b->business_category_id,
+                "business_sub_category_ids" => $b->sub_categories()->pluck('business_sub_category_id')->toArray() ?? [],
+                "business_type_id" => $b->business_type_id,
+                "business_type_ids" => $b->types()->pluck('business_type_id')->toArray() ?? [],
+                "products" => $products,
+                "pendingCustomProducts" => $pendingProducts,
             );
             
             return $data;
@@ -1837,6 +2027,72 @@ class HomeApi extends Controller
         {
             return $data = array();
         }
+    }
+
+    public function getSubscriptionUpgradePreview(Request $request)
+    {
+        $validation = Validator::make($request->all(), [
+            'userId' => 'required|numeric',
+            'newPlanId' => 'required|numeric',
+        ]);
+
+        if ($validation->fails()) {
+            return response()->json([
+                'status' => "Error",
+                'message' => $validation->errors()->first(),
+            ], 404);
+        }
+
+        $user = User::find($request->get("userId"));
+        if (!$user) {
+            return response()->json(['status' => "Error", 'message' => "User not found"], 404);
+        }
+
+        $newPlan = Subscription::find($request->get("newPlanId"));
+        if (!$newPlan) {
+            return response()->json(['status' => "Error", 'message' => "Plan not found"], 404);
+        }
+
+        $newPlanPrice = $newPlan->discount_price > 0 ? $newPlan->discount_price : $newPlan->plan_price;
+        $creditAmount = 0;
+        $remainingDays = 0;
+
+        if ($user->is_subscribe && $user->subscription_end_date && $user->subscription_end_date >= date('Y-m-d')) {
+            $latestTransaction = Transaction::where('user_id', $user->id)
+                ->where('subscription_id', $user->subscription_id)
+                ->orderBy('id', 'desc')
+                ->first();
+
+            if ($latestTransaction && $latestTransaction->total_paid > 0) {
+                $startDate = \Carbon\Carbon::parse($user->subscription_start_date);
+                $endDate = \Carbon\Carbon::parse($user->subscription_end_date);
+                $today = \Carbon\Carbon::today();
+
+                $totalDays = $startDate->diffInDays($endDate);
+                if ($totalDays <= 0) $totalDays = 1;
+                
+                $remainingDays = $today->diffInDays($endDate, false); 
+                
+                if ($remainingDays > 0) {
+                    $dailyRate = $latestTransaction->total_paid / $totalDays;
+                    $creditAmount = round($dailyRate * $remainingDays);
+                }
+            }
+        }
+
+        if ($creditAmount > $newPlanPrice) {
+            $creditAmount = $newPlanPrice;
+        }
+
+        $amountToPay = max(0, $newPlanPrice - $creditAmount);
+
+        return response()->json([
+            'status' => "success",
+            'new_plan_price' => $newPlanPrice,
+            'credit_applied' => $creditAmount,
+            'amount_to_pay' => $amountToPay,
+            'remaining_days' => $remainingDays,
+        ], 200);
     }
 
     public function create_order_cashfree(Request $request)
@@ -3062,71 +3318,7 @@ class HomeApi extends Controller
         ], 200);
     }
 
-    public function getProductCategory()
-    {
-        $category = ProductCategory::where('status',1)->get();
 
-        if(!$category->isEmpty())
-        {
-            foreach ($category as $cat) {
-                $data[] = array(
-                    "productCategoryId" => $cat->id,
-                    "productCategoryName" => $cat->name,
-                    "productCategoryImage" => ((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$cat->image):asset('uploads/'.$cat->image)),
-                );
-            }
-            return $data;
-        }
-        else
-        {
-            return response()->json([
-                'status' => "Error",
-                'message' => "No Data Found",
-            ], 404);
-        }
-    }
-
-    public function getProduct(Request $request)
-    {
-        $product = Product::where('status',1)->get();
-        $category = ProductCategory::where('status',1)->get();
-
-        if(!$product->isEmpty() && !$category->isEmpty())
-        {
-            foreach ($category as $cat) {
-                $data1[] = array(
-                    "productCategoryId" => $cat->id,
-                    "productCategoryName" => $cat->name,
-                    "productCategoryImage" => ((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$cat->image):asset('uploads/'.$cat->image)),
-                );
-            }
-
-            foreach ($product as $p) 
-            {
-                $data2[] = array(
-                    "id" => $p->id,
-                    "title" => $p->title,
-                    "productCategoryId" => $p->product_category_id,
-                    "image" => ($p->image)?((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$p->image):asset('uploads/'.$p->image)):"",
-                    "price" => $p->price,
-                    "discountPrice" => $p->discount_price,
-                    "description" => $p->description,
-                );
-            }
-
-            return array(
-                "category" => $data1,
-                "product" => $data2
-            );
-        }
-        else
-        {
-            return response()->json([
-                'status' => "Error",
-                'message' => "No Data Found",
-            ], 404);
-        } 
-    }
 
     public function postInquiry(Request $request)
     {
@@ -3204,11 +3396,13 @@ class HomeApi extends Controller
         $category = BusinessSubCategory::where('status',1)->where("business_category_id",$request->id)->orderBy(ApiSetting::getApiSetting("business_order_type"),ApiSetting::getApiSetting("business_order_by"))->get();
         if(!$category->isEmpty())
         {
+            $data = [];
             foreach ($category as $cat) {
                 $data[] = array(
                     "businessSubCategoryId" => $cat->id,
                     "businessSubCategoryName" => $cat->name,
                     "businessSubCategoryIcon" => (StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$cat->icon):asset('uploads/'.$cat->icon),
+                    "hasBusinessType" => (bool) $cat->has_business_type,
                 );
             }
             return $data;
@@ -3221,6 +3415,89 @@ class HomeApi extends Controller
             ], 404);
         }
     }
+
+    public function getBusinessType(Request $request)
+    {
+        $ids = explode(',', $request->id);
+        $types = \App\Models\BusinessType::where('status', 1)->whereIn("business_sub_category_id", $ids)->get();
+        if(!$types->isEmpty())
+        {
+            $data = [];
+            foreach ($types as $type) {
+                $data[] = array(
+                    "businessTypeId" => $type->id,
+                    "businessTypeName" => $type->name,
+                    "businessTypeIcon" => $type->icon ? ((StorageSetting::getStorageSetting('storage') == 'DigitalOcean') ? Storage::disk('spaces')->url('uploads/'.$type->icon) : asset('uploads/'.$type->icon)) : asset('assets/images/no-image.png'),
+                );
+            }
+            return $data;
+        }
+        else
+        {
+            return response()->json([
+                'status' => "Success",
+                'message' => "No Data Found",
+                'data' => []
+            ], 200);
+        }
+    }
+
+    public function searchBusinessProfile(Request $request)
+    {
+        $query = $request->input('query', '');
+        if (empty($query)) {
+            return response()->json(['data' => []]);
+        }
+
+        $results = [];
+
+        // 1. Search Sub Categories
+        $subCategories = \App\Models\BusinessSubCategory::with('business_category')
+            ->where('status', 1)
+            ->where('name', 'LIKE', '%' . $query . '%')
+            ->limit(15)
+            ->get();
+
+        foreach ($subCategories as $sc) {
+            $results[] = [
+                'type' => 'sub_category',
+                'id' => $sc->id,
+                'name' => $sc->name,
+                'category_id' => $sc->business_category_id,
+                'category_name' => $sc->business_category ? $sc->business_category->name : 'Unknown',
+                'sub_category_id' => $sc->id,
+                'sub_category_name' => $sc->name,
+                'has_business_type' => $sc->has_business_type,
+            ];
+        }
+
+        // 2. Search Business Types
+        $businessTypes = \App\Models\BusinessType::with('business_sub_category.business_category')
+            ->where('status', 1)
+            ->where('name', 'LIKE', '%' . $query . '%')
+            ->limit(15)
+            ->get();
+
+        foreach ($businessTypes as $bt) {
+            $sc = $bt->business_sub_category;
+            if ($sc && $sc->business_category) {
+                $results[] = [
+                    'type' => 'business_type',
+                    'id' => $bt->id,
+                    'name' => $bt->name,
+                    'category_id' => $sc->business_category_id,
+                    'category_name' => $sc->business_category->name,
+                    'sub_category_id' => $sc->id,
+                    'sub_category_name' => $sc->name,
+                    'business_type_id' => $bt->id,
+                    'business_type_name' => $bt->name,
+                ];
+            }
+        }
+
+        return response()->json(['data' => $results]);
+    }
+
 
     public function getBusinessFrame(Request $request)
     {
@@ -3625,6 +3902,16 @@ class HomeApi extends Controller
                 );
             }
 
+            $userId = $request->userId ?? (auth('sanctum')->id() ?? auth()->id());
+            if ($userId && isset($data)) {
+                $userBusiness = \App\Models\Business::where('user_id', $userId)->where('is_default', 1)->first() 
+                             ?? \App\Models\Business::where('user_id', $userId)->first();
+                if ($userBusiness) {
+                    $mainController = app(\App\Http\Controllers\MainController::class);
+                    $data = $mainController->filterFramesByBusinessData($data, $userBusiness);
+                }
+            }
+
             return $data;
         }
         else
@@ -4008,6 +4295,7 @@ class HomeApi extends Controller
                 'image' => ($n->image) ? ((StorageSetting::getStorageSetting('storage') == 'DigitalOcean') ? Storage::disk('spaces')->url('uploads/' . $n->image) : asset('uploads/' . $n->image)) : "",
                 'type' => $n->type,
                 'type_id' => $n->type_id,
+                'external_link' => $n->external_link,
                 'created_at' => $n->created_at->toDateTimeString(),
             ];
         }
@@ -4205,5 +4493,115 @@ class HomeApi extends Controller
         }
 
         return response()->json(['data' => $groupedFaqs]);
+    }
+
+    public function getBusinessProducts(Request $request)
+    {
+        $subCategoryId = $request->input('business_sub_category_id');
+        $typeId = $request->input('business_type_id');
+
+        if (!$subCategoryId && !$typeId) {
+            return response()->json(['status' => 'Error', 'message' => 'business_sub_category_id or business_type_id is required'], 400);
+        }
+
+        $query = \App\Models\BusinessProduct::where('status', 1);
+
+        if ($typeId) {
+            $typeIds = is_string($typeId) ? explode(',', $typeId) : (is_array($typeId) ? $typeId : [$typeId]);
+            $query->whereIn('business_type_id', $typeIds);
+        } else {
+            $subIds = is_string($subCategoryId) ? explode(',', $subCategoryId) : (is_array($subCategoryId) ? $subCategoryId : [$subCategoryId]);
+            $query->whereIn('business_sub_category_id', $subIds)
+                  ->whereNull('business_type_id');
+        }
+
+        $products = $query->get(['id', 'name', 'icon', 'keywords']);
+
+        $data = [];
+        $isDigitalOcean = StorageSetting::getStorageSetting('storage') == 'DigitalOcean';
+        
+        foreach ($products as $p) {
+            $data[] = [
+                'id' => $p->id,
+                'name' => $p->name,
+                'icon' => $p->icon ? ($isDigitalOcean ? Storage::disk('spaces')->url('uploads/'.$p->icon) : asset('uploads/'.$p->icon)) : '',
+                'keywords' => $p->keywords,
+            ];
+        }
+
+        return response()->json(['status' => 'Success', 'data' => $data]);
+    }
+
+    public function searchBusinessProducts(Request $request)
+    {
+        $subCategoryId = $request->input('business_sub_category_id'); // Can be array or string
+        $typeId = $request->input('business_type_id'); // Can be array or string
+        $searchQuery = $request->input('query');
+        
+        if (!$subCategoryId && !$typeId) {
+            return response()->json(['status' => 'Error', 'message' => 'business_sub_category_id or business_type_id is required'], 400);
+        }
+
+        $query = \App\Models\BusinessProduct::where('status', 1);
+
+        if ($typeId) {
+            $typeIds = is_string($typeId) ? explode(',', $typeId) : (is_array($typeId) ? $typeId : [$typeId]);
+            $query->whereIn('business_type_id', $typeIds);
+        } else {
+            $subIds = is_string($subCategoryId) ? explode(',', $subCategoryId) : (is_array($subCategoryId) ? $subCategoryId : [$subCategoryId]);
+            $query->whereIn('business_sub_category_id', $subIds)
+                  ->whereNull('business_type_id');
+        }
+
+        if (!empty($searchQuery)) {
+            $query->where(function($q) use ($searchQuery) {
+                $q->where('name', 'LIKE', "%{$searchQuery}%")
+                  ->orWhere('keywords', 'LIKE', "%{$searchQuery}%");
+            });
+        }
+
+        $products = $query->limit(100)->get(['id', 'name', 'icon', 'keywords']);
+
+        $data = [];
+        $isDigitalOcean = StorageSetting::getStorageSetting('storage') == 'DigitalOcean';
+        
+        foreach ($products as $p) {
+            $data[] = [
+                'id' => $p->id,
+                'name' => $p->name,
+                'icon' => $p->icon ? ($isDigitalOcean ? Storage::disk('spaces')->url('uploads/'.$p->icon) : asset('uploads/'.$p->icon)) : '',
+            ];
+        }
+
+        return response()->json(['status' => 'Success', 'data' => $data]);
+    }
+
+    public function requestCustomProduct(Request $request)
+    {
+        $userId = $request->input('userId') ?? (auth('sanctum')->id() ?? auth()->id());
+        $businessId = $request->input('business_id');
+        $subCategoryId = $request->input('business_sub_category_id');
+        $requestedName = $request->input('requested_name');
+
+        if (!$userId || !$businessId || !$subCategoryId || !$requestedName) {
+            return response()->json(['status' => 'Error', 'message' => 'Missing required fields'], 400);
+        }
+
+        $req = \App\Models\BusinessProductRequest::create([
+            'business_id' => $businessId,
+            'business_sub_category_id' => $subCategoryId,
+            'requested_name' => $requestedName,
+            'status' => 'pending'
+        ]);
+
+        return response()->json([
+            'status' => 'Success', 
+            'message' => 'Custom product requested successfully',
+            'data' => [
+                'id' => $req->id,
+                'name' => $req->requested_name,
+                'status' => $req->status,
+            ]
+        ]);
     }
 }

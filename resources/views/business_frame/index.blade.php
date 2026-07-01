@@ -362,7 +362,22 @@
 
 @section('content')
 <div class="row" style="margin-right: 0px;">
-  <div class="col-md-12">
+  <div class="col-md-12">    @if(session('success'))
+      <div class="alert alert-success alert-dismissible" style="margin: 15px; width: 100%;">
+        <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+        <h4><i class="icon fa fa-check"></i> Success!</h4>
+        {{ session('success') }}
+      </div>
+    @endif
+
+    @if(session('error'))
+      <div class="alert alert-danger alert-dismissible" style="margin: 15px; width: 100%;">
+        <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+        <h4><i class="icon fa fa-ban"></i> Error!</h4>
+        {{ session('error') }}
+      </div>
+    @endif
+
     @if (count($errors) > 0)
     <div class="alert alert-danger">
       <ul>
@@ -453,6 +468,9 @@
                                         @endforelse
                                     </tbody>
                                 </table>
+                            </div>
+                            <div class="cf-panel-footer mt-3" style="display: flex; justify-content: flex-end; padding: 15px;">
+                                {{ $business_custom_frames->appends(request()->query())->links('pagination::bootstrap-4') }}
                             </div>
                         </div>
                     </div>
@@ -641,50 +659,25 @@
             <!-- Custom Posts ZIP Uploads Tab -->
             <div class="tab-pane fade" id="tabs-custom-frames" role="tabpanel" aria-labelledby="tabs-custom-frames-tab">
                 <div class="row">
-                    <div class="col-md-4">
+                    <div class="col-md-12">
                         <div class="cf-panel">
-                            <div class="cf-panel-header">
-                                <div class="cf-panel-icon rose"><i class="fa-solid fa-file-zipper"></i></div>
-                                <h5 class="cf-panel-title">Upload Frame Template</h5>
-                            </div>
-                            <div class="cf-panel-body">
-                                <form action="{{ url('admin/business-custom-frame-zip') }}" method="POST" enctype="multipart/form-data">
-                                    @csrf
-                                    <div class="cf-form-group">
-                                        <label>Linked Purpose</label>
-                                        <select name="custom_frame_purpose_id" class="cf-select" required>
-                                            @foreach($purposes as $p)
-                                                <option value="{{$p->id}}">{{$p->name}}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="cf-form-group">
-                                        <label>Linked Image Type</label>
-                                        <select name="custom_frame_image_type_id" class="cf-select" required>
-                                            @foreach($image_types as $it)
-                                                <option value="{{$it->id}}">{{$it->name}}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="cf-form-group">
-                                        <label>Template Zip File</label>
-                                        <div class="cf-file-upload">
-                                            <i class="fa-solid fa-cloud-arrow-up"></i>
-                                            <p>Click to browse ZIP file</p>
-                                            <input type="file" name="zip_file" accept=".zip" required>
-                                        </div>
-                                    </div>
-                                    <button type="submit" class="cf-btn-primary w-100 justify-content-center mt-2"><i class="fa-solid fa-upload"></i> Process & Upload</button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-8">
-                        <div class="cf-panel">
-                            <div class="cf-panel-header">
-                                <div class="cf-panel-icon blue"><i class="fa-solid fa-box-archive"></i></div>
-                                <h5 class="cf-panel-title">Uploaded Custom Posts</h5>
-                            </div>
+                            <div class="cf-panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+    <div style="display: flex; align-items: center;">
+        <div class="cf-panel-icon blue"><i class="fa-solid fa-box-archive"></i></div>
+        <h5 class="cf-panel-title">Uploaded Custom Posts</h5>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <form method="GET" action="" style="display: flex; gap: 5px; margin: 0;">
+            <select name="filter_purpose_id" class="form-control" style="border-radius: 8px; width: 200px; height: 38px;" onchange="this.form.submit()">
+                <option value="">All Purposes</option>
+                @foreach($purposes as $p)
+                    <option value="{{$p->id}}" {{ request('filter_purpose_id') == $p->id ? 'selected' : '' }}>{{$p->name}}</option>
+                @endforeach
+            </select>
+        </form>
+        <button type="button" class="cf-btn-primary" data-toggle="modal" data-target="#uploadZipModal" style="border-radius: 8px; padding: 8px 16px;"><i class="fa-solid fa-upload"></i> Upload Template</button>
+    </div>
+</div>
                             <div class="table-responsive">
                                 <table class="cf-table">
                                     <thead><tr><th>Preview</th><th>Purpose & Image Type</th><th>ZIP File Reference</th><th>Uploaded At</th><th>Landing</th><th class="text-right">Action</th></tr></thead>
@@ -692,9 +685,35 @@
                                         @forelse($business_custom_frames as $frame)
                                         @php
                                             $zipFolder = str_replace('.zip', '', $frame->zip_file_path);
-                                            $previewUrl = (App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean') 
-                                                ? Storage::disk('spaces')->url('uploads/template/'.$zipFolder.'/preview.jpg') 
-                                                : asset('uploads/template/'.$zipFolder.'/preview.jpg');
+                                            $previewUrl = asset('assets/images/placeholder.png'); // Default fallback
+                                            
+                                            if (App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean') {
+                                                if (Storage::disk('spaces')->exists('uploads/template/'.$zipFolder.'/preview.webp')) {
+                                                    $previewUrl = Storage::disk('spaces')->url('uploads/template/'.$zipFolder.'/preview.webp');
+                                                } elseif (Storage::disk('spaces')->exists('uploads/template/'.$zipFolder.'/preview.jpg')) {
+                                                    $previewUrl = Storage::disk('spaces')->url('uploads/template/'.$zipFolder.'/preview.jpg');
+                                                } elseif (Storage::disk('spaces')->exists('uploads/template/'.$zipFolder.'/preview.png')) {
+                                                    $previewUrl = Storage::disk('spaces')->url('uploads/template/'.$zipFolder.'/preview.png');
+                                                } else {
+                                                    $previewUrl = Storage::disk('spaces')->url('uploads/template/'.$zipFolder.'/preview.jpg');
+                                                }
+                                            } else {
+                                                $localDir = public_path('uploads/template/'.$zipFolder.'/');
+                                                if (file_exists($localDir . 'preview.webp')) {
+                                                    $previewUrl = asset('uploads/template/'.$zipFolder.'/preview.webp');
+                                                } elseif (file_exists($localDir . 'preview.jpg')) {
+                                                    $previewUrl = asset('uploads/template/'.$zipFolder.'/preview.jpg');
+                                                } elseif (file_exists($localDir . 'preview.png')) {
+                                                    $previewUrl = asset('uploads/template/'.$zipFolder.'/preview.png');
+                                                } else {
+                                                    $files = glob($localDir . '*.{webp,jpg,jpeg,png}', GLOB_BRACE);
+                                                    if (!empty($files)) {
+                                                        $previewUrl = asset('uploads/template/'.$zipFolder.'/'.basename($files[0]));
+                                                    } else {
+                                                        $previewUrl = asset('uploads/template/'.$zipFolder.'/preview.jpg');
+                                                    }
+                                                }
+                                            }
                                         @endphp
                                         <tr>
                                             <td>
@@ -710,6 +729,13 @@
                                                 <div class="d-flex flex-column gap-1">
                                                     <div style="font-size: 12px; color: #6b7280;">Original: <strong style="color: #111;">{{ $frame->original_zip_name ?? 'N/A' }}</strong></div>
                                                     <div class="font-math" style="font-size: 11px; word-break: break-all; max-width: 250px;">System: {{ $frame->zip_file_path }}</div>
+                                                    @if(is_array($frame->tags) && count($frame->tags) > 0)
+                                                    <div class="mt-1" style="display:flex; flex-wrap:wrap; gap:4px;">
+                                                        @foreach($frame->tags as $tag)
+                                                            <span class="badge badge-info" style="font-size: 10px; background-color: #e0f2fe; color: #0284c7;">{{ $tag }}</span>
+                                                        @endforeach
+                                                    </div>
+                                                    @endif
                                                 </div>
                                             </td>
                                             <td>
@@ -725,6 +751,7 @@
                                                 </label>
                                             </td>
                                             <td class="text-right">
+                                                <button type="button" class="cf-btn-primary" onclick="openEditZipModal({{ $frame->id }}, {{ $frame->custom_frame_purpose_id }}, {{ $frame->custom_frame_image_type_id }}, '{{ addslashes(json_encode($frame->tags ?? [])) }}')" style="background-color: #6366f1; padding: 6px 12px; margin-right: 5px;"><i class="fa-solid fa-edit"></i></button>
                                                 <form action="{{ url('admin/business-custom-frame-zip/'.$frame->id) }}" method="POST" style="display:inline-block">
                                                     @method('DELETE')
                                                     @csrf
@@ -737,6 +764,9 @@
                                         @endforelse
                                     </tbody>
                                 </table>
+                            </div>
+                            <div class="cf-panel-footer mt-3" style="display: flex; justify-content: flex-end; padding: 15px;">
+                                {{ $business_custom_frames->appends(request()->query())->links('pagination::bootstrap-4') }}
                             </div>
                         </div>
                     </div>
@@ -850,9 +880,161 @@
 <!-- deleteModal -->
 @endsection
 
+<!-- Upload Custom Post Modal -->
+<div id="uploadZipModal" class="modal fade" role="dialog" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content" style="border-radius: 12px; border: none; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+      <div class="modal-header" style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-radius: 12px 12px 0 0;">
+        <h4 class="modal-title" style="font-weight: 600; color: #1e293b;">Upload Frame Template</h4>
+        <button type="button" class="close" data-dismiss="modal" style="color: #64748b;">&times;</button>
+      </div>
+      <form id="bulkZipUploadForm" enctype="multipart/form-data">
+        @csrf
+        <div class="modal-body" style="padding: 20px;">
+            <div class="form-group mb-3">
+                <label style="font-weight: 600; color: #475569; font-size: 13px;">Linked Purpose <span class="text-danger">*</span></label>
+                <select name="custom_frame_purpose_id" class="form-control" style="border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: none;" required>
+                    <option value="">Select Purpose</option>
+                    @foreach($purposes as $p)
+                        <option value="{{$p->id}}">{{$p->name}}</option>
+                    @endforeach
+                </select>
+            </div>
+            
+            <div class="form-group mb-3">
+                <label style="font-weight: 600; color: #475569; font-size: 13px;">Linked Image Type <span class="text-danger">*</span></label>
+                <select name="custom_frame_image_type_id" class="form-control" style="border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: none;" required>
+                    <option value="">Select Image Type</option>
+                    @foreach($image_types as $it)
+                        <option value="{{$it->id}}">{{$it->name}}</option>
+                    @endforeach
+                </select>
+            </div>
+            
+            <div class="form-group mb-3">
+                <label style="font-weight: 600; color: #475569; font-size: 13px;">Template Tags (Optional)</label>
+                <select name="tags[]" class="form-control select2" multiple="multiple" style="width: 100%;" data-placeholder="Select tags (e.g. {col_is_category})">
+                    @foreach($dynamic_tags as $tag)
+                        <option value="{{$tag}}">{{$tag}}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="form-group mb-3">
+                <label style="font-weight: 600; color: #475569; font-size: 13px;">Template Zip File <span class="text-danger">*</span></label>
+                <div class="cf-file-upload" id="zipUploadArea" style="border: 2px dashed #cbd5e1; padding: 30px; text-align: center; border-radius: 12px; background: #f8fafc; cursor: pointer; position: relative; transition: all 0.3s; overflow: hidden;">
+                    <i class="fa-solid fa-cloud-arrow-up" style="font-size: 24px; color: #64748b; margin-bottom: 10px; pointer-events: none;"></i>
+                    <p id="zipUploadText" style="margin: 0; color: #475569; font-weight: 500; pointer-events: none;">Click or drag ZIP file(s) here</p>
+                    <input type="file" name="zip_file[]" id="zipFileInput" accept=".zip" multiple="multiple" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; opacity: 0; cursor: pointer; z-index: 10;">
+                </div>
+                <!-- File count badge + list -->
+                <div id="zipFileCount" style="display:none; margin-top: 10px;">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span style="background: #6366f1; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">
+                            <i class="fa-solid fa-file-zipper"></i> <span id="zipCountNum">0</span> ZIP file(s) selected
+                        </span>
+                        <button type="button" id="addMoreZipsBtn" style="background: #e0e7ff; color: #4f46e5; border: none; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer;">
+                            <i class="fa-solid fa-plus"></i> Add More
+                        </button>
+                        <button type="button" id="clearZipsBtn" style="background: #fee2e2; color: #dc2626; border: none; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer;">
+                            <i class="fa-solid fa-xmark"></i> Clear All
+                        </button>
+                    </div>
+                    <div id="zipFileList" style="margin-top: 8px; max-height: 150px; overflow-y: auto; font-size: 12px; color: #64748b;"></div>
+                </div>
+            </div>
+
+            <!-- Progress Section (hidden by default) -->
+            <div id="bulkUploadProgress" style="display: none;">
+                <div style="background: #f1f5f9; border-radius: 10px; padding: 16px; margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-weight: 600; color: #334155; font-size: 13px;">
+                            <i class="fa-solid fa-spinner fa-spin" id="progressSpinner"></i> Processing...
+                        </span>
+                        <span id="progressCounter" style="font-weight: 700; color: #6366f1; font-size: 14px;">0 / 0</span>
+                    </div>
+                    <!-- Overall progress bar -->
+                    <div style="width: 100%; background: #e2e8f0; border-radius: 8px; height: 8px; overflow: hidden;">
+                        <div id="overallProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #6366f1, #8b5cf6); border-radius: 8px; transition: width 0.5s ease;"></div>
+                    </div>
+                    <!-- Current file info -->
+                    <div id="currentFileInfo" style="margin-top: 10px; font-size: 12px; color: #64748b;">
+                        <i class="fa-solid fa-file-zipper"></i> <span id="currentFileName">—</span>
+                    </div>
+                    <!-- Upload progress for current file -->
+                    <div style="width: 100%; background: #e2e8f0; border-radius: 6px; height: 5px; overflow: hidden; margin-top: 6px;">
+                        <div id="fileUploadBar" style="width: 0%; height: 100%; background: #10b981; border-radius: 6px; transition: width 0.3s ease;"></div>
+                    </div>
+                </div>
+                <!-- Log area -->
+                <div id="uploadLog" style="max-height: 150px; overflow-y: auto; font-size: 11px; color: #64748b; background: #f8fafc; border-radius: 8px; padding: 10px; border: 1px solid #e2e8f0;"></div>
+            </div>
+        </div>
+        <div class="modal-footer" style="border-top: 1px solid #e2e8f0; padding: 15px 20px;">
+            <button type="submit" id="bulkUploadBtn" class="cf-btn-primary w-100 justify-content-center" style="border-radius: 8px; padding: 10px;"><i class="fa-solid fa-upload"></i> Process & Upload</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Custom Post Modal -->
+<div id="editZipModal" class="modal fade" role="dialog" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content" style="border-radius: 12px; border: none; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+      <div class="modal-header" style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-radius: 12px 12px 0 0;">
+        <h4 class="modal-title" style="font-weight: 600; color: #1e293b;">Edit Custom Post Template</h4>
+        <button type="button" class="close" data-dismiss="modal" style="color: #64748b;">&times;</button>
+      </div>
+      <form id="editZipForm" method="POST" action="">
+        @csrf
+        @method('PUT')
+        <div class="modal-body" style="padding: 20px;">
+            <div class="form-group mb-3">
+                <label style="font-weight: 600; color: #475569; font-size: 13px;">Purpose <span class="text-danger">*</span></label>
+                <select name="custom_frame_purpose_id" id="edit_purpose" class="form-control" style="border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: none;" required>
+                    <option value="">Select Purpose</option>
+                    @foreach($purposes as $purpose)
+                        <option value="{{ $purpose->id }}">{{ $purpose->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            
+            <div class="form-group mb-3">
+                <label style="font-weight: 600; color: #475569; font-size: 13px;">Image Type <span class="text-danger">*</span></label>
+                <select name="custom_frame_image_type_id" id="edit_image_type" class="form-control" style="border-radius: 8px; border: 1px solid #cbd5e1; box-shadow: none;" required>
+                    <option value="">Select Image Type</option>
+                    @foreach($image_types as $image_type)
+                        <option value="{{ $image_type->id }}">{{ $image_type->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            
+            <div class="form-group mb-3">
+                <label style="font-weight: 600; color: #475569; font-size: 13px;">Tags (Optional)</label>
+                <select name="tags[]" id="edit_tags" class="form-control select2" multiple="multiple" style="width: 100%;">
+                    @foreach($dynamic_tags as $tag)
+                        <option value="{{ $tag }}">{{ $tag }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer" style="border-top: 1px solid #e2e8f0; padding: 15px 20px;">
+            <button type="submit" class="cf-btn-primary w-100 justify-content-center" style="border-radius: 8px; padding: 10px;"><i class="fa-solid fa-save"></i> Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 @section('script')
 <script src="{{ asset('assets/js/jquery.switcher.js')}}"></script>
 <script type="text/javascript">
+    $(document).ready(function() {
+        @if(session('active_tab'))
+            $('#{{ session('active_tab') }}').tab('show');
+        @endif
+    });
     $('#business_category_dropdown').select2();
     var checkarray = [];
     $("#checkall").click(function() {
@@ -1046,8 +1228,18 @@
           
           // Show target pane
           $(this).addClass('active');
-          $($(this).attr('href')).addClass('show active');
+          var target = $(this).attr('href');
+          $(target).addClass('show active');
+          
+          // Save tab to local storage
+          localStorage.setItem('activeTabCustomFrame', target);
       });
+
+      // Restore active tab on load
+      var activeTab = localStorage.getItem('activeTabCustomFrame');
+      if (activeTab) {
+          $('.cf-tab-btn[href="' + activeTab + '"]').click();
+      }
 
     });
 
@@ -1091,5 +1283,244 @@
         txtarea.focus();
         txtarea.scrollTop = scrollPos;
     }
+
+    function openEditZipModal(id, purpose_id, image_type_id, tagsStr) {
+        var form = document.getElementById('editZipForm');
+        form.action = '{{ url("admin/business-custom-frame-zip") }}/' + id;
+        
+        document.getElementById('edit_purpose').value = purpose_id;
+        document.getElementById('edit_image_type').value = image_type_id;
+        
+        var tagsSelect = $('#edit_tags');
+        tagsSelect.val(null).trigger('change');
+        
+        try {
+            var tags = JSON.parse(tagsStr);
+            if (tags && Array.isArray(tags)) {
+                tagsSelect.val(tags).trigger('change');
+            }
+        } catch (e) {
+            console.error("Error parsing tags", e);
+        }
+        
+        $('#editZipModal').modal('show');
+    }
+    // ═══════════════════════════════════════════════════════════
+    // BULK ZIP UPLOAD — Multi-file Accumulator + Progress
+    // ═══════════════════════════════════════════════════════════
+    (function() {
+        var zipInput = document.getElementById('zipFileInput');
+        var countDiv = document.getElementById('zipFileCount');
+        var countNum = document.getElementById('zipCountNum');
+        var fileListDiv = document.getElementById('zipFileList');
+        var uploadText = document.getElementById('zipUploadText');
+        var uploadArea = document.getElementById('zipUploadArea');
+        var addMoreBtn = document.getElementById('addMoreZipsBtn');
+        var clearBtn = document.getElementById('clearZipsBtn');
+
+        if (!zipInput) return;
+
+        // Accumulated files array (browser input.files replaces on each selection)
+        var accumulatedFiles = [];
+
+        function renderFileList() {
+            if (accumulatedFiles.length > 0) {
+                countDiv.style.display = 'block';
+                countNum.textContent = accumulatedFiles.length;
+                uploadText.innerHTML = '<strong style="color:#6366f1;">' + accumulatedFiles.length + ' file(s)</strong> ready to upload';
+                uploadArea.style.borderColor = '#6366f1';
+                uploadArea.style.background = '#eef2ff';
+
+                var html = '';
+                var totalSize = 0;
+                for (var i = 0; i < accumulatedFiles.length; i++) {
+                    var sizeMB = (accumulatedFiles[i].size / (1024 * 1024)).toFixed(2);
+                    totalSize += accumulatedFiles[i].size;
+                    html += '<div style="padding: 3px 0; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between;">' +
+                        '<span><i class="fa-solid fa-file-zipper" style="color:#6366f1; margin-right:4px;"></i> ' +
+                        '<span style="color:#334155;">' + accumulatedFiles[i].name + '</span>' +
+                        ' <span style="color:#94a3b8;">(' + sizeMB + ' MB)</span></span>' +
+                        '<button type="button" class="remove-zip-btn" data-index="' + i + '" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:14px; padding:0 4px;" title="Remove"><i class="fa-solid fa-xmark"></i></button>' +
+                        '</div>';
+                }
+                var totalMB = (totalSize / (1024 * 1024)).toFixed(2);
+                html += '<div style="padding: 4px 0; font-weight: 600; color: #475569;">Total: ' + totalMB + ' MB</div>';
+                fileListDiv.innerHTML = html;
+
+                // Attach remove handlers
+                var removeBtns = fileListDiv.querySelectorAll('.remove-zip-btn');
+                removeBtns.forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        var idx = parseInt(this.getAttribute('data-index'));
+                        accumulatedFiles.splice(idx, 1);
+                        renderFileList();
+                    });
+                });
+            } else {
+                countDiv.style.display = 'none';
+                uploadText.textContent = 'Click or drag ZIP file(s) here';
+                uploadArea.style.borderColor = '#cbd5e1';
+                uploadArea.style.background = '#f8fafc';
+                fileListDiv.innerHTML = '';
+            }
+        }
+
+        // When files are selected via input, ADD to accumulated list
+        zipInput.addEventListener('change', function() {
+            var files = this.files;
+            for (var i = 0; i < files.length; i++) {
+                // Avoid duplicates by name+size
+                var isDupe = accumulatedFiles.some(function(f) {
+                    return f.name === files[i].name && f.size === files[i].size;
+                });
+                if (!isDupe) {
+                    accumulatedFiles.push(files[i]);
+                }
+            }
+            renderFileList();
+        });
+
+        // "Add More" button — triggers file input again
+        if (addMoreBtn) {
+            addMoreBtn.addEventListener('click', function() {
+                zipInput.click();
+            });
+        }
+
+        // "Clear All" button
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                accumulatedFiles = [];
+                zipInput.value = '';
+                renderFileList();
+            });
+        }
+
+        // AJAX bulk upload — one-by-one with progress
+        var form = document.getElementById('bulkZipUploadForm');
+        if (!form) return;
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            var purposeId = form.querySelector('[name="custom_frame_purpose_id"]').value;
+            var imageTypeId = form.querySelector('[name="custom_frame_image_type_id"]').value;
+            if (!purposeId || !imageTypeId) {
+                alert('Please select Purpose and Image Type.');
+                return;
+            }
+
+            if (accumulatedFiles.length === 0) {
+                alert('Please select at least one ZIP file.');
+                return;
+            }
+
+            // Collect tags
+            var tagsSelect = form.querySelectorAll('[name="tags[]"] option:checked');
+            var tags = [];
+            tagsSelect.forEach(function(opt) { tags.push(opt.value); });
+
+            // Show progress
+            var progressDiv = document.getElementById('bulkUploadProgress');
+            var uploadBtn = document.getElementById('bulkUploadBtn');
+            var progressCounter = document.getElementById('progressCounter');
+            var overallBar = document.getElementById('overallProgressBar');
+            var currentFileName = document.getElementById('currentFileName');
+            var fileUploadBar = document.getElementById('fileUploadBar');
+            var uploadLog = document.getElementById('uploadLog');
+            var spinner = document.getElementById('progressSpinner');
+
+            progressDiv.style.display = 'block';
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading...';
+
+            var total = accumulatedFiles.length;
+            var completed = 0;
+            var successCount = 0;
+            var failCount = 0;
+
+            progressCounter.textContent = '0 / ' + total;
+
+            function logMsg(msg, type) {
+                var color = type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : type === 'warn' ? '#f59e0b' : '#64748b';
+                var icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warn' ? '⚠️' : '📦';
+                uploadLog.innerHTML += '<div style="color:' + color + '; padding: 2px 0;">' + icon + ' ' + msg + '</div>';
+                uploadLog.scrollTop = uploadLog.scrollHeight;
+            }
+
+            function uploadNext(index) {
+                if (index >= total) {
+                    spinner.className = 'fa-solid fa-circle-check';
+                    spinner.style.color = '#10b981';
+                    uploadBtn.innerHTML = '<i class="fa-solid fa-check"></i> Done! Reloading...';
+                    overallBar.style.width = '100%';
+                    overallBar.style.background = 'linear-gradient(90deg, #10b981, #34d399)';
+
+                    var summary = 'Completed: ' + successCount + ' success, ' + failCount + ' failed out of ' + total;
+                    logMsg(summary, successCount === total ? 'success' : 'warn');
+
+                    setTimeout(function() {
+                        window.location.reload();
+                    }, 1500);
+                    return;
+                }
+
+                var file = accumulatedFiles[index];
+                currentFileName.textContent = '(' + (index + 1) + '/' + total + ') ' + file.name + ' (' + (file.size / (1024*1024)).toFixed(1) + ' MB)';
+                fileUploadBar.style.width = '0%';
+                logMsg('(' + (index + 1) + '/' + total + ') Uploading: ' + file.name + '...', 'info');
+
+                var fd = new FormData();
+                fd.append('_token', '{{ csrf_token() }}');
+                fd.append('custom_frame_purpose_id', purposeId);
+                fd.append('custom_frame_image_type_id', imageTypeId);
+                fd.append('zip_file[]', file);
+                tags.forEach(function(t) { fd.append('tags[]', t); });
+
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', '{{ url("admin/business-custom-frame-zip") }}', true);
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+                xhr.upload.onprogress = function(e) {
+                    if (e.lengthComputable) {
+                        var pct = Math.round((e.loaded / e.total) * 100);
+                        fileUploadBar.style.width = pct + '%';
+                    }
+                };
+
+                xhr.onload = function() {
+                    completed++;
+                    progressCounter.textContent = completed + ' / ' + total;
+                    overallBar.style.width = Math.round((completed / total) * 100) + '%';
+
+                    if (xhr.status >= 200 && xhr.status < 400) {
+                        successCount++;
+                        logMsg(file.name + ' — uploaded successfully! ✓', 'success');
+                    } else {
+                        failCount++;
+                        var errMsg = '';
+                        try { errMsg = JSON.parse(xhr.responseText).message || ''; } catch(ex) {}
+                        logMsg(file.name + ' — failed (HTTP ' + xhr.status + ')' + (errMsg ? ': ' + errMsg : ''), 'error');
+                    }
+
+                    uploadNext(index + 1);
+                };
+
+                xhr.onerror = function() {
+                    completed++;
+                    failCount++;
+                    progressCounter.textContent = completed + ' / ' + total;
+                    overallBar.style.width = Math.round((completed / total) * 100) + '%';
+                    logMsg(file.name + ' — network error!', 'error');
+                    uploadNext(index + 1);
+                };
+
+                xhr.send(fd);
+            }
+
+            uploadNext(0);
+        });
+    })();
+
 </script>
 @endsection

@@ -168,6 +168,25 @@ class SubscriptionController extends GetxController {
     }
     return false;
   }
+
+  /// Get the upgrade preview details from the backend
+  Future<Map<String, dynamic>?> getUpgradePreview(String newPlanId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId') ?? '';
+    if (userId.isEmpty) return null;
+
+    try {
+      final response = await ApiService.get(
+        '/subscription-upgrade-preview?userId=$userId&newPlanId=$newPlanId',
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      debugPrint('Error getting upgrade preview: $e');
+    }
+    return null;
+  }
 }
 
 /// Data class for feature usage info

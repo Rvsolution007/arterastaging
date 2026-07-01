@@ -404,104 +404,111 @@ class BusinessFrameController extends Controller
         $validation = Validator::make($request->all(), [
             "custom_frame_purpose_id" => "required|exists:custom_frame_purposes,id",
             "custom_frame_image_type_id" => "required|exists:custom_frame_image_types,id",
-            "zip_file" => "required|file|mimes:zip",
+            "zip_file" => "required|array",
+            "zip_file.*" => "required|file|mimes:zip",
         ]);
 
         if ($validation->fails()) {
-            return back()->withErrors($validation)->withInput();
+            return back()->withErrors($validation)->withInput()->with('active_tab', 'tabs-custom-frames-tab');
         }
 
         if ($request->hasFile('zip_file')) {
-            $zipFile = $request->file('zip_file');
-            $fileName = Str::uuid() . '.zip';
-
-            if (StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
-                Storage::disk('spaces')->put('uploads/custom_frames_zips/' . $fileName, file_get_contents($zipFile), 'public');
-            } else {
-                $destinationPath = public_path('uploads/custom_frames_zips');
-                if (!file_exists($destinationPath)) {
-                    mkdir($destinationPath, 0777, true);
-                }
-                $zipFile->move($destinationPath, $fileName);
+            $zipFiles = $request->file('zip_file');
+            if (!is_array($zipFiles)) {
+                $zipFiles = [$zipFiles];
             }
 
-            // Extract the ZIP contents to uploads/template so the web preview can access the skin images
-            $zipNameWithoutExt = pathinfo($fileName, PATHINFO_FILENAME);
-            $extractPath = public_path('uploads/template/' . $zipNameWithoutExt);
-            if (!file_exists($extractPath)) {
-                mkdir($extractPath, 0777, true);
-            }
-            $zip = new \ZipArchive;
-            $zipPathLocal = public_path('uploads/custom_frames_zips/' . $fileName);
-            if ($zip->open($zipPathLocal) === TRUE) {
-                $zip->extractTo($extractPath);
-                $zip->close();
-            }
+            $successCount = 0;
+            $allWarnings = [];
+            $tags = $request->input('tags', []);
 
-            // Extract JSON from ZIP
-            $jsonRules = null;
-            $zip = new \ZipArchive;
-            $zipPath = (StorageSetting::getStorageSetting("storage") == "DigitalOcean") ? 
-                            Storage::disk('spaces')->url('uploads/custom_frames_zips/' . $fileName) : 
-                            public_path('uploads/custom_frames_zips/' . $fileName);
-            
-            if (StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
-                $tempPath = public_path('temp_' . Str::uuid() . '.zip');
-                file_put_contents($tempPath, file_get_contents($zipPath));
-                $zipRes = $zip->open($tempPath);
-            } else {
-                $zipRes = $zip->open($zipPath);
-            }
+            foreach ($zipFiles as $zipFile) {
+                $fileName = Str::uuid() . '.zip';
 
-            if ($zipRes === TRUE) {
-                for ($i = 0; $i < $zip->numFiles; $i++) {
-                    $name = $zip->getNameIndex($i);
-                    if (pathinfo($name, PATHINFO_EXTENSION) === 'json') {
-                        $jsonContent = $zip->getFromIndex($i);
-                        $jsonRules = json_encode(json_decode($jsonContent, true)); // minified format
-                        break;
-                    }
-                }
-                $zip->close();
-            }
-
-            if (isset($tempPath) && file_exists($tempPath)) {
-                @unlink($tempPath);
-            }
-
-            // Validate the template structure before saving
-            $validationWarnings = [];
-            if (!$jsonRules) {
-                $validationWarnings[] = 'No JSON configuration file found inside ZIP. Template will render as flat image only.';
-            } else {
-                $jsonData = json_decode($jsonRules, true);
-                if (!$jsonData) {
-                    $validationWarnings[] = 'JSON file found but could not be parsed. Check for syntax errors.';
+                if (StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
+                    Storage::disk('spaces')->put('uploads/custom_frames_zips/' . $fileName, file_get_contents($zipFile), 'public');
                 } else {
-                    if (!isset($jsonData['layers']) || !is_array($jsonData['layers']) || count($jsonData['layers']) === 0) {
-                        $validationWarnings[] = 'JSON has no "layers" array. Template will not render properly.';
-                    } else {
-                        // Check that skin image files exist for each image layer
-                        $skinsPath = $extractPath;
-                        // Find the actual skins directory
-                        $skinsDirs = glob($skinsPath . '/*/skins/*', GLOB_ONLYDIR);
-                        if (empty($skinsDirs)) {
-                            $skinsDirs = glob($skinsPath . '/skins/*', GLOB_ONLYDIR);
+                    $destinationPath = public_path('uploads/custom_frames_zips');
+                    if (!file_exists($destinationPath)) {
+                        mkdir($destinationPath, 0777, true);
+                    }
+                    $zipFile->move($destinationPath, $fileName);
+                }
+
+                // Extract the ZIP contents to uploads/template so the web preview can access the skin images
+                $zipNameWithoutExt = pathinfo($fileName, PATHINFO_FILENAME);
+                $extractPath = public_path('uploads/template/' . $zipNameWithoutExt);
+                if (!file_exists($extractPath)) {
+                    mkdir($extractPath, 0777, true);
+                }
+                $zip = new \ZipArchive;
+                $zipPathLocal = public_path('uploads/custom_frames_zips/' . $fileName);
+                if ($zip->open($zipPathLocal) === TRUE) {
+                    $zip->extractTo($extractPath);
+                    $zip->close();
+                }
+
+                // Extract JSON from ZIP
+                $jsonRules = null;
+                $zip = new \ZipArchive;
+                $zipPath = (StorageSetting::getStorageSetting("storage") == "DigitalOcean") ? 
+                                Storage::disk('spaces')->url('uploads/custom_frames_zips/' . $fileName) : 
+                                public_path('uploads/custom_frames_zips/' . $fileName);
+                
+                if (StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
+                    $tempPath = public_path('temp_' . Str::uuid() . '.zip');
+                    file_put_contents($tempPath, file_get_contents($zipPath));
+                    $zipRes = $zip->open($tempPath);
+                } else {
+                    $zipRes = $zip->open($zipPath);
+                }
+
+                if ($zipRes === TRUE) {
+                    for ($i = 0; $i < $zip->numFiles; $i++) {
+                        $name = $zip->getNameIndex($i);
+                        if (pathinfo($name, PATHINFO_EXTENSION) === 'json') {
+                            $jsonContent = $zip->getFromIndex($i);
+                            $jsonRules = json_encode(json_decode($jsonContent, true)); // minified format
+                            break;
                         }
-                        if (!empty($skinsDirs)) {
-                            $skinDir = $skinsDirs[0];
-                            foreach ($jsonData['layers'] as $layer) {
-                                if (($layer['type'] ?? '') === 'image') {
-                                    $imgFile = basename($layer['src'] ?? '');
-                                    if ($imgFile && !file_exists($skinDir . '/' . $imgFile)) {
-                                        $validationWarnings[] = "Missing skin image: {$imgFile} (layer: {$layer['name']})";
+                    }
+                    $zip->close();
+                }
+
+                if (isset($tempPath) && file_exists($tempPath)) {
+                    @unlink($tempPath);
+                }
+
+                // Validate the template structure before saving
+                $validationWarnings = [];
+                $originalName = $zipFile->getClientOriginalName();
+                if (!$jsonRules) {
+                    $validationWarnings[] = $originalName . ': No JSON configuration file found inside ZIP.';
+                } else {
+                    $jsonData = json_decode($jsonRules, true);
+                    if (!$jsonData) {
+                        $validationWarnings[] = $originalName . ': JSON file found but could not be parsed. Check syntax.';
+                    } else {
+                        if (!isset($jsonData['layers']) || !is_array($jsonData['layers']) || count($jsonData['layers']) === 0) {
+                            $validationWarnings[] = $originalName . ': JSON has no "layers" array.';
+                        } else {
+                            // Check that skin image files exist for each image layer
+                            $skinsPath = $extractPath;
+                            $skinsDirs = glob($skinsPath . '/*/skins/*', GLOB_ONLYDIR);
+                            if (empty($skinsDirs)) $skinsDirs = glob($skinsPath . '/skins/*', GLOB_ONLYDIR);
+                            if (!empty($skinsDirs)) {
+                                $skinDir = $skinsDirs[0];
+                                foreach ($jsonData['layers'] as $layer) {
+                                    if (($layer['type'] ?? '') === 'image') {
+                                        $imgFile = basename($layer['src'] ?? '');
+                                        if ($imgFile && !file_exists($skinDir . '/' . $imgFile)) {
+                                            $validationWarnings[] = $originalName . ": Missing skin image: {$imgFile}";
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        // Check for font files
-                        if (isset($jsonData['layers'])) {
+                            // Check for font files
                             $fontsNeeded = [];
                             foreach ($jsonData['layers'] as $layer) {
                                 if (($layer['type'] ?? '') === 'text' && isset($layer['font'])) {
@@ -511,58 +518,77 @@ class BusinessFrameController extends Controller
                             if (!empty($fontsNeeded)) {
                                 $fontsDir = null;
                                 $fontsDirPaths = glob($skinsPath . '/*/fonts', GLOB_ONLYDIR);
-                                if (empty($fontsDirPaths)) {
-                                    $fontsDirPaths = glob($skinsPath . '/fonts', GLOB_ONLYDIR);
-                                }
-                                if (!empty($fontsDirPaths)) {
-                                    $fontsDir = $fontsDirPaths[0];
-                                }
+                                if (empty($fontsDirPaths)) $fontsDirPaths = glob($skinsPath . '/fonts', GLOB_ONLYDIR);
+                                if (!empty($fontsDirPaths)) $fontsDir = $fontsDirPaths[0];
                                 foreach (array_keys($fontsNeeded) as $fontName) {
-                                    if (!$fontsDir || !file_exists($fontsDir . '/' . $fontName . '.ttf')) {
-                                        $validationWarnings[] = "Missing font file: {$fontName}.ttf";
+                                    $hasLocalFont = $fontsDir && file_exists($fontsDir . '/' . $fontName . '.ttf');
+                                    if (!$hasLocalFont) {
+                                        $globalFont = \App\Models\Font::where('name', $fontName)->first();
+                                        if (!$globalFont) {
+                                            $validationWarnings[] = $originalName . ": Missing font file: {$fontName}.ttf";
+                                        }
                                     }
                                 }
                             }
                         }
+                        if (!isset($jsonData['info']['width']) || !isset($jsonData['info']['height'])) {
+                            $validationWarnings[] = $originalName . ': JSON missing "info.width" or "info.height".';
+                        }
                     }
-                    if (!isset($jsonData['info']['width']) || !isset($jsonData['info']['height'])) {
-                        $validationWarnings[] = 'JSON missing "info.width" or "info.height". Canvas may not size correctly.';
+                }
+
+                $newFrame = \App\Models\BusinessCustomFrame::create([
+                    'custom_frame_purpose_id' => $request->custom_frame_purpose_id,
+                    'custom_frame_image_type_id' => $request->custom_frame_image_type_id,
+                    'original_zip_name' => $originalName,
+                    'zip_file_path' => $fileName,
+                    'json_rules' => $jsonRules,
+                    'tags' => !empty($tags) ? $tags : null,
+                    'status' => 1
+                ]);
+
+                // Auto-dispatch AI generation batch for all users (runs in background queue)
+                try {
+                    $purpose = \App\Models\CustomFramePurpose::find($request->custom_frame_purpose_id);
+                    if ($purpose && !empty($purpose->ai_prompt)) {
+                        $batch = \App\Models\AiGenerationBatch::create([
+                            'business_custom_frame_id' => $newFrame->id,
+                            'status' => 'pending',
+                        ]);
+                        \App\Jobs\ProcessTemplateAiGeneration::dispatch($newFrame->id, $batch->id);
                     }
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::warning("AI Batch dispatch failed: " . $e->getMessage());
+                }
+
+                $successCount++;
+                if (!empty($validationWarnings)) {
+                    $allWarnings = array_merge($allWarnings, $validationWarnings);
                 }
             }
 
-            $newFrame = \App\Models\BusinessCustomFrame::create([
-                'custom_frame_purpose_id' => $request->custom_frame_purpose_id,
-                'custom_frame_image_type_id' => $request->custom_frame_image_type_id,
-                'original_zip_name' => $zipFile->getClientOriginalName(),
-                'zip_file_path' => $fileName,
-                'json_rules' => $jsonRules,
-                'status' => 1
-            ]);
-
-            // Auto-dispatch AI generation batch for all users (runs in background queue)
-            try {
-                $purpose = \App\Models\CustomFramePurpose::find($request->custom_frame_purpose_id);
-                if ($purpose && !empty($purpose->ai_prompt)) {
-                    $batch = \App\Models\AiGenerationBatch::create([
-                        'business_custom_frame_id' => $newFrame->id,
-                        'status' => 'pending',
-                    ]);
-                    \App\Jobs\ProcessTemplateAiGeneration::dispatch($newFrame->id, $batch->id);
-                }
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::warning("AI Batch dispatch failed: " . $e->getMessage());
+            $successMsg = "Successfully uploaded $successCount Custom Frame(s)!";
+            if (!empty($allWarnings)) {
+                $successMsg .= ' ⚠️ Warnings: ' . implode(' | ', $allWarnings);
             }
 
-            $successMsg = 'Custom Frame uploaded successfully!';
-            if (!empty($validationWarnings)) {
-                $successMsg .= ' ⚠️ Warnings: ' . implode(' | ', $validationWarnings);
+            // Return JSON for AJAX requests, redirect for normal form submissions
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'status' => 'success',
+                    'message' => $successMsg,
+                    'success_count' => $successCount,
+                    'warnings' => $allWarnings,
+                ]);
             }
 
-            return redirect()->back()->with('success', $successMsg);
+            return redirect()->back()->with('success', $successMsg)->with('active_tab', 'tabs-custom-frames-tab');
         }
 
-        return back()->with('error', 'Please select a ZIP file.')->withInput();
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['status' => 'error', 'message' => 'Please select at least one ZIP file.'], 400);
+        }
+        return back()->with('error', 'Please select at least one ZIP file.')->withInput()->with('active_tab', 'tabs-custom-frames-tab');
     }
 
     public function deleteBusinessCustomFrame($id)

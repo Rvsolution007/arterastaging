@@ -10,7 +10,8 @@ import 'more_screen.dart';
 import '../controllers/ad_controller.dart';
 import 'ai_chat_screen.dart';
 import 'support_tickets_screen.dart';
-
+import '../config/app_config.dart';
+import '../widgets/coming_soon_widget.dart';
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -21,11 +22,11 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _pages = [
+  List<Widget> get _pages => [
     const HomeScreen(),
-    const TemplateGridScreen(),
+    AppConfig.isProduction ? const ComingSoonWidget(title: 'Custom') : const TemplateGridScreen(),
     const MyBusinessScreen(),
-    const AiTrendsScreen(),
+    AppConfig.isProduction ? const ComingSoonWidget(title: 'Greetings') : const AiTrendsScreen(),
     const MoreScreen(),
   ];
 
@@ -66,27 +67,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
             }
             return const SizedBox.shrink();
           }),
-          // ── Custom Bottom Navigation Bar (1:1 Ratio Items) ──
+          // ── Custom Bottom Navigation Bar (Modern Attractive UI) ──
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 16,
+                  offset: const Offset(0, -4),
                 ),
               ],
             ),
             child: SafeArea(
-              child: Row(
-                children: [
-                  _buildNavItem(0, Icons.home_outlined, Icons.home, 'home'.tr.toUpperCase()),
-                  _buildNavItem(1, Icons.image_outlined, Icons.image, 'custom'.tr.toUpperCase()),
-                  _buildNavItem(2, Icons.storefront_outlined, Icons.storefront, 'business'.tr.toUpperCase()),
-                  _buildNavItem(3, Icons.celebration_outlined, Icons.celebration, 'GREETINGS'),
-                  _buildNavItem(4, Icons.menu, Icons.menu, 'more'.tr.toUpperCase()),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildNavItem(0, Icons.home_outlined, Icons.home, 'home'.tr),
+                    _buildNavItem(1, Icons.image_outlined, Icons.image, 'custom'.tr),
+                    _buildNavItem(2, Icons.storefront_outlined, Icons.storefront, 'business'.tr),
+                    _buildNavItem(3, Icons.celebration_outlined, Icons.celebration, 'Greetings'),
+                    _buildNavItem(4, Icons.menu, Icons.menu, 'more'.tr),
+                  ],
+                ),
               ),
             ),
           ),
@@ -97,36 +102,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildNavItem(int index, IconData icon, IconData activeIcon, String label) {
     final isSelected = _currentIndex == index;
-    final color = isSelected ? AppColors.primary : AppColors.textMuted;
     
-    return Expanded(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => setState(() => _currentIndex = index),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
+    // Capitalize first letter for a cleaner look
+    final displayLabel = label.isNotEmpty 
+        ? '${label[0].toUpperCase()}${label.substring(1).toLowerCase()}' 
+        : '';
+    
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => setState(() => _currentIndex = index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOut,
+              padding: EdgeInsets.all(isSelected ? 6.0 : 0.0),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.primary.withOpacity(0.15) : Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(
                 isSelected ? activeIcon : icon,
-                color: color,
-                size: 24,
+                color: isSelected ? AppColors.primary : Colors.grey.shade500,
+                size: isSelected ? 26 : 24,
               ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                  fontSize: 9,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              displayLabel,
+              style: TextStyle(
+                color: isSelected ? AppColors.textPrimary : Colors.grey.shade500,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                fontSize: 10,
               ),
-            ],
-          ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ),
       ),
     );

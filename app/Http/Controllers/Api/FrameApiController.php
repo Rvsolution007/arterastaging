@@ -77,10 +77,10 @@ class FrameApiController extends Controller
                     'language_id' => 'all',
                     'category_id' => $bf->business_category_id ?? 'all',
                     'theme' => 'all',
-                    'req_address' => 0,
-                    'req_email' => 0,
-                    'req_phone' => 0,
-                    'req_website' => 0,
+                    'req_address' => $bf->req_address ?? 0,
+                    'req_email' => $bf->req_email ?? 0,
+                    'req_phone' => $bf->req_phone ?? 0,
+                    'req_website' => $bf->req_website ?? 0,
                     'config' => null,
                 ]);
             }
@@ -88,7 +88,60 @@ class FrameApiController extends Controller
 
         // 2. PosterMaker — template-based frames with zip_name (works with extractFramesFromTemplates)
         $poster_frames = \App\Models\PosterMaker::orderBy('id', 'desc')->get();
-        $frames_list = $frames_list->merge($mainController->extractFramesFromTemplates($poster_frames));
+        $extracted_templates = $mainController->extractFramesFromTemplates($poster_frames);
+        
+        if ($request->has('business_category_id') && $request->business_category_id) {
+            $extracted_templates->transform(function($frame) use ($mainController, $request) {
+                if ($frame->config) {
+                    $frame->config = $mainController->injectDynamicBackgroundImage($frame->config, $request->business_category_id);
+                }
+                return $frame;
+            });
+        }
+        
+        $frames_list = $frames_list->merge($extracted_templates);
+
+        $userId = auth('sanctum')->id() ?? auth()->id();
+        if (!$userId) {
+            $userId = $request->userId ?? $request->user_id ?? null;
+        }
+
+        \Log::info('🔍 [getAllFrames] DEBUG', [
+            'auth_sanctum_id' => auth('sanctum')->id(),
+            'auth_id' => auth()->id(),
+            'request_user_id' => $request->user_id ?? 'N/A',
+            'resolved_userId' => $userId,
+            'frames_before_filter' => $frames_list->count(),
+        ]);
+
+        if ($userId) {
+            $business = \App\Models\Business::where('user_id', $userId)->where('is_default', 1)->first() 
+                     ?? \App\Models\Business::where('user_id', $userId)->first();
+            
+            if ($business) {
+                \Log::info('🔍 [getAllFrames] Business found', [
+                    'business_id' => $business->id,
+                    'email' => $business->email,
+                    'mobile_no' => $business->mobile_no,
+                    'website' => $business->website,
+                    'address' => $business->address,
+                    'extra_emails' => $business->extra_emails,
+                    'extra_mobile_numbers' => $business->extra_mobile_numbers,
+                    'extra_websites' => $business->extra_websites,
+                    'extra_addresses' => $business->extra_addresses,
+                    'hidden_frame_fields' => $business->hidden_frame_fields,
+                ]);
+                $frames_list = $mainController->filterFramesByBusinessData($frames_list, $business);
+                \Log::info('🔍 [getAllFrames] After filter', [
+                    'frames_after_filter' => $frames_list->count(),
+                    'frame_ids' => $frames_list->pluck('id')->toArray(),
+                ]);
+            } else {
+                \Log::warning('🔍 [getAllFrames] No business found for user ' . $userId);
+            }
+        } else {
+            \Log::warning('🔍 [getAllFrames] No userId resolved — skipping filter');
+        }
 
         return response()->json(['success' => true, 'data' => $frames_list->values()]);
     }

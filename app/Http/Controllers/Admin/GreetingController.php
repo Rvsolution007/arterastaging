@@ -112,6 +112,15 @@ class GreetingController extends Controller
                     $file_name = $zip_name . "." . $extension;
                     $request->file("zip")->move('./uploads/template', $file_name);
 
+                    $zipPath = public_path('uploads/template/' . $file_name);
+                    $validationResult = \App\Services\FontValidationService::validateZipFonts($zipPath);
+
+                    if ($validationResult !== true) {
+                        unlink($zipPath);
+                        $errorMessage = 'Upload failed! The following fonts are missing in the central system: ' . implode(', ', $validationResult) . '. Please upload them to the Font Section first.';
+                        return back()->withErrors(['zip' => $errorMessage])->withInput();
+                    }
+
                     File::makeDirectory('./uploads/template/' . $zip_name);
 
                     $zip = new \ZipArchive;
@@ -380,6 +389,16 @@ class GreetingController extends Controller
                     $extension = $zip->getClientOriginalExtension();
                     $file_name = $zip_name . "." . $extension;
                     $zip->move('./uploads/template', $file_name);
+
+                    $zipPath = public_path('uploads/template/' . $file_name);
+                    $validationResult = \App\Services\FontValidationService::validateZipFonts($zipPath);
+
+                    if ($validationResult !== true) {
+                        unlink($zipPath);
+                        $errorMessage = 'Upload failed! The following fonts are missing in the central system: ' . implode(', ', $validationResult) . '. Please upload them to the Font Section first.';
+                        return back()->withErrors(['zip' => $errorMessage])->withInput();
+                    }
+
                     File::makeDirectory('./uploads/template/' . $zip_name);
 
                     $zip = new \ZipArchive;

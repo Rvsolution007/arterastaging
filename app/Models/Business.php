@@ -20,6 +20,7 @@ class Business extends Model
         'user_id',
         'business_category_id',
         'business_sub_category_ids',
+        'business_type_id',
         'status',
         'is_default',
         'extra_emails',
@@ -46,6 +47,31 @@ class Business extends Model
     public function business_category()
     {
         return $this->hasOne("App\Models\BusinessCategory", "id", "business_category_id");
+    }
+
+    public function product_mappings()
+    {
+        return $this->hasMany(BusinessProductMapping::class, 'business_id');
+    }
+
+    public function products()
+    {
+        return $this->belongsToMany(BusinessProduct::class, 'business_product_mappings', 'business_id', 'business_product_id');
+    }
+
+    public function custom_product_requests()
+    {
+        return $this->hasMany(BusinessProductRequest::class, 'business_id');
+    }
+
+    public function sub_categories()
+    {
+        return $this->belongsToMany(BusinessSubCategory::class, 'business_sub_category_mappings', 'business_id', 'business_sub_category_id');
+    }
+
+    public function types()
+    {
+        return $this->belongsToMany(BusinessType::class, 'business_type_mappings', 'business_id', 'business_type_id');
     }
 
     // Natively querying against JSON array: usage -> whereJsonContains('business_sub_category_ids', $id)

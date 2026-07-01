@@ -678,7 +678,22 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
 
                 // ── Action Button ──
                 GestureDetector(
-                  onTap: isCurrentPlan ? null : () {
+                  onTap: isCurrentPlan ? null : () async {
+                    bool isUpgrade = sc.hasActivePlan;
+                    Map<String, dynamic>? upgradePreview;
+                    
+                    if (isUpgrade) {
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (c) => const Center(child: CircularProgressIndicator()),
+                      );
+                      upgradePreview = await sc.getUpgradePreview(plan['id'].toString());
+                      if (context.mounted) Navigator.pop(context); // Close loading
+                    }
+
+                    if (!context.mounted) return;
+
                     showModalBottomSheet(
                       context: context,
                       isScrollControlled: true,
@@ -688,6 +703,8 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
                         child: CheckoutBottomSheet(
                           plan: plan,
                           planType: _isYearly ? 'Yearly' : 'Monthly',
+                          isUpgrade: isUpgrade,
+                          upgradePreview: upgradePreview,
                         ),
                       ),
                     );

@@ -165,8 +165,16 @@ class SetupWizardApiController extends Controller
             Log::error('SetupWizard: Fatal error', ['message' => $e->getMessage()]);
             return response()->json(['success' => false, 'message' => 'Server ran out of memory. Please try a smaller file.'], 500);
         } catch (\Exception $e) {
-            Log::error('SetupWizard: Analysis failed', ['error' => $e->getMessage()]);
-            return response()->json(['success' => false, 'message' => 'An unexpected error occurred: ' . $e->getMessage()], 500);
+            \Log::error('DIAGNOSIS: Image extraction failed Exception', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
+            ]);
+            return response()->json([
+                'success' => false, 
+                'message' => 'Extraction failed: ' . $e->getMessage(),
+                'diagnosis' => 'Exception at ' . basename($e->getFile()) . ':' . $e->getLine()
+            ], 500);
         }
     }
 
@@ -592,8 +600,8 @@ class SetupWizardApiController extends Controller
 
         $products = \App\Models\Product::where('user_id', $userId)
             ->with(['customValues', 'combos.column', 'variations'])
-            ->orderBy('id', 'desc')
-            ->paginate(25);
+            ->orderBy('updated_at', 'desc')
+            ->paginate(50);
 
         return response()->json([
             'success' => true,
@@ -706,6 +714,308 @@ class SetupWizardApiController extends Controller
         ]);
     }
 
+    public function createProduct(Request $request)
+    {
+        $userId = $request->input('userId');
+        if (!$userId) {
+            return response()->json(['success' => false, 'message' => 'Missing userId'], 400);
+        }
+
+        // Handle Image Upload
+        $dbPath = null;
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $fileName = time() . '_' . preg_replace('/[^A-Za-z0-9_\-\.]/', '_', $file->getClientOriginalName());
+            $destinationPath = public_path('uploads/products');
+            if (!file_exists($destinationPath)) {
+                mkdir($destinationPath, 0755, true);
+            }
+            $file->move($destinationPath, $fileName);
+            $dbPath = 'products/' . $fileName;
+        }
+
+        $product = \App\Models\Product::create([
+            'user_id' => $userId,
+            'title' => $request->title ?? 'New Product',
+            'category_name' => $request->category_name ?? '',
+            'sku' => $request->sku ?? 'AUTO-' . strtoupper(uniqid()),
+            'mrp' => $request->has('mrp') ? (floatval($request->mrp) * 100) : 0,
+            'sale_price' => $request->has('sale_price') ? (floatval($request->sale_price) * 100) : 0,
+            'image' => $dbPath,
+            'status' => 1,
+            'description' => '',
+            'gst_percent' => 0,
+        ]);
+
+        // Custom values
+        $customData = $request->input('custom_data', []);
+        if (is_string($customData)) {
+            $customData = json_decode($customData, true) ?? [];
+        }
+        foreach ($customData as $colId => $value) {
+            \App\Models\CatalogueCustomValue::create([
+                'product_id' => $product->id,
+                'column_id' => $colId,
+                'value' => is_array($value) ? json_encode($value) : $value
+            ]);
+        }
+
+        // Combos
+        if ($request->has('combo_data')) {
+            foreach ($request->input('combo_data', []) as $colId => $values) {
+                if (empty($values)) continue;
+                \App\Models\ProductCombo::create([
+                    'product_id' => $product->id,
+                    'column_id' => $colId,
+                    'selected_values' => is_array($values) ? $values : explode(',', $values),
+                ]);
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'product' => $product->fresh()->load('customValues', 'combos', 'variations'),
+            'message' => 'Product created successfully!'
+        ]);
+    }
+
+    public function extractFromImage(Request $request)
+    {
+        $userId = $request->input('userId');
+        if (!$userId) {
+            return response()->json(['success' => false, 'message' => 'Missing userId'], 400);
+        }
+
+        if (!$request->hasFile('image')) {
+            return response()->json(['success' => false, 'message' => 'Image file is required.'], 400);
+        }
+
+        ini_set('memory_limit', '1G');
+        set_time_limit(3600);
+        
+        \Log::info("DIAGNOSIS: Image extraction API called for userId: {$userId}");
+
+        try {
+            $file = $request->file('image');
+            $mimeType = $file->getMimeType();
+            $base64Image = base64_encode(file_get_contents($file->getRealPath()));
+
+            $source = $request->input('source');
+            if ($source === 'mobile') {
+                $columns = \App\Models\CatalogueCustomColumn::where('user_id', $userId)
+                    ->where('is_active', true)->orderBy('sort_order')->get()->toArray();
+            } else {
+                $columnsJson = Setting::getValue('setup_tour', 'ai_columns_json', null, $userId);
+                $columns = is_string($columnsJson) ? json_decode($columnsJson, true) : ($columnsJson ?? []);
+            }
+
+            if (empty($columns)) {
+                \Log::warning("DIAGNOSIS: No custom columns defined for userId: {$userId}");
+                return response()->json(['success' => false, 'message' => 'No custom columns defined. Please complete the setup wizard first.'], 422);
+            }
+
+            \Log::info("DIAGNOSIS: Image encoded. Size: " . strlen($base64Image) . " bytes. Calling Gemini AI Vision API...");
+            $startTime = microtime(true);
+
+            $service = new \App\Services\CatalogueAIService($userId);
+            $result = $service->extractProductDataFromImage($base64Image, $mimeType, $columns);
+
+            $duration = round(microtime(true) - $startTime, 2);
+            \Log::info("DIAGNOSIS: Gemini AI Vision API returned successfully in {$duration}s. Extracted {$result['total']} products.");
+
+            return response()->json([
+                'success' => true,
+                'products' => $result['products'],
+                'total' => $result['total'],
+                'ai_tokens' => $result['ai_tokens'],
+                'message' => "{$result['total']} products extracted from the image!"
+            ]);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('SetupWizard: Image extraction failed', ['error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function bulkCreateProducts(Request $request)
+    {
+        $userId = $request->input('userId');
+        if (!$userId) {
+            return response()->json(['success' => false, 'message' => 'Missing userId'], 400);
+        }
+
+        $products = $request->input('products', []);
+        if (is_string($products)) {
+            $products = json_decode($products, true) ?? [];
+        }
+
+        if (empty($products)) {
+            return response()->json(['success' => false, 'message' => 'No products provided.'], 422);
+        }
+
+        $dbColumns = \App\Models\CatalogueCustomColumn::where('user_id', $userId)
+            ->where('is_active', true)->orderBy('sort_order')->get();
+
+        $colMap = [];
+        foreach ($dbColumns as $dbCol) {
+            $colMap[mb_strtolower(trim($dbCol->name))] = $dbCol;
+        }
+
+        $categories = \App\Models\ProductCategory::all();
+        $catMap = [];
+        foreach ($categories as $cat) {
+            $catMap[mb_strtolower(trim($cat->name))] = $cat;
+        }
+
+        $created = 0;
+        $skipped = 0;
+        $errors = [];
+        $createdCategories = [];
+
+        try {
+            foreach ($products as $idx => $product) {
+                $systemData = [
+                    'user_id' => $userId,
+                    'status' => 1,
+                ];
+                $customData = [];
+                $comboData = [];
+                $categoryId = null;
+                $productName = 'Product ' . ($idx + 1);
+
+                foreach ($product as $colName => $value) {
+                    $value = is_string($value) ? trim($value) : $value;
+                    if ($value === '' || $value === null) continue;
+
+                    $key = mb_strtolower(trim($colName));
+                    $dbCol = $colMap[$key] ?? null;
+                    if (!$dbCol) continue;
+
+                    if ($dbCol->is_category) {
+                        $catKey = mb_strtolower(trim($value));
+                        if (isset($catMap[$catKey])) {
+                            $categoryId = $catMap[$catKey]->id;
+                        } else {
+                            $newCat = \App\Models\ProductCategory::create([
+                                'name' => trim($value),
+                                'status' => '1',
+                            ]);
+                            $catMap[$catKey] = $newCat;
+                            $categoryId = $newCat->id;
+                            $createdCategories[] = trim($value);
+                        }
+                        $systemData['category_name'] = trim($value);
+                    }
+
+                    if ($dbCol->is_title) {
+                        $productName = $value;
+                    }
+
+                    if ($dbCol->is_combo) {
+                        $comboValues = array_filter(array_map('trim', explode('|', $value)), fn($v) => $v !== '');
+                        if (count($comboValues) > 0) {
+                            $comboData[$dbCol->id] = $comboValues;
+                        }
+                        continue;
+                    }
+
+                    if ($dbCol->is_system) {
+                        $slug = $dbCol->slug;
+                        if (in_array($slug, ['sale_price', 'mrp'])) {
+                            $systemData[$slug] = round((is_numeric($value) ? (float) $value : 0) * 100);
+                        } elseif ($slug === 'gst_percent') {
+                            $systemData[$slug] = is_numeric($value) ? (int) $value : 0;
+                        } else {
+                            $systemData[$slug] = $value;
+                        }
+                    } else {
+                        $customData[$dbCol->id] = $value;
+                    }
+                }
+
+                if ($categoryId) $systemData['category_id'] = $categoryId;
+                if (!isset($systemData['title'])) $systemData['title'] = $productName;
+                if (!isset($systemData['sale_price'])) $systemData['sale_price'] = 0;
+                if (!isset($systemData['mrp'])) $systemData['mrp'] = 0;
+                if (!isset($systemData['gst_percent'])) $systemData['gst_percent'] = 0;
+                if (!isset($systemData['sku'])) $systemData['sku'] = 'AUTO-' . strtoupper(uniqid());
+                if (!isset($systemData['description'])) $systemData['description'] = '';
+
+                try {
+                    $uniqueCol = $dbColumns->where('is_unique', true)->first();
+                    $existingProduct = null;
+
+                    if ($uniqueCol) {
+                        $uniqueValue = $uniqueCol->is_system
+                            ? ($systemData[$uniqueCol->slug] ?? null)
+                            : ($customData[$uniqueCol->id] ?? null);
+
+                        if ($uniqueValue) {
+                            if ($uniqueCol->is_system) {
+                                $existingProduct = \App\Models\Product::where('user_id', $userId)
+                                    ->where($uniqueCol->slug, $uniqueValue)->first();
+                            } else {
+                                $ev = \App\Models\CatalogueCustomValue::where('column_id', $uniqueCol->id)
+                                    ->where('value', $uniqueValue)
+                                    ->whereHas('product', fn($q) => $q->where('user_id', $userId))
+                                    ->first();
+                                if ($ev) $existingProduct = $ev->product;
+                            }
+                        }
+                    }
+
+                    if ($existingProduct) {
+                        $existingProduct->update($systemData);
+                        $p = $existingProduct;
+                    } else {
+                        $p = \App\Models\Product::create($systemData);
+                        $created++;
+                    }
+
+                    foreach ($customData as $colId => $val) {
+                        \App\Models\CatalogueCustomValue::updateOrCreate(
+                            ['product_id' => $p->id, 'column_id' => $colId],
+                            ['value' => is_array($val) ? json_encode($val) : $val]
+                        );
+                    }
+
+                    foreach ($comboData as $colId => $vals) {
+                        \App\Models\CatalogueCustomValue::updateOrCreate(
+                            ['product_id' => $p->id, 'column_id' => $colId],
+                            ['value' => json_encode(array_values($vals))]
+                        );
+                        \App\Models\ProductCombo::updateOrCreate(
+                            ['product_id' => $p->id, 'column_id' => $colId],
+                            ['selected_values' => array_values($vals)]
+                        );
+                    }
+                } catch (\Exception $e) {
+                    $errors[] = "Product " . ($idx + 1) . ": " . $e->getMessage();
+                    $skipped++;
+                }
+            }
+
+            if (class_exists('\\App\\Services\\AIChatbotService')) {
+                \App\Services\AIChatbotService::clearProductGroupCache($userId);
+            }
+
+            return response()->json([
+                'success' => true,
+                'created' => $created,
+                'skipped' => $skipped,
+                'errors' => $errors,
+                'categories_created' => array_unique($createdCategories),
+                'message' => "{$created} products imported successfully!" .
+                    ($skipped > 0 ? " ({$skipped} skipped)" : '') .
+                    (count($createdCategories) > 0 ? " " . count($createdCategories) . " categories auto-created." : ''),
+            ]);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('SetupWizard: Bulk create failed', ['error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
     // --- CATALOGUE COLUMNS MANAGEMENT ---
 
     public function getColumns(Request $request)
@@ -804,6 +1114,202 @@ class SetupWizardApiController extends Controller
 
         foreach ($order as $index => $id) {
             \App\Models\CatalogueCustomColumn::where('user_id', $userId)->where('id', $id)->update(['sort_order' => $index + 1]);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    // --- CATEGORY MANAGEMENT ---
+
+    public function getCategoryList(Request $request)
+    {
+        $userId = $request->input('userId');
+        $columnId = $request->input('columnId');
+        if (!$userId) return response()->json(['success' => false, 'message' => 'Missing userId'], 400);
+
+        $query = \App\Models\CatalogueCustomColumn::where('user_id', $userId);
+        if ($columnId) {
+            $query->where('id', $columnId);
+        } else {
+            $query->where('is_category', true);
+        }
+        $categoryColumn = $query->first();
+
+        if (!$categoryColumn) {
+            return response()->json(['success' => true, 'categories' => []]);
+        }
+
+        $options = $categoryColumn->options ?? [];
+        if (is_string($options)) {
+            $options = json_decode($options, true) ?? [];
+        }
+
+        // Count connected products
+        $customValues = \App\Models\CatalogueCustomValue::where('column_id', $categoryColumn->id)
+            ->whereNotNull('value')
+            ->where('value', '!=', '')
+            ->whereHas('product', function($q) use ($userId) {
+                $q->where('user_id', $userId);
+            })
+            ->get();
+            
+        $productCounts = [];
+        foreach ($customValues as $cv) {
+            $vals = array_map('trim', explode(',', $cv->value));
+            foreach ($vals as $v) {
+                if (!isset($productCounts[$v])) $productCounts[$v] = [];
+                $productCounts[$v][$cv->product_id] = true; // Use array to emulate DISTINCT product_id
+            }
+        }
+
+        $categories = [];
+        foreach ($options as $opt) {
+            $categories[] = [
+                'name' => $opt,
+                'count' => isset($productCounts[$opt]) ? count($productCounts[$opt]) : 0
+            ];
+        }
+
+        return response()->json(['success' => true, 'categories' => $categories]);
+    }
+
+    public function addCategory(Request $request)
+    {
+        $userId = $request->input('userId');
+        $name = trim($request->input('name'));
+        $columnId = $request->input('columnId');
+        if (!$userId || !$name) return response()->json(['success' => false, 'message' => 'Missing required fields'], 400);
+
+        $query = \App\Models\CatalogueCustomColumn::where('user_id', $userId);
+        if ($columnId) {
+            $query->where('id', $columnId);
+        } else {
+            $query->where('is_category', true);
+        }
+        $categoryColumn = $query->first();
+
+        if (!$categoryColumn) return response()->json(['success' => false, 'message' => 'No category column defined'], 404);
+
+        $options = $categoryColumn->options ?? [];
+        if (is_string($options)) $options = json_decode($options, true) ?? [];
+
+        if (in_array($name, $options)) {
+            return response()->json(['success' => false, 'message' => 'Category already exists'], 422);
+        }
+
+        $options[] = $name;
+        $categoryColumn->update(['options' => $options]);
+
+        return response()->json(['success' => true]);
+    }
+
+    public function updateCategory(Request $request)
+    {
+        $userId = $request->input('userId');
+        $oldName = trim($request->input('old_name'));
+        $newName = trim($request->input('new_name'));
+        $columnId = $request->input('columnId');
+
+        if (!$userId || !$oldName || !$newName) return response()->json(['success' => false, 'message' => 'Missing required fields'], 400);
+
+        $query = \App\Models\CatalogueCustomColumn::where('user_id', $userId);
+        if ($columnId) {
+            $query->where('id', $columnId);
+        } else {
+            $query->where('is_category', true);
+        }
+        $categoryColumn = $query->first();
+
+        if (!$categoryColumn) return response()->json(['success' => false, 'message' => 'No category column defined'], 404);
+
+        $options = $categoryColumn->options ?? [];
+        if (is_string($options)) $options = json_decode($options, true) ?? [];
+
+        $index = array_search($oldName, $options);
+        if ($index !== false) {
+            if (in_array($newName, $options)) {
+                return response()->json(['success' => false, 'message' => 'A category with the new name already exists'], 422);
+            }
+            $options[$index] = $newName;
+            $categoryColumn->update(['options' => $options]);
+        } else {
+            $options[] = $newName;
+            $categoryColumn->update(['options' => $options]);
+        }
+
+        // Update in products table only if it's the category column
+        if ($categoryColumn->is_category) {
+            \App\Models\Product::where('user_id', $userId)
+                ->where('category_name', $oldName)
+                ->update(['category_name' => $newName]);
+        }
+
+        // Update custom values (handling comma-separated combo fields)
+        $customValues = \App\Models\CatalogueCustomValue::where('column_id', $categoryColumn->id)
+            ->where('value', 'LIKE', '%' . $oldName . '%')
+            ->whereHas('product', function($q) use ($userId) {
+                $q->where('user_id', $userId);
+            })->get();
+            
+        foreach ($customValues as $cv) {
+            $vals = array_map('trim', explode(',', $cv->value));
+            $idx = array_search($oldName, $vals);
+            if ($idx !== false) {
+                $vals[$idx] = $newName;
+                $cv->update(['value' => implode(', ', $vals)]);
+            }
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    public function deleteCategory(Request $request)
+    {
+        $userId = $request->input('userId');
+        $name = trim($request->input('name'));
+        $columnId = $request->input('columnId');
+        if (!$userId || !$name) return response()->json(['success' => false, 'message' => 'Missing required fields'], 400);
+
+        $query = \App\Models\CatalogueCustomColumn::where('user_id', $userId);
+        if ($columnId) {
+            $query->where('id', $columnId);
+        } else {
+            $query->where('is_category', true);
+        }
+        $categoryColumn = $query->first();
+
+        if (!$categoryColumn) return response()->json(['success' => false, 'message' => 'No category column defined'], 404);
+
+        $options = $categoryColumn->options ?? [];
+        if (is_string($options)) $options = json_decode($options, true) ?? [];
+
+        $index = array_search($name, $options);
+        if ($index !== false) {
+            array_splice($options, $index, 1);
+            $categoryColumn->update(['options' => $options]);
+        }
+
+        // Detach category from products (set to null) in products table only if is_category
+        if ($categoryColumn->is_category) {
+            \App\Models\Product::where('user_id', $userId)
+                ->where('category_name', $name)
+                ->update(['category_name' => null]);
+        }
+
+        // Delete from custom values
+        $customValues = \App\Models\CatalogueCustomValue::where('column_id', $categoryColumn->id)
+            ->where('value', 'LIKE', '%' . $name . '%')
+            ->whereHas('product', function($q) use ($userId) {
+                $q->where('user_id', $userId);
+            })->get();
+            
+        foreach ($customValues as $cv) {
+            $vals = array_map('trim', explode(',', $cv->value));
+            $idx = array_search($name, $vals);
+            if ($idx !== false) {
+                array_splice($vals, $idx, 1);
+                $cv->update(['value' => implode(', ', $vals)]);
+            }
         }
 
         return response()->json(['success' => true]);

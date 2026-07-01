@@ -50,6 +50,15 @@ class PosterMakerController extends Controller
                 $file_name = $zip_name . "." . $extension;
                 $request->file("zip")->move('./uploads/template', $file_name);
 
+                $zipPath = public_path('uploads/template/' . $file_name);
+                $validationResult = \App\Services\FontValidationService::validateZipFonts($zipPath);
+
+                if ($validationResult !== true) {
+                    unlink($zipPath);
+                    $errorMessage = 'Upload failed! The following fonts are missing in the central system: ' . implode(', ', $validationResult) . '. Please upload them to the Font Section first.';
+                    return back()->withErrors(['zip' => $errorMessage])->withInput();
+                }
+
                 File::makeDirectory('./uploads/template/' . $zip_name);
 
                 $zip = new \ZipArchive;
@@ -94,6 +103,16 @@ class PosterMakerController extends Controller
                 $extension = $request->file("zip")->getClientOriginalExtension();
                 $file_name = $zip_name . "." . $extension;
                 $request->file("zip")->move('./uploads/template', $file_name);
+
+                $zipPath = public_path('uploads/template/' . $file_name);
+                $validationResult = \App\Services\FontValidationService::validateZipFonts($zipPath);
+
+                if ($validationResult !== true) {
+                    unlink($zipPath);
+                    $errorMessage = 'Upload failed! The following fonts are missing in the central system: ' . implode(', ', $validationResult) . '. Please upload them to the Font Section first.';
+                    return back()->withErrors(['zip' => $errorMessage])->withInput();
+                }
+
                 File::makeDirectory('./uploads/template/' . $zip_name);
 
                 $zip = new \ZipArchive;
@@ -133,7 +152,7 @@ class PosterMakerController extends Controller
                 }
             }
 
-            return redirect()->route("poster-maker.index");
+            return redirect()->route("Frame.index");
         }
     }
 
@@ -187,6 +206,16 @@ class PosterMakerController extends Controller
                     $extension = $request->file("zip")->getClientOriginalExtension();
                     $file_name = $zip_name . "." . $extension;
                     $request->file("zip")->move('./uploads/template', $file_name);
+
+                    $zipPath = public_path('uploads/template/' . $file_name);
+                    $validationResult = \App\Services\FontValidationService::validateZipFonts($zipPath);
+
+                    if ($validationResult !== true) {
+                        unlink($zipPath);
+                        $errorMessage = 'Upload failed! The following fonts are missing in the central system: ' . implode(', ', $validationResult) . '. Please upload them to the Font Section first.';
+                        return back()->withErrors(['zip' => $errorMessage])->withInput();
+                    }
+
                     File::makeDirectory('./uploads/template/' . $zip_name);
 
                     $zip = new \ZipArchive;
@@ -238,6 +267,16 @@ class PosterMakerController extends Controller
                     $extension = $request->file("zip")->getClientOriginalExtension();
                     $file_name = $zip_name . "." . $extension;
                     $request->file("zip")->move('./uploads/template', $file_name);
+
+                    $zipPath = public_path('uploads/template/' . $file_name);
+                    $validationResult = \App\Services\FontValidationService::validateZipFonts($zipPath);
+
+                    if ($validationResult !== true) {
+                        unlink($zipPath);
+                        $errorMessage = 'Upload failed! The following fonts are missing in the central system: ' . implode(', ', $validationResult) . '. Please upload them to the Font Section first.';
+                        return back()->withErrors(['zip' => $errorMessage])->withInput();
+                    }
+
                     File::makeDirectory('./uploads/template/' . $zip_name);
 
                     $zip = new \ZipArchive;
@@ -271,7 +310,7 @@ class PosterMakerController extends Controller
                 }
             }
 
-            return redirect()->route('poster-maker.index');
+            return redirect()->route('Frame.index');
         }
     }
 
@@ -298,7 +337,7 @@ class PosterMakerController extends Controller
         $posterMaker = PosterMaker::find($id);
         
         if (!$posterMaker) {
-            return redirect()->route('poster-maker.index');
+            return redirect()->route('Frame.index');
         }
 
         if ($posterMaker->post_thumb) {
@@ -317,7 +356,7 @@ class PosterMakerController extends Controller
         
         $posterMaker->delete();
 
-        return redirect()->route('poster-maker.index');
+        return redirect()->route('Frame.index');
     }
 
     private function upload_image($file, $field, $id)

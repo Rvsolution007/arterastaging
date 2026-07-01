@@ -228,7 +228,7 @@
             <button type="button" id="bulkDeleteBtn" class="btn-action-danger mr-2" style="display: none;">
                 <i class="fa-solid fa-trash mr-1"></i> Delete Selected (<span id="selectedCount">0</span>)
             </button>
-            <a href="{{ route('poster-maker.create') }}" class="btn-action-primary">
+            <a href="{{ route('template_builder.index', ['mode' => 'frame']) }}" class="btn-action-primary">
                 <i class="fa-solid fa-plus mr-1"></i> Add New Frame
             </a>
         </div>
@@ -289,14 +289,17 @@
                                     <input class="checkbox2" type="checkbox" data-id="{{ $frame->id }}" value="1" @if($frame->paid == 1) checked @endif>
                                 </td>
                                 <td class="text-right">
-                                    <a href="{{ url('admin/poster-maker/' . $frame->id . '/edit') }}" class="action-btn" title="Edit">
+                                    <a href="{{ url('admin/Frame/' . $frame->id . '/edit') }}" class="action-btn" title="Edit Legacy">
                                         <i class="fa-solid fa-pen"></i>
+                                    </a>
+                                    <a href="{{ route('template_builder.index', ['mode' => 'frame', 'frame_id' => $frame->id]) }}" class="action-btn text-success" title="Edit in Web Editor">
+                                        <i class="fa-solid fa-wand-magic-sparkles"></i>
                                     </a>
                                     <button type="button" data-id="{{ $frame->id }}" class="action-btn delete ml-1 btn_delete_a" data-toggle="modal" data-target="#myModal" title="Delete">
                                         <i class="fa-solid fa-trash-can"></i>
                                     </button>
                                     
-                                    {!! Form::open(['url' => 'admin/poster-maker/' . $frame->id, 'method' => 'DELETE', 'class' => 'd-none', 'id' => 'form_' . $frame->id]) !!}
+                                    {!! Form::open(['url' => 'admin/Frame/' . $frame->id, 'method' => 'DELETE', 'class' => 'd-none', 'id' => 'form_' . $frame->id]) !!}
                                     {!! Form::hidden("id", $frame->id) !!}
                                     {!! Form::close() !!}
                                 </td>
@@ -462,7 +465,7 @@
 
             $.ajax({
                 type: "POST",
-                url: "{{ url('admin/poster-maker-frame-type') }}",
+                url: "{{ url('admin/Frame-frame-type') }}",
                 data: { checked: checked, id: id },
                 headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
                 success: function (data) {

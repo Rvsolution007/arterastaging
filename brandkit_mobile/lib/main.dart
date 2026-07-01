@@ -12,6 +12,7 @@ import 'controllers/subscription_controller.dart';
 import 'services/api_service.dart';
 import 'services/notification_service.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'screens/notifications_screen.dart';
@@ -22,6 +23,20 @@ import 'services/translation_service.dart';
 
 import 'package:flutter/foundation.dart';
 import 'widgets/error_submission_dialog.dart';
+import 'controllers/console_controller.dart';
+import 'package:http/http.dart' as http;
+import 'config/app_config.dart';
+
+// Background message handler — must be top-level function (not inside a class)
+// This runs in a separate isolate when app is in background/terminated
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  // FCM automatically shows notification with image in background
+  // when the 'notification' block has an 'image' field.
+  // No need to manually show — just ensure Firebase is initialized.
+  debugPrint("Background FCM: ${message.notification?.title}");
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +44,7 @@ void main() async {
   // Initialize Firebase and Notifications only on mobile platforms
   if (!kIsWeb) {
     await Firebase.initializeApp();
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
     await NotificationService().initialize();
     await AdService().initialize();
   }
@@ -39,21 +55,54 @@ void main() async {
   Get.put(SubscriptionController(), permanent: true);
   Get.put(HomeController(), permanent: true);
 
+  // Initialize ConsoleController for in-app debugging
+  final consoleController = Get.put(ConsoleController(), permanent: true);
+
+  // Intercept all debugPrint calls
+  final originalDebugPrint = debugPrint;
+  debugPrint = (String? message, {int? wrapWidth}) {
+    if (message != null) {
+      consoleController.addLog(message);
+    }
+    originalDebugPrint(message, wrapWidth: wrapWidth);
+  };
+
   // Initialize Translations
   await TranslationService.init();
 
   // Global Error Handler
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
-    debugPrint('Global Flutter Error: ${details.exceptionAsString()}');
+    final errorMsg = 'Global Flutter Error: ${details.exceptionAsString()}\nStacktrace: ${details.stack}';
+    debugPrint(errorMsg);
+    _sendErrorToLaravel(errorMsg);
   };
 
   PlatformDispatcher.instance.onError = (error, stack) {
-    debugPrint('Global Platform Error: $error');
+    final errorMsg = 'Global Platform Error: $error\nStacktrace: $stack';
+    debugPrint(errorMsg);
+    _sendErrorToLaravel(errorMsg);
     return true;
   };
 
   runApp(const ArteraApp());
+}
+
+Future<void> _sendErrorToLaravel(String message) async {
+  try {
+    // Only send on local/staging environments if needed, or always.
+    final url = Uri.parse('${AppConfig.baseUrl}/api/client-debug-log');
+    await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'source': 'flutter_app',
+        'message': message,
+      }),
+    ).timeout(const Duration(seconds: 3));
+  } catch (e) {
+    // silently fail if backend is unreachable
+  }
 }
 
 class ArteraApp extends StatelessWidget {

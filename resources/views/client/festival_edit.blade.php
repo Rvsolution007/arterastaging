@@ -1785,6 +1785,22 @@
 
             try {
 
+            // --- FLATTEN LAYERS ---
+            // V4 Extractors generate nested groups (type: "group", children: []).
+            function flattenLayersList(layers) {
+                let flat = [];
+                if (!layers || !Array.isArray(layers)) return flat;
+                layers.forEach(l => {
+                    if (l.type === 'group' && Array.isArray(l.children)) {
+                        flat = flat.concat(flattenLayersList(l.children));
+                    } else {
+                        flat.push(l);
+                    }
+                });
+                return flat;
+            }
+            config.layers = flattenLayersList(config.layers);
+
             // 2. Determine base resolution from design
             // We look for largest layer bounds to find target aspect ratio
             let designW = 0, designH = 0;
@@ -1849,7 +1865,7 @@
                 let elId = null;
                 const lname = (layer.name || '').toLowerCase();
                 const isText = layer.type === 'text';
-                const isImg = layer.type === 'image';
+                const isImg = layer.type === 'image' || layer.type === 'shape';
 
                 if (isText && (lname === 'name' || lname.includes('business_name'))) {
                     elId = 'preview-name';
@@ -1888,7 +1904,7 @@
                         span.innerText = span.innerText.trim();
                         span.style.cssText = 'background:transparent !important; color:inherit !important; font-family:inherit !important; font-weight:inherit !important; font-size:inherit !important; line-height:1 !important; padding:0 !important; margin:0 !important; display:inline-block !important;';
                     }
-                } else if (layer.type === 'image' && layer.name !== 'bg' && layer.name !== 'background') {
+                } else if ((layer.type === 'image' || layer.type === 'shape') && layer.name !== 'bg' && layer.name !== 'background') {
                     // Static frame image layer (no drag/select)
                     el = document.createElement('div');
                     el.className = 'icon-container frame-extra-layer';

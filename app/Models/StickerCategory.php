@@ -13,4 +13,9 @@ class StickerCategory extends Model
     protected $fillable = [
         'name','status'
     ];
+
+    public function sticker()
+    {
+        return $this->hasMany(Sticker::class, 'sticker_category_id');
+    }
 }

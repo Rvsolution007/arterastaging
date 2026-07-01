@@ -104,6 +104,8 @@ class SharedHeader extends StatelessWidget {
                 ),
               );
             }),
+            // Reward Points hidden as per request
+            /*
             // ── Reward Points Badge ──
             Obx(() {
               final sc = Get.find<SubscriptionController>();
@@ -135,6 +137,9 @@ class SharedHeader extends StatelessWidget {
                 ]),
               );
             }),
+            */
+             // Gamification feature hidden as per request
+            /*
             // ── Gamification Badges Icon ──
             FutureBuilder<SharedPreferences>(
               future: SharedPreferences.getInstance(),
@@ -183,8 +188,9 @@ class SharedHeader extends StatelessWidget {
                     ),
                   ),
                 );
-              },
+              }
             ),
+            */
             // ── Notifications Button ──
             GestureDetector(
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen())),
@@ -205,7 +211,7 @@ class SharedHeader extends StatelessWidget {
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    Icon(Icons.notifications_outlined, color: AppColors.gray600, size: 22),
+                    const Icon(Icons.notifications_outlined, color: AppColors.gray600, size: 22),
                     Obx(() {
                       if (hc.notifications.isEmpty) return const SizedBox.shrink();
                       return Positioned(

@@ -1,275 +1,248 @@
 @extends("layouts.app")
 
 @section('extra_css')
-<style type="text/css">
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-    .analytics-container {
-        font-family: 'Poppins', sans-serif;
-        padding: 1.5rem;
-        background-color: #f8fafc;
-        min-height: 100vh;
-    }
+.aim-container { font-family: 'Inter', sans-serif; padding: 1rem; }
 
-    .page-title {
-        font-weight: 700;
-        color: #1e293b;
-        font-size: 1.5rem;
-        letter-spacing: -0.025em;
-    }
+/* Header */
+.aim-header { display: flex; align-items: center; gap: 16px; margin-bottom: 2rem; flex-wrap: wrap; justify-content: space-between; }
+.aim-header-left { display: flex; align-items: center; gap: 16px; }
+.aim-header-icon { width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(135deg, #6366f1, #8b5cf6); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.5rem; box-shadow: 0 8px 24px rgba(99,102,241,0.3); }
+.aim-header h2 { font-size: 1.5rem; font-weight: 800; color: #1e293b; margin: 0; }
+.aim-header p { font-size: 0.85rem; color: #64748b; margin: 0; }
 
-    .table-panel {
-        background: #ffffff;
-        border-radius: 16px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.03);
-        overflow: hidden;
-        margin-bottom: 1.5rem;
-    }
+.aim-header-right { display: flex; gap: 10px; }
 
-    .table-panel-header {
-        padding: 1.25rem 1.5rem;
-        border-bottom: 1px solid #f1f5f9;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
-    }
+/* Buttons */
+.aim-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; font-family: 'Inter', sans-serif; text-decoration: none; }
+.aim-btn-primary { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; box-shadow: 0 4px 16px rgba(99,102,241,0.3); }
+.aim-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(99,102,241,0.4); color: #fff; }
+.aim-btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; box-shadow: 0 4px 16px rgba(239,68,68,0.3); }
+.aim-btn-danger:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(239,68,68,0.4); color: #fff; }
+.aim-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-    .table-panel-title {
-        font-size: 1.125rem;
-        font-weight: 700;
-        color: #1e293b;
-        margin: 0;
-    }
+/* Search Input */
+.aim-search-bar { position: relative; max-width: 400px; width: 100%; margin-bottom: 1.5rem; }
+.aim-search-bar i { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
+.aim-search-input { width: 100%; padding: 12px 16px 12px 40px; border: 1.5px solid #e2e8f0; border-radius: 12px; font-size: 0.85rem; font-family: 'Inter', sans-serif; transition: all 0.2s; background: #fff; }
+.aim-search-input:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
 
-    .custom-table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-        margin: 0;
-    }
+/* Panels */
+.aim-panel { background: #fff; border-radius: 16px; border: 1px solid #e2e8f0; margin-bottom: 1.5rem; overflow: hidden; }
 
-    .custom-table th {
-        background: #f8fafc;
-        padding: 1rem 1.5rem;
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: #64748b;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        text-align: left;
-        border-bottom: 1px solid #e2e8f0;
-    }
+/* Table */
+.aim-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.aim-table th { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; font-weight: 600; padding: 1rem 1.25rem; text-align: left; border-bottom: 1px solid #f1f5f9; background: #f8fafc; }
+.aim-table td { padding: 1rem 1.25rem; font-size: 0.85rem; color: #334155; border-bottom: 1px solid #f8fafc; vertical-align: middle; }
+.aim-table tr:hover td { background: #f8fafc; }
 
-    .custom-table td {
-        padding: 1rem 1.5rem;
-        font-size: 0.875rem;
-        color: #334155;
-        font-weight: 500;
-        border-bottom: 1px solid #f1f5f9;
-        vertical-align: middle;
-    }
+/* Custom Checkbox */
+.custom-checkbox { position: relative; display: inline-block; width: 18px; height: 18px; }
+.custom-checkbox input { opacity: 0; width: 0; height: 0; }
+.custom-checkbox .checkmark { position: absolute; top: 0; left: 0; height: 18px; width: 18px; background-color: #fff; border: 2px solid #cbd5e1; border-radius: 4px; transition: all 0.2s; cursor: pointer; }
+.custom-checkbox:hover input ~ .checkmark { border-color: #94a3b8; }
+.custom-checkbox input:checked ~ .checkmark { background-color: #6366f1; border-color: #6366f1; }
+.custom-checkbox .checkmark:after { content: ""; position: absolute; display: none; }
+.custom-checkbox input:checked ~ .checkmark:after { display: block; }
+.custom-checkbox .checkmark:after { left: 5px; top: 2px; width: 5px; height: 10px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); }
 
-    .custom-table tbody tr:hover {
-        background-color: #f8fafc;
-    }
+/* Switch */
+.switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .4s; border-radius: 34px; }
+.slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+input:checked + .slider { background-color: #10b981; }
+input:checked + .slider:before { transform: translateX(18px); }
 
-    .badge-soft {
-        padding: 0.35rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 500;
-        background: #f1f5f9;
-        color: #475569;
-        display: inline-block;
-    }
+/* Actions */
+.action-btn { width: 32px; height: 32px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s; border: none; cursor: pointer; }
+.btn-edit { background: #d1fae5; color: #059669; }
+.btn-delete { background: #fee2e2; color: #e11d48; }
+.action-btn:hover { transform: scale(1.1); }
 
-    .btn-premium {
-        background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-        color: white !important;
-        border: none;
-        padding: 0.5rem 1.25rem;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 0.875rem;
-        transition: all 0.2s ease;
-        box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3);
-        text-decoration: none;
-    }
-
-    .btn-premium:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 8px -1px rgba(79, 70, 229, 0.4);
-    }
-
-    /* Toggle Switch */
-    .switch {
-        position: relative;
-        display: inline-block;
-        width: 44px;
-        height: 22px;
-    }
-
-    .switch input { display:none; }
-
-    .slider {
-        position: absolute;
-        cursor: pointer;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background-color: #cbd5e1;
-        transition: .4s;
-        border-radius: 34px;
-    }
-
-    .slider:before {
-        position: absolute;
-        content: "";
-        height: 16px; width: 16px;
-        left: 3px; bottom: 3px;
-        background-color: white;
-        transition: .4s;
-        border-radius: 50%;
-    }
-
-    input:checked + .slider { background-color: #6366f1; }
-    input:checked + .slider:before { transform: translateX(22px); }
-
-    .category-icon {
-        width: 45px;
-        height: 45px;
-        border-radius: 12px;
-        object-fit: cover;
-        border: 2px solid #fff;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-
-    .action-btn {
-        width: 32px;
-        height: 32px;
-        border-radius: 8px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s;
-        border: none;
-    }
-
-    .btn-edit { background: #d1fae5; color: #059669; }
-    .btn-delete { background: #fee2e2; color: #e11d48; }
-
-    .action-btn:hover { transform: scale(1.1); }
-
-    /* DataTables Alignment */
-    .dataTables_wrapper .dataTables_length,
-    .dataTables_wrapper .dataTables_info {
-        padding-left: 1.5rem !important;
-        padding-top: 1rem;
-    }
-
-    .dataTables_wrapper .dataTables_filter,
-    .dataTables_wrapper .dataTables_paginate {
-        padding-right: 1.5rem !important;
-        padding-top: 1rem;
-    }
-    
-    .dataTables_wrapper .dataTables_paginate {
-        padding-bottom: 1rem;
-    }
+.category-icon { width: 40px; height: 40px; border-radius: 10px; object-fit: cover; }
 </style>
 @endsection
 
 @section('content')
-<div class="analytics-container">
-    <div class="row align-items-center mb-4">
-        <div class="col-md-6">
-            <h4 class="page-title mb-0"><i class="fa-solid fa-tags mr-2 text-primary"></i> Business Categories</h4>
+<div class="aim-container">
+    <!-- Header -->
+    <div class="aim-header">
+        <div class="aim-header-left">
+            <div class="aim-header-icon"><i class="fa-solid fa-tags"></i></div>
+            <div>
+                <h2>Business Categories</h2>
+                <p>Manage all root-level business categories smoothly</p>
+            </div>
         </div>
-        <div class="col-md-6 text-right">
-            <a href="{{ route('business-category.create')}}" class="btn-premium">
-                <i class="fa-solid fa-plus mr-1"></i> Add New Category
+        <div class="aim-header-right">
+            <button id="bulk_delete_btn" class="aim-btn aim-btn-danger" style="display: none;" data-toggle="modal" data-target="#bulkDeleteModal">
+                <i class="fa-solid fa-trash"></i> Delete Selected (<span id="selected_count">0</span>)
+            </button>
+            <a href="#" id="export_btn" class="aim-btn aim-btn-primary" style="background: linear-gradient(135deg, #3b82f6, #60a5fa); box-shadow: 0 4px 16px rgba(59,130,246,0.3);">
+                <i class="fa-solid fa-file-export"></i> Export
+            </a>
+            <button class="aim-btn aim-btn-primary" data-toggle="modal" data-target="#importModal" style="background: linear-gradient(135deg, #f59e0b, #fbbf24); box-shadow: 0 4px 16px rgba(245,158,11,0.3);">
+                <i class="fa-solid fa-file-import"></i> Import
+            </button>
+            <a href="{{ url('admin/business-category/create') }}" class="aim-btn aim-btn-primary">
+                <i class="fa fa-plus"></i> Add Category
             </a>
         </div>
     </div>
 
-    <div class="row">
-        <div class="col-12">
-            <div class="table-panel">
-                <div class="table-panel-header">
-                    <h5 class="table-panel-title">Category Management</h5>
-                    <span class="badge-soft">{{ count($data) }} Total Categories</span>
-                </div>
-                <div class="table-responsive">
-                    <table class="custom-table" id="data_table">
-                        <thead>
-                            <tr>
-                                <th style="width: 80px;"># ID</th>
-                                <th>Category Details</th>
-                                <th>Status</th>
-                                <th class="text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($data as $row)
-                            <tr>
-                                <td><span class="text-muted">#{{$row->id}}</span></td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <img class="category-icon mr-3" src="@if(App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean'){{\Storage::disk('spaces')->url('uploads/'.$row->icon)}} @else {{asset('uploads/'.$row->icon)}} @endif">
-                                        <span class="text-dark font-weight-bold" style="font-size: 1rem;">{{$row->name}}</span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <label class="switch my-auto">
-                                        <input type="checkbox" name="status" data-id="{{$row->id}}" value="1" class="status" @if($row->status==1) checked @endif>
-                                        <span class="slider"></span>
-                                    </label>
-                                </td>
-                                <td class="text-right">
-                                    <div class="d-flex align-items-center justify-content-end">
-                                        <a href="{{url('admin/business-category/'.$row->id.'/edit') }}" class="action-btn btn-edit mr-2" title="Edit">
-                                            <i class="fa fa-edit"></i>
-                                        </a>
-                                        <button type="button" class="action-btn btn-delete" data-id="{{$row->id}}" data-toggle="modal" data-target="#myModal" title="Delete">
-                                            <i class="fa fa-trash"></i>
-                                        </button>
-                                    </div>
-                                    {!! Form::open(['url' => 'admin/business-category/'.$row->id,'method'=>'DELETE','class'=>'d-none','id'=>'form_'.$row->id]) !!}
-                                    {!! Form::hidden("id",$row->id) !!}
-                                    {!! Form::close() !!}
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+    <!-- Search -->
+    <div class="aim-search-bar">
+        <i class="fa-solid fa-search"></i>
+        <input type="text" id="search_input" class="aim-search-input" placeholder="Search categories by name...">
+    </div>
+
+    <!-- Table Panel -->
+    <div class="aim-panel">
+        <div class="table-responsive">
+            <table class="aim-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">
+                            <label class="custom-checkbox">
+                                <input type="checkbox" id="select_all">
+                                <span class="checkmark"></span>
+                            </label>
+                        </th>
+                        <th style="width: 80px;"># ID</th>
+                        <th>Category Details</th>
+                        <th>Sub Categories</th>
+                        <th>Business Types</th>
+                        <th>Connected Products</th>
+                        <th>Status</th>
+                        <th class="text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="table_body">
+                    @foreach($data as $row)
+                    <tr>
+                        <td>
+                            <label class="custom-checkbox">
+                                <input type="checkbox" class="row-checkbox" value="{{$row->id}}">
+                                <span class="checkmark"></span>
+                            </label>
+                        </td>
+                        <td><span style="color:#94a3b8; font-weight:600;">#{{$row->id}}</span></td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                @if($row->icon)
+                                <img class="category-icon" src="@if(App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean'){{\Storage::disk('spaces')->url('uploads/'.$row->icon)}} @else {{asset('uploads/'.$row->icon)}} @endif">
+                                @else
+                                <div class="category-icon" style="background:#f1f5f9; display:flex; align-items:center; justify-content:center; color:#94a3b8;"><i class="fa-solid fa-image"></i></div>
+                                @endif
+                                <span style="font-weight: 600; color:#1e293b;">{{$row->name}}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <span style="background: #e0e7ff; color: #4f46e5; padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 600;">{{ $row->sub_categories_count ?? 0 }} Linked</span>
+                        </td>
+                        <td>
+                            <span style="background: #fdf4ff; color: #c026d3; padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 600;">{{ $row->types_count ?? 0 }} Types</span>
+                        </td>
+                        <td>
+                            <span style="background: #ecfdf5; color: #059669; padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 600;">{{ $row->products_count ?? 0 }} Products</span>
+                        </td>
+                        <td>
+                            <label class="switch">
+                                <input type="checkbox" data-id="{{$row->id}}" class="status" @if($row->status==1) checked @endif>
+                                <span class="slider"></span>
+                            </label>
+                        </td>
+                        <td class="text-right">
+                            <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                                <a href="{{url('admin/business-category/'.$row->id.'/edit') }}" class="action-btn btn-edit" title="Edit">
+                                    <i class="fa fa-edit"></i>
+                                </a>
+                                <button type="button" class="action-btn btn-delete" data-id="{{$row->id}}" data-toggle="modal" data-target="#myModal" title="Delete">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </div>
+                            {!! Form::open(['url' => 'admin/business-category/'.$row->id,'method'=>'DELETE','class'=>'d-none','id'=>'form_'.$row->id]) !!}
+                            {!! Form::close() !!}
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+            <div id="no_results" style="display: none; padding: 3rem; text-align: center; color: #94a3b8;">
+                <i class="fa-solid fa-folder-open" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                <h5>No categories found</h5>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Single Delete Modal -->
+<div id="myModal" class="modal fade" role="dialog">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; border: none;">
+            <div class="modal-body" style="padding: 2rem; text-align: center;">
+                <i class="fa-solid fa-triangle-exclamation text-danger" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                <h5 style="font-weight: 700; color: #1e293b; margin-bottom: 0.5rem;">Confirm Delete</h5>
+                <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 2rem;">Are you sure you want to delete this category? This will affect all businesses assigned to it.</p>
+                <div style="display: flex; gap: 12px; justify-content: center;">
+                    <button type="button" class="aim-btn" style="background: #f1f5f9; color: #475569;" data-dismiss="modal">Cancel</button>
+                    @if(optional(Auth::user())->user_type == "Demo")
+                    <button type="button" class="aim-btn aim-btn-danger ToastrButton">Delete</button>
+                    @else
+                    <button id="del_btn" class="aim-btn aim-btn-danger" type="button" data-submit="">Confirm Delete</button>
+                    @endif
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Modal -->
-<div id="myModal" class="modal fade" role="dialog">
+<!-- Bulk Delete Modal -->
+<div id="bulkDeleteModal" class="modal fade" role="dialog">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow" style="border-radius: 16px;">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title font-weight-bold">Confirm Delete</h5>
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
-            </div>
-            <div class="modal-body py-4">
-                <div class="text-center mb-3">
-                    <i class="fa-solid fa-triangle-exclamation text-danger" style="font-size: 3rem;"></i>
+        <div class="modal-content" style="border-radius: 16px; border: none;">
+            <div class="modal-body" style="padding: 2rem; text-align: center;">
+                <i class="fa-solid fa-dumpster-fire text-danger" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                <h5 style="font-weight: 700; color: #1e293b; margin-bottom: 0.5rem;">Bulk Delete</h5>
+                <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 2rem;">Are you sure you want to delete <strong id="bulk_count_text">0</strong> categories? This action cannot be undone.</p>
+                <div style="display: flex; gap: 12px; justify-content: center;">
+                    <button type="button" class="aim-btn" style="background: #f1f5f9; color: #475569;" data-dismiss="modal">Cancel</button>
+                    @if(optional(Auth::user())->user_type == "Demo")
+                    <button type="button" class="aim-btn aim-btn-danger ToastrButton">Delete Selected</button>
+                    @else
+                    <button id="confirm_bulk_delete" class="aim-btn aim-btn-danger" type="button">Confirm Delete</button>
+                    @endif
                 </div>
-                <p class="text-center text-muted mb-0">Are you sure you want to delete this category? This will affect all businesses assigned to it.</p>
             </div>
-            <div class="modal-footer border-0 pt-0">
-                <button type="button" class="btn btn-light px-4" style="border-radius: 8px;" data-dismiss="modal">Cancel</button>
-                @if(optional(Auth::user())->user_type == "Demo")
-                <button type="button" class="btn btn-danger ToastrButton px-4" style="border-radius: 8px;">Delete</button>
-                @else
-                <button id="del_btn" class="btn btn-danger px-4" style="border-radius: 8px;" type="button" data-submit="">Confirm Delete</button>
-                @endif
-            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Import Modal -->
+<div id="importModal" class="modal fade" role="dialog">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form action="{{ route('business-category.import') }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="modal-header">
+                    <h5 class="modal-title">Import Categories</h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="form-group">
+                        <label>Upload CSV File</label>
+                        <input type="file" name="file" class="form-control" accept=".csv" required>
+                        <small class="text-muted mt-2 d-block">Required Format: <br><b>ID, Category Details, Sub Categories, Status</b><br>Leave ID blank to create new, provide ID to update existing. (Sub Categories column is ignored during import).</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="background: #f59e0b; border: none;">Import CSV</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -277,37 +250,191 @@
 
 @section('script')
 <script type="text/javascript">
-    $("#del_btn").on("click",function(){
-        var id=$(this).data("submit");
+    const csrfToken = $('meta[name="csrf-token"]').attr('content');
+
+    $('#export_btn').on('click', function(e) {
+        e.preventDefault();
+        var query = $('#search_input').val();
+        var exportUrl = "{{ route('business-category.export') }}";
+        if (query) {
+            exportUrl += "?query=" + encodeURIComponent(query);
+        }
+        window.location.href = exportUrl;
+    });
+
+    // Single Delete
+    $('#myModal').on('show.bs.modal', function(e) {
+        var id = e.relatedTarget.dataset.id;
+        $("#del_btn").attr("data-submit", id);
+    });
+
+    $("#del_btn").on("click", function(){
+        var id = $(this).attr("data-submit");
         $("#form_"+id).submit();
     });
 
-    $('#myModal').on('show.bs.modal', function(e) {
-        var id = e.relatedTarget.dataset.id;
-        $("#del_btn").attr("data-submit",id);
-    });
-
+    // Demo user
     $('.ToastrButton').click(function() {
       toastr.error('This Action Not Available Demo User');
     });
-    
-    $(".status").change(function(){
+
+    // Status Toggle
+    $(document).on("change", ".status", function(){
       var checked = $(this).is(':checked');
       var id = $(this).data("id");
-     
       $.ajax({
         type: "POST",
         url: "{{url('admin/business-category-status')}}",
         data: { checked : checked , id : id},
-        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+        headers: { 'X-CSRF-TOKEN': csrfToken },
         success: function(data) {
-          new PNotify({
-            title: 'Success!',
-            text: "Business Category Status Has Been Changed.",
-            type: 'success'
-          });
+          new PNotify({ title: 'Success!', text: "Status updated.", type: 'success' });
         },
       });
+    });
+
+    // Multi-Select Logic
+    function updateBulkActions() {
+        var selectedCount = $('.row-checkbox:checked').length;
+        if (selectedCount > 0) {
+            $('#bulk_delete_btn').fadeIn(200);
+            $('#selected_count').text(selectedCount);
+            $('#bulk_count_text').text(selectedCount);
+        } else {
+            $('#bulk_delete_btn').fadeOut(200);
+        }
+    }
+
+    $('#select_all').on('change', function() {
+        $('.row-checkbox').prop('checked', $(this).is(':checked'));
+        updateBulkActions();
+    });
+
+    $(document).on('change', '.row-checkbox', function() {
+        if (!$(this).is(':checked')) {
+            $('#select_all').prop('checked', false);
+        } else {
+            if ($('.row-checkbox:checked').length === $('.row-checkbox').length) {
+                $('#select_all').prop('checked', true);
+            }
+        }
+        updateBulkActions();
+    });
+
+    // Bulk Delete Action
+    $('#confirm_bulk_delete').on('click', function() {
+        var selectedIds = [];
+        $('.row-checkbox:checked').each(function() {
+            selectedIds.push($(this).val());
+        });
+
+        if (selectedIds.length === 0) return;
+
+        var btn = $(this);
+        btn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Deleting...');
+
+        $.ajax({
+            url: "{{ url('admin/business-category/bulk-delete') }}",
+            type: "POST",
+            data: { ids: selectedIds },
+            headers: { 'X-CSRF-TOKEN': csrfToken },
+            success: function(res) {
+                if(res.success) {
+                    location.reload();
+                } else {
+                    alert(res.message);
+                    btn.prop('disabled', false).text('Confirm Delete');
+                }
+            },
+            error: function() {
+                alert("An error occurred.");
+                btn.prop('disabled', false).text('Confirm Delete');
+            }
+        });
+    });
+
+    // Ajax Search Logic
+    let searchTimeout;
+    $('#search_input').on('input', function() {
+        clearTimeout(searchTimeout);
+        let query = $(this).val();
+
+        searchTimeout = setTimeout(function() {
+            $.ajax({
+                url: "{{ url('admin/business-category/search') }}",
+                type: "POST",
+                data: { query: query },
+                headers: { 'X-CSRF-TOKEN': csrfToken },
+                success: function(res) {
+                    if(res.success) {
+                        let html = '';
+                        if (res.data.length === 0) {
+                            $('#table_body').html('');
+                            $('#no_results').show();
+                        } else {
+                            $('#no_results').hide();
+                            res.data.forEach(function(row) {
+                                let isChecked = row.status == 1 ? 'checked' : '';
+                                let iconHtml = row.icon_url ? 
+                                    `<img class="category-icon" src="${row.icon_url}">` : 
+                                    `<div class="category-icon" style="background:#f1f5f9; display:flex; align-items:center; justify-content:center; color:#94a3b8;"><i class="fa-solid fa-image"></i></div>`;
+                                
+                                html += `
+                                <tr>
+                                    <td>
+                                        <label class="custom-checkbox">
+                                            <input type="checkbox" class="row-checkbox" value="${row.id}">
+                                            <span class="checkmark"></span>
+                                        </label>
+                                    </td>
+                                    <td><span style="color:#94a3b8; font-weight:600;">#${row.id}</span></td>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: 12px;">
+                                            ${iconHtml}
+                                            <span style="font-weight: 600; color:#1e293b;">${row.name}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span style="background: #e0e7ff; color: #4f46e5; padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 600;">${row.sub_categories_count || 0} Linked</span>
+                                    </td>
+                                    <td>
+                                        <span style="background: #fdf4ff; color: #c026d3; padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 600;">${row.types_count || 0} Types</span>
+                                    </td>
+                                    <td>
+                                        <span style="background: #ecfdf5; color: #059669; padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 600;">${row.products_count || 0} Products</span>
+                                    </td>
+                                    <td>
+                                        <label class="switch">
+                                            <input type="checkbox" data-id="${row.id}" class="status" ${isChecked}>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </td>
+                                    <td class="text-right">
+                                        <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                                            <a href="{{url('admin/business-category')}}/${row.id}/edit" class="action-btn btn-edit" title="Edit">
+                                                <i class="fa fa-edit"></i>
+                                            </a>
+                                            <button type="button" class="action-btn btn-delete" data-id="${row.id}" data-toggle="modal" data-target="#myModal" title="Delete">
+                                                <i class="fa fa-trash"></i>
+                                            </button>
+                                        </div>
+                                        <form action="{{url('admin/business-category')}}/${row.id}" method="POST" class="d-none" id="form_${row.id}">
+                                            <input type="hidden" name="_method" value="DELETE">
+                                            <input type="hidden" name="_token" value="${csrfToken}">
+                                        </form>
+                                    </td>
+                                </tr>
+                                `;
+                            });
+                            $('#table_body').html(html);
+                        }
+                        // Reset select all checkbox
+                        $('#select_all').prop('checked', false);
+                        updateBulkActions();
+                    }
+                }
+            });
+        }, 300); // 300ms debounce
     });
 </script>
 @endsection

@@ -187,6 +187,58 @@ class AuthApi extends Controller
                 }
             }
 
+            // Create Business if provided
+            if ($request->filled('bussinessName')) {
+                $bId = \App\Models\Business::create([
+                    "name" => $request->get("bussinessName"),
+                    "email" => $request->get("bussinessEmail") ?? $request->get("email"),
+                    "mobile_no" => $request->get("bussinessNumber") ?? $request->get("mobile_no"),
+                    "address" => $request->get("bussinessAddress") ?? '',
+                    "website" => $request->get("bussinessWebsite") ?? '',
+                    "user_id" => $id,
+                    "business_category_id" => $request->get("businessCategoryId") ?? 1,
+                    "is_default" => 1,
+                ])->id;
+
+                $businessUpdate = \App\Models\Business::find($bId);
+
+                if($request->get('businessSubCategoryIds')) {
+                    $subCatIds = $request->get('businessSubCategoryIds');
+                    if(is_string($subCatIds)) {
+                        $subCatIds = json_decode($subCatIds, true) ?? explode(',', $subCatIds);
+                    }
+                    if (is_array($subCatIds)) {
+                        $businessUpdate->sub_categories()->sync(array_filter($subCatIds));
+                        $businessUpdate->business_sub_category_ids = array_filter($subCatIds);
+                    }
+                }
+
+                if($request->get('businessTypeIds')) {
+                    $typeIds = $request->get('businessTypeIds');
+                    if(is_string($typeIds)) {
+                        $typeIds = json_decode($typeIds, true) ?? explode(',', $typeIds);
+                    }
+                    if (is_array($typeIds)) {
+                        $businessUpdate->types()->sync(array_filter($typeIds));
+                    }
+                }
+                $businessUpdate->save();
+
+                $productIds = $request->get('product_ids');
+                if ($productIds) {
+                    if (is_string($productIds)) {
+                        $productIds = json_decode($productIds, true) ?? explode(',', $productIds);
+                    }
+                    if (is_array($productIds)) {
+                        foreach ($productIds as $pId) {
+                            if($pId) {
+                                \App\Models\BusinessProductMapping::create(['business_id' => $bId, 'business_product_id' => $pId]);
+                            }
+                        }
+                    }
+                }
+            }
+
             $user = User::find($id);
             $email = $user->email;
             $name = $user->name;
@@ -1090,6 +1142,8 @@ class AuthApi extends Controller
             }
         }
 
+        $isPremium = filter_var($request->get('is_premium', false), FILTER_VALIDATE_BOOLEAN);
+
         \App\Models\UserActivity::create([
             'user_id' => $userId,
             'action' => $action,
@@ -1098,6 +1152,7 @@ class AuthApi extends Controller
                 'item_id' => $itemId,
                 'platform' => $request->get('platform') ?? 'Mobile',
                 'downloaded_image' => $downloadedImagePath,
+                'is_premium' => $isPremium,
             ],
             'ip_address' => $request->ip(),
             'url' => $request->fullUrl(),
@@ -1111,7 +1166,7 @@ class AuthApi extends Controller
         \App\Http\Controllers\Api\DesignChallengeApiController::incrementProgress($userId, $action, $itemType, $itemId);
 
         // ── Consume subscription feature limit on download ──
-        if ($action === 'download_template' && $itemType) {
+        if ($action === 'download_template' && $itemType && $isPremium) {
             $user = User::find($userId);
             if ($user) {
                 // Map the template item_type to the subscription feature key

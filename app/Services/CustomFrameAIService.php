@@ -122,14 +122,21 @@ class CustomFrameAIService
 
         // 4. Build the AI text layers that need generation
         $textLayers = [];
+        $fixedContext = [];
         foreach ($jsonRules['layers'] as $layer) {
-            if ($layer['type'] === 'text' && !empty($layer['ai_role'])) {
-                $textLayers[] = [
-                    'name' => $layer['name'],
-                    'ai_role' => $layer['ai_role'],
-                    'ai_max_chars' => $layer['ai_max_chars'] ?? 50,
-                    'default_text' => $layer['text'] ?? '',
-                ];
+            if ($layer['type'] === 'text') {
+                if (!empty($layer['ai_protected']) && $layer['ai_protected'] === true) {
+                    $fixedContext[] = "{$layer['name']}: \"{$layer['text']}\"";
+                } else {
+                    // Either ai_role exists, or it's a standard text layer we want AI to fill
+                    $role = $layer['ai_role'] ?? 'Generate relevant text based on layer name: ' . $layer['name'];
+                    $textLayers[] = [
+                        'name' => $layer['name'],
+                        'ai_role' => $role,
+                        'ai_max_chars' => $layer['ai_max_chars'] ?? 50,
+                        'default_text' => $layer['text'] ?? '',
+                    ];
+                }
             }
         }
 
@@ -162,11 +169,13 @@ class CustomFrameAIService
         }
 
         $layerInstructions = "Generate content for these text layers as a JSON object.\n";
-        $layerInstructions .= "Each key is the layer name, each value is the generated text.\n\n";
+        $layerInstructions .= "Each key is the layer name, each value is the generated text.\n";
+        $layerInstructions .= "CRITICAL: You MUST also include a key named \"caption\" which contains an engaging social media caption (with hashtags) for the post.\n\n";
 
         foreach ($textLayers as $tl) {
             $layerInstructions .= "- \"{$tl['name']}\": {$tl['ai_role']} (MAX {$tl['ai_max_chars']} characters)\n";
         }
+        $layerInstructions .= "- \"caption\": Engaging social media post description and hashtags (No length limit)\n";
 
         $systemPrompt = "You are a professional social media content designer AI.\n\n";
         if (!empty($aiGlobalRule)) {
@@ -174,6 +183,9 @@ class CustomFrameAIService
         }
         $systemPrompt .= "BUSINESS CONTEXT:\n{$purposePrompt}\n\n";
         $systemPrompt .= "PRODUCT DATA:\n" . json_encode($productData, JSON_UNESCAPED_UNICODE) . "\n\n";
+        if (!empty($fixedContext)) {
+            $systemPrompt .= "FIXED TEMPLATE TEXT (Context only, DO NOT GENERATE THESE):\n" . implode("\n", $fixedContext) . "\n\n";
+        }
         $systemPrompt .= "STRICT INSTRUCTIONS:\n";
         $systemPrompt .= "1. You must output ONLY a raw, perfectly valid JSON object. No markdown, no ```json formatting, no explanation.\n";
         $systemPrompt .= "2. The JSON keys must exactly match the layer names below.\n";
@@ -255,12 +267,17 @@ class CustomFrameAIService
 
         $textLayers = [];
         $purposeText = "A promotional marketing design.";
-        $dataReq = 'single_column';
+        $dataReq = 'full_row';
         $globalRule = '';
+        $fixedContext = [];
 
         // Priority 1: Use canvas_layers sent from frontend (works for ALL template types)
         if (!empty($canvasLayers)) {
             foreach ($canvasLayers as $cl) {
+                if (!empty($cl['ai_protected']) && $cl['ai_protected'] === true) {
+                    $fixedContext[] = "{$cl['name']}: \"{$cl['current_text']}\"";
+                    continue;
+                }
                 $textLayers[] = [
                     'name' => $cl['name'] ?? 'text_layer',
                     'ai_role' => !empty($cl['ai_role']) ? $cl['ai_role'] : 'Write engaging marketing text suitable for this layout element.',
@@ -268,11 +285,11 @@ class CustomFrameAIService
                     'default_text' => $cl['current_text'] ?? '',
                 ];
             }
-            \Log::info("AI Generate: Using " . count($textLayers) . " canvas layers from frontend.");
+            \Log::info("AI Generate: Using " . count($textLayers) . " canvas layers from frontend. Fixed context: " . count($fixedContext));
         }
 
-        // Priority 2: Try DB lookup for BusinessCustomFrame (has json_rules with ai_role etc.)
-        if (empty($textLayers) && $frameId > 0) {
+        // Always try DB lookup for BusinessCustomFrame to get purpose and rules
+        if ($frameId > 0) {
             $frame = BusinessCustomFrame::with('purpose')->find($frameId);
             if ($frame && $frame->json_rules) {
                 $jsonRules = json_decode($frame->json_rules, true);
@@ -280,20 +297,31 @@ class CustomFrameAIService
                     $globalRule = $jsonRules['ai_global_rule'] ?? '';
                     if ($frame->purpose) {
                         $purposeText = $frame->purpose->ai_prompt ?? $purposeText;
-                        $dataReq = $frame->purpose->data_requirement ?? 'single_column';
+                        $dataReq = $frame->purpose->data_requirement ?? 'full_row';
                     }
-                    foreach ($jsonRules['layers'] as $layer) {
-                        $type = $layer['type'] ?? '';
-                        if ($type === 'text' || $type === 'i-text' || $type === 'textbox') {
-                            $layerName = $layer['name'] ?? $layer['id'] ?? 'text_layer';
-                            $low = strtolower($layerName);
-                            if (in_array($low, ['website', 'email', 'number', 'phone', 'address', 'phoneicon', 'mailicon', 'webicon', 'addressicon'])) continue;
-                            $textLayers[] = [
-                                'name' => $layerName,
-                                'ai_role' => $layer['ai_role'] ?? 'Write engaging marketing text suitable for this layout.',
-                                'ai_max_chars' => $layer['ai_max_chars'] ?? 60,
-                                'default_text' => $layer['text'] ?? '',
-                            ];
+                    
+                    // Fallback to extract text layers if frontend didn't provide them
+                    if (empty($textLayers)) {
+                        foreach ($jsonRules['layers'] as $layer) {
+                            $type = $layer['type'] ?? '';
+                            if ($type === 'text' || $type === 'i-text' || $type === 'textbox') {
+                                $layerName = $layer['name'] ?? $layer['id'] ?? 'text_layer';
+                                $low = strtolower($layerName);
+                                if (in_array($low, ['website', 'email', 'number', 'phone', 'address', 'phoneicon', 'mailicon', 'webicon', 'addressicon'])) continue;
+
+                                if (!empty($layer['ai_protected']) && $layer['ai_protected'] === true) {
+                                    $fixedContext[] = "{$layerName}: \"{$layer['text']}\"";
+                                    continue;
+                                }
+
+                                $role = $layer['ai_role'] ?? 'Generate engaging marketing text suitable for this layer: ' . $layerName;
+                                $textLayers[] = [
+                                    'name' => $layerName,
+                                    'ai_role' => $role,
+                                    'ai_max_chars' => $layer['ai_max_chars'] ?? 60,
+                                    'default_text' => $layer['text'] ?? '',
+                                ];
+                            }
                         }
                     }
                 }
@@ -306,32 +334,32 @@ class CustomFrameAIService
             return null;
         }
 
-        // Build prompt context
-        $purposePrompt = "";
-        $productData = [];
+        // Always load product data so AI knows the product
+        $productData = self::getProductContext($userId, $dataReq, $productId);
+        self::$lastLog['product_id'] = $productData['_product_id'] ?? null;
 
-        if (!empty($manualPrompt)) {
-            $purposePrompt = "User's Manual Instruction: " . $manualPrompt;
-        } else {
-            $productData = self::getProductContext($userId, $dataReq, $productId);
-            self::$lastLog['product_id'] = $productData['_product_id'] ?? null;
-            $purposePrompt = $purposeText;
-            $purposePrompt = str_replace('{product_name}', $productData['title'] ?? 'Premium Product', $purposePrompt);
-            $purposePrompt = str_replace('{product_price}', $productData['price'] ?? '', $purposePrompt);
-            $purposePrompt = str_replace('{product_description}', $productData['description'] ?? '', $purposePrompt);
-            $purposePrompt = str_replace('{business_name}', $productData['business_name'] ?? '', $purposePrompt);
+        $purposePrompt = $purposeText;
+        $purposePrompt = str_replace('{product_name}', $productData['title'] ?? 'Premium Product', $purposePrompt);
+        $purposePrompt = str_replace('{product_price}', $productData['price'] ?? '', $purposePrompt);
+        $purposePrompt = str_replace('{product_description}', $productData['description'] ?? '', $purposePrompt);
+        $purposePrompt = str_replace('{business_name}', $productData['business_name'] ?? '', $purposePrompt);
 
-            foreach ($productData as $key => $value) {
-                if (is_string($value)) {
-                    $purposePrompt = str_replace('{' . $key . '}', $value, $purposePrompt);
-                }
+        foreach ($productData as $key => $value) {
+            if (is_string($value)) {
+                $purposePrompt = str_replace('{' . $key . '}', $value, $purposePrompt);
             }
         }
 
-        $layerInstructions = "Generate content for these text layers as a JSON object.\nEach key is the layer name, each value is the generated text.\n\n";
+        if (!empty($manualPrompt)) {
+            $purposePrompt .= "\n\nUSER'S MANUAL INSTRUCTION / PROMPT:\n" . $manualPrompt;
+        }
+
+        $layerInstructions = "Generate content for these text layers as a JSON object.\nEach key is the layer name, each value is the generated text.\n";
+        $layerInstructions .= "CRITICAL: You MUST also include a key named \"caption\" which contains an engaging social media caption (with hashtags) for the post.\n\n";
         foreach ($textLayers as $tl) {
             $layerInstructions .= "- \"{$tl['name']}\": {$tl['ai_role']} (MAX {$tl['ai_max_chars']} characters)\n";
         }
+        $layerInstructions .= "- \"caption\": Engaging social media post description and hashtags (No length limit)\n";
 
         $systemPrompt = "You are a professional social media content designer AI.\n\n";
         if (!empty($globalRule)) {
@@ -340,6 +368,9 @@ class CustomFrameAIService
         $systemPrompt .= "CONTEXT:\n{$purposePrompt}\n\n";
         if (!empty($productData)) {
             $systemPrompt .= "PRODUCT DATA:\n" . json_encode($productData, JSON_UNESCAPED_UNICODE) . "\n\n";
+        }
+        if (!empty($fixedContext)) {
+            $systemPrompt .= "FIXED TEMPLATE TEXT (Context only, DO NOT GENERATE THESE):\n" . implode("\n", $fixedContext) . "\n\n";
         }
         $languageInstruction = "5. LANGUAGE: You MUST write ALL content strictly in {$language} language only. Ignore the language of the existing/current text in layers. Every single text value in your JSON output must be in {$language}.\n";
         $systemPrompt .= "STRICT INSTRUCTIONS:\n1. Output ONLY a raw, valid JSON object.\n2. Keys must exactly match the layer names (keys stay as-is, only values change).\n3. EXTREMELY STRICT CHARACTER LIMITS: Truncate response to stay under the limit.\n4. Engaging social media copy.\n" . $languageInstruction . "\n" . $layerInstructions;
@@ -379,7 +410,19 @@ class CustomFrameAIService
 
             foreach ($textLayers as $tl) {
                 if (isset($generated[$tl['name']]) && is_string($generated[$tl['name']])) {
-                    $generated[$tl['name']] = trim($generated[$tl['name']]);
+                    $val = trim($generated[$tl['name']]);
+                    $max = isset($tl['ai_max_chars']) ? (int)$tl['ai_max_chars'] : 0;
+                    \Log::info("Truncating layer {$tl['name']}. Max: {$max}, Current length: " . mb_strlen($val));
+                    if ($max > 0 && mb_strlen($val) > $max) {
+                        $truncated = mb_substr($val, 0, $max);
+                        $lastSpace = mb_strrpos($truncated, ' ');
+                        if ($lastSpace !== false && $lastSpace > ($max * 0.6)) {
+                            $val = rtrim(mb_substr($truncated, 0, $lastSpace)) . '...';
+                        } else {
+                            $val = rtrim($truncated) . '...';
+                        }
+                    }
+                    $generated[$tl['name']] = $val;
                 }
             }
 
@@ -397,12 +440,6 @@ class CustomFrameAIService
      */
     private static function getProductContext(int $userId, string $dataRequirement, ?int $specificProductId = null): array
     {
-        // If a specific product ID is given, fetch that exact product; otherwise pick random
-        if ($specificProductId) {
-            $product = Product::where('user_id', $userId)->where('id', $specificProductId)->with('customValues')->first();
-        } else {
-            $product = Product::where('user_id', $userId)->with('customValues')->inRandomOrder()->first();
-        }
         $business = \App\Models\Business::where('user_id', $userId)->where('is_default', 1)->first();
 
         $context = [
@@ -410,6 +447,44 @@ class CustomFrameAIService
             'business_name' => $business->name ?? 'My Business',
             '_product_id' => null,
         ];
+
+        // --- MULTI-PRODUCT MODE ---
+        if ($dataRequirement === 'multi_product') {
+            $products = Product::where('user_id', $userId)
+                ->with('customValues')
+                ->inRandomOrder()
+                ->limit(6) // Max 6 products for catalog/menu templates
+                ->get();
+
+            if ($products->isEmpty()) {
+                return $context;
+            }
+
+            $context['_product_id'] = $products->first()->id;
+            $context['title'] = $products->first()->display_name ?? $products->first()->title ?? 'Premium Product';
+            $context['total_products'] = $products->count();
+
+            foreach ($products as $index => $product) {
+                $num = $index + 1; // 1-based: product1, product2, product3...
+                $context["product{$num}_name"] = $product->display_name ?? $product->title ?? 'Product ' . $num;
+                $context["product{$num}_price"] = $product->sale_price ?? $product->price ?? $product->mrp ?? '';
+                $context["product{$num}_mrp"] = $product->mrp ?? '';
+                $context["product{$num}_description"] = $product->description ?? '';
+                $context["product{$num}_category"] = $product->category_name ?? '';
+                $context["product{$num}_id"] = $product->id;
+
+                $context["product{$num}_image"] = $product->image_url ?? '';
+            }
+
+            return $context;
+        }
+
+        // --- SINGLE-PRODUCT MODE (existing logic) ---
+        if ($specificProductId) {
+            $product = Product::where('user_id', $userId)->where('id', $specificProductId)->with('customValues')->first();
+        } else {
+            $product = Product::where('user_id', $userId)->with('customValues')->inRandomOrder()->first();
+        }
 
         if (!$product) {
             return $context;

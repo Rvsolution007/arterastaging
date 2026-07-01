@@ -74,17 +74,42 @@ class AuthController extends GetxController {
     }
   }
 
-  Future<void> register(String name, String email, String phone, String password, [String referralCode = '']) async {
+  Future<void> register({
+    required String name,
+    required String email,
+    required String phone,
+    required String password,
+    String referralCode = '',
+    String? businessName,
+    String? businessCategoryId,
+    List<String>? businessSubCategoryIds,
+    List<String>? businessTypeIds,
+    List<String>? productIds,
+    String? businessWebsite,
+    String? businessAddress,
+  }) async {
     try {
       isLoading.value = true;
-      final response = await ApiService.post('/registration', {
+      final payload = {
         'name': name,
         'email': email,
         'mobile_no': phone,
         'password': password,
         'country': '91', // Defaulting to India code for now based on previous context
         'referralCode': referralCode,
-      });
+      };
+
+      if (businessName != null && businessName.isNotEmpty) {
+        payload['bussinessName'] = businessName;
+        if (businessCategoryId != null) payload['businessCategoryId'] = businessCategoryId;
+        if (businessSubCategoryIds != null) payload['businessSubCategoryIds'] = businessSubCategoryIds.join(',');
+        if (businessTypeIds != null) payload['businessTypeIds'] = businessTypeIds.join(',');
+        if (productIds != null) payload['product_ids'] = productIds.join(',');
+        if (businessWebsite != null) payload['bussinessWebsite'] = businessWebsite;
+        if (businessAddress != null) payload['bussinessAddress'] = businessAddress;
+      }
+
+      final response = await ApiService.post('/registration', payload);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);

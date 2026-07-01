@@ -249,10 +249,12 @@ class _EditorScreenState extends State<EditorScreen> {
         fileName: fileName,
       );
 
+      final bool isPaid = widget.frameData['isPaid'] == true || widget.frameData['isPaid'] == '1' || widget.frameData['premium'] == true || widget.frameData['premium'] == '1';
       await ApiService.trackActivity(
         action: 'download_template',
         itemType: widget.type,
         itemId: widget.id.toString(),
+        isPremium: isPaid,
       );
 
       // Refresh subscription limits so usage counters update immediately

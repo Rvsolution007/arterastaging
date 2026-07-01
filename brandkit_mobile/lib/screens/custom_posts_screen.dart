@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../widgets/coming_soon_widget.dart';
+import '../config/app_config.dart';
 import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:get/get.dart';
@@ -23,6 +25,7 @@ class CustomPostsScreen extends StatefulWidget {
 class _CustomPostsScreenState extends State<CustomPostsScreen> {
   final HomeController hc = Get.find<HomeController>();
   int _selectedCategoryId = 0;
+  String _selectedTag = '';
   bool _isLoading = false;
   String? _currentProductName;
 
@@ -49,7 +52,11 @@ class _CustomPostsScreenState extends State<CustomPostsScreen> {
         _selectedCategoryId = hc.customPosts.first['customCategoryId'] ?? 0;
       }
       
-      final response = await ApiService.get('/custom-post-category-paginated?category_id=$_selectedCategoryId&page=$pageKey&limit=20');
+      String url = '/custom-post-category-paginated?category_id=$_selectedCategoryId&page=$pageKey&limit=20';
+      if (_selectedTag.isNotEmpty) {
+        url += '&tag=$_selectedTag';
+      }
+      final response = await ApiService.get(url);
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final List newItems = data['data'] ?? [];
@@ -76,6 +83,7 @@ class _CustomPostsScreenState extends State<CustomPostsScreen> {
     if (_selectedCategoryId != categoryId) {
       setState(() {
         _selectedCategoryId = categoryId;
+        _selectedTag = ''; // Reset tag when category changes
       });
       _pagingController.refresh();
     }
@@ -109,6 +117,19 @@ class _CustomPostsScreenState extends State<CustomPostsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!AppConfig.isLocal) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          title: const Text('Custom Posts', style: TextStyle(color: Colors.black)),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          iconTheme: const IconThemeData(color: Colors.black),
+        ),
+        body: const ComingSoonWidget(title: 'Custom Posts'),
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -142,11 +163,12 @@ class _CustomPostsScreenState extends State<CustomPostsScreen> {
           );
         }
 
-        // Find selected category
         final selectedCategory = hc.customPosts.firstWhere(
           (c) => c['customCategoryId'] == _selectedCategoryId,
           orElse: () => hc.customPosts.first,
         );
+
+        final List<dynamic> categoryTags = selectedCategory['tags'] ?? [];
 
         return Column(
           children: [
@@ -187,6 +209,52 @@ class _CustomPostsScreenState extends State<CustomPostsScreen> {
                 },
               ),
             ),
+            
+            // Tags Filter Chips (if any)
+            if (categoryTags.isNotEmpty)
+              SizedBox(
+                height: 50,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemCount: categoryTags.length + 1, // +1 for "All"
+                  separatorBuilder: (_, __) => AppSpacing.gapH8,
+                  itemBuilder: (context, index) {
+                    final isAll = index == 0;
+                    final tag = isAll ? '' : categoryTags[index - 1].toString();
+                    final isSelected = _selectedTag == tag;
+                    
+                    return GestureDetector(
+                      onTap: () {
+                        if (_selectedTag != tag) {
+                          setState(() {
+                            _selectedTag = tag;
+                          });
+                          _pagingController.refresh();
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppColors.gray900 : Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: isSelected ? null : Border.all(color: AppColors.gray300),
+                        ),
+                        child: Center(
+                          child: Text(
+                            isAll ? 'All' : tag,
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : AppColors.gray700,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
             
             // Grid
             Expanded(
@@ -232,7 +300,10 @@ class _CustomPostsScreenState extends State<CustomPostsScreen> {
                         Get.toNamed(
                           '/editor?$editorQuery',
                           arguments: {
-                            'frameData': post,
+                            'frameData': {
+                              ...post,
+                              'customCategoryName': selectedCategory['customCategoryName'],
+                            },
                           },
                         );
                       },

@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import '../controllers/mini_website_controller.dart';
 import 'mini_website_templates_screen.dart';
 import '../utils/app_colors.dart';
+import '../widgets/coming_soon_widget.dart';
+import '../config/app_config.dart';
 
 class MiniWebsiteDashboardScreen extends StatelessWidget {
   MiniWebsiteDashboardScreen({super.key});
@@ -12,6 +14,19 @@ class MiniWebsiteDashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!AppConfig.isLocal) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          title: const Text('Mini Website', style: TextStyle(color: Colors.black)),
+          backgroundColor: Colors.white,
+          elevation: 0,
+          iconTheme: const IconThemeData(color: Colors.black),
+        ),
+        body: const ComingSoonWidget(title: 'Mini Website'),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(

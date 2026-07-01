@@ -1,0 +1,516 @@
+[
+    {
+        "sub_category": "Multi Specialty Hospital",
+        "business_types": [
+            "General Multi Specialty Hospital",
+            "Super Specialty Hospital",
+            "Corporate Hospital",
+            "Private Hospital"
+        ]
+    },
+    {
+        "sub_category": "General Hospital",
+        "business_types": [
+            "Community Hospital",
+            "District Hospital",
+            "City Hospital",
+            "Family Hospital",
+            "Primary Care Hospital",
+            "Secondary Care Hospital",
+            "Rural Hospital",
+            "Urban Hospital"
+        ]
+    },
+    {
+        "sub_category": "Clinic",
+        "business_types": []
+    },
+    {
+        "sub_category": "General Physician Clinic",
+        "business_types": [
+            "Family Medicine Clinic",
+            "Internal Medicine Clinic",
+            "Primary Healthcare Clinic",
+            "Walk-in Clinic",
+            "Multi Doctor Clinic",
+            "Outpatient Clinic",
+            "Community Clinic",
+            "Family Physician",
+            "Internal Medicine Specialist",
+            "Primary Care Doctor",
+            "Senior Physician",
+            "General Health Consultant",
+            "Preventive Care Clinic"
+        ]
+    },
+    {
+        "sub_category": "Dental Clinic",
+        "business_types": [
+            "General Dentist",
+            "Cosmetic Dentist",
+            "Orthodontic Clinic",
+            "Pediatric Dentist",
+            "Root Canal Specialist",
+            "Oral Surgeon",
+            "Dental Implant Center",
+            "Smile Design Clinic",
+            "Teeth Whitening Clinic",
+            "Laser Dentistry",
+            "Dental Prosthetics",
+            "Full Mouth Rehabilitation"
+        ]
+    },
+    {
+        "sub_category": "Eye Hospital",
+        "business_types": [
+            "Lasik Center",
+            "Cataract Hospital",
+            "Retina Center",
+            "Glaucoma Center",
+            "Cornea Center",
+            "Pediatric Eye Hospital",
+            "Eye Surgery Hospital",
+            "Vision Care Hospital"
+        ]
+    },
+    {
+        "sub_category": "Eye Clinic",
+        "business_types": [
+            "Vision Testing Center",
+            "Optometry Clinic",
+            "Contact Lens Clinic",
+            "Eye Checkup Center",
+            "Dry Eye Clinic",
+            "Low Vision Clinic"
+        ]
+    },
+    {
+        "sub_category": "Ent Clinic",
+        "business_types": [
+            "Ear Specialist",
+            "Nose Specialist",
+            "Throat Specialist",
+            "Sinus Clinic",
+            "Voice Clinic",
+            "Hearing Care Center",
+            "Balance Disorder Clinic"
+        ]
+    },
+    {
+        "sub_category": "Orthopedic Clinic",
+        "business_types": [
+            "Joint Replacement Center",
+            "Sports Injury Clinic",
+            "Spine Clinic",
+            "Fracture Clinic",
+            "Bone Specialist",
+            "Arthroscopy Center",
+            "Trauma Orthopedic Clinic"
+        ]
+    },
+    {
+        "sub_category": "Skin Clinic",
+        "business_types": [
+            "Acne Treatment Clinic",
+            "Pigmentation Clinic",
+            "Hair Loss Clinic",
+            "Skin Allergy Clinic",
+            "Cosmetic Dermatology",
+            "Laser Skin Clinic",
+            "Anti Aging Clinic",
+            "Skin Rejuvenation Center",
+            "Acne Clinic",
+            "Skin Whitening Clinic",
+            "Cosmetic Skin Clinic"
+        ]
+    },
+    {
+        "sub_category": "Dermatology Clinic",
+        "business_types": [
+            "Medical Dermatology",
+            "Pediatric Dermatology",
+            "Dermato Surgery",
+            "Hair Dermatology"
+        ]
+    },
+    {
+        "sub_category": "Pediatric Clinic",
+        "business_types": [
+            "Child Specialist",
+            "Newborn Care",
+            "Vaccination Center",
+            "Child Nutrition Clinic",
+            "Growth Monitoring Clinic",
+            "Pediatric Emergency"
+        ]
+    },
+    {
+        "sub_category": "Gynecology Clinic",
+        "business_types": [
+            "Womens Health Clinic",
+            "Pregnancy Care Center",
+            "Infertility Clinic",
+            "High Risk Pregnancy Clinic",
+            "Menopause Clinic",
+            "Gynec Surgery Center"
+        ]
+    },
+    {
+        "sub_category": "Cardiology Clinic",
+        "business_types": [
+            "Heart Specialist",
+            "Cardiac Diagnostic Center",
+            "Heart Failure Clinic",
+            "Interventional Cardiology",
+            "Preventive Cardiology",
+            "Cardiac Rehabilitation"
+        ]
+    },
+    {
+        "sub_category": "Neurology Clinic",
+        "business_types": [
+            "Brain Specialist",
+            "Stroke Clinic",
+            "Epilepsy Clinic",
+            "Parkinson Clinic",
+            "Memory Clinic",
+            "Neuro Rehabilitation"
+        ]
+    },
+    {
+        "sub_category": "Psychiatry Clinic",
+        "business_types": [
+            "Mental Health Clinic",
+            "Depression Treatment",
+            "Anxiety Clinic",
+            "Addiction Recovery",
+            "Child Psychiatry",
+            "Family Counseling",
+            "Stress Management"
+        ]
+    },
+    {
+        "sub_category": "Physiotherapy Center",
+        "business_types": [
+            "Sports Physiotherapy",
+            "Orthopedic Physiotherapy",
+            "Neurological Physiotherapy",
+            "Pediatric Physiotherapy",
+            "Geriatric Physiotherapy",
+            "Post Surgery Rehabilitation",
+            "Pain Management Clinic"
+        ]
+    },
+    {
+        "sub_category": "Chiropractic Clinic",
+        "business_types": [
+            "Spine Alignment",
+            "Back Pain Clinic",
+            "Neck Pain Clinic",
+            "Joint Adjustment",
+            "Sports Chiropractic",
+            "Posture Correction"
+        ]
+    },
+    {
+        "sub_category": "Ayurvedic Clinic",
+        "business_types": [
+            "Panchakarma Center",
+            "Ayurvedic Physician",
+            "Herbal Treatment Center",
+            "Ayurvedic Wellness",
+            "Chronic Disease Care",
+            "Ayurvedic Skin Care"
+        ]
+    },
+    {
+        "sub_category": "Homeopathy Clinic",
+        "business_types": [
+            "Classical Homeopathy",
+            "Pediatric Homeopathy",
+            "Skin Homeopathy",
+            "Hair Treatment Homeopathy",
+            "Chronic Disease Homeopathy"
+        ]
+    },
+    {
+        "sub_category": "Unani Clinic",
+        "business_types": [
+            "Traditional Unani Care",
+            "Herbal Unani Medicine",
+            "Lifestyle Disease Treatment",
+            "Pain Management"
+        ]
+    },
+    {
+        "sub_category": "Diagnostic Center",
+        "business_types": [
+            "Full Body Checkup Center",
+            "Preventive Health Center",
+            "Executive Health Checkup",
+            "Corporate Health Checkup",
+            "Diagnostic Laboratory"
+        ]
+    },
+    {
+        "sub_category": "Pathology Laboratory",
+        "business_types": [
+            "Clinical Pathology",
+            "Biochemistry Lab",
+            "Microbiology Lab",
+            "Hematology Lab",
+            "Molecular Diagnostics",
+            "Histopathology Lab"
+        ]
+    },
+    {
+        "sub_category": "Blood Bank",
+        "business_types": [
+            "Government Blood Bank",
+            "Private Blood Bank",
+            "Component Blood Bank",
+            "Emergency Blood Center"
+        ]
+    },
+    {
+        "sub_category": "Imaging Center",
+        "business_types": [
+            "Digital Imaging Center",
+            "Radiology Center",
+            "Advanced Imaging Center",
+            "Diagnostic Imaging"
+        ]
+    },
+    {
+        "sub_category": "Mri Center",
+        "business_types": [
+            "15 Tesla Mri",
+            "3 Tesla Mri",
+            "Open Mri Center",
+            "Advanced Neuro Mri",
+            "Whole Body Mri"
+        ]
+    },
+    {
+        "sub_category": "Ct Scan Center",
+        "business_types": [
+            "High Resolution Ct",
+            "Cardiac Ct",
+            "Brain Ct",
+            "Trauma Ct",
+            "Low Dose Ct"
+        ]
+    },
+    {
+        "sub_category": "X-ray Center",
+        "business_types": [
+            "Digital X-ray",
+            "Portable X-ray",
+            "Dental X-ray",
+            "Chest X-ray",
+            "Orthopedic X-ray"
+        ]
+    },
+    {
+        "sub_category": "Ultrasound Center",
+        "business_types": [
+            "Pregnancy Ultrasound",
+            "Color Doppler",
+            "3d Ultrasound",
+            "4d Ultrasound",
+            "Abdominal Ultrasound"
+        ]
+    },
+    {
+        "sub_category": "Dialysis Center",
+        "business_types": [
+            "Hemodialysis Center",
+            "Peritoneal Dialysis",
+            "Kidney Care Center",
+            "Renal Treatment Center"
+        ]
+    },
+    {
+        "sub_category": "Ivf Center",
+        "business_types": []
+    },
+    {
+        "sub_category": "Fertility Clinic",
+        "business_types": [
+            "Ivf Specialist",
+            "Icsi Center",
+            "Egg Freezing",
+            "Embryology Center",
+            "Reproductive Medicine",
+            "Male Fertility",
+            "Female Fertility",
+            "Couple Fertility",
+            "Hormonal Fertility Care",
+            "Reproductive Health"
+        ]
+    },
+    {
+        "sub_category": "Cancer Hospital",
+        "business_types": [
+            "Medical Oncology",
+            "Radiation Oncology",
+            "Surgical Oncology",
+            "Pediatric Oncology",
+            "Cancer Screening Center"
+        ]
+    },
+    {
+        "sub_category": "Oncology Center",
+        "business_types": [
+            "Chemotherapy Center",
+            "Radiotherapy Center",
+            "Immunotherapy Center",
+            "Targeted Therapy Center"
+        ]
+    },
+    {
+        "sub_category": "Rehabilitation Center",
+        "business_types": [
+            "Physical Rehabilitation",
+            "Neurological Rehabilitation",
+            "Sports Rehabilitation",
+            "Addiction Rehabilitation",
+            "Orthopedic Rehabilitation"
+        ]
+    },
+    {
+        "sub_category": "Nursing Home",
+        "business_types": [
+            "Maternity Nursing Home",
+            "General Nursing Home",
+            "Elderly Care Home",
+            "Post Surgery Care"
+        ]
+    },
+    {
+        "sub_category": "Medical Store",
+        "business_types": [
+            "Generic Pharmacy",
+            "Specialty Pharmacy",
+            "Hospital Pharmacy"
+        ]
+    },
+    {
+        "sub_category": "Pharmacy",
+        "business_types": [
+            "Retail Pharmacy",
+            "24x7 Pharmacy",
+            "Generic Medicine Store",
+            "Surgical Store",
+            "Healthcare Retail Store",
+            "Community Pharmacy",
+            "Clinical Pharmacy",
+            "Compounding Pharmacy",
+            "Wholesale Pharmacy"
+        ]
+    },
+    {
+        "sub_category": "Surgical Equipment Supplier",
+        "business_types": [
+            "Hospital Surgical Supplier",
+            "Operation Theater Equipment",
+            "Orthopedic Surgical Equipment",
+            "Dental Surgical Equipment",
+            "Disposable Surgical Supplier"
+        ]
+    },
+    {
+        "sub_category": "Medical Equipment Dealer",
+        "business_types": [
+            "Hospital Equipment Dealer",
+            "Diagnostic Equipment Dealer",
+            "Home Medical Equipment",
+            "Icu Equipment Dealer",
+            "Patient Monitoring Equipment"
+        ]
+    },
+    {
+        "sub_category": "Ambulance Service",
+        "business_types": [
+            "Emergency Ambulance",
+            "Icu Ambulance",
+            "Cardiac Ambulance",
+            "Neonatal Ambulance",
+            "Air Ambulance",
+            "Mortuary Ambulance"
+        ]
+    },
+    {
+        "sub_category": "Home Healthcare",
+        "business_types": [
+            "Home Nursing",
+            "Home Physiotherapy",
+            "Home Doctor Visit",
+            "Home Icu Care",
+            "Elder Care",
+            "Palliative Care"
+        ]
+    },
+    {
+        "sub_category": "Nursing Service",
+        "business_types": [
+            "Hospital Nursing",
+            "Critical Care Nursing",
+            "Post Operative Nursing",
+            "Elderly Nursing"
+        ]
+    },
+    {
+        "sub_category": "Old Age Home",
+        "business_types": [
+            "Senior Living",
+            "Assisted Living",
+            "Luxury Senior Living",
+            "Rehabilitation Elder Care",
+            "Memory Care Home"
+        ]
+    },
+    {
+        "sub_category": "Pet Healthcare",
+        "business_types": [
+            "Pet Vaccination",
+            "Pet Diagnostics",
+            "Pet Surgery",
+            "Pet Dental Care",
+            "Pet Wellness Center"
+        ]
+    },
+    {
+        "sub_category": "Mental Health Center",
+        "business_types": [
+            "Psychological Counseling",
+            "Psychotherapy Center",
+            "Behavioral Therapy",
+            "Child Psychology",
+            "Marriage Counseling"
+        ]
+    },
+    {
+        "sub_category": "Wellness Center",
+        "business_types": [
+            "Holistic Wellness",
+            "Preventive Wellness",
+            "Lifestyle Medicine",
+            "Corporate Wellness",
+            "Integrative Medicine",
+            "Lifestyle Wellness",
+            "Luxury Wellness Center",
+            "Alternative Healing Center"
+        ]
+    },
+    {
+        "sub_category": "Yoga Therapy Center",
+        "business_types": [
+            "Therapeutic Yoga",
+            "Medical Yoga",
+            "Prenatal Yoga",
+            "Postnatal Yoga",
+            "Senior Yoga"
+        ]
+    }
+]

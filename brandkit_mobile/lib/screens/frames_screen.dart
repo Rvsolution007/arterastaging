@@ -43,9 +43,11 @@ class _FramesScreenState extends State<FramesScreen> with SingleTickerProviderSt
     setState(() => _isLoading = true);
     try {
       String bcId = hc.businessCategoryId.value;
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('userId') ?? '';
       
       // Fetch all frames
-      final framesRes = await ApiService.get('/get-all-frames?business_category_id=$bcId');
+      final framesRes = await ApiService.get('/get-all-frames?business_category_id=$bcId&userId=$userId');
       debugPrint("Frames API status: ${framesRes.statusCode}");
       if (framesRes.statusCode == 200) {
         final data = jsonDecode(framesRes.body);
@@ -62,8 +64,6 @@ class _FramesScreenState extends State<FramesScreen> with SingleTickerProviderSt
       }
       
       // Fetch favorites
-      final prefs = await SharedPreferences.getInstance();
-      final userId = prefs.getString('userId') ?? '';
       final favRes = await ApiService.get('/user-favorites?userId=$userId');
       if (favRes.statusCode == 200) {
         final data = jsonDecode(favRes.body);

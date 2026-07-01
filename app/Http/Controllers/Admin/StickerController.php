@@ -38,13 +38,57 @@ class StickerController extends Controller
         //dd($request->all());
         $validation = Validator::make($request->all(), [
             "sticker_category_id" => 'required',
-            "image" => "required",
         ]);
 
         if ($validation->fails()) {
             return back()->withErrors($validation)->withInput();
         } else {
-            if ($request->file("image")) 
+            if ($request->has('cropped_images')) 
+            {
+                $croppedImages = $request->get('cropped_images');
+                foreach($croppedImages as $base64Image) 
+                {
+                    $id = Sticker::create([
+                        "sticker_category_id" => $request->get("sticker_category_id"),
+                        "keywords" => $request->get("keywords"),
+                    ])->id;
+
+                    $image_parts = explode(";base64,", $base64Image);
+                    $image_base64 = base64_decode($image_parts[1]);
+                    
+                    // Convert to WebP
+                    $gdImage = imagecreatefromstring($image_base64);
+                    imagepalettetotruecolor($gdImage);
+                    imagealphablending($gdImage, true);
+                    imagesavealpha($gdImage, true);
+                    
+                    ob_start();
+                    imagewebp($gdImage, null, 80);
+                    $webp_content = ob_get_clean();
+                    imagedestroy($gdImage);
+
+                    $fileName = Str::uuid() . '.webp';
+
+                    if(StorageSetting::getStorageSetting("storage") == "DigitalOcean")
+                    {
+                        Storage::disk('spaces')->put('uploads/'.$fileName, $webp_content, 'public');
+                        
+                        $sticker = Sticker::find($id);
+                        $sticker->image = $fileName;
+                        $sticker->save();
+                    }
+                    else
+                    {
+                        $destinationPath = public_path('uploads/' . $fileName);
+                        file_put_contents($destinationPath, $webp_content);
+                        
+                        $sticker = Sticker::find($id);
+                        $sticker->image = $fileName;
+                        $sticker->save();
+                    }
+                }
+            }
+            elseif ($request->file("image")) 
             {
                 $removedImages = json_decode($request->get("deleted_file_ids"), true);
                 $images = $request->file('image');
@@ -59,13 +103,24 @@ class StickerController extends Controller
                     
                     $id = Sticker::create([
                         "sticker_category_id" => $request->get("sticker_category_id"),
+                        "keywords" => $request->get("keywords"),
                     ])->id;
 
                     if(StorageSetting::getStorageSetting("storage") == "DigitalOcean")
                     {
-                        $file = Str::uuid().'.'.$image->getClientOriginalExtension();
+                        $file = Str::uuid() . '.webp';
                 
-                        $path = Storage::disk('spaces')->put('uploads/'.$file, file_get_contents($image),'public');
+                        $gdImage = imagecreatefromstring(file_get_contents($image->getRealPath()));
+                        imagepalettetotruecolor($gdImage);
+                        imagealphablending($gdImage, true);
+                        imagesavealpha($gdImage, true);
+                        
+                        ob_start();
+                        imagewebp($gdImage, null, 80);
+                        $webp_content = ob_get_clean();
+                        imagedestroy($gdImage);
+
+                        $path = Storage::disk('spaces')->put('uploads/'.$file, $webp_content,'public');
                         
                         $sticker = Sticker::find($id);
                         $sticker->image = $file;
@@ -152,15 +207,26 @@ class StickerController extends Controller
         } else {
             $category = Sticker::find($request->get("id"));
             $category->sticker_category_id = $request->get("sticker_category_id");
+            $category->keywords = $request->get("keywords");
             $category->save();
 
             if(StorageSetting::getStorageSetting("storage") == "DigitalOcean")
             {
                 if ($request->file("image") && $request->file('image')->isValid()) {
                     $image = $request->file('image');
-                    $file = Str::uuid().'.'.$image->getClientOriginalExtension();
+                    $file = Str::uuid() . '.webp';
             
-                    $path = Storage::disk('spaces')->put('uploads/'.$file, file_get_contents($image),'public');
+                    $gdImage = imagecreatefromstring(file_get_contents($image->getRealPath()));
+                    imagepalettetotruecolor($gdImage);
+                    imagealphablending($gdImage, true);
+                    imagesavealpha($gdImage, true);
+                    
+                    ob_start();
+                    imagewebp($gdImage, null, 80);
+                    $webp_content = ob_get_clean();
+                    imagedestroy($gdImage);
+
+                    $path = Storage::disk('spaces')->put('uploads/'.$file, $webp_content,'public');
                     
                     $sticker = Sticker::find($request->get("id"));
                     $sticker->image = $file;
@@ -197,9 +263,15 @@ class StickerController extends Controller
     private function upload_image($file,$field,$id)
     {
         $destinationPath = public_path('uploads');
-        $extension = $file->getClientOriginalExtension();
-        $fileName = Str::uuid() . '.' . $extension;
-        $file->move($destinationPath, $fileName);
+        $fileName = Str::uuid() . '.webp';
+        
+        $gdImage = imagecreatefromstring(file_get_contents($file->getRealPath()));
+        imagepalettetotruecolor($gdImage);
+        imagealphablending($gdImage, true);
+        imagesavealpha($gdImage, true);
+        
+        imagewebp($gdImage, $destinationPath . '/' . $fileName, 80);
+        imagedestroy($gdImage);
         
         $image = Sticker::find($id);
         $image->$field = $fileName;

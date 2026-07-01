@@ -146,6 +146,7 @@ class ApiService {
     required String action,
     String? itemType,
     String? itemId,
+    bool? isPremium,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -158,6 +159,7 @@ class ApiService {
         'action': action,
         'item_type': itemType,
         'item_id': itemId,
+        if (isPremium != null) 'is_premium': isPremium,
       });
     } catch (e) {
       // Fail silently for tracking to avoid interrupting user experience

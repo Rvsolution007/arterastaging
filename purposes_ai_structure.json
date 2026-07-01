@@ -1,0 +1,80 @@
+[
+    {
+        "purpose_name": "Product details page",
+        "data_requirement": "full_row",
+        "ai_prompt": "muje {col_is_category} or {col_is_unique} ko analize krke heading or sub heading me with general content jo ai bnayega wo add kro or {col_is_combo}{col_is_Normal Regular Field} ae dono description ya list jo bhi he wha add kro ai se general content mix krke",
+        "sample_template_json_rules": {
+            "ai_global_rule": "Keep the tone informative and professional.",
+            "layers": [
+                {"name": "heading", "type": "text", "ai_role": "A catchy main headline for the product", "ai_max_chars": 30},
+                {"name": "sub_heading", "type": "text", "ai_role": "A short sub-heading highlighting the main feature", "ai_max_chars": 50},
+                {"name": "description_list", "type": "text", "ai_role": "3 bullet points of key features from the description", "ai_max_chars": 150},
+                {"name": "price_tag", "type": "text", "ai_role": "Formatted price with currency", "ai_max_chars": 15}
+            ]
+        }
+    },
+    {
+        "purpose_name": "Offer Post",
+        "data_requirement": "full_row",
+        "ai_prompt": "Create an urgent and exciting promotional post for a sale. Highlight the discount and urgency. Product: {product_name}, Price: {product_price}, Description: {product_description}.",
+        "sample_template_json_rules": {
+            "ai_global_rule": "Use words like Hurry, Limited Time, Exclusive, Mega Sale.",
+            "layers": [
+                {"name": "sale_title", "type": "text", "ai_role": "Big catchy sale announcement text (e.g., MEGA SALE, 50% OFF)", "ai_max_chars": 20},
+                {"name": "product_name_text", "type": "text", "ai_role": "Name of the product on offer", "ai_max_chars": 40},
+                {"name": "offer_description", "type": "text", "ai_role": "Short engaging text explaining why they should buy now", "ai_max_chars": 80},
+                {"name": "call_to_action", "type": "text", "ai_role": "Action text like Shop Now or Grab Yours", "ai_max_chars": 20}
+            ]
+        }
+    },
+    {
+        "purpose_name": "Testimonial",
+        "data_requirement": "basic_columns",
+        "ai_prompt": "Rewrite the client testimonial to make it sound professional and trustworthy for {business_name} regarding {product_name}.",
+        "sample_template_json_rules": {
+            "ai_global_rule": "Keep it authentic and trustworthy.",
+            "layers": [
+                {"name": "client_name", "type": "text", "ai_role": "A realistic sounding client name (if not provided) or placeholder", "ai_max_chars": 25},
+                {"name": "testimonial_text", "type": "text", "ai_role": "The actual positive review text", "ai_max_chars": 150},
+                {"name": "rating_text", "type": "text", "ai_role": "5-Star Rating text", "ai_max_chars": 15}
+            ]
+        }
+    },
+    {
+        "purpose_name": "Before/After",
+        "data_requirement": "basic_columns",
+        "ai_prompt": "Create a caption comparing before and after results of using {product_name}.",
+        "sample_template_json_rules": {
+            "ai_global_rule": "Highlight the dramatic improvement.",
+            "layers": [
+                {"name": "before_text", "type": "text", "ai_role": "Text describing the initial problem state", "ai_max_chars": 40},
+                {"name": "after_text", "type": "text", "ai_role": "Text describing the successful outcome", "ai_max_chars": 40},
+                {"name": "solution_text", "type": "text", "ai_role": "How the product solved it", "ai_max_chars": 100}
+            ]
+        }
+    },
+    {
+        "purpose_name": "Thank You",
+        "data_requirement": "basic_columns",
+        "ai_prompt": "Generate a warm thank you message for our customers from {business_name}.",
+        "sample_template_json_rules": {
+            "ai_global_rule": "Warm and appreciative tone.",
+            "layers": [
+                {"name": "thank_you_title", "type": "text", "ai_role": "Big 'Thank You' or similar title", "ai_max_chars": 20},
+                {"name": "appreciation_msg", "type": "text", "ai_role": "A short heartfelt message of appreciation", "ai_max_chars": 100}
+            ]
+        }
+    },
+    {
+        "purpose_name": "Business Info",
+        "data_requirement": "basic_columns",
+        "ai_prompt": "Summarize business info for {business_name} to present to new customers.",
+        "sample_template_json_rules": {
+            "ai_global_rule": "Professional and informative.",
+            "layers": [
+                {"name": "about_title", "type": "text", "ai_role": "Title like 'About Us' or 'Who We Are'", "ai_max_chars": 20},
+                {"name": "about_desc", "type": "text", "ai_role": "A short engaging summary of the business", "ai_max_chars": 150}
+            ]
+        }
+    }
+]

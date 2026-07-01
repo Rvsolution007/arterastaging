@@ -420,6 +420,7 @@ class HomeController extends Controller
                 "image" => $fileName ?? null,
                 "type" => $request->type,
                 "type_id" => $type_id,
+                "external_link" => ($request->type == 'externalLink') ? $request->external_link : null,
             ]);
 
             // --- Firebase Notification Sending ---
@@ -429,7 +430,7 @@ class HomeController extends Controller
                 if (isset($fileName)) {
                     $imageFullUrl = (StorageSetting::getStorageSetting('storage') == 'DigitalOcean') 
                         ? Storage::disk('spaces')->url('uploads/' . $fileName) 
-                        : asset('uploads/' . $fileName);
+                        : rtrim(env('APP_URL', url('/')), '/') . '/uploads/' . $fileName;
                 }
 
                 $fcmResult = $fcmService->sendNotification(

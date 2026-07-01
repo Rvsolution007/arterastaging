@@ -33,7 +33,7 @@
         </div>
     @endif
 
-    {!! Form::open(['route' => ['poster-maker.update',$poster->id],'method'=>'PATCH','files'=>true]) !!}
+    {!! Form::open(['route' => ['Frame.update',$poster->id],'method'=>'PATCH','files'=>true]) !!}
     {!! Form::hidden('user_id',optional(Auth::user())->id)!!}
     {!! Form::hidden('id',$poster->id)!!}
     <div class="row">

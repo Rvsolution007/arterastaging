@@ -79,13 +79,56 @@ Route::
             Route::get('greeting-get/{id}', 'GreetingController@greeting_get');
             Route::Post('greeting-action', 'GreetingController@greeting_action');
 
-            Route::resource('business-category', 'BusinessCategoryController');
+            Route::post('business-category/bulk-delete', 'BusinessCategoryController@bulkDelete');
+            Route::get('business-category/export', 'BusinessCategoryController@export')->name('business-category.export');
+            Route::post('business-category/import', 'BusinessCategoryController@import')->name('business-category.import');
+            Route::post('business-category/search', 'BusinessCategoryController@search');
             Route::Post('business-category-status', 'BusinessCategoryController@business_category_status');
+            Route::resource('business-category', 'BusinessCategoryController');
+            
+            Route::post('product-type/bulk-delete', 'ProductTypeController@bulkDelete');
+            Route::post('product-type/search', 'ProductTypeController@search');
+            Route::get('product-type/export', 'ProductTypeController@export')->name('product-type.export');
+            Route::post('product-type/import', 'ProductTypeController@import')->name('product-type.import');
+            Route::resource('product-type', 'ProductTypeController');
+            
+            Route::post('brand-status', 'BrandController@brand_status');
+            Route::post('brand/bulk-delete', 'BrandController@bulkDelete');
+            Route::get('brand/export', 'BrandController@export')->name('brand.export');
+            Route::post('brand/import', 'BrandController@import')->name('brand.import');
+            Route::post('brand/search', 'BrandController@search');
+            Route::resource('brand', 'BrandController');
             
             Route::resource('category-background-image', 'CategoryBackgroundImageController');
             
-            Route::resource('business-sub-category', 'BusinessSubCategoryController');
+            Route::get('business-sub-category/export', 'BusinessSubCategoryController@export')->name('business-sub-category.export');
+            Route::post('business-sub-category/import', 'BusinessSubCategoryController@import')->name('business-sub-category.import');
+            Route::post('business-sub-category-sort-order', 'BusinessSubCategoryController@updateSortOrder');
+            Route::post('business-sub-category/bulk-delete', 'BusinessSubCategoryController@bulkDelete');
+            Route::post('business-sub-category/search', 'BusinessSubCategoryController@search');
             Route::Post('business-sub-category-status', 'BusinessSubCategoryController@business_sub_category_status');
+            Route::resource('business-sub-category', 'BusinessSubCategoryController');
+            
+            Route::Post('business-type-status', 'BusinessTypeController@business_type_status');
+            Route::post('business-type/bulk-delete', 'BusinessTypeController@bulkDelete');
+            Route::get('business-type/export', 'BusinessTypeController@export')->name('business-type.export');
+            Route::post('business-type/import', 'BusinessTypeController@import')->name('business-type.import');
+            Route::post('business-type/search', 'BusinessTypeController@search');
+            Route::get('business-type/get-sub-categories', 'BusinessTypeController@getSubCategories');
+            Route::resource('business-type', 'BusinessTypeController');
+            
+            Route::get('business-product/get-sub-categories', 'BusinessProductController@getSubCategories');
+            Route::get('business-product/get-business-types', 'BusinessProductController@getBusinessTypes');
+            Route::Post('business-product-status', 'BusinessProductController@business_product_status');
+            Route::post('business-product/bulk-delete', 'BusinessProductController@bulkDelete');
+            Route::get('business-product/export', 'BusinessProductController@export')->name('business-product.export');
+            Route::post('business-product/import', 'BusinessProductController@import')->name('business-product.import');
+            Route::post('business-product/search', 'BusinessProductController@search');
+            Route::resource('business-product', 'BusinessProductController');
+            
+            Route::get('custom-product-request', 'CustomProductRequestController@index')->name('custom-product-request.index');
+            Route::post('custom-product-request/{id}/resolve', 'CustomProductRequestController@resolve')->name('custom-product-request.resolve');
+            
             Route::get('get-business-sub-category', 'BusinessFrameController@get_business_sub_category');
             Route::resource('custom-post', 'BusinessFrameController');
             Route::Post('custom-post-status-bf', 'BusinessFrameController@business_frame_status');
@@ -93,10 +136,12 @@ Route::
             Route::get('custom-post-bcat-get/{id}', 'BusinessFrameController@business_category_get');
             Route::post('custom-frame-purpose-create', 'BusinessFrameController@createCustomFramePurpose');
             Route::post('custom-frame-purpose', 'BusinessFrameController@storeCustomFramePurpose');
+            Route::post('custom-frame-purpose-remove-ai', 'BusinessFrameController@removeCustomFramePurposeAi');
             Route::put('custom-frame-purpose/{id}', 'BusinessFrameController@updateCustomFramePurpose');
             Route::delete('custom-frame-purpose/{id}', 'BusinessFrameController@deleteCustomFramePurpose');
             Route::post('custom-frame-image-type', 'BusinessFrameController@storeCustomFrameImageType');
             Route::post('business-custom-frame-zip', 'BusinessFrameController@storeBusinessCustomFrame');
+            Route::put('business-custom-frame-zip/{id}', 'BusinessFrameController@updateBusinessCustomFrame');
             Route::delete('business-custom-frame-zip/{id}', 'BusinessFrameController@deleteBusinessCustomFrame');
             Route::post('business-custom-frame-landing', 'BusinessFrameController@business_custom_frame_landing');
             Route::Post('custom-post-action', 'BusinessFrameController@business_frame_action');
@@ -119,17 +164,13 @@ Route::
             Route::get('sticker-category-get/{id}', 'StickerController@sticker_category_get');
             Route::Post('sticker-action', 'StickerController@sticker_action');
 
-            Route::resource('product-category', 'ProductCategoryController');
-            Route::Post('product-category-status', 'ProductCategoryController@product_category_status');
-            Route::resource('product', 'ProductController');
-            Route::Post('product-status', 'ProductController@product_status');
             Route::resource('inquiry', 'InquiryController');
 
-            Route::resource('poster-maker', 'PosterMakerController');
-            Route::post('poster-maker/bulk-delete', 'PosterMakerController@bulkDelete')->name('admin.poster_maker.bulk_delete');
-            Route::post('poster-maker-frame-type', 'PosterMakerController@poster_maker_frame_type');
-            Route::resource('poster-category', 'PosterCategoryController');
-            Route::Post('poster-category-status', 'PosterCategoryController@poster_category_status');
+            Route::resource('Frame', 'PosterMakerController');
+            Route::post('Frame/bulk-delete', 'PosterMakerController@bulkDelete')->name('admin.poster_maker.bulk_delete');
+            Route::post('Frame-frame-type', 'PosterMakerController@poster_maker_frame_type');
+            Route::resource('Frame-category', 'PosterCategoryController');
+            Route::Post('Frame-category-status', 'PosterCategoryController@poster_category_status');
 
             Route::get('referral-system', 'ReferralSystemController@referral_system');
             Route::post('referral-system', 'ReferralSystemController@post_referral_system');
@@ -303,4 +344,53 @@ Route::
 
             // Documentation
             Route::get('documentation', 'DocumentationController@index')->name('admin.documentation');
+
+            // Template Builder
+            Route::get('template-builder', 'TemplateBuilderController@index')->name('template_builder.index');
+            Route::get('template-builder/stickers', 'TemplateBuilderController@getStickers')->name('template_builder.stickers');
+            Route::get('template-builder/load-zip/{id}', 'TemplateBuilderController@loadZip')->name('template_builder.load_zip');
+            Route::get('template-builder/load-frame-zip/{id}', 'TemplateBuilderController@loadFrameZip')->name('template_builder.load_frame_zip');
+            Route::post('template-builder/parse-zip', 'TemplateBuilderController@parseZip')->name('template_builder.parse_zip');
+            Route::post('template-builder/save', 'TemplateBuilderController@save')->name('template_builder.save');
+            Route::post('template-builder/save-frame', 'TemplateBuilderController@saveFrame')->name('template_builder.save_frame');
+
+            // Template Builder Editor Assets/Fonts
+            Route::get('editor/fonts', function() {
+                $fonts = \App\Models\Font::where('status', 1)->get()->map(function($f) {
+                    return [
+                        'name' => $f->name,
+                        'family' => $f->name,
+                        'file_path' => $f->file_path ? asset('uploads/fonts/' . basename($f->file_path)) : null
+                    ];
+                })->toArray();
+                $fallbacks = ['Arial', 'Times New Roman', 'Courier New', 'Verdana'];
+                $fallbackFonts = array_map(function($f) {
+                    return ['name' => $f, 'family' => $f, 'file_path' => null];
+                }, $fallbacks);
+                
+                // Remove duplicates by name
+                $merged = array_merge($fallbackFonts, $fonts);
+                $unique = [];
+                foreach ($merged as $item) {
+                    if (!isset($unique[$item['name']])) {
+                        $unique[$item['name']] = $item;
+                    }
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'data' => array_values($unique)
+                ]);
+            });
+            Route::get('editor/assets', function() {
+                return response()->json(['success' => true, 'data' => []]);
+            });
+
+
+            // Fonts Manager
+            Route::get('fonts', 'FontController@index')->name('admin.fonts.index');
+            Route::get('fonts/create', 'FontController@create')->name('admin.fonts.create');
+            Route::post('fonts', 'FontController@store')->name('admin.fonts.store');
+            Route::put('fonts/{id}', 'FontController@update')->name('admin.fonts.update');
+            Route::delete('fonts/{id}', 'FontController@destroy')->name('admin.fonts.destroy');
         });

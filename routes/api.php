@@ -44,7 +44,7 @@ Route::get('/fcm-test-send', function() {
     }
     
     $result = $fcm->sendNotification(
-        'Test Notification 🔔',
+        'Test Notification ðŸ””',
         'This is a test from FCM debug endpoint',
         null,
         ['type' => 'ai_campaign'],
@@ -97,11 +97,15 @@ Route::
             Route::post('/add-business', 'HomeApi@addBusiness');
             Route::post('/update-business', 'HomeApi@updateBusiness');
             Route::post('/delete-business', 'HomeApi@deleteBusiness');
+            Route::get('/business-products', 'HomeApi@getBusinessProducts');
+            Route::post('/business-products/search', 'HomeApi@searchBusinessProducts');
+            Route::post('/business-products/request-custom', 'HomeApi@requestCustomProduct');
             Route::get('/get-post', 'HomeApi@getPost');
 
             Route::get('/language', 'HomeApi@getLanguage');
             Route::get('/app-translations', 'HomeApi@getAppTranslations');
             Route::get('/subscription-plan', 'HomeApi@getSubscriptionplan');
+            Route::get('/subscription-upgrade-preview', 'HomeApi@getSubscriptionUpgradePreview');
 
             // Mini Website API
             Route::get('/mini-website/templates', 'MiniWebsiteApiController@templates');
@@ -131,13 +135,13 @@ Route::
 
             Route::get('/business-category', 'HomeApi@getBusinessCategory');
             Route::get('/business-sub-category', 'HomeApi@getBusinessSubCategory');
+            Route::get('/business-type', 'HomeApi@getBusinessType');
+            Route::get('/business-profile/search', 'HomeApi@searchBusinessProfile');
             Route::get('/custom-post', 'HomeApi@getBusinessFrame');
 
             Route::get('/get-sticker', 'HomeApi@getSticker');
             Route::post('/search-sticker', 'HomeApi@searchSticker');
 
-            Route::get('/product-category', 'HomeApi@getProductCategory');
-            Route::get('/product', 'HomeApi@getProduct');
             Route::post('/inquiry', 'HomeApi@postInquiry');
             Route::get('/poster-category', 'HomeApi@posterCategory');
             Route::post('/poster-json', 'HomeApi@getPosterJson');
@@ -179,8 +183,17 @@ Route::
 
             // Native Products Management
             Route::post('/products/list', [\App\Http\Controllers\Api\SetupWizardApiController::class, 'getProducts']);
+            Route::post('/products/create', [\App\Http\Controllers\Api\SetupWizardApiController::class, 'createProduct']);
+            Route::post('/products/extract-from-image', [\App\Http\Controllers\Api\SetupWizardApiController::class, 'extractFromImage']);
+            Route::post('/products/bulk-create', [\App\Http\Controllers\Api\SetupWizardApiController::class, 'bulkCreateProducts']);
             Route::post('/products/{id}/update', [\App\Http\Controllers\Api\SetupWizardApiController::class, 'updateProduct']);
             Route::post('/products/{id}/delete', [\App\Http\Controllers\Api\SetupWizardApiController::class, 'deleteProduct']);
+
+            // Product Categories Management
+            Route::post('/products/categories/list', [\App\Http\Controllers\Api\SetupWizardApiController::class, 'getCategoryList']);
+            Route::post('/products/categories/add', [\App\Http\Controllers\Api\SetupWizardApiController::class, 'addCategory']);
+            Route::post('/products/categories/update', [\App\Http\Controllers\Api\SetupWizardApiController::class, 'updateCategory']);
+            Route::post('/products/categories/delete', [\App\Http\Controllers\Api\SetupWizardApiController::class, 'deleteCategory']);
 
             // Catalogue Columns Management
             Route::post('/catalogue-columns', [\App\Http\Controllers\Api\SetupWizardApiController::class, 'getColumns']);
@@ -198,7 +211,7 @@ Route::
             Route::post('/user-favorite-frame', 'HomeApi@userFavoriteFrame');
             Route::get('/user-favorites', 'HomeApi@userFavorites');
 
-            // Ad Configuration Endpoint — serves all AdMob/network settings to Flutter
+            // Ad Configuration Endpoint â€” serves all AdMob/network settings to Flutter
             Route::get('/ad-config', 'HomeApi@getAdConfig');
 
             // Notifications
@@ -241,4 +254,9 @@ Route::namespace('Api')->group(function () {
     Route::any('get_greeting_categories', 'GreetingApiController@categories');
     Route::any('get_greetings_by_category', 'GreetingApiController@get_greetings_by_category');
 });
+
+// Editor routes moved to admin.php
+
+
+Route::get('editor/stickers', 'Api\EditorDataController@getStickers');
 

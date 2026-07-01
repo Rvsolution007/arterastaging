@@ -1,0 +1,1090 @@
+{
+  "name": "Hiring_101",
+  "path": "Hiring_101/",
+  "info": {
+    "width": 2000,
+    "height": 2000,
+    "dpi": 300
+  },
+  "layers": [
+    {
+      "name": "Layer_0",
+      "type": "image",
+      "is_shape": true,
+      "shapeType": "custom",
+      "x": 0,
+      "y": 0,
+      "w": 2000,
+      "h": 2000,
+      "width": 2000,
+      "height": 2000,
+      "src": "../skins/Hiring_101/Layer_0.png",
+      "fillEnabled": true,
+      "z_index": 1,
+      "is_background": 1
+    },
+    {
+      "name": "Gradient_Fill_1",
+      "type": "image",
+      "is_shape": true,
+      "shapeType": "custom",
+      "x": 0,
+      "y": 0,
+      "w": 2000,
+      "h": 2000,
+      "width": 2000,
+      "height": 2000,
+      "src": "../skins/Hiring_101/Gradient_Fill_1.png",
+      "fillEnabled": true,
+      "fillGradient": {
+        "angle": 90,
+        "type": "linear",
+        "colorStops": [
+          {
+            "color": "#54008f",
+            "location": 0,
+            "midpoint": 50
+          },
+          {
+            "color": "#356b9a",
+            "location": 4096,
+            "midpoint": 50
+          }
+        ],
+        "opacityStops": [
+          {
+            "opacity": 100,
+            "location": 0
+          }
+        ]
+      },
+      "z_index": 2
+    },
+    {
+      "name": "Layer_4",
+      "type": "image",
+      "is_shape": true,
+      "shapeType": "custom",
+      "x": 0,
+      "y": 0,
+      "w": 2000,
+      "h": 2000,
+      "width": 2000,
+      "height": 2000,
+      "src": "../skins/Hiring_101/Layer_4.png",
+      "fillEnabled": true,
+      "opacity": 0.39,
+      "blendMode": "luminosity",
+      "z_index": 3
+    },
+    {
+      "name": "Layer_3",
+      "type": "image",
+      "is_shape": true,
+      "shapeType": "custom",
+      "x": 0,
+      "y": 0,
+      "w": 2000,
+      "h": 2000,
+      "width": 2000,
+      "height": 2000,
+      "src": "../skins/Hiring_101/Layer_3.png",
+      "fillEnabled": true,
+      "opacity": 0.31,
+      "z_index": 4
+    },
+    {
+      "name": "Ellipse_1",
+      "type": "image",
+      "is_shape": true,
+      "shapeType": "custom",
+      "x": 1121,
+      "y": 0,
+      "w": 879,
+      "h": 1149,
+      "width": 879,
+      "height": 1149,
+      "src": "../skins/Hiring_101/Ellipse_1.png",
+      "pathData": [
+        {
+          "operation": "add",
+          "closed": true,
+          "points": [
+            {
+              "anchor": {
+                "x": 1915.5,
+                "y": -439
+              },
+              "forward": {
+                "x": 2354.29,
+                "y": -439
+              },
+              "backward": {
+                "x": 1476.71,
+                "y": -439
+              },
+              "smooth": true
+            },
+            {
+              "anchor": {
+                "x": 2710,
+                "y": 355
+              },
+              "forward": {
+                "x": 2710,
+                "y": 793.51
+              },
+              "backward": {
+                "x": 2710,
+                "y": -83.51
+              },
+              "smooth": true
+            },
+            {
+              "anchor": {
+                "x": 1915.5,
+                "y": 1149
+              },
+              "forward": {
+                "x": 1476.71,
+                "y": 1149
+              },
+              "backward": {
+                "x": 2354.29,
+                "y": 1149
+              },
+              "smooth": true
+            },
+            {
+              "anchor": {
+                "x": 1121,
+                "y": 355
+              },
+              "forward": {
+                "x": 1121,
+                "y": -83.51
+              },
+              "backward": {
+                "x": 1121,
+                "y": 793.51
+              },
+              "smooth": true
+            }
+          ]
+        }
+      ],
+      "fillEnabled": true,
+      "fillColor": "#ffcb05",
+      "z_index": 5
+    },
+    {
+      "name": "Rectangle_4",
+      "type": "image",
+      "is_shape": true,
+      "shapeType": "polygon",
+      "x": 0,
+      "y": 1734,
+      "w": 2000,
+      "h": 266,
+      "width": 2000,
+      "height": 266,
+      "src": "../skins/Hiring_101/Rectangle_4.png",
+      "points": [
+        {
+          "x": -23,
+          "y": 1734
+        },
+        {
+          "x": 2045,
+          "y": 1734
+        },
+        {
+          "x": 2045,
+          "y": 2059
+        },
+        {
+          "x": -23,
+          "y": 2059
+        }
+      ],
+      "pathData": [
+        {
+          "operation": "add",
+          "closed": true,
+          "points": [
+            {
+              "anchor": {
+                "x": -23,
+                "y": 1734
+              }
+            },
+            {
+              "anchor": {
+                "x": 2045,
+                "y": 1734
+              }
+            },
+            {
+              "anchor": {
+                "x": 2045,
+                "y": 2059
+              }
+            },
+            {
+              "anchor": {
+                "x": -23,
+                "y": 2059
+              }
+            }
+          ]
+        }
+      ],
+      "fillEnabled": true,
+      "fillColor": "#ffffff",
+      "z_index": 6
+    },
+    {
+      "name": "BG-2",
+      "type": "image",
+      "is_shape": true,
+      "shapeType": "roundedRect",
+      "x": 104,
+      "y": 1614,
+      "w": 316,
+      "h": 70,
+      "width": 316,
+      "height": 70,
+      "src": "../skins/Hiring_101/BG-2.png",
+      "cornerRadius": {
+        "topLeft": 48.63,
+        "topRight": 48.63,
+        "bottomRight": 48.64,
+        "bottomLeft": 48.64
+      },
+      "pathData": [
+        {
+          "operation": "add",
+          "closed": true,
+          "points": [
+            {
+              "anchor": {
+                "x": 123.01,
+                "y": 1614
+              },
+              "forward": {
+                "x": 123.01,
+                "y": 1614
+              },
+              "backward": {
+                "x": 112.52,
+                "y": 1614
+              },
+              "smooth": true
+            },
+            {
+              "anchor": {
+                "x": 401,
+                "y": 1614
+              },
+              "forward": {
+                "x": 411.49,
+                "y": 1614
+              },
+              "backward": {
+                "x": 401,
+                "y": 1614
+              },
+              "smooth": true
+            },
+            {
+              "anchor": {
+                "x": 419.99,
+                "y": 1632.99
+              },
+              "forward": {
+                "x": 419.99,
+                "y": 1632.99
+              },
+              "backward": {
+                "x": 419.99,
+                "y": 1622.5
+              },
+              "smooth": true
+            },
+            {
+              "anchor": {
+                "x": 419.99,
+                "y": 1665.02
+              },
+              "forward": {
+                "x": 419.99,
+                "y": 1675.51
+              },
+              "backward": {
+                "x": 419.99,
+                "y": 1665.02
+              },
+              "smooth": true
+            },
+            {
+              "anchor": {
+                "x": 401,
+                "y": 1684.01
+              },
+              "forward": {
+                "x": 401,
+                "y": 1684.01
+              },
+              "backward": {
+                "x": 411.49,
+                "y": 1684.01
+              },
+              "smooth": true
+            },
+            {
+              "anchor": {
+                "x": 123.01,
+                "y": 1684.01
+              },
+              "forward": {
+                "x": 112.52,
+                "y": 1684.01
+              },
+              "backward": {
+                "x": 123.01,
+                "y": 1684.01
+              },
+              "smooth": true
+            },
+            {
+              "anchor": {
+                "x": 104.01,
+                "y": 1665.02
+              },
+              "forward": {
+                "x": 104.01,
+                "y": 1665.02
+              },
+              "backward": {
+                "x": 104.01,
+                "y": 1675.51
+              },
+              "smooth": true
+            },
+            {
+              "anchor": {
+                "x": 104.01,
+                "y": 1632.99
+              },
+              "forward": {
+                "x": 104.01,
+                "y": 1622.5
+              },
+              "backward": {
+                "x": 104.01,
+                "y": 1632.99
+              },
+              "smooth": true
+            }
+          ]
+        }
+      ],
+      "fillEnabled": true,
+      "fillColor": "#eeeeee",
+      "z_index": 7
+    },
+    {
+      "name": "apply_now",
+      "type": "text",
+      "x": 148.15,
+      "y": 1634.38,
+      "w": 223.87,
+      "h": 37.12,
+      "width": 223.87,
+      "height": 37.12,
+      "text": "apply now",
+      "size": 33.26,
+      "textKind": "point",
+      "font": "Montserrat-Bold",
+      "color": "#000000",
+      "weight": "bold",
+      "justification": "right",
+      "lineHeight": 62.5,
+      "antiAlias": "sharp",
+      "z_index": 8
+    },
+    {
+      "name": "heading",
+      "type": "text",
+      "x": 88,
+      "y": 414,
+      "w": 657.39,
+      "h": 171.69,
+      "width": 657.39,
+      "height": 171.69,
+      "text": "We are",
+      "size": 153.85,
+      "textKind": "point",
+      "font": "Montserrat-Bold",
+      "color": "#ffcb05",
+      "weight": "bold",
+      "justification": "left",
+      "lineHeight": 62.5,
+      "antiAlias": "sharp",
+      "z_index": 9
+    },
+    {
+      "name": "sub_heading",
+      "type": "text",
+      "x": 103.34,
+      "y": 821.51,
+      "w": 823.82,
+      "h": 71.9,
+      "width": 823.82,
+      "height": 71.9,
+      "text": "Join Our Amazing Team!",
+      "size": 64.48,
+      "textKind": "point",
+      "font": "Montserrat-SemiBold",
+      "color": "#ffffff",
+      "weight": "bold",
+      "justification": "left",
+      "lineHeight": 62.5,
+      "antiAlias": "sharp",
+      "z_index": 10
+    },
+    {
+      "name": "heading1",
+      "type": "text",
+      "x": 84.45,
+      "y": 553.8,
+      "w": 1043.7,
+      "h": 284.32,
+      "width": 1043.7,
+      "height": 284.32,
+      "text": "Hiring!",
+      "size": 254.31,
+      "textKind": "point",
+      "font": "Montserrat-ExtraBold",
+      "color": "#ffffff",
+      "weight": "bold",
+      "justification": "left",
+      "lineHeight": 62.5,
+      "antiAlias": "sharp",
+      "z_index": 11
+    },
+    {
+      "name": "role1_name",
+      "type": "text",
+      "x": 199.03,
+      "y": 1210.4,
+      "w": 433.94,
+      "h": 65.71,
+      "width": 433.94,
+      "height": 65.71,
+      "text": "Web Designer",
+      "size": 59.04,
+      "textKind": "point",
+      "font": "Montserrat-Medium",
+      "color": "#ffffff",
+      "weight": "medium",
+      "justification": "left",
+      "lineHeight": 62.5,
+      "antiAlias": "sharp",
+      "z_index": 12
+    },
+    {
+      "name": "role2_name",
+      "type": "text",
+      "x": 198.03,
+      "y": 1282.2,
+      "w": 530.93,
+      "h": 65.71,
+      "width": 530.93,
+      "height": 65.71,
+      "text": "Graphic Designer",
+      "size": 59.04,
+      "textKind": "point",
+      "font": "Montserrat-Medium",
+      "color": "#ffffff",
+      "weight": "medium",
+      "justification": "left",
+      "lineHeight": 62.5,
+      "antiAlias": "sharp",
+      "z_index": 13
+    },
+    {
+      "name": "role3_name",
+      "type": "text",
+      "x": 198.02,
+      "y": 1356.01,
+      "w": 598.11,
+      "h": 65.71,
+      "width": 598.11,
+      "height": 65.71,
+      "text": "Social Media Expert",
+      "size": 59.04,
+      "textKind": "point",
+      "font": "Montserrat-Medium",
+      "color": "#ffffff",
+      "weight": "medium",
+      "justification": "left",
+      "lineHeight": 62.5,
+      "antiAlias": "sharp",
+      "z_index": 14
+    },
+    {
+      "name": "role4_name",
+      "type": "text",
+      "x": 200.97,
+      "y": 1427.81,
+      "w": 373.65,
+      "h": 65.71,
+      "width": 373.65,
+      "height": 65.71,
+      "text": "Video Editor",
+      "size": 59.04,
+      "textKind": "point",
+      "font": "Montserrat-Medium",
+      "color": "#ffffff",
+      "weight": "medium",
+      "justification": "left",
+      "lineHeight": 62.5,
+      "antiAlias": "sharp",
+      "z_index": 15
+    },
+    {
+      "name": "Ellipse_1_copy_3",
+      "type": "image",
+      "is_shape": true,
+      "shapeType": "ellipse",
+      "x": 117,
+      "y": 1211,
+      "w": 53,
+      "h": 53,
+      "width": 53,
+      "height": 53,
+      "src": "../skins/Hiring_101/Ellipse_1_copy_3.png",
+      "radiusX": 26.5,
+      "radiusY": 26.5,
+      "centerX": 143.5,
+      "centerY": 1237.5,
+      "pathData": [
+        {
+          "operation": "add",
+          "closed": true,
+          "points": [
+            {
+              "anchor": {
+                "x": 143.5,
+                "y": 1211
+              },
+              "forward": {
+                "x": 158.14,
+                "y": 1211
+              },
+              "backward": {
+                "x": 128.86,
+                "y": 1211
+              },
+              "smooth": true
+            },
+            {
+              "anchor": {
+                "x": 170,
+                "y": 1237.5
+              },
+              "forward": {
+                "x": 170,
+                "y": 1252.14
+              },
+              "backward": {
+                "x": 170,
+                "y": 1222.86
+              },
+              "smooth": true
+            },
+            {
+              "anchor": {
+                "x": 143.5,
+                "y": 1264
+              },
+              "forward": {
+                "x": 128.86,
+                "y": 1264
+              },
+              "backward": {
+                "x": 158.14,
+                "y": 1264
+              },
+              "smooth": true
+            },
+            {
+              "anchor": {
+                "x": 117,
+                "y": 1237.5
+              },
+              "forward": {
+                "x": 117,
+                "y": 1222.86
+              },
+              "backward": {
+                "x": 117,
+                "y": 1252.14
+              },
+              "smooth": true
+            }
+          ]
+        }
+      ],
+      "fillEnabled": true,
+      "fillColor": "#f7fdfd",
+      "z_index": 16
+    },
+    {
+      "name": "1",
+      "type": "text",
+      "x": 135.59,
+      "y": 1220.78,
+      "w": 14.49,
+      "h": 41.24,
+      "width": 14.49,
+      "height": 41.24,
+      "text": "1",
+      "size": 36.96,
+      "textKind": "point",
+      "font": "Montserrat-Bold",
+      "color": "#000000",
+      "weight": "bold",
+      "justification": "left",
+      "lineHeight": 62.5,
+      "antiAlias": "sharp",
+      "z_index": 17
+    },
+    {
+      "name": "Ellipse_1_copy_4",
+      "type": "image",
+      "is_shape": true,
+      "shapeType": "ellipse",
+      "x": 117,
+      "y": 1282,
+      "w": 53,
+      "h": 53,
+      "width": 53,
+      "height": 53,
+      "src": "../skins/Hiring_101/Ellipse_1_copy_4.png",
+      "radiusX": 26.5,
+      "radiusY": 26.5,
+      "centerX": 143.5,
+      "centerY": 1308.5,
+      "pathData": [
+        {
+          "operation": "add",
+          "closed": true,
+          "points": [
+            {
+              "anchor": {
+                "x": 143.5,
+                "y": 1282
+              },
+              "forward": {
+                "x": 158.14,
+                "y": 1282
+              },
+              "backward": {
+                "x": 128.86,
+                "y": 1282
+              },
+              "smooth": true
+            },
+            {
+              "anchor": {
+                "x": 170,
+                "y": 1308.5
+              },
+              "forward": {
+                "x": 170,
+                "y": 1323.14
+              },
+              "backward": {
+                "x": 170,
+                "y": 1293.86
+              },
+              "smooth": true
+            },
+            {
+              "anchor": {
+                "x": 143.5,
+                "y": 1335
+              },
+              "forward": {
+                "x": 128.86,
+                "y": 1335
+              },
+              "backward": {
+                "x": 158.14,
+                "y": 1335
+              },
+              "smooth": true
+            },
+            {
+              "anchor": {
+                "x": 117,
+                "y": 1308.5
+              },
+              "forward": {
+                "x": 117,
+                "y": 1293.86
+              },
+              "backward": {
+                "x": 117,
+                "y": 1323.14
+              },
+              "smooth": true
+            }
+          ]
+        }
+      ],
+      "fillEnabled": true,
+      "fillColor": "#f7fdfd",
+      "z_index": 18
+    },
+    {
+      "name": "2",
+      "type": "text",
+      "x": 132.59,
+      "y": 1291.78,
+      "w": 21.8,
+      "h": 41.24,
+      "width": 21.8,
+      "height": 41.24,
+      "text": "2",
+      "size": 36.96,
+      "textKind": "point",
+      "font": "Montserrat-Bold",
+      "color": "#000000",
+      "weight": "bold",
+      "justification": "left",
+      "lineHeight": 62.5,
+      "antiAlias": "sharp",
+      "z_index": 19
+    },
+    {
+      "name": "Ellipse_1_copy_5",
+      "type": "image",
+      "is_shape": true,
+      "shapeType": "ellipse",
+      "x": 117,
+      "y": 1357,
+      "w": 53,
+      "h": 53,
+      "width": 53,
+      "height": 53,
+      "src": "../skins/Hiring_101/Ellipse_1_copy_5.png",
+      "radiusX": 26.5,
+      "radiusY": 26.5,
+      "centerX": 143.5,
+      "centerY": 1383.5,
+      "pathData": [
+        {
+          "operation": "add",
+          "closed": true,
+          "points": [
+            {
+              "anchor": {
+                "x": 143.5,
+                "y": 1357
+              },
+              "forward": {
+                "x": 158.14,
+                "y": 1357
+              },
+              "backward": {
+                "x": 128.86,
+                "y": 1357
+              },
+              "smooth": true
+            },
+            {
+              "anchor": {
+                "x": 170,
+                "y": 1383.5
+              },
+              "forward": {
+                "x": 170,
+                "y": 1398.14
+              },
+              "backward": {
+                "x": 170,
+                "y": 1368.86
+              },
+              "smooth": true
+            },
+            {
+              "anchor": {
+                "x": 143.5,
+                "y": 1410
+              },
+              "forward": {
+                "x": 128.86,
+                "y": 1410
+              },
+              "backward": {
+                "x": 158.14,
+                "y": 1410
+              },
+              "smooth": true
+            },
+            {
+              "anchor": {
+                "x": 117,
+                "y": 1383.5
+              },
+              "forward": {
+                "x": 117,
+                "y": 1368.86
+              },
+              "backward": {
+                "x": 117,
+                "y": 1398.14
+              },
+              "smooth": true
+            }
+          ]
+        }
+      ],
+      "fillEnabled": true,
+      "fillColor": "#f7fdfd",
+      "z_index": 20
+    },
+    {
+      "name": "3",
+      "type": "text",
+      "x": 131.55,
+      "y": 1364.78,
+      "w": 21.92,
+      "h": 41.24,
+      "width": 21.92,
+      "height": 41.24,
+      "text": "3",
+      "size": 36.96,
+      "textKind": "point",
+      "font": "Montserrat-Bold",
+      "color": "#000000",
+      "weight": "bold",
+      "justification": "left",
+      "lineHeight": 62.5,
+      "antiAlias": "sharp",
+      "z_index": 21
+    },
+    {
+      "name": "Ellipse_1_copy_6",
+      "type": "image",
+      "is_shape": true,
+      "shapeType": "ellipse",
+      "x": 117,
+      "y": 1430,
+      "w": 53,
+      "h": 53,
+      "width": 53,
+      "height": 53,
+      "src": "../skins/Hiring_101/Ellipse_1_copy_6.png",
+      "radiusX": 26.5,
+      "radiusY": 26.5,
+      "centerX": 143.5,
+      "centerY": 1456.5,
+      "pathData": [
+        {
+          "operation": "add",
+          "closed": true,
+          "points": [
+            {
+              "anchor": {
+                "x": 143.5,
+                "y": 1430
+              },
+              "forward": {
+                "x": 158.14,
+                "y": 1430
+              },
+              "backward": {
+                "x": 128.86,
+                "y": 1430
+              },
+              "smooth": true
+            },
+            {
+              "anchor": {
+                "x": 170,
+                "y": 1456.5
+              },
+              "forward": {
+                "x": 170,
+                "y": 1471.14
+              },
+              "backward": {
+                "x": 170,
+                "y": 1441.86
+              },
+              "smooth": true
+            },
+            {
+              "anchor": {
+                "x": 143.5,
+                "y": 1483
+              },
+              "forward": {
+                "x": 128.86,
+                "y": 1483
+              },
+              "backward": {
+                "x": 158.14,
+                "y": 1483
+              },
+              "smooth": true
+            },
+            {
+              "anchor": {
+                "x": 117,
+                "y": 1456.5
+              },
+              "forward": {
+                "x": 117,
+                "y": 1441.86
+              },
+              "backward": {
+                "x": 117,
+                "y": 1471.14
+              },
+              "smooth": true
+            }
+          ]
+        }
+      ],
+      "fillEnabled": true,
+      "fillColor": "#f7fdfd",
+      "z_index": 22
+    },
+    {
+      "name": "4",
+      "type": "text",
+      "x": 128.59,
+      "y": 1439.78,
+      "w": 25.46,
+      "h": 41.24,
+      "width": 25.46,
+      "height": 41.24,
+      "text": "4",
+      "size": 36.96,
+      "textKind": "point",
+      "font": "Montserrat-Bold",
+      "color": "#000000",
+      "weight": "bold",
+      "justification": "left",
+      "lineHeight": 62.5,
+      "antiAlias": "sharp",
+      "z_index": 23
+    },
+    {
+      "name": "Rectangle_5",
+      "type": "image",
+      "is_shape": true,
+      "shapeType": "polygon",
+      "x": 100,
+      "y": 1112,
+      "w": 608,
+      "h": 74,
+      "width": 608,
+      "height": 74,
+      "src": "../skins/Hiring_101/Rectangle_5.png",
+      "points": [
+        {
+          "x": 100,
+          "y": 1112
+        },
+        {
+          "x": 708,
+          "y": 1112
+        },
+        {
+          "x": 665,
+          "y": 1186
+        },
+        {
+          "x": 100,
+          "y": 1186
+        }
+      ],
+      "pathData": [
+        {
+          "operation": "add",
+          "closed": true,
+          "points": [
+            {
+              "anchor": {
+                "x": 100,
+                "y": 1112
+              }
+            },
+            {
+              "anchor": {
+                "x": 708,
+                "y": 1112
+              }
+            },
+            {
+              "anchor": {
+                "x": 665,
+                "y": 1186
+              }
+            },
+            {
+              "anchor": {
+                "x": 100,
+                "y": 1186
+              }
+            }
+          ]
+        }
+      ],
+      "fillEnabled": true,
+      "fillColor": "#010100",
+      "z_index": 24
+    },
+    {
+      "name": "Open_Possitions",
+      "type": "text",
+      "x": 119,
+      "y": 1117,
+      "w": 515,
+      "h": 69,
+      "width": 515,
+      "height": 69,
+      "text": "Open Possitions",
+      "size": 61.88,
+      "textKind": "point",
+      "font": "Montserrat-SemiBold",
+      "color": "#000000",
+      "weight": "bold",
+      "justification": "center",
+      "lineHeight": 62.5,
+      "antiAlias": "sharp",
+      "z_index": 25
+    },
+    {
+      "name": "Place_Your_Image_in_Here",
+      "type": "image",
+      "x": 1020,
+      "y": 419,
+      "w": 980,
+      "h": 1581,
+      "width": 980,
+      "height": 1581,
+      "src": "../skins/Hiring_101/Place_Your_Image_in_Here.png",
+      "image_type": "transparent",
+      "fillEnabled": true,
+      "isSmartObject": true,
+      "z_index": 26
+    }
+  ]
+}

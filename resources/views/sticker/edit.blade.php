@@ -46,8 +46,23 @@
     <div class="row">
         <div class="col-12">
             <div class="form-group row">
+                {!! Form::label('keywords','Keywords (Tags)', ['class' => 'col-sm-3 col-form-label']) !!}
+                <div class="col-sm-4">
+                    {!! Form::text('keywords', $sticker->keywords, ['class' => 'form-control', 'placeholder' => 'e.g. hiring, suit, professional']) !!}
+                    <small class="text-muted">These tags help in searching.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="form-group row">
                 {!! Form::label('image',' Select Image', ['class' => 'col-sm-3 col-form-label']) !!}
-                <div class="col-sm-4"><input class="form-control" type="file" id="image" name="image"></div>
+                <div class="col-sm-4">
+                    <input class="form-control" type="file" id="image" name="image">
+                    <small class="text-muted d-block mt-1"><i class="fa fa-info-circle text-info"></i> Note: Image will be automatically compressed and converted to <b>.webp</b> format for faster loading.</small>
+                </div>
             </div>
             <div class="row">
                 <div class="col-sm-3"></div>

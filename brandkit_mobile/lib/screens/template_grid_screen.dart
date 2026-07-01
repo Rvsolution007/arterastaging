@@ -9,12 +9,25 @@ import '../services/api_service.dart';
 import 'editor_screen.dart';
 import 'custom_posts_screen.dart';
 import '../widgets/shared_header.dart';
+import '../widgets/coming_soon_widget.dart';
+import '../config/app_config.dart';
 
-class TemplateGridScreen extends StatelessWidget {
+class TemplateGridScreen extends StatefulWidget {
   const TemplateGridScreen({super.key});
 
   @override
+  State<TemplateGridScreen> createState() => _TemplateGridScreenState();
+}
+
+class _TemplateGridScreenState extends State<TemplateGridScreen> {
+  int _selectedCategoryId = 0; // 0 means 'All'
+
+  @override
   Widget build(BuildContext context) {
+    if (!AppConfig.isLocal) {
+      return const ComingSoonWidget(title: 'Greetings & Templates');
+    }
+
     final HomeController homeController = Get.find<HomeController>();
 
     return SafeArea(
@@ -26,227 +39,226 @@ class TemplateGridScreen extends StatelessWidget {
             // Header
             const SharedHeader(),
 
-            // Search Bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.search, color: Colors.grey),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        decoration: InputDecoration(
-                          border: InputBorder.none,
-                          hintText: 'search_templates_categories'.tr,
-                          hintStyle: const TextStyle(fontSize: 14, color: Colors.grey),
-                        ),
-                      ),
-                    ),
-                    Container(
-                      width: 32, height: 32,
-                      decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.grey.shade100),
-                      child: const Icon(Icons.mic, color: Colors.grey, size: 18),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 28),
 
-            // 1. Create Something New
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                children: [
-                  Container(
-                    width: 32, height: 32,
-                    decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.primary.withOpacity(0.1)),
-                    child: Icon(Icons.auto_awesome, color: AppColors.primary, size: 16),
-                  ),
-                  const SizedBox(width: 12),
-                  Text('create_something_new'.tr, style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
 
-            // Template Type Cards
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: _buildTemplateCard(
-                      gradient: const [Color(0xFFDAE0EB), Color(0xFFE4D6EB)],
-                      icon: Icons.grid_view,
-                      iconColor: const Color(0xFF4B5563),
-                      label: 'post'.tr,
-                      size: '2000×2000',
-                      aspectRatio: 1.0,
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: _buildTemplateCard(
-                      gradient: const [Color(0xFFFCE4E6), Color(0xFFF4F3CA)],
-                      icon: Icons.movie_creation_outlined,
-                      iconColor: const Color(0xFF7C2D3D),
-                      label: 'story'.tr,
-                      size: '1080×1920',
-                      aspectRatio: 9 / 16,
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: _buildTemplateCard(
-                      gradient: const [Color(0xFFD5EFED), Color(0xFFE4EEF1)],
-                      icon: Icons.image_outlined,
-                      iconColor: const Color(0xFF1E3A8A),
-                      label: 'ads_infographics'.tr,
-                      size: '2000×2500',
-                      aspectRatio: 9 / 16,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 36),
-
-            // 2. New Posts (Recent 10)
-            _buildSectionHeader(
-              icon: Icons.fiber_new_rounded,
-              iconBgColor: Colors.green.shade50,
-              iconColor: Colors.green.shade600,
-              title: 'new_posts'.tr,
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 170,
-              child: Obx(() {
-                final recentPosts = homeController.recentCustomPosts;
-                if (recentPosts.isEmpty) {
-                  if (homeController.isLoading.value) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  return Center(
-                    child: Text('no_templates_yet'.tr, style: TextStyle(color: Colors.grey.shade400)),
-                  );
-                }
-                return ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: recentPosts.length,
-                  itemBuilder: (context, index) {
-                    final post = recentPosts[index];
-                    return _buildTemplatePreviewCard(
-                      context: context,
-                      post: post,
-                      homeController: homeController,
-                    );
-                  },
-                );
-              }),
-            ),
-            const SizedBox(height: 28),
-
-            // 3. Dynamic Purpose-Based Sections
+            // Filter Chips
             Obx(() {
               final purposes = homeController.customPosts;
               if (purposes.isEmpty && !homeController.isLoading.value) {
                 return const SizedBox.shrink();
               }
-              return Column(
-                children: purposes.map<Widget>((purpose) {
-                  final purposeName = purpose['customCategoryName'] ?? 'templates'.tr;
-                  final purposeId = purpose['customCategoryId'];
-                  final posts = (purpose['posts'] as List<dynamic>?) ?? [];
+              
+              return SizedBox(
+                height: 40,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: purposes.length + 1,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final isAll = index == 0;
+                    final catId = isAll ? 0 : purposes[index - 1]['customCategoryId'];
+                    final catName = isAll ? 'All' : (purposes[index - 1]['customCategoryName'] ?? '');
+                    final isSelected = _selectedCategoryId == catId;
 
-                  if (posts.isEmpty) return const SizedBox.shrink();
-
-                  // Pick an icon based on index for visual variety
-                  final purposeIndex = purposes.indexOf(purpose);
-                  final sectionColors = _getSectionColors(purposeIndex);
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Section Header with "View All"
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 32, height: 32,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: sectionColors['bgColor'],
-                                    ),
-                                    child: Icon(sectionColors['icon'] as IconData, color: sectionColors['iconColor'] as Color, size: 16),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Flexible(
-                                    child: Text(
-                                      purposeName,
-                                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedCategoryId = catId;
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppColors.primary : Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: isSelected ? null : Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Center(
+                          child: Text(
+                            catName,
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : Colors.grey.shade700,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
                             ),
-                            if (posts.length > 4)
-                              GestureDetector(
-                                onTap: () {
-                                  Get.to(() => CustomPostsScreen(initialCategoryId: purposeId));
-                                },
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            }),
+            const SizedBox(height: 24),
+
+            if (_selectedCategoryId != 0)
+              Obx(() {
+                final purposes = homeController.customPosts;
+                final selectedCategory = purposes.firstWhere((p) => p['customCategoryId'] == _selectedCategoryId, orElse: () => null);
+                
+                if (selectedCategory == null) return const SizedBox.shrink();
+                
+                final posts = (selectedCategory['posts'] as List<dynamic>?) ?? [];
+                
+                if (posts.isEmpty) {
+                  return const Center(child: Padding(
+                    padding: EdgeInsets.all(32.0),
+                    child: Text('No templates found in this category'),
+                  ));
+                }
+
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
+                    childAspectRatio: 0.8,
+                  ),
+                  itemCount: posts.length,
+                  itemBuilder: (context, index) {
+                    return _buildTemplatePreviewCard(
+                      context: context,
+                      post: posts[index],
+                      homeController: homeController,
+                    );
+                  },
+                );
+              })
+            else ...[
+
+
+              // 2. New Posts (Recent 10)
+              _buildSectionHeader(
+                icon: Icons.fiber_new_rounded,
+                iconBgColor: Colors.green.shade50,
+                iconColor: Colors.green.shade600,
+                title: 'new_posts'.tr,
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 170,
+                child: Obx(() {
+                  final recentPosts = homeController.recentCustomPosts;
+                  if (recentPosts.isEmpty) {
+                    if (homeController.isLoading.value) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    return Center(
+                      child: Text('no_templates_yet'.tr, style: TextStyle(color: Colors.grey.shade400)),
+                    );
+                  }
+                  return ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: recentPosts.length,
+                    itemBuilder: (context, index) {
+                      final post = recentPosts[index];
+                      return _buildTemplatePreviewCard(
+                        context: context,
+                        post: post,
+                        homeController: homeController,
+                      );
+                    },
+                  );
+                }),
+              ),
+              const SizedBox(height: 28),
+
+              // 3. Dynamic Purpose-Based Sections
+              Obx(() {
+                final purposes = homeController.customPosts;
+                if (purposes.isEmpty && !homeController.isLoading.value) {
+                  return const SizedBox.shrink();
+                }
+                return Column(
+                  children: purposes.map<Widget>((purpose) {
+                    final purposeName = purpose['customCategoryName'] ?? 'templates'.tr;
+                    final purposeId = purpose['customCategoryId'];
+                    final posts = (purpose['posts'] as List<dynamic>?) ?? [];
+
+                    if (posts.isEmpty) return const SizedBox.shrink();
+
+                    final purposeIndex = purposes.indexOf(purpose);
+                    final sectionColors = _getSectionColors(purposeIndex);
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Section Header with "View All"
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
                                 child: Row(
                                   children: [
-                                    Text('view_all'.tr, style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14)),
-                                    Icon(Icons.chevron_right, color: AppColors.primary, size: 18),
+                                    Container(
+                                      width: 32, height: 32,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: sectionColors['bgColor'],
+                                      ),
+                                      child: Icon(sectionColors['icon'] as IconData, color: sectionColors['iconColor'] as Color, size: 16),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Flexible(
+                                      child: Text(
+                                        purposeName,
+                                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
-                          ],
+                              if (posts.length > 4)
+                                GestureDetector(
+                                  onTap: () {
+                                    Get.to(() => CustomPostsScreen(initialCategoryId: purposeId));
+                                  },
+                                  child: Row(
+                                    children: [
+                                      Text('view_all'.tr, style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14)),
+                                      Icon(Icons.chevron_right, color: AppColors.primary, size: 18),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 14),
+                        const SizedBox(height: 14),
 
-                      // Horizontal Template List
-                      SizedBox(
-                        height: 170,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: posts.length > 6 ? 6 : posts.length,
-                          itemBuilder: (context, index) {
-                            final post = posts[index];
-                            return _buildTemplatePreviewCard(
-                              context: context,
-                              post: post,
-                              homeController: homeController,
-                            );
-                          },
+                        // Horizontal Template List
+                        SizedBox(
+                          height: 170,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: posts.length > 6 ? 6 : posts.length,
+                            itemBuilder: (context, index) {
+                              final post = posts[index];
+                              return _buildTemplatePreviewCard(
+                                context: context,
+                                post: post,
+                                purposeName: purposeName,
+                                homeController: homeController,
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 28),
-                    ],
-                  );
-                }).toList(),
-              );
-            }),
+                        const SizedBox(height: 28),
+                      ],
+                    );
+                  }).toList(),
+                );
+              }),
+            ],
 
             const SizedBox(height: 100),
           ],
@@ -260,6 +272,7 @@ class TemplateGridScreen extends StatelessWidget {
     required BuildContext context,
     required Map<String, dynamic> post,
     required HomeController homeController,
+    String? purposeName,
     double height = 170,
   }) {
     final imgUrl = post['image'] ?? '';
@@ -303,7 +316,10 @@ class TemplateGridScreen extends StatelessWidget {
             Get.toNamed(
               '/editor?$editorQuery',
               arguments: {
-                'frameData': post,
+                'frameData': {
+                  ...post,
+                  if (purposeName != null) 'customCategoryName': purposeName,
+                },
               },
             );
           },

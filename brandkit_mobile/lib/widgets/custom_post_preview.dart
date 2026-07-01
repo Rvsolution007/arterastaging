@@ -489,14 +489,40 @@ class _CustomPostPreviewState extends State<CustomPostPreview> {
         (layer['name'] ?? '').toString(); // original case for key lookup
     final String type = layer['type'] ?? '';
     final bool isBackground = layer['is_background'] == true ||
-        name == 'bg' ||
-        name == 'background';
+        (layer['is_background'] == null && (name == 'bg' ||
+        name == 'background'));
+
+    // ── FIX: Hide layer when is_background is explicitly false and name suggests background ──
+    if (layer['is_background'] == false &&
+        (name.contains('background') || name == 'bg' || name == 'image1')) {
+      debugPrint('[PREVIEW_LAYER_HIDE] Hiding "$name" — is_background explicitly false');
+      return const SizedBox.shrink();
+    }
+
+    // ── FIX: Masked layers — override position/size to match mask shape bounds ──
+    Map<String, dynamic> effectiveLayer = layer;
+    if (type == 'image' && layer['mask_layer_id'] != null) {
+      final maskId = layer['mask_layer_id'].toString();
+      final allLayers = widget.layers;
+      final maskShapeLayer = allLayers.firstWhere(
+        (l) => (l['name']?.toString() == maskId) || (l['id']?.toString() == maskId),
+        orElse: () => <String, dynamic>{},
+      );
+      if (maskShapeLayer.isNotEmpty) {
+        effectiveLayer = Map<String, dynamic>.from(layer);
+        effectiveLayer['x'] = maskShapeLayer['x'];
+        effectiveLayer['y'] = maskShapeLayer['y'];
+        effectiveLayer['w'] = maskShapeLayer['w'] ?? maskShapeLayer['width'];
+        effectiveLayer['h'] = maskShapeLayer['h'] ?? maskShapeLayer['height'];
+        debugPrint('[PREVIEW_MASK_FIX] "$name" position overridden to mask shape');
+      }
+    }
 
     // ══ DIAGNOSTICS ══
     final double rawW =
-        (layer['w'] ?? layer['width'] ?? 0).toDouble();
+        (effectiveLayer['w'] ?? effectiveLayer['width'] ?? 0).toDouble();
     final double rawH =
-        (layer['h'] ?? layer['height'] ?? 0).toDouble();
+        (effectiveLayer['h'] ?? effectiveLayer['height'] ?? 0).toDouble();
     debugPrint('[LAYER] name="$name" type=$type bg=$isBackground '
         'native=${rawW}x$rawH '
         'scaled=${(rawW * scale).toStringAsFixed(1)}x'
@@ -505,7 +531,7 @@ class _CustomPostPreviewState extends State<CustomPostPreview> {
     // Handle Background Layer
     if (isBackground) {
       if (type == 'image') {
-        String bgSrc = layer['src'] ?? '';
+        String bgSrc = effectiveLayer['src'] ?? '';
         String finalSrc = _resolveAssetUrl(bgSrc);
         return Positioned.fill(
           child:
@@ -516,13 +542,13 @@ class _CustomPostPreviewState extends State<CustomPostPreview> {
     }
 
     // Standard absolute positioning parameters
-    final double x = (layer['x'] ?? 0).toDouble() * scale;
-    final double y = (layer['y'] ?? 0).toDouble() * scale;
+    final double x = (effectiveLayer['x'] ?? 0).toDouble() * scale;
+    final double y = (effectiveLayer['y'] ?? 0).toDouble() * scale;
     double w =
-        (layer['w'] ?? layer['width'] ?? 0).toDouble() * scale;
+        (effectiveLayer['w'] ?? effectiveLayer['width'] ?? 0).toDouble() * scale;
     double h =
-        (layer['h'] ?? layer['height'] ?? 0).toDouble() * scale;
-    final double angle = (layer['angle'] ?? 0).toDouble();
+        (effectiveLayer['h'] ?? effectiveLayer['height'] ?? 0).toDouble() * scale;
+    final double angle = (effectiveLayer['angle'] ?? 0).toDouble();
 
     // ── MINIMUM SIZE ENFORCEMENT ──
     // Small decorator images (bullets, icons, diamonds) can scale down to

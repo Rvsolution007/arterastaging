@@ -48,6 +48,12 @@ class ZipFileManagerController extends Controller
             $originalName = $zipFile->getClientOriginalName();
             $fileName = Str::uuid() . '.zip';
 
+            $validationResult = \App\Services\FontValidationService::validateZipFonts($zipFile->getRealPath());
+            if ($validationResult !== true) {
+                $errorMessage = 'Upload failed! The following fonts are missing in the central system: ' . implode(', ', $validationResult) . '. Please upload them to the Font Section first.';
+                return back()->withErrors(['zip_file' => $errorMessage])->withInput();
+            }
+
             if (StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
                 Storage::disk('spaces')->put('uploads/zips/' . $fileName, file_get_contents($zipFile), 'public');
             } else {

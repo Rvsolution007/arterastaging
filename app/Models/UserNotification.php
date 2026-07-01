@@ -17,5 +17,6 @@ class UserNotification extends Model
         'image',
         'type',
         'type_id',
+        'external_link',
     ];
 }

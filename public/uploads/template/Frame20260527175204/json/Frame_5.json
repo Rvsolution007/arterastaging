@@ -1,196 +1,179 @@
 {
-  "name": "Frame_5",
-  "path": "Frame_5/",
-  "info": {
-    "width": 1080,
-    "height": 1091,
-    "ppi": 300
-  },
-  "layers": [
-
-    {
-      "id": "leftrectangle",
-      "type": "image",
-      "src": "../skins/Frame_5/leftrectangle.png",
-      "x": 0,
-      "y": 955,
-      "w": 659,
-      "h": 80,
-      "z_index": 1
+    "name": "Frame_5",
+    "path": "Frame_5\/",
+    "info": {
+        "width": 1069,
+        "height": 1080,
+        "ppi": 300
     },
-
-    {
-      "id": "rightrectangle",
-      "type": "image",
-      "src": "../skins/Frame_5/rightrectangle.png",
-      "x": 645,
-      "y": 966,
-      "w": 435,
-      "h": 69,
-      "z_index": 2
-    },
-
-    {
-      "id": "line",
-      "type": "image",
-      "src": "../skins/Frame_5/line.png",
-      "x": 630,
-      "y": 969,
-      "w": 46,
-      "h": 66,
-      "z_index": 3
-    },
-
-    {
-      "id": "Logo",
-      "type": "image",
-      "src": "../skins/Frame_5/Logo.png",
-      "x": 59,
-      "y": 25,
-      "w": 131,
-      "h": 156,
-      "z_index": 4
-    },
-
-    {
-      "id": "instagram",
-      "type": "image",
-      "src": "../skins/Frame_5/instagram.png",
-      "x": 843,
-      "y": 13,
-      "w": 32,
-      "h": 32,
-      "z_index": 5
-    },
-
-    {
-      "id": "facebook",
-      "type": "image",
-      "src": "../skins/Frame_5/facebook.png",
-      "x": 904,
-      "y": 13,
-      "w": 32,
-      "h": 32,
-      "z_index": 6
-    },
-
-    {
-      "id": "twitter",
-      "type": "image",
-      "src": "../skins/Frame_5/twitter.png",
-      "x": 968,
-      "y": 13,
-      "w": 32,
-      "h": 32,
-      "z_index": 7
-    },
-
-    {
-      "id": "youtube",
-      "type": "image",
-      "src": "../skins/Frame_5/youtube.png",
-      "x": 1031,
-      "y": 13,
-      "w": 32,
-      "h": 32,
-      "z_index": 8
-    },
-
-    {
-      "id": "phoneicon",
-      "type": "image",
-      "src": "../skins/Frame_5/phoneicon.png",
-      "x": 26,
-      "y": 983,
-      "w": 30,
-      "h": 30,
-      "z_index": 9
-    },
-
-    {
-      "id": "number",
-      "type": "text",
-      "x": 66,
-      "y": 986,
-      "w": 188,
-      "h": 36,
-      "font_name": "Poppins-SemiBold",
-      "font_size": 6,
-      "color": "#010101",
-      "z_index": 10
-    },
-
-    {
-      "id": "mailicon",
-      "type": "image",
-      "src": "../skins/Frame_5/mailicon.png",
-      "x": 253,
-      "y": 982,
-      "w": 31,
-      "h": 31,
-      "z_index": 11
-    },
-
-    {
-      "id": "email",
-      "type": "text",
-      "x": 292,
-      "y": 986,
-      "w": 324,
-      "h": 36,
-      "font_name": "Poppins-SemiBold",
-      "font_size": 6,
-      "color": "#010101",
-      "z_index": 12
-    },
-
-    {
-      "id": "webicon",
-      "type": "image",
-      "src": "../skins/Frame_5/webicon.png",
-      "x": 696,
-      "y": 985,
-      "w": 30,
-      "h": 30,
-      "z_index": 13
-    },
-
-    {
-      "id": "website",
-      "type": "text",
-      "x": 737,
-      "y": 987,
-      "w": 342,
-      "h": 36,
-      "font_name": "Poppins-SemiBold",
-      "font_size": 6,
-      "color": "#ffffff",
-      "z_index": 14
-    },
-
-    {
-      "id": "addressicon",
-      "type": "image",
-      "src": "../skins/Frame_5/addressicon.png",
-      "x": 27,
-      "y": 1039,
-      "w": 30,
-      "h": 30,
-      "z_index": 15
-    },
-
-    {
-      "id": "address",
-      "type": "text",
-      "x": 65,
-      "y": 1042,
-      "w": 998,
-      "h": 36,
-      "font_name": "Poppins-SemiBold",
-      "font_size": 6,
-      "color": "#010101",
-      "z_index": 16
-    }
-
-  ]
+    "layers": [
+        {
+            "id": "leftrectangle",
+            "type": "image",
+            "src": "..\/skins\/Frame_5\/leftrectangle.png",
+            "x": 0,
+            "y": 955,
+            "w": 659,
+            "h": 80,
+            "z_index": 1
+        },
+        {
+            "id": "rightrectangle",
+            "type": "image",
+            "src": "..\/skins\/Frame_5\/rightrectangle.png",
+            "x": 645,
+            "y": 966,
+            "w": 435,
+            "h": 69,
+            "z_index": 2
+        },
+        {
+            "id": "line",
+            "type": "image",
+            "src": "..\/skins\/Frame_5\/line.png",
+            "x": 630,
+            "y": 969,
+            "w": 46,
+            "h": 66,
+            "z_index": 3
+        },
+        {
+            "id": "Logo",
+            "type": "image",
+            "src": "..\/skins\/Frame_5\/Logo.png",
+            "x": 59,
+            "y": 25,
+            "w": 131,
+            "h": 156,
+            "z_index": 4
+        },
+        {
+            "id": "instagram",
+            "type": "image",
+            "src": "..\/skins\/Frame_5\/instagram.png",
+            "x": 843,
+            "y": 13,
+            "w": 32,
+            "h": 32,
+            "z_index": 5
+        },
+        {
+            "id": "facebook",
+            "type": "image",
+            "src": "..\/skins\/Frame_5\/facebook.png",
+            "x": 904,
+            "y": 13,
+            "w": 32,
+            "h": 32,
+            "z_index": 6
+        },
+        {
+            "id": "twitter",
+            "type": "image",
+            "src": "..\/skins\/Frame_5\/twitter.png",
+            "x": 968,
+            "y": 13,
+            "w": 32,
+            "h": 32,
+            "z_index": 7
+        },
+        {
+            "id": "youtube",
+            "type": "image",
+            "src": "..\/skins\/Frame_5\/youtube.png",
+            "x": 1031,
+            "y": 13,
+            "w": 32,
+            "h": 32,
+            "z_index": 8
+        },
+        {
+            "id": "phoneicon",
+            "type": "image",
+            "src": "..\/skins\/Frame_5\/phoneicon.png",
+            "x": 26,
+            "y": 983,
+            "w": 30,
+            "h": 30,
+            "z_index": 9
+        },
+        {
+            "id": "number",
+            "type": "text",
+            "x": 65.33,
+            "y": 976.06,
+            "w": 186.1,
+            "h": 35.64,
+            "font_name": "Poppins-SemiBold",
+            "font_size": 6,
+            "color": "#010101",
+            "z_index": 10
+        },
+        {
+            "id": "mailicon",
+            "type": "image",
+            "src": "..\/skins\/Frame_5\/mailicon.png",
+            "x": 253,
+            "y": 982,
+            "w": 31,
+            "h": 31,
+            "z_index": 11
+        },
+        {
+            "id": "email",
+            "type": "text",
+            "x": 289.06,
+            "y": 976.06,
+            "w": 320.73,
+            "h": 35.64,
+            "font_name": "Poppins-SemiBold",
+            "font_size": 6,
+            "color": "#010101",
+            "z_index": 12
+        },
+        {
+            "id": "webicon",
+            "type": "image",
+            "src": "..\/skins\/Frame_5\/webicon.png",
+            "x": 696,
+            "y": 985,
+            "w": 30,
+            "h": 30,
+            "z_index": 13
+        },
+        {
+            "id": "website",
+            "type": "text",
+            "x": 729.57,
+            "y": 977.05,
+            "w": 338.55,
+            "h": 35.64,
+            "font_name": "Poppins-SemiBold",
+            "font_size": 6,
+            "color": "#ffffff",
+            "z_index": 14
+        },
+        {
+            "id": "addressicon",
+            "type": "image",
+            "src": "..\/skins\/Frame_5\/addressicon.png",
+            "x": 27,
+            "y": 1039,
+            "w": 30,
+            "h": 30,
+            "z_index": 15
+        },
+        {
+            "id": "address",
+            "type": "text",
+            "x": 64.34,
+            "y": 1031.49,
+            "w": 987.94,
+            "h": 35.64,
+            "font_name": "Poppins-SemiBold",
+            "font_size": 6,
+            "color": "#010101",
+            "z_index": 16
+        }
+    ]
 }

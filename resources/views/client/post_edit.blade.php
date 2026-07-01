@@ -928,7 +928,7 @@
         }
     </style>
     <!-- Fabric.js v5 — Canvas editor library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+    <script src="{{ asset('assets/js/fabric.min.js') }}"></script>
 @endsection
 
 @section('content')
@@ -1908,6 +1908,22 @@
             }
 
             try {
+                // --- FLATTEN LAYERS ---
+                // V4 Extractors generate nested groups (type: "group", children: []).
+                function flattenLayersList(layers) {
+                    let flat = [];
+                    if (!layers || !Array.isArray(layers)) return flat;
+                    layers.forEach(l => {
+                        if (l.type === 'group' && Array.isArray(l.children)) {
+                            flat = flat.concat(flattenLayersList(l.children));
+                        } else {
+                            flat.push(l);
+                        }
+                    });
+                    return flat;
+                }
+                config.layers = flattenLayersList(config.layers);
+
                 // 2. Determine design resolution
                 let designW = (config.info && config.info.width) ? config.info.width : 0;
                 let designH = (config.info && config.info.height) ? config.info.height : 0;
@@ -1974,7 +1990,7 @@
 
                     if (lw === 0 || lh === 0) continue;
 
-                    if (layer.type === 'image') {
+                    if (layer.type === 'image' || layer.type === 'shape') {
                         let src = layer.src;
                         let isAIMapped = false;
 
@@ -2666,3 +2682,4 @@
         });
     </script>
 @endsection
+

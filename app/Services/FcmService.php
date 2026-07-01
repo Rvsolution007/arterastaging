@@ -99,82 +99,44 @@ class FcmService
                 'payload' => [
                     'aps' => [
                         'content-available' => 1,
+                        'mutable-content' => 1,
                     ],
                 ],
                 'headers' => [
                     'apns-priority' => '10',
                 ],
+                'fcm_options' => [],
             ];
-
-            // --- Strategy: Send to ALL registered device tokens for guaranteed delivery ---
-            $allTokens = \App\Models\AndroidLogin::whereNotNull('fcmToken')
-                ->where('fcmToken', '!=', '')
-                ->pluck('fcmToken')
-                ->unique()
-                ->values()
-                ->all();
-
-            $sentCount = 0;
-            $failedCount = 0;
-            $unregisteredTokenIds = [];
-
-            foreach ($allTokens as $token) {
-                $messagePayload = [
-                    'message' => [
-                        'token' => $token,
-                        'notification' => $notificationBlock,
-                        'android' => $androidBlock,
-                        'apns' => $apnsBlock,
-                    ]
-                ];
-                if (!empty($dataBlock)) {
-                    $messagePayload['message']['data'] = $dataBlock;
-                }
-
-                $response = Http::withHeaders([
-                    'Authorization' => "Bearer {$accessToken}",
-                    'Content-Type' => 'application/json',
-                ])->post($endpoint, $messagePayload);
-
-                if ($response->successful()) {
-                    $sentCount++;
-                } else {
-                    $failedCount++;
-                    // Clean up unregistered tokens
-                    $body = $response->json();
-                    $errorCode = $body['error']['details'][0]['errorCode'] ?? ($body['error']['status'] ?? '');
-                    if (in_array($errorCode, ['UNREGISTERED', 'NOT_FOUND'])) {
-                        $unregisteredTokenIds[] = $token;
-                    }
-                    Log::warning('FCM: Failed to send to token', ['status' => $response->status(), 'body' => $response->body()]);
-                }
+            if ($image) {
+                $apnsBlock['fcm_options']['image'] = $image;
             }
 
-            // Clean up invalid tokens from DB
-            if (!empty($unregisteredTokenIds)) {
-                \App\Models\AndroidLogin::whereIn('fcmToken', $unregisteredTokenIds)->delete();
-                Log::info('FCM: Cleaned up ' . count($unregisteredTokenIds) . ' unregistered tokens');
-            }
-
-            // Also send via topic as a safety net (catches devices that registered but haven't logged in)
+            // Send via topic ONLY — Flutter app subscribes to topic 'all'
+            // Previously we sent to both individual tokens AND topic, causing DUPLICATE notifications
             $topicPayload = [
                 'message' => [
                     'topic' => $topic,
                     'notification' => $notificationBlock,
+                    'data' => $dataBlock,
                     'android' => $androidBlock,
                     'apns' => $apnsBlock,
                 ]
             ];
-            if (!empty($dataBlock)) {
-                $topicPayload['message']['data'] = $dataBlock;
-            }
-            Http::withHeaders([
+
+            Log::info("FCM Payload being sent: " . json_encode($topicPayload));
+
+            $response = Http::withHeaders([
                 'Authorization' => "Bearer {$accessToken}",
                 'Content-Type' => 'application/json',
             ])->post($endpoint, $topicPayload);
 
-            Log::info("FCM: Broadcast complete. Sent to {$sentCount} tokens, {$failedCount} failed, topic '{$topic}' also sent.");
-            return ['status' => 'success', 'message' => "Sent to {$sentCount} devices."];
+            if ($response->successful()) {
+                Log::info("FCM: Broadcast sent to topic '{$topic}' successfully.");
+                return ['status' => 'success', 'message' => "Sent to topic '{$topic}'."];
+            } else {
+                Log::error("FCM: Topic broadcast failed", ['status' => $response->status(), 'body' => $response->body()]);
+                return ['status' => 'error', 'message' => 'FCM topic send failed: ' . $response->body()];
+            }
 
         } catch (\Exception $e) {
             Log::error('FCM: Exception - ' . $e->getMessage());

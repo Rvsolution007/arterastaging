@@ -46,6 +46,10 @@ class HomeController extends GetxController {
   var extraAddresses = <String>[].obs;
   var hiddenFrameFields = <String, dynamic>{}.obs;
 
+  var businessSubCategoryIds = <String>[].obs;
+  var businessTypeIds = <String>[].obs;
+  var products = [].obs;
+
   // Search
   var searchQuery = ''.obs;
   
@@ -120,6 +124,10 @@ class HomeController extends GetxController {
     extraWebsites.clear();
     extraAddresses.clear();
     hiddenFrameFields.clear();
+
+    businessSubCategoryIds.clear();
+    businessTypeIds.clear();
+    products.clear();
     
     customPosts.clear();
     greetingCategories.clear();
@@ -178,6 +186,10 @@ class HomeController extends GetxController {
         } else {
           hiddenFrameFields.value = {};
         }
+
+        businessSubCategoryIds.value = (biz['business_sub_category_ids'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
+        businessTypeIds.value = (biz['business_type_ids'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
+        products.value = biz['products'] as List<dynamic>? ?? [];
       }
     } catch (e) {
       // Business info fetch failed, not critical

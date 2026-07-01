@@ -1,0 +1,1966 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'dart:convert';
+import '../config/app_config.dart';
+import '../controllers/native_editor_controller.dart';
+import '../services/api_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+import '../utils/app_colors.dart';
+import '../widgets/editor_canvas_widget.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'ai_chat_screen.dart';
+import '../widgets/console_widget.dart';
+import 'dart:ui' as ui;
+import 'dart:typed_data';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
+import 'package:gal/gal.dart';
+import '../services/download_service.dart';
+import '../controllers/subscription_controller.dart';
+class NativeEditorScreen extends StatefulWidget {
+  final String type;
+  final int id;
+  final Map<String, dynamic> frameData;
+  final String designUrl;
+
+  const NativeEditorScreen({
+    super.key,
+    required this.type,
+    required this.id,
+    required this.frameData,
+    required this.designUrl,
+  });
+
+  @override
+  State<NativeEditorScreen> createState() => _NativeEditorScreenState();
+}
+
+class _NativeEditorScreenState extends State<NativeEditorScreen> {
+  late NativeEditorController controller;
+  final GlobalKey _canvasKey = GlobalKey();
+  
+  // AI State
+  final TextEditingController _aiPromptController = TextEditingController();
+  final RxString _aiSelectedLanguage = 'English'.obs;
+  final RxMap<String, String> _aiUploadedImages = <String, String>{}.obs;
+  Map<String, dynamic>? _aiSelectedProduct;
+  final RxString _aiCurrentStep = 'menu'.obs; // 'menu', 'customPrompt', 'review'
+  final RxMap<String, TextEditingController> _aiGeneratedTexts = <String, TextEditingController>{}.obs;
+
+  Future<void> _exportAndSave() async {
+    controller.selectedLayerId.value = '';
+    await Future.delayed(const Duration(milliseconds: 100));
+    try {
+      final boundary = _canvasKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return;
+      final ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return;
+      final Uint8List pngBytes = byteData.buffer.asUint8List();
+      final fileName = "artera_design_${DateTime.now().millisecondsSinceEpoch}";
+      if (!await Gal.hasAccess(toAlbum: true)) {
+        await Gal.requestAccess(toAlbum: true);
+      }
+      await Gal.putImageBytes(pngBytes, name: fileName);
+      await DownloadService.saveDownload(pngBytes, isVideo: false, fileName: fileName);
+      await ApiService.trackActivity(
+        action: 'download_template',
+        itemType: widget.type,
+        itemId: widget.id.toString(),
+      );
+      try { await Get.find<SubscriptionController>().refreshFromApi(); } catch (_) {}
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Design saved to gallery successfully!'), backgroundColor: Colors.green));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save design: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.put(NativeEditorController());
+
+    // Extract JSON config
+    Map<String, dynamic> config = {};
+    if (widget.frameData['json'] != null && widget.frameData['json'].toString().trim().isNotEmpty) {
+      if (widget.frameData['json'] is String) {
+        try {
+          config = jsonDecode(widget.frameData['json']);
+        } catch (e) {
+          debugPrint('Error decoding JSON: $e');
+        }
+      } else {
+        config = widget.frameData['json'];
+      }
+    }
+    
+    // Fallback for festival / category posts that only have an image and no JSON
+    if (config.isEmpty) {
+      final imgUrl = widget.designUrl.isNotEmpty ? widget.designUrl : widget.frameData['image'] ?? '';
+      config = {
+        'info': {
+          'width': widget.frameData['width'] ?? 1080,
+          'height': widget.frameData['height'] ?? 1080,
+        },
+        'layers': [
+          {
+            'name': 'bg',
+            'type': 'image',
+            'src': imgUrl,
+            'is_background': true,
+            'x': 0,
+            'y': 0,
+            'w': widget.frameData['width'] ?? 1080,
+            'h': widget.frameData['height'] ?? 1080,
+            'z_index': 0,
+          }
+        ]
+      };
+    }
+
+    // Safely extract templateBaseUrl from preview image URL if missing
+    String templateBaseUrl = widget.frameData['templateBaseUrl'] ?? '';
+    if (templateBaseUrl.isEmpty && widget.frameData['image'] != null) {
+      final imgUrl = widget.frameData['image'] as String;
+      if (imgUrl.isNotEmpty) {
+        try {
+          final uri = Uri.parse(imgUrl);
+          final pathSegments = uri.pathSegments.toList();
+          if (pathSegments.isNotEmpty) {
+            pathSegments.removeLast(); // Remove preview.jpg
+            templateBaseUrl = uri.replace(pathSegments: pathSegments).toString();
+          }
+        } catch (_) {}
+      }
+    }
+
+    // Initialize controller with config
+    // Use designUrl as the base template image for brightness detection
+    String baseImg = widget.frameData['baseImgUrl'] ?? '';
+    if (baseImg.isEmpty) baseImg = widget.designUrl;
+    if (baseImg.isEmpty) baseImg = widget.frameData['image'] ?? '';
+    
+    // Final fallback: extract from background layer in config
+    if (baseImg.isEmpty && config['layers'] != null) {
+      for (var layer in config['layers']) {
+        if (layer['is_background'] == true || layer['name'] == 'bg' || layer['name'] == 'image1') {
+          baseImg = layer['src'] ?? '';
+          if (baseImg.isNotEmpty) break;
+        }
+      }
+    }
+    
+    // Ensure baseImg is absolute
+    if (baseImg.isNotEmpty && !baseImg.startsWith('http')) {
+      String baseUrl = templateBaseUrl.isNotEmpty ? templateBaseUrl : AppConfig.baseUrl.replaceAll('/123456', '') + '/public';
+      if (baseImg.startsWith('../')) {
+        baseImg = '$baseUrl/${baseImg.replaceFirst('../', '')}';
+      } else if (baseImg.startsWith('uploads/')) {
+        baseImg = '$baseUrl/$baseImg';
+      } else {
+        baseImg = '$baseUrl/skins/$baseImg';
+      }
+    }
+    
+    debugPrint('╔══════════════════════════════════════════════════════');
+    debugPrint('║ [INIT] widget.type="${widget.type}"');
+    debugPrint('║ [INIT] designUrl="${widget.designUrl}"');
+    debugPrint('║ [INIT] frameData.image="${widget.frameData['image']}"');
+    debugPrint('║ [INIT] frameData.type="${widget.frameData['type']}"');
+    debugPrint('║ [INIT] templateBaseUrl="$templateBaseUrl"');
+    debugPrint('║ [INIT] baseImg="$baseImg"');
+    debugPrint('║ [INIT] config.info=${config['info']}');
+    debugPrint('║ [INIT] config.layers.length=${(config['layers'] as List?)?.length ?? 0}');
+    if (config['layers'] != null) {
+      for (var layer in config['layers']) {
+        debugPrint('║ [INIT]   layer: name="${layer['name'] ?? layer['id']}" type="${layer['type']}" src="${layer['src'] ?? 'N/A'}"');
+      }
+    }
+    debugPrint('╚══════════════════════════════════════════════════════');
+    
+    controller.initConfig(
+      config,
+      templateBaseUrl,
+      widget.frameData['uploadsBaseUrl'] ?? '',
+      baseImg,
+      widget.type,
+    );
+  }
+
+  @override
+  void dispose() {
+    Get.delete<NativeEditorController>();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF3F4F6),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.black87, size: 24),
+          onPressed: () {
+            if (controller.selectedLayerId.value.isNotEmpty) {
+              controller.selectLayer('');
+              controller.activeTool.value = '';
+            } else {
+              Navigator.pop(context);
+            }
+          },
+        ),
+        title: const Text(
+          'Edit Design',
+          style: TextStyle(color: Colors.black87, fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.bug_report, color: Colors.black87),
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.7,
+                  child: const ConsoleWidget(),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.help_outline, color: Colors.black87),
+            onPressed: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => ClipRRect(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  child: Container(
+                    height: MediaQuery.of(context).size.height * 0.75,
+                    color: Colors.white,
+                    child: const AiChatScreen(source: 'editor'),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Secondary Top Bar
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+
+                Expanded(
+                  child: Text(
+                    _getTypeTitle(),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.undo, color: Colors.black54, size: 18),
+                  onPressed: () => controller.undo(),
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.redo, color: Colors.black54, size: 18),
+                  onPressed: () => controller.redo(),
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                ),
+                const SizedBox(width: 4),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF3B28CC),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                    minimumSize: const Size(0, 32),
+                  ),
+                  onPressed: _exportAndSave,
+                  child: const Text('Download', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                // Deselect layers when tapping outside
+                controller.selectedLayerId.value = '';
+              },
+              child: Container(
+                color: const Color(0xFFE2E8F0), // Match web canvas area background
+                width: double.infinity,
+                child: Center(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return Obx(() {
+                        if (controller.templateConfig.isEmpty) {
+                          return const Center(child: Text('No template data found.'));
+                        }
+                        
+                        // Calculate best fit dimensions to ensure 100% visibility
+                        final config = controller.templateConfig;
+                        final double designW = (config['info']?['width'] ?? config['width'] ?? 1080).toDouble();
+                        final double designH = (config['info']?['height'] ?? config['height'] ?? 1080).toDouble();
+                        
+                        final double screenW = constraints.maxWidth;
+                        final double availableH = constraints.maxHeight;
+                        
+                        double bestWidth = screenW;
+                        double calcHeight = bestWidth * (designH / designW);
+                        
+                        if (calcHeight > availableH) {
+                          calcHeight = availableH;
+                          bestWidth = calcHeight * (designW / designH);
+                        }
+
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 15,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                          child: RepaintBoundary(
+                            key: _canvasKey,
+                            child: EditorCanvasWidget(
+                              config: Map<String, dynamic>.from(controller.templateConfig),
+                              width: bestWidth,
+                              uploadsBaseUrl: controller.uploadsBaseUrl,
+                              templateBaseUrl: controller.templateBaseUrl,
+                              baseImgUrl: controller.baseImgUrl,
+                              editorType: widget.type,
+                            ),
+                          ),
+                        );
+                      });
+                    }
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Bottom Area: Contextual OR Main tools
+          Obx(() {
+            final _ = controller.templateConfig.values.toList(); // trigger rebuild on config change
+            if (controller.selectedLayerId.value.isNotEmpty) {
+              return _buildContextualToolbar();
+            }
+            return _buildBottomTools();
+          }),
+        ],
+      ),
+    );
+  }
+
+  String _getTypeTitle() {
+    switch (widget.type) {
+      case 'custom':
+        return 'Custom Post';
+      case 'festival':
+        return 'Festival Post';
+      case 'category':
+        return 'Category Post';
+      case 'business_custom_frame':
+      case 'business_custom':
+        return 'Business Template';
+      default:
+        return 'Edit Design';
+    }
+  }
+
+  Map<String, dynamic>? _getActiveLayer() {
+    if (controller.selectedLayerId.value.isEmpty) return null;
+    final layers = controller.templateConfig['layers'];
+    if (layers == null) return null;
+    
+    for (var l in layers) {
+      if ((l['name'] ?? l['id']).toString() == controller.selectedLayerId.value) {
+        return l as Map<String, dynamic>;
+      }
+    }
+    return null;
+  }
+
+  Widget _buildInlineEditPanel() {
+    final layer = _getActiveLayer();
+    if (layer == null) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextFormField(
+              initialValue: layer['text'] ?? '',
+              onChanged: (val) {
+                controller.updateLayerProperty(layer['name'] ?? layer['id'], 'text', val);
+              },
+              decoration: InputDecoration(
+                hintText: 'Enter text',
+                isDense: true,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.check_circle, color: Color(0xFF5538EE)),
+            onPressed: () {
+              controller.activeTool.value = '';
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInlineNudgePanel() {
+    final layer = _getActiveLayer();
+    if (layer == null) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.keyboard_arrow_left, size: 32),
+            onPressed: () => controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'x', (layer['x'] ?? 0) - 5),
+          ),
+          Column(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.keyboard_arrow_up, size: 32),
+                onPressed: () => controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'y', (layer['y'] ?? 0) - 5),
+              ),
+              IconButton(
+                icon: const Icon(Icons.keyboard_arrow_down, size: 32),
+                onPressed: () => controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'y', (layer['y'] ?? 0) + 5),
+              ),
+            ],
+          ),
+          IconButton(
+            icon: const Icon(Icons.keyboard_arrow_right, size: 32),
+            onPressed: () => controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'x', (layer['x'] ?? 0) + 5),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInlineFontPanel() {
+    final layer = _getActiveLayer();
+    if (layer == null) return const SizedBox.shrink();
+    final List<String> fonts = ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Oswald', 'Playfair Display', 'Merriweather', 'Nunito', 'Poppins', 'Raleway'];
+    return Container(
+      height: 50,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: fonts.length,
+        itemBuilder: (context, index) {
+          final font = fonts[index];
+          final isSelected = layer['fontFamily'] == font;
+          return GestureDetector(
+            onTap: () => controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'fontFamily', font),
+            child: Container(
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFF5538EE) : Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(font, style: TextStyle(color: isSelected ? Colors.white : Colors.black87, fontFamily: font)),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildInlineSizePanel() {
+    final layer = _getActiveLayer();
+    if (layer == null) return const SizedBox.shrink();
+    double currentSize = (layer['fontSize'] ?? layer['font_size'] ?? layer['size'] ?? 48.0).toDouble();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          const Icon(Icons.text_fields, size: 16),
+          Expanded(
+            child: Slider(
+              value: currentSize,
+              min: 8.0,
+              max: 200.0,
+              activeColor: const Color(0xFF5538EE),
+              onChanged: (val) {
+                controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'fontSize', val);
+              },
+            ),
+          ),
+          const Icon(Icons.text_fields, size: 24),
+        ],
+      ),
+    );
+  }
+
+  void _showColorPickerDialog(Map<String, dynamic> layer) {
+    Color currentColor = Color(int.tryParse((layer['font_color'] ?? layer['tint_color'] ?? layer['color']?.toString() ?? '#000000').replaceFirst('#', '0xFF')) ?? 0xFF000000);
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        Color pickerColor = currentColor;
+        return AlertDialog(
+          title: const Text('Colour picker'),
+          content: SingleChildScrollView(
+            child: ColorPicker(
+              pickerColor: pickerColor,
+              onColorChanged: (color) {
+                pickerColor = color;
+              },
+              pickerAreaHeightPercent: 0.8,
+              enableAlpha: false,
+              displayThumbColor: true,
+              paletteType: PaletteType.hsv,
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: const Text('Apply'),
+              onPressed: () {
+                final hex = '#${pickerColor.value.toRadixString(16).padLeft(8, '0').substring(2)}';
+                controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'color', hex);
+                controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'font_color', hex);
+                controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'tint_color', hex);
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildInlineColorPanel() {
+    final layer = _getActiveLayer();
+    if (layer == null) return const SizedBox.shrink();
+    final List<Color> colors = [Colors.black, Colors.white, Colors.red, Colors.pink, Colors.purple, Colors.deepPurple, Colors.indigo, Colors.blue, Colors.lightBlue, Colors.cyan, Colors.teal, Colors.green, Colors.lightGreen, Colors.lime, Colors.yellow, Colors.amber, Colors.orange, Colors.deepOrange, Colors.brown, Colors.grey];
+    String colorToHex(Color color) => '#${color.value.toRadixString(16).padLeft(8, '0').substring(2)}';
+    
+    return Container(
+      height: 40,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: colors.length + 1,
+        itemBuilder: (context, index) {
+          if (index == colors.length) {
+            return GestureDetector(
+              onTap: () {
+                _showColorPickerDialog(layer);
+              },
+              child: Container(
+                width: 36, height: 36,
+                margin: const EdgeInsets.only(right: 12),
+                decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.transparent, border: Border.all(color: Colors.grey)),
+                child: const Icon(Icons.colorize, color: Colors.black54, size: 18),
+              ),
+            );
+          }
+          final color = colors[index];
+          final hex = colorToHex(color);
+          final activeColor = (layer['font_color'] ?? layer['tint_color'] ?? layer['color'])?.toString().toUpperCase() ?? '';
+          final isSelected = activeColor == hex.toUpperCase();
+          return GestureDetector(
+            onTap: () {
+              controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'color', hex);
+              controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'font_color', hex);
+              controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'tint_color', hex);
+            },
+            child: Container(
+              width: 36,
+              height: 36,
+              margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                border: Border.all(color: isSelected ? const Color(0xFF5538EE) : Colors.black12, width: isSelected ? 2 : 1),
+              ),
+              child: isSelected ? const Icon(Icons.check, size: 18, color: Colors.white) : null,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildContextualToolbar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -5)),
+        ],
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildToolBtn(Icons.edit_outlined, 'Edit', () {
+                    final layer = _getActiveLayer();
+                    if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
+                      controller.activeTool.value = controller.activeTool.value == 'Edit' ? '' : 'Edit';
+                    }
+                  }),
+                  _buildToolBtn(Icons.image_search, 'Replace', () async {
+                    final layer = _getActiveLayer();
+                    if (layer != null && layer['type'] != 'text' && layer['type'] != 'i-text' && layer['text'] == null) {
+                      final picker = ImagePicker();
+                      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+                      if (pickedFile != null) {
+                        final bytes = await pickedFile.readAsBytes();
+                        final base64Img = 'data:image/png;base64,' + base64Encode(bytes);
+                        controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'src', base64Img);
+                        controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'image', base64Img); // just in case
+                      }
+                    }
+                  }),
+                  _buildToolBtn(Icons.open_with, 'Nudge', () {
+                    final layer = _getActiveLayer();
+                    if (layer != null) {
+                      controller.activeTool.value = controller.activeTool.value == 'Nudge' ? '' : 'Nudge';
+                    }
+                  }),
+                  _buildToolBtn(Icons.text_fields, 'Font', () {
+                    final layer = _getActiveLayer();
+                    if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
+                      controller.activeTool.value = controller.activeTool.value == 'Font' ? '' : 'Font';
+                    }
+                  }),
+                  _buildToolBtn(Icons.format_size, 'Size', () {
+                    final layer = _getActiveLayer();
+                    if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
+                      controller.activeTool.value = controller.activeTool.value == 'Size' ? '' : 'Size';
+                    }
+                  }),
+                  _buildToolBtn(Icons.format_bold, 'Bold', () {
+                    final layer = _getActiveLayer();
+                    if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
+                      final isBold = layer['weight'] == 'bold';
+                      controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'weight', isBold ? 'normal' : 'bold');
+                    }
+                  }, isSelected: _getActiveLayer()?['weight'] == 'bold'),
+                  _buildToolBtn(Icons.format_italic, 'Italic', () {
+                    final layer = _getActiveLayer();
+                    if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
+                      final isItalic = layer['style'] == 'italic';
+                      controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'style', isItalic ? 'normal' : 'italic');
+                    }
+                  }, isSelected: _getActiveLayer()?['style'] == 'italic'),
+                  _buildToolBtn(Icons.palette_outlined, 'Color', () {
+                    final layer = _getActiveLayer();
+                    if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
+                      controller.activeTool.value = controller.activeTool.value == 'Color' ? '' : 'Color';
+                    }
+                  }),
+                  _buildToolBtn(Icons.layers_outlined, 'Layers', () {
+                    _showLayersModal(context);
+                  }),
+                  _buildToolBtn(Icons.delete_outline, 'Delete', () {
+                    controller.deleteLayer(controller.selectedLayerId.value);
+                  }, iconColor: Colors.redAccent),
+                ],
+              ),
+            ),
+            Obx(() {
+               if (controller.activeTool.value == 'Edit') return _buildInlineEditPanel();
+               if (controller.activeTool.value == 'Nudge') return _buildInlineNudgePanel();
+               if (controller.activeTool.value == 'Font') return _buildInlineFontPanel();
+               if (controller.activeTool.value == 'Size') return _buildInlineSizePanel();
+               if (controller.activeTool.value == 'Color') return _buildInlineColorPanel();
+               return const SizedBox.shrink();
+            }),
+            Obx(() => SizedBox(height: controller.activeTool.value.isNotEmpty ? 16 : 0)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomTools() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5)),
+        ],
+      ),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 1. Contact info badges — show for all templates
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    _buildFieldBadge('NAME', '_b_name,name,business_name,b_name'),
+                    _buildFieldBadge('LOGO', '_b_logo,logo,business_logo,b_logo'),
+                    _buildIconBadge(Icons.phone_android, '_b_phone,phone_icon,mobile_icon,call_icon,icon_phone,icon_call,icon_mobile,icon1'),
+                    _buildFieldBadge('MOBILE', 'mobile,phone,phone_text,mobile_text,phone_no,mobile_no,contact,contact_text,number,list1'),
+                    _buildIconBadge(Icons.mail_outline, '_b_email,email_icon,icon_email,mail_icon,icon_mail,icon2'),
+                    _buildFieldBadge('EMAIL', 'email,email_text,mail,mail_text,email_address,list2'),
+                    _buildIconBadge(Icons.location_on_outlined, '_b_address,address_icon,location_icon,icon_address,icon_location,map_icon,icon3'),
+                    _buildFieldBadge('ADDRESS', 'address,location,address_text,location_text,address_line,list3'),
+                    _buildIconBadge(Icons.language, '_b_website,web_icon,website_icon,icon_web,icon_website,globe_icon,icon4'),
+                    _buildFieldBadge('WEBSITE', 'web,website,web_text,website_text,url,url_text,link,list4'),
+                    _buildFieldBadge('FRAME', '_frame_bg,_frame,frame,Frame_Bg,bg_frame,bg_shape,background_shape,frame_image,frame_img,shape,Rectangle_1,Rectangle_2,Rectangle_3,Rectangle_4,Rectangle_5,Rectangle_6'),
+                  ],
+                ),
+              ),
+              // 2. Select Frame section — show for all templates
+              if (true) ...[
+                const Padding(
+                  padding: EdgeInsets.only(left: 16, right: 16, top: 4),
+                  child: Text('Select Frame', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                ),
+                const SizedBox(height: 12),
+                
+                // Frame thumbnails
+                Obx(() {
+                  if (controller.isLoadingFrames.value) {
+                    return const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))),
+                    );
+                  }
+                  if (controller.frames.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Center(child: Text('No frames found', style: TextStyle(color: Colors.grey, fontSize: 12))),
+                    );
+                  }
+                  return SizedBox(
+                    height: 80,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: controller.frames.length,
+                      itemBuilder: (context, index) {
+                        final frame = controller.frames[index];
+                        final thumbUrl = frame['thumbnail'] ?? frame['thumbnail_url'] ?? frame['full_url'] ?? '';
+                        return GestureDetector(
+                          onTap: () {
+                            // Try JSON string first, then parsed config object, then full_url fallback
+                            final jsonStr = frame['json'] ?? frame['json_rules'];
+                            final configObj = frame['config'];
+                            if (jsonStr != null) {
+                              try {
+                                final Map<String, dynamic> config = jsonStr is String ? jsonDecode(jsonStr) : Map<String, dynamic>.from(jsonStr);
+                                controller.loadNewFrame(config);
+                              } catch (e) {
+                                debugPrint('Error parsing frame JSON: $e');
+                              }
+                            } else if (configObj != null) {
+                              try {
+                                final Map<String, dynamic> config = configObj is String ? jsonDecode(configObj) : Map<String, dynamic>.from(configObj);
+                                // Resolve relative src paths using full_url as base
+                                final String fullUrl = (frame['full_url'] ?? '').toString();
+                                if (fullUrl.isNotEmpty && config['layers'] != null) {
+                                  final skinBase = fullUrl.substring(0, fullUrl.lastIndexOf('/') + 1);
+                                  final tplBase = skinBase.replaceAll(RegExp(r'skins/[^/]+/$'), '');
+                                  for (var layer in (config['layers'] as List)) {
+                                    if (layer['src'] != null) {
+                                      String src = layer['src'].toString();
+                                      if (src.startsWith('../') || src.startsWith('./') || !src.startsWith('http')) {
+                                        src = src.replaceAll('../', '');
+                                        layer['src'] = tplBase + src;
+                                      }
+                                    }
+                                  }
+                                }
+                                controller.loadNewFrame(config);
+                              } catch (e) {
+                                debugPrint('Error parsing frame config: $e');
+                              }
+                            } else if (frame['full_url'] != null) {
+                              controller.updateLayerProperty('_frame_bg', 'src', frame['full_url']);
+                              controller.updateLayerProperty('_frame_bg', 'opacity', 1.0);
+                            }
+                          },
+                          child: Container(
+                            width: 80,
+                            height: 80,
+                            margin: const EdgeInsets.only(right: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: thumbUrl.isNotEmpty
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.network(thumbUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.grey)),
+                                  )
+                                : const Icon(Icons.image, color: Colors.grey),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                }),
+                const SizedBox(height: 24),
+              ],
+              const SizedBox(height: 16),
+              // Editing Tools Toolbar
+              _buildEditingToolsBar(),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showLayersModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        child: Container(
+          height: MediaQuery.of(context).size.height * 0.6,
+          color: Colors.white,
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade200))),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Layers', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Obx(() {
+                  final _ = controller.layerUpdateTrigger.value;
+                  final __ = controller.templateConfig.values.toList(); // Force rebuild on deep changes
+                  final layers = List<dynamic>.from(controller.templateConfig['layers'] ?? []);
+                  // Reverse so top layers show first
+                  final reversedLayers = layers.reversed.toList();
+                  return ReorderableListView.builder(
+                    physics: const BouncingScrollPhysics(),
+                    buildDefaultDragHandles: false,
+                    itemCount: reversedLayers.length,
+                    onReorder: (oldIndex, newIndex) {
+                      final actualOld = layers.length - 1 - oldIndex;
+                      var actualNew = layers.length - 1 - newIndex;
+                      if (newIndex > oldIndex) actualNew += 1;
+                      controller.moveLayer((reversedLayers[oldIndex]['name'] ?? reversedLayers[oldIndex]['id']).toString(), actualNew);
+                    },
+                    itemBuilder: (context, index) {
+                      final layer = reversedLayers[index];
+                      final isVisible = (layer['opacity'] ?? 1.0) > 0;
+                      final String uniqueKey = (layer['name'] ?? layer['id'] ?? 'layer').toString() + '_$index';
+                      final isText = layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null;
+                      final titleStr = (layer['name'] ?? layer['id'] ?? 'Unnamed Layer').toString().replaceAll(RegExp(r'[-_]'), ' ').toUpperCase();
+                      
+                      Widget leadingWidget;
+                      if (isText) {
+                        leadingWidget = Container(
+                          width: 40, height: 40,
+                          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(4)),
+                          child: const Icon(Icons.text_fields, color: Colors.grey),
+                        );
+                      } else {
+                        String src = layer['src']?.toString() ?? '';
+                        String imgUrl = '';
+                        if (src.isNotEmpty) {
+                          if (src.startsWith('http')) {
+                            imgUrl = src;
+                          } else if (src.startsWith('data:')) {
+                            imgUrl = ''; // Ignore base64
+                          } else if (src.startsWith('../')) {
+                            imgUrl = '${controller.templateBaseUrl}/${src.replaceFirst('../', '')}';
+                          } else if (src.contains('/')) {
+                            imgUrl = '${controller.templateBaseUrl}/$src';
+                          } else {
+                            imgUrl = '${controller.templateBaseUrl}/skins/$src';
+                          }
+                        }
+                        leadingWidget = Container(
+                          width: 40, height: 40,
+                          decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(4)),
+                          child: imgUrl.isNotEmpty
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Image.network(imgUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image, color: Colors.grey)),
+                                )
+                              : const Icon(Icons.image, color: Colors.grey),
+                        );
+                      }
+
+                      return ListTile(
+                        key: ValueKey(uniqueKey),
+                        leading: leadingWidget,
+                        title: Text(titleStr, style: const TextStyle(fontSize: 14)),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () {
+                                controller.selectLayer((layer['name'] ?? layer['id']).toString());
+                                Navigator.pop(context);
+                              },
+                            ),
+                            IconButton(
+                              icon: Icon(isVisible ? Icons.visibility : Icons.visibility_off, color: isVisible ? Colors.blue : Colors.grey),
+                              onPressed: () {
+                                controller.toggleVisibility((layer['name'] ?? layer['id']).toString(), !isVisible);
+                              },
+                            ),
+                            ReorderableDragStartListener(
+                              index: index,
+                              child: const Padding(
+                                padding: EdgeInsets.all(8.0),
+                                child: Icon(Icons.drag_handle, color: Colors.grey),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                }),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAiTextModal(BuildContext context) {
+    final RxBool isGenerating = false.obs;
+
+    final List<String> languages = [
+      'English', 'Hindi', 'Hinglish', 'Gujarati', 'Marathi', 'Tamil', 'Telugu', 
+      'Kannada', 'Malayalam', 'Bengali', 'Punjabi', 'Urdu', 'Arabic', 'Spanish', 
+      'French', 'Portuguese', 'German', 'Japanese', 'Korean', 'Chinese'
+    ];
+
+    final List<Map<String, dynamic>> imageSlots = [];
+    final layers = controller.templateConfig['layers'] as List<dynamic>? ?? [];
+    for (var layer in layers) {
+      if (layer['type'] == 'image' && layer['is_background'] != true) {
+        final name = (layer['name'] ?? layer['id'] ?? '').toString().toLowerCase();
+        if ((name.contains('image') || name.contains('pic') || name.contains('photo') || name.contains('product')) &&
+            !name.contains('logo') &&
+            !name.contains('bg') &&
+            !name.contains('background')) {
+          imageSlots.add(Map<String, dynamic>.from(layer));
+        }
+      }
+    }
+    
+    Future<void> _callAiApi(String prompt, RxBool isGenerating) async {
+      try {
+        final content = await controller.generateAIText(prompt, _aiSelectedLanguage.value);
+
+        if (content != null && content.isNotEmpty) {
+          _aiGeneratedTexts.clear();
+          content.forEach((key, value) {
+            _aiGeneratedTexts[key] = TextEditingController(text: value.toString());
+          });
+          _aiCurrentStep.value = 'review';
+        } else {
+          Get.snackbar('Notice', 'Could not generate text. Ensure template has text layers or API is active.', backgroundColor: Colors.orange, colorText: Colors.white);
+        }
+      } catch (e) {
+        Get.snackbar('Error', 'An error occurred: $e');
+      } finally {
+        isGenerating.value = false;
+      }
+    }
+
+    // Auto-select first product if available and none selected
+    if (_aiSelectedProduct == null) {
+      ApiService.getUserProducts().then((res) {
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          final List products = data['data'] ?? data['products']?['data'] ?? [];
+          if (products.isNotEmpty) {
+            setState(() {
+              _aiSelectedProduct = products.first;
+            });
+          }
+        }
+      });
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            color: Colors.white,
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.8),
+            child: Obx(() {
+              if (_aiCurrentStep.value == 'review') {
+                // STEP 2: Preview & Edit
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Review AI Text', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text('Edit the generated text before applying:', style: TextStyle(color: Colors.black54)),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: _aiGeneratedTexts.entries.map((e) {
+                          bool isCaption = e.key.toLowerCase() == 'caption';
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(isCaption ? 'Social Media Caption' : e.key, style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87, fontSize: 13)),
+                                    if (isCaption)
+                                      InkWell(
+                                        onTap: () {
+                                          Clipboard.setData(ClipboardData(text: e.value.text));
+                                          Get.snackbar('Copied', 'Caption copied to clipboard!', snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.black87, colorText: Colors.white);
+                                        },
+                                        child: const Row(
+                                          children: [
+                                            Icon(Icons.copy, size: 14, color: Color(0xFF5538EE)),
+                                            SizedBox(width: 4),
+                                            Text('Copy', style: TextStyle(color: Color(0xFF5538EE), fontSize: 12, fontWeight: FontWeight.bold)),
+                                          ],
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                TextField(
+                                  controller: e.value,
+                                  maxLines: isCaption ? 5 : null,
+                                  decoration: InputDecoration(
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                    contentPadding: const EdgeInsets.all(12),
+                                    fillColor: isCaption ? Colors.blue.shade50 : null,
+                                    filled: isCaption,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: () {
+                              _aiCurrentStep.value = 'menu';
+                            },
+                            child: const Text('Back'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: () {
+                              if (isGenerating.value) return;
+                              _performTier3Generation(isGenerating);
+                            },
+                            child: isGenerating.value
+                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                                : const Text('Retry'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF5538EE),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: () {
+                              // Apply texts to canvas
+                              _aiGeneratedTexts.forEach((key, ctrl) {
+                                if (key.toLowerCase() != 'caption' && ctrl.text.trim().isNotEmpty) {
+                                  controller.updateLayerProperty(key, 'text', ctrl.text.trim());
+                                }
+                              });
+                              // Also trigger text changes directly to trigger relayout
+                              controller.templateConfig.refresh();
+                              Navigator.pop(context);
+                              Get.snackbar('Success', 'AI text applied successfully', backgroundColor: Colors.green, colorText: Colors.white);
+                            },
+                            child: const Text('Apply to Design', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              }
+
+              if (_aiCurrentStep.value == 'menu') {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('AI Generation Options', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    // Product Selection Header
+                    StatefulBuilder(
+                      builder: (context, setStateBuilder) => GestureDetector(
+                        onTap: () async {
+                          final product = await _pickProductForAI();
+                          if (product != null) {
+                            setStateBuilder(() => _aiSelectedProduct = product);
+                            setState(() => _aiSelectedProduct = product);
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(12),
+                            color: Colors.grey.shade50,
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.inventory_2, color: Colors.black54),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  _aiSelectedProduct != null 
+                                      ? 'Product: ${_aiSelectedProduct!['name']}' 
+                                      : 'Select a Product (Optional)',
+                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                              const Icon(Icons.arrow_drop_down),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    // Tier 1
+                    _buildAiOptionTile(
+                      icon: Icons.flash_on,
+                      title: 'Smart Generate (Free)',
+                      subtitle: 'Instantly fill using product data',
+                      color: Colors.green,
+                      onTap: () {
+                        if (_aiSelectedProduct == null) {
+                          Get.snackbar('Product Required', 'Please select a product first to use Smart Generate.');
+                          return;
+                        }
+                        _performTier1Generation();
+                        Navigator.pop(context);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    // Tier 2
+                    _buildAiOptionTile(
+                      icon: Icons.auto_awesome,
+                      title: 'Enhance with AI',
+                      subtitle: 'Make text more professional (1 credit)',
+                      color: const Color(0xFF5538EE),
+                      onTap: () {
+                        if (_aiSelectedProduct == null) {
+                          Get.snackbar('Product Required', 'Please select a product first to use Enhance with AI.');
+                          return;
+                        }
+                        _performTier2Generation(isGenerating);
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    // Tier 3
+                    _buildAiOptionTile(
+                      icon: Icons.edit_note,
+                      title: 'Custom Prompt',
+                      subtitle: 'Write your own instructions (1 credit)',
+                      color: Colors.orange,
+                      onTap: () {
+                        _aiCurrentStep.value = 'customPrompt';
+                      },
+                    ),
+                    if (isGenerating.value)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 24.0),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                  ],
+                );
+              }
+
+              // STEP 1: Prompt (Custom Prompt)
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        padding: EdgeInsets.zero,
+                        alignment: Alignment.centerLeft,
+                        onPressed: () => _aiCurrentStep.value = 'menu',
+                      ),
+                      const Expanded(
+                        child: Text('Custom Prompt', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Describe what you want the AI to write:', style: TextStyle(fontSize: 13, color: Colors.black54)),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _aiPromptController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      hintText: 'E.g., Write a promotional text for a new coffee shop...',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.all(12),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Output Language:', style: TextStyle(fontSize: 13, color: Colors.black54)),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade400),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: _aiSelectedLanguage.value,
+                        items: languages.map((l) => DropdownMenuItem(value: l, child: Text(l))).toList(),
+                        onChanged: (val) {
+                          if (val != null) _aiSelectedLanguage.value = val;
+                        },
+                      ),
+                    ),
+                  ),
+                  
+                  if (imageSlots.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    FutureBuilder<http.Response>(
+                      future: ApiService.getUserProducts(),
+                      builder: (context, snapshot) {
+                        bool hasProducts = true;
+                        if (snapshot.hasData) {
+                          try {
+                            final body = jsonDecode(snapshot.data!.body);
+                            final List products = body['data'] ?? [];
+                            if (products.isEmpty) hasProducts = false;
+                          } catch (_) {}
+                        }
+                        
+                        if (!hasProducts) {
+                          return Container(
+                            padding: const EdgeInsets.all(12),
+                            margin: const EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.shade50,
+                              border: Border.all(color: Colors.orange.shade200),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    "You haven't added any products yet! Please add products from the main menu, or manually upload images for the prompt below.",
+                                    style: TextStyle(color: Colors.orange, fontSize: 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                    const Text('Manual Image Uploads (Optional):', style: TextStyle(fontSize: 13, color: Colors.black54, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    const Text('Upload images here and refer to them in your prompt (e.g. "For Image 1, write about...").', style: TextStyle(fontSize: 11, color: Colors.black45)),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 80,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: imageSlots.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 12),
+                        itemBuilder: (context, index) {
+                          final slot = imageSlots[index];
+                          final slotName = (slot['name'] ?? 'Image ${index + 1}').toString();
+                          
+                          return GestureDetector(
+                            onTap: () async {
+                              showModalBottomSheet(
+                                context: context,
+                                builder: (ctx) => SafeArea(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      ListTile(
+                                        leading: const Icon(Icons.photo_library),
+                                        title: const Text('Upload from Gallery'),
+                                        onTap: () async {
+                                          Navigator.pop(ctx);
+                                          final ImagePicker picker = ImagePicker();
+                                          final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+                                          if (image != null) {
+                                            final bytes = await image.readAsBytes();
+                                            final base64Str = base64Encode(bytes);
+                                            final ext = image.path.split('.').last;
+                                            final dataUri = 'data:image/$ext;base64,$base64Str';
+                                            uploadedImages[slotName] = dataUri;
+                                            _aiUploadedImages[slotName] = dataUri;
+                                            controller.updateLayerProperty(slotName, 'src', dataUri);
+                                            controller.templateConfig.refresh();
+                                          }
+                                        },
+                                      ),
+                                      ListTile(
+                                        leading: const Icon(Icons.inventory_2),
+                                        title: const Text('Select from Products'),
+                                        onTap: () async {
+                                          Navigator.pop(ctx);
+                                          _showProductSelectionForSlot(slotName, _aiUploadedImages);
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Obx(() {
+                              final hasImage = _aiUploadedImages.containsKey(slotName);
+                              return Container(
+                                width: 80,
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: hasImage ? const Color(0xFF5538EE) : Colors.grey.shade300),
+                                  borderRadius: BorderRadius.circular(8),
+                                  color: Colors.grey.shade50,
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(hasImage ? Icons.check_circle : Icons.add_photo_alternate, 
+                                         color: hasImage ? const Color(0xFF5538EE) : Colors.grey.shade400),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Image ${index + 1}',
+                                      style: TextStyle(fontSize: 10, color: hasImage ? const Color(0xFF5538EE) : Colors.black54),
+                                      textAlign: TextAlign.center,
+                                      maxLines: 1,
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () {
+                            if (isGenerating.value) return;
+                            _performTier3Generation(isGenerating);
+                          },
+                          child: isGenerating.value
+                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                              : const Text('🔄 Regenerate'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF5538EE),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () {
+                            if (isGenerating.value) return;
+                            if (_aiPromptController.text.trim().isEmpty) {
+                              Get.snackbar('Error', 'Please enter a prompt first.');
+                              return;
+                            }
+                            _performTier3Generation(isGenerating);
+                          },
+                          child: isGenerating.value
+                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                              : const Text('Generate Content', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            }),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showProductSelectionForSlot(String slotName, RxMap<String, String> uploadedImages) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.7,
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Select Product for $slotName', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Expanded(
+                child: FutureBuilder<http.Response>(
+                  future: ApiService.getUserProducts(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError || !snapshot.hasData) {
+                      return const Center(child: Text('Failed to load products'));
+                    }
+                    try {
+                      final body = jsonDecode(snapshot.data!.body);
+                      final List products = body['data'] ?? [];
+                      if (products.isEmpty) {
+                        return const Center(child: Text('No products found'));
+                      }
+                      return GridView.builder(
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                        ),
+                        itemCount: products.length,
+                        itemBuilder: (context, index) {
+                          final product = products[index];
+                          final imgUrl = product['processed_url'] ?? product['image'];
+                          final fullUrl = imgUrl.toString().startsWith('http') ? imgUrl : '${controller.uploadsBaseUrl}/$imgUrl';
+                          return GestureDetector(
+                            onTap: () {
+                              uploadedImages[slotName] = fullUrl;
+                              controller.updateLayerProperty(slotName, 'src', fullUrl);
+                              controller.templateConfig.refresh();
+                              Navigator.pop(context);
+                            },
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(fullUrl, fit: BoxFit.cover),
+                            ),
+                          );
+                        },
+                      );
+                    } catch (e) {
+                      return const Center(child: Text('Error loading products'));
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFieldBadge(String text, String layerName, {bool alwaysBlue = false}) {
+    if (alwaysBlue) {
+      return GestureDetector(
+        onTap: () {},
+        child: Container(
+          margin: const EdgeInsets.only(right: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF5538EE),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 11,
+            ),
+          ),
+        ),
+      );
+    }
+    
+    final isVisible = controller.isLayerVisible(layerName);
+    return GestureDetector(
+      onTap: () {
+        controller.toggleVisibility(layerName, !isVisible);
+      },
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isVisible ? const Color(0xFF5538EE) : const Color(0xFFF3F4F6),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: isVisible ? Colors.white : const Color(0xFF6B7280),
+            fontWeight: FontWeight.bold,
+            fontSize: 11,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIconBadge(IconData icon, String layerName) {
+    final isVisible = controller.isLayerVisible(layerName);
+    return GestureDetector(
+      onTap: () {
+        controller.toggleVisibility(layerName, !isVisible);
+      },
+      child: Container(
+        margin: const EdgeInsets.only(right: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        decoration: BoxDecoration(
+          color: isVisible ? const Color(0xFF5538EE) : const Color(0xFFF3F4F6),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Icon(icon, color: isVisible ? Colors.white : const Color(0xFF6B7280), size: 14),
+      ),
+    );
+  }
+
+  void _showAddTextModal() {
+    final textController = TextEditingController();
+    double selectedSize = 48.0;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Add Text'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: textController,
+                autofocus: true,
+                decoration: const InputDecoration(hintText: 'Enter text here'),
+              ),
+              const SizedBox(height: 20),
+              Text('Font Size: ${selectedSize.toInt()}'),
+              Slider(
+                value: selectedSize,
+                min: 12,
+                max: 120,
+                divisions: 108,
+                label: selectedSize.round().toString(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedSize = value;
+                  });
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () {
+                if (textController.text.trim().isNotEmpty) {
+                  controller.addLayer({
+                    'name': 'New Text ${DateTime.now().millisecondsSinceEpoch}',
+                    'type': 'text',
+                    'text': textController.text.trim(),
+                    'size': selectedSize,
+                    'color': '#000000',
+                    'x': 540,
+                    'y': 540,
+                    'width': 400,
+                    'height': 100,
+                    'opacity': 1.0,
+                    'z_index': 999,
+                  });
+                }
+                Navigator.pop(context);
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEditingToolsBar() {
+    final bool isCustom = widget.type.toLowerCase().contains('custom');
+    
+    return Container(
+      height: 75,
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        children: [
+          if (isCustom) _buildToolBtn(Icons.image, 'Logo', _pickAndAddImage),
+          _buildToolBtn(Icons.text_fields, 'Text', _showAddTextModal),
+          if (isCustom) _buildToolBtn(Icons.shopping_bag_outlined, 'Products', _showProductsModal),
+          if (isCustom) _buildToolBtn(Icons.auto_awesome, 'AI Text', () => _showAiTextModal(context)),
+          _buildToolBtn(Icons.emoji_emotions_outlined, 'Sticker', _showStickerModal),
+          if (isCustom) _buildToolBtn(Icons.layers, 'Layers', () => _showLayersModal(context)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToolBtn(IconData icon, String label, VoidCallback onTap, {Color? iconColor, bool isSelected = false}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(right: 20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFF5538EE) : Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 12, spreadRadius: 2)],
+              ),
+              child: Icon(icon, color: isSelected ? Colors.white : (iconColor ?? const Color(0xFF5538EE)), size: 24),
+            ),
+            const SizedBox(height: 6),
+            Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.black87)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndAddImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      controller.addLayer({
+        'name': 'Logo ${DateTime.now().millisecondsSinceEpoch}',
+        'type': 'image',
+        'src': pickedFile.path,
+        'isLocal': true,
+        'x': 540,
+        'y': 540,
+        'width': 250,
+        'height': 250,
+        'opacity': 1.0,
+        'z_index': 999,
+        'isUserAdded': true,
+      });
+    }
+  }
+
+  void _showProductsModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.7,
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('My Products', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Expanded(
+                child: FutureBuilder<http.Response>(
+                  future: ApiService.getUserProducts(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError || !snapshot.hasData) {
+                      return const Center(child: Text('Failed to load products'));
+                    }
+                    try {
+                      final body = jsonDecode(snapshot.data!.body);
+                      final List products = body['data'] ?? [];
+                      if (products.isEmpty) {
+                        return const Center(child: Text('No products found'));
+                      }
+                      return GridView.builder(
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                        ),
+                        itemCount: products.length,
+                        itemBuilder: (context, index) {
+                          final product = products[index];
+                          final imgUrl = product['processed_url'] ?? product['image'];
+                          final fullUrl = imgUrl.toString().startsWith('http') ? imgUrl : '${controller.uploadsBaseUrl}/$imgUrl';
+                          return GestureDetector(
+                            onTap: () {
+                              controller.addLayer({
+                                'name': 'Product ${product['id']}',
+                                'type': 'image',
+                                'src': fullUrl,
+                                'x': 540,
+                                'y': 540,
+                                'width': 300,
+                                'height': 300,
+                                'opacity': 1.0,
+                                'z_index': 999,
+                                'isUserAdded': true,
+                              });
+                              Navigator.pop(context);
+                            },
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(fullUrl, fit: BoxFit.cover),
+                            ),
+                          );
+                        },
+                      );
+                    } catch (e) {
+                      return const Center(child: Text('Error loading products'));
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+
+
+  void _showStickerModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.7,
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Stickers', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Expanded(
+                child: FutureBuilder<http.Response>(
+                  // Assume the API is available at root /api/get-sticker or similar
+                  future: http.get(Uri.parse('${AppConfig.baseUrl}/get-sticker')),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError || !snapshot.hasData) {
+                      return const Center(child: Text('Failed to load stickers'));
+                    }
+                    try {
+                      final body = jsonDecode(snapshot.data!.body);
+                      List stickers = [];
+                      
+                      if (body['data'] != null && body['data'] is List) {
+                        final dataList = body['data'] as List;
+                        if (dataList.isNotEmpty && dataList[0] is Map && dataList[0].containsKey('stickerCategoryName')) {
+                          // Nested categorized structure
+                          for (var category in dataList) {
+                            if (category['sticker'] != null && category['sticker'] is List) {
+                              stickers.addAll(category['sticker']);
+                            }
+                          }
+                        } else {
+                          stickers = dataList;
+                        }
+                      } else if (body['stickers'] != null && body['stickers'] is List) {
+                        stickers = body['stickers'];
+                      } else if (body is List) {
+                        stickers = body;
+                      }
+
+                      if (stickers.isEmpty) {
+                        return const Center(child: Text('No stickers found'));
+                      }
+                      return GridView.builder(
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 4,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                        ),
+                        itemCount: stickers.length,
+                        itemBuilder: (context, index) {
+                          final sticker = stickers[index];
+                          final imgUrl = sticker['stickerImage'] ?? sticker['image'] ?? sticker['url'] ?? '';
+                          if (imgUrl.isEmpty) return const SizedBox.shrink();
+                          
+                          final fullUrl = imgUrl.toString().startsWith('http') ? imgUrl : '${controller.uploadsBaseUrl}/$imgUrl';
+                          return GestureDetector(
+                            onTap: () {
+                              controller.addLayer({
+                                'name': 'Sticker ${DateTime.now().millisecondsSinceEpoch}',
+                                'type': 'image',
+                                'src': fullUrl,
+                                'x': 540,
+                                'y': 540,
+                                'width': 200,
+                                'height': 200,
+                                'opacity': 1.0,
+                                'z_index': 999,
+                                'isUserAdded': true,
+                              });
+                              Navigator.pop(context);
+                            },
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(fullUrl, fit: BoxFit.contain),
+                            ),
+                          );
+                        },
+                      );
+                    } catch (e) {
+                      return const Center(child: Text('Error parsing stickers'));
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}

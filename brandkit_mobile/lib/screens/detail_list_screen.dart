@@ -40,6 +40,8 @@ class _DetailListScreenState extends State<DetailListScreen> {
   String itemImage = '';
   String activeTab = 'images'; // 'images' or 'videos'
   String imageFilter = 'Normal'; // 'Normal' or 'AI'
+  String selectedLanguage = 'All';
+  List<String> availableLanguages = ['All'];
   List<String> preferredLanguages = [];
 
   Future<void> _loadPreferredLanguages() async {
@@ -64,13 +66,18 @@ class _DetailListScreenState extends State<DetailListScreen> {
         if (!matchesAi) return false;
 
         // Language filtering:
-        if (preferredLanguages.isNotEmpty) {
-          bool hasAll = preferredLanguages.any((pref) => pref.trim().toLowerCase() == 'all');
-          if (!hasAll) {
-            final frameLang = (f['language'] ?? '').toString().trim().toLowerCase();
-            if (frameLang != 'all' && frameLang.isNotEmpty) {
-              bool match = preferredLanguages.any((pref) => pref.trim().toLowerCase() == frameLang);
-              if (!match) return false;
+        final frameLang = (f['language'] ?? '').toString().trim().toLowerCase();
+        
+        if (selectedLanguage != 'All') {
+          if (frameLang != selectedLanguage.toLowerCase()) return false;
+        } else {
+          if (preferredLanguages.isNotEmpty) {
+            bool hasAll = preferredLanguages.any((pref) => pref.trim().toLowerCase() == 'all');
+            if (!hasAll) {
+              if (frameLang != 'all' && frameLang.isNotEmpty) {
+                bool match = preferredLanguages.any((pref) => pref.trim().toLowerCase() == frameLang);
+                if (!match) return false;
+              }
             }
           }
         }
@@ -163,6 +170,17 @@ class _DetailListScreenState extends State<DetailListScreen> {
         setState(() {
           frames = data['frames'] ?? [];
           videos = data['videos'] ?? [];
+          
+          Set<String> langs = {'All'};
+          for (var f in frames) {
+            String l = (f['language'] ?? '').toString().trim();
+            if (l.isNotEmpty && l.toLowerCase() != 'all') {
+              l = l[0].toUpperCase() + l.substring(1).toLowerCase();
+              langs.add(l);
+            }
+          }
+          availableLanguages = langs.toList();
+          
           itemName = data['itemName'] ?? widget.title;
           itemImage = data['itemImage'] ?? '';
           selectedIndex = 0;
@@ -256,6 +274,7 @@ class _DetailListScreenState extends State<DetailListScreen> {
           action: 'download_template',
           itemType: widget.type,
           itemId: trackItemId,
+          isPremium: isPaid,
         );
         Get.snackbar('Success', 'Design saved to gallery successfully!', snackPosition: SnackPosition.BOTTOM);
       } else {
@@ -451,13 +470,48 @@ class _DetailListScreenState extends State<DetailListScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        // Download button — triggers interstitial ad
-                        _buildHeaderButton(
-                          icon: Icons.download_outlined,
-                          bgColor: const Color(0xFFF1F5F9),
-                          iconColor: const Color(0xFF475569),
-                          onTap: _handleDownload,
-                        ),
+                        // Language Dropdown
+                        if (availableLanguages.length > 1)
+                          PopupMenuButton<String>(
+                            initialValue: selectedLanguage,
+                            onSelected: (String item) {
+                              setState(() {
+                                selectedLanguage = item;
+                                selectedIndex = 0;
+                              });
+                            },
+                            offset: const Offset(0, 40),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            color: Colors.white,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.language, size: 18, color: Color(0xFF475569)),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    selectedLanguage,
+                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.arrow_drop_down, size: 16, color: Color(0xFF475569)),
+                                ],
+                              ),
+                            ),
+                            itemBuilder: (BuildContext context) => availableLanguages.map((String lang) {
+                              return PopupMenuItem<String>(
+                                value: lang,
+                                child: Text(lang, style: TextStyle(
+                                  fontWeight: selectedLanguage == lang ? FontWeight.bold : FontWeight.normal,
+                                  color: selectedLanguage == lang ? AppColors.primary : Colors.black87,
+                                )),
+                              );
+                            }).toList(),
+                          ),
                         const SizedBox(width: 8),
                         // Next button (opens editor)
                         GestureDetector(

@@ -607,7 +607,7 @@ class MainController extends Controller
         return $frames_list;
     }
 
-    private function injectDynamicBackgroundImage($config, $businessCategoryId)
+    public function injectDynamicBackgroundImage($config, $businessCategoryId)
     {
         \Illuminate\Support\Facades\Log::info("DEBUG WEB injectBG: Started. BusinessCategoryId=$businessCategoryId");
         if (!$config || !isset($config->layers) || !$businessCategoryId) {
@@ -615,46 +615,49 @@ class MainController extends Controller
             return $config;
         }
 
-        $bgLayer = null;
         foreach ($config->layers as $layer) {
-            if ($layer->type === 'image' && isset($layer->name)) {
-                $name = strtolower($layer->name);
-                if (str_contains($name, 'background') || str_contains($name, 'bg')) {
-                    $bgLayer = $layer;
-                    \Illuminate\Support\Facades\Log::info("DEBUG WEB injectBG: Found BG layer: {$layer->name}");
-                    break;
+            $isBg = false;
+            if ($layer->type === 'image') {
+                if (isset($layer->is_background) && $layer->is_background == true) {
+                    $isBg = true;
+                } elseif (isset($layer->name)) {
+                    $name = strtolower($layer->name);
+                    if (str_contains($name, 'background') || str_contains($name, 'bg')) {
+                        $isBg = true;
+                    }
                 }
             }
-        }
 
-        if ($bgLayer && isset($bgLayer->w) && isset($bgLayer->h) && $bgLayer->h > 0) {
-            $ratio = $bgLayer->w / $bgLayer->h;
-            $aspectRatioEnum = null;
-            
-            if (abs($ratio - 1) < 0.1) {
-                $aspectRatioEnum = '1:1';
-            } elseif (abs($ratio - 1.77) < 0.2) {
-                $aspectRatioEnum = '16:9';
-            } elseif (abs($ratio - 0.56) < 0.2) {
-                $aspectRatioEnum = '9:16';
-            }
-
-            \Illuminate\Support\Facades\Log::info("DEBUG WEB injectBG: Layer dimensions {$bgLayer->w}x{$bgLayer->h}, ratio $ratio, mapped to aspect enum: " . ($aspectRatioEnum ?? 'NONE'));
-
-            if ($aspectRatioEnum) {
-                $randomBg = \App\Models\CategoryBackgroundImage::where('business_category_id', $businessCategoryId)
-                                ->where('aspect_ratio', $aspectRatioEnum)
-                                ->inRandomOrder()
-                                ->first();
-                if ($randomBg) {
-                    $bgLayer->src = url($randomBg->image);
-                    \Illuminate\Support\Facades\Log::info("DEBUG WEB injectBG: Successfully replaced BG with image ID {$randomBg->id}. URL generated: {$bgLayer->src}");
+            if ($isBg && isset($layer->w) && isset($layer->h) && $layer->h > 0) {
+                \Illuminate\Support\Facades\Log::info("DEBUG WEB injectBG: Found BG layer.");
+                $ratio = $layer->w / $layer->h;
+                $aspectRatioEnum = null;
+                
+                if (abs($ratio - 1) <= 0.25) {
+                    $aspectRatioEnum = '1:1';
+                } elseif ($ratio >= 1.25) {
+                    $aspectRatioEnum = '16:9';
+                } elseif ($ratio <= 0.75) {
+                    $aspectRatioEnum = '9:16';
                 } else {
-                    \Illuminate\Support\Facades\Log::info("DEBUG WEB injectBG: No random background found in DB for category $businessCategoryId and ratio $aspectRatioEnum");
+                    $aspectRatioEnum = '1:1'; // Fallback
+                }
+
+                \Illuminate\Support\Facades\Log::info("DEBUG WEB injectBG: Layer dimensions {$layer->w}x{$layer->h}, ratio $ratio, mapped to aspect enum: $aspectRatioEnum");
+
+                if ($aspectRatioEnum) {
+                    $randomBg = \App\Models\CategoryBackgroundImage::where('business_category_id', $businessCategoryId)
+                                    ->where('aspect_ratio', $aspectRatioEnum)
+                                    ->inRandomOrder()
+                                    ->first();
+                    if ($randomBg) {
+                        $layer->src = url($randomBg->image);
+                        \Illuminate\Support\Facades\Log::info("DEBUG WEB injectBG: Successfully replaced BG with image ID {$randomBg->id}. URL generated: {$layer->src}");
+                    } else {
+                        \Illuminate\Support\Facades\Log::info("DEBUG WEB injectBG: No random background found in DB for category $businessCategoryId and ratio $aspectRatioEnum");
+                    }
                 }
             }
-        } else {
-            \Illuminate\Support\Facades\Log::info("DEBUG WEB injectBG: No background layer found or invalid dimensions.");
         }
 
         return $config;
@@ -901,67 +904,7 @@ class MainController extends Controller
 
         // STRICT FILTERING BASED ON VISIBLE DETAILS
         if (isset($data['business']) && $data['business']) {
-            $business = $data['business'];
-            $hiddenFields = [];
-            if (!empty($business->hidden_frame_fields)) {
-                $hiddenFields = is_string($business->hidden_frame_fields) ? json_decode($business->hidden_frame_fields, true) : $business->hidden_frame_fields;
-            }
-
-            // Visible Phones
-            $visiblePhones = 0;
-            $hPhones = $hiddenFields['mobile_numbers'] ?? [];
-            if (!empty($business->mobile_no) && !in_array($business->mobile_no, $hPhones)) $visiblePhones++;
-            if (!empty($business->extra_mobile_numbers)) {
-                $extras = is_string($business->extra_mobile_numbers) ? json_decode($business->extra_mobile_numbers, true) : $business->extra_mobile_numbers;
-                foreach ($extras as $val) {
-                    if (!in_array($val, $hPhones) && !empty($val)) $visiblePhones++;
-                }
-            }
-
-            // Visible Emails
-            $visibleEmails = 0;
-            $hEmails = $hiddenFields['emails'] ?? [];
-            if (!empty($business->email) && !in_array($business->email, $hEmails)) $visibleEmails++;
-            if (!empty($business->extra_emails)) {
-                $extras = is_string($business->extra_emails) ? json_decode($business->extra_emails, true) : $business->extra_emails;
-                foreach ($extras as $val) {
-                    if (!in_array($val, $hEmails) && !empty($val)) $visibleEmails++;
-                }
-            }
-
-            // Visible Addresses
-            $visibleAddresses = 0;
-            $hAddresses = $hiddenFields['addresses'] ?? [];
-            if (!empty($business->address) && !in_array($business->address, $hAddresses)) $visibleAddresses++;
-            if (!empty($business->extra_addresses)) {
-                $extras = is_string($business->extra_addresses) ? json_decode($business->extra_addresses, true) : $business->extra_addresses;
-                foreach ($extras as $val) {
-                    if (!in_array($val, $hAddresses) && !empty($val)) $visibleAddresses++;
-                }
-            }
-
-            // Visible Websites
-            $visibleWebsites = 0;
-            $hWebsites = $hiddenFields['websites'] ?? [];
-            if (!empty($business->website) && !in_array($business->website, $hWebsites)) $visibleWebsites++;
-            if (!empty($business->extra_websites)) {
-                $extras = is_string($business->extra_websites) ? json_decode($business->extra_websites, true) : $business->extra_websites;
-                foreach ($extras as $val) {
-                    if (!in_array($val, $hWebsites) && !empty($val)) $visibleWebsites++;
-                }
-            }
-
-            $frames_list = $frames_list->filter(function($f) use ($visiblePhones, $visibleEmails, $visibleAddresses, $visibleWebsites) {
-                $req_phone = (int)($f->req_phone ?? 0);
-                $req_email = (int)($f->req_email ?? 0);
-                $req_address = (int)($f->req_address ?? 0);
-                $req_website = (int)($f->req_website ?? 0);
-                
-                return $req_phone <= $visiblePhones &&
-                       $req_email <= $visibleEmails &&
-                       $req_address <= $visibleAddresses &&
-                       $req_website <= $visibleWebsites;
-            })->values();
+            $frames_list = $this->filterFramesByBusinessData($frames_list, $data['business']);
         }
 
         $frames = $frames_list;
@@ -1241,5 +1184,87 @@ class MainController extends Controller
         );
 
         return response()->json(['success' => true]);
+    }
+    public function filterFramesByBusinessData($frames_list, $business)
+    {
+        if (!$business) return $frames_list;
+
+        $hiddenFields = [];
+        if (!empty($business->hidden_frame_fields)) {
+            $hiddenFields = is_string($business->hidden_frame_fields) ? json_decode($business->hidden_frame_fields, true) : $business->hidden_frame_fields;
+        }
+
+        // Visible Phones
+        $visiblePhones = 0;
+        $hPhones = $hiddenFields['mobile_numbers'] ?? [];
+        if (!empty($business->mobile_no) && !in_array($business->mobile_no, $hPhones)) $visiblePhones++;
+        if (!empty($business->extra_mobile_numbers)) {
+            $extras = is_string($business->extra_mobile_numbers) ? json_decode($business->extra_mobile_numbers, true) : $business->extra_mobile_numbers;
+            if (is_array($extras)) {
+                foreach ($extras as $val) {
+                    if (!in_array($val, $hPhones) && !empty($val)) $visiblePhones++;
+                }
+            }
+        }
+
+        // Visible Emails
+        $visibleEmails = 0;
+        $hEmails = $hiddenFields['emails'] ?? [];
+        if (!empty($business->email) && !in_array($business->email, $hEmails)) $visibleEmails++;
+        if (!empty($business->extra_emails)) {
+            $extras = is_string($business->extra_emails) ? json_decode($business->extra_emails, true) : $business->extra_emails;
+            if (is_array($extras)) {
+                foreach ($extras as $val) {
+                    if (!in_array($val, $hEmails) && !empty($val)) $visibleEmails++;
+                }
+            }
+        }
+
+        // Visible Addresses
+        $visibleAddresses = 0;
+        $hAddresses = $hiddenFields['addresses'] ?? [];
+        if (!empty($business->address) && !in_array($business->address, $hAddresses)) $visibleAddresses++;
+        if (!empty($business->extra_addresses)) {
+            $extras = is_string($business->extra_addresses) ? json_decode($business->extra_addresses, true) : $business->extra_addresses;
+            if (is_array($extras)) {
+                foreach ($extras as $val) {
+                    if (!in_array($val, $hAddresses) && !empty($val)) $visibleAddresses++;
+                }
+            }
+        }
+
+        // Visible Websites
+        $visibleWebsites = 0;
+        $hWebsites = $hiddenFields['websites'] ?? [];
+        if (!empty($business->website) && !in_array($business->website, $hWebsites)) $visibleWebsites++;
+        if (!empty($business->extra_websites)) {
+            $extras = is_string($business->extra_websites) ? json_decode($business->extra_websites, true) : $business->extra_websites;
+            if (is_array($extras)) {
+                foreach ($extras as $val) {
+                    if (!in_array($val, $hWebsites) && !empty($val)) $visibleWebsites++;
+                }
+            }
+        }
+
+        $filterClosure = function($f) use ($visiblePhones, $visibleEmails, $visibleAddresses, $visibleWebsites) {
+            $is_array = is_array($f);
+            $req_phone = (int)($is_array ? ($f['req_phone'] ?? 0) : ($f->req_phone ?? 0));
+            $req_email = (int)($is_array ? ($f['req_email'] ?? 0) : ($f->req_email ?? 0));
+            $req_address = (int)($is_array ? ($f['req_address'] ?? 0) : ($f->req_address ?? 0));
+            $req_website = (int)($is_array ? ($f['req_website'] ?? 0) : ($f->req_website ?? 0));
+            
+            return $req_phone == $visiblePhones &&
+                   $req_email == $visibleEmails &&
+                   $req_address == $visibleAddresses &&
+                   $req_website == $visibleWebsites;
+        };
+
+        if ($frames_list instanceof \Illuminate\Support\Collection) {
+            return $frames_list->filter($filterClosure)->values();
+        } else if (is_array($frames_list)) {
+            return array_values(array_filter($frames_list, $filterClosure));
+        }
+
+        return $frames_list;
     }
 }

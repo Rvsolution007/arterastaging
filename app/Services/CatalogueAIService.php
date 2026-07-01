@@ -309,6 +309,42 @@ class CatalogueAIService
         return ['products' => $json['products'] ?? [], 'total' => count($json['products'] ?? []), 'ai_tokens' => $result['total_tokens'] ?? 0];
     }
 
+    public function extractProductDataFromImage(string $base64Image, string $mimeType, array $columns): array
+    {
+        if (!$this->vertexAI->isConfigured()) throw new \RuntimeException('AI is not configured.');
+
+        $customPrompt = Setting::getGlobalValue('setup_tour', 'product_extraction_prompt', '');
+        $systemPrompt = !empty($customPrompt) ? $customPrompt : $this->getProductExtractionPrompt($columns);
+        $systemPrompt .= "\n\nPlease extract ALL products found in the provided image.";
+
+        $result = $this->vertexAI->generateVisionContentFromBase64($systemPrompt, $base64Image, $mimeType, true);
+        
+        $json = $this->extractJSONFromResponse($result['text']);
+        if (!$json || !isset($json['products'])) throw new \RuntimeException('AI could not extract product data from the image.');
+
+        $products = $json['products'] ?? [];
+        $uniqueProducts = [];
+        $seen = [];
+        
+        foreach ($products as $p) {
+            // Find title column
+            $titleCol = collect($columns)->firstWhere('is_title', true);
+            $titleKey = $titleCol ? $titleCol['name'] : 'title';
+            $title = strtolower(trim($p[$titleKey] ?? $p['title'] ?? ''));
+            
+            if (!empty($title) && !isset($seen[$title])) {
+                $seen[$title] = true;
+                $uniqueProducts[] = $p;
+            } elseif (empty($title)) {
+                $uniqueProducts[] = $p; // If no title found, just include it
+            }
+        }
+
+        $tokens = $result['raw']['usageMetadata']['totalTokenCount'] ?? 0;
+
+        return ['products' => $uniqueProducts, 'total' => count($uniqueProducts), 'ai_tokens' => $tokens];
+    }
+
     private function extractJSONFromResponse(string $text): ?array
     {
         // 1. Try direct decode

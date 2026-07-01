@@ -33,7 +33,7 @@
         </div>
     @endif
 
-    {!! Form::open(['route' => 'poster-maker.store','method'=>'post','files'=>true]) !!}
+    {!! Form::open(['route' => 'Frame.store','method'=>'post','files'=>true]) !!}
     {!! Form::hidden('user_id',optional(Auth::user())->id)!!}
     <div class="row">
         <div class="col-12">

@@ -225,7 +225,7 @@
                         </div>
                         <div class="col-md-4 mb-3">
                             <label class="form-label"><i class="fa-solid fa-upload mr-1"></i> Image File</label>
-                            <input type="file" name="image" class="form-input" required accept="image/*" style="padding: 0.45rem 1rem;">
+                            <input type="file" name="image[]" class="form-input" multiple required accept="image/*" style="padding: 0.45rem 1rem;">
                         </div>
                         <div class="col-md-2 mb-3">
                             <button type="submit" class="btn-submit w-100"><i class="fa-solid fa-plus mr-1"></i> Upload</button>

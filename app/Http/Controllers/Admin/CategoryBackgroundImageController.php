@@ -19,19 +19,22 @@ class CategoryBackgroundImageController extends Controller
         $request->validate([
             'business_category_id' => 'required',
             'aspect_ratio' => 'required|in:1:1,16:9,9:16',
-            'image' => 'required|image|mimes:jpeg,png,jpg,webp|max:5048',
+            'image' => 'required|array',
+            'image.*' => 'image|mimes:jpeg,png,jpg,webp|max:5048',
         ]);
 
-        $imageName = time() . '_' . $request->image->getClientOriginalName();
-        $request->image->move(public_path('uploads/background_images'), $imageName);
+        foreach ($request->file('image') as $img) {
+            $imageName = time() . '_' . uniqid() . '_' . $img->getClientOriginalName();
+            $img->move(public_path('uploads/background_images'), $imageName);
 
-        \App\Models\CategoryBackgroundImage::create([
-            'business_category_id' => $request->business_category_id,
-            'aspect_ratio' => $request->aspect_ratio,
-            'image' => 'uploads/background_images/' . $imageName,
-        ]);
+            \App\Models\CategoryBackgroundImage::create([
+                'business_category_id' => $request->business_category_id,
+                'aspect_ratio' => $request->aspect_ratio,
+                'image' => 'uploads/background_images/' . $imageName,
+            ]);
+        }
 
-        return redirect()->back()->with('success', 'Background Image added successfully');
+        return redirect()->back()->with('success', 'Background Images added successfully');
     }
 
     public function destroy($id)

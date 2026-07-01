@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../screens/detail_list_screen.dart';
+import '../services/api_service.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -153,6 +154,13 @@ class NotificationService {
       String? imageUrl = message.notification?.android?.imageUrl
           ?? message.notification?.apple?.imageUrl
           ?? message.data['image'];
+
+      // Fix localhost URLs — mobile can't reach localhost, use LAN IP instead
+      if (imageUrl != null && imageUrl.contains('localhost')) {
+        final apiBase = Uri.parse(ApiService.baseUrl);
+        imageUrl = imageUrl.replaceFirst('localhost', apiBase.host);
+        debugPrint("Fixed localhost image URL to: $imageUrl");
+      }
 
       debugPrint("Will show local notification: title=${notification.title}, imageUrl=$imageUrl");
 

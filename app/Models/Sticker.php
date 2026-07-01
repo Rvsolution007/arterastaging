@@ -11,7 +11,7 @@ class Sticker extends Model
     protected $table = "sticker";
 
     protected $fillable = [
-        'sticker_category_id','image','status'
+        'sticker_category_id','image','status', 'keywords'
     ];
 
     public function sticker_category()

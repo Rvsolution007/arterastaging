@@ -210,6 +210,8 @@ class _MoreScreenState extends State<MoreScreen> {
           ],
         ),
         
+        // Gamification feature hidden as per request
+        /*
         _buildSectionTitle('Gamification & Rewards'),
         _buildSectionContainer(
           children: [
@@ -223,6 +225,7 @@ class _MoreScreenState extends State<MoreScreen> {
             ),
           ],
         ),
+        */
       ],
     );
   }

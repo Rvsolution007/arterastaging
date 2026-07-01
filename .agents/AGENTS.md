@@ -1,0 +1,126 @@
+# Workspace Rules for Artera Project
+
+## 🔒 Frame Code Lock (Custom Template)
+
+**CRITICAL RULE - MUST FOLLOW EVERY TIME:**
+
+The frame-related code in custom templates is **LOCKED**. This includes:
+- Frame layer logic in `native_editor_controller.dart` (frame loading, `_is_frame_layer` flag, frame merging)
+- Frame rendering in `editor_canvas_widget.dart` (frame layer building, frame background, frame overlay)
+- Frame filtering in `native_editor_screen.dart` (frame layer exclusion from layers modal)
+- Any code that sets, reads, or modifies `_is_frame_layer` or `_isFrameLayer` flags
+- Frame ZIP loading, frame JSON parsing, frame skin resolution
+- Frame slot image injection logic
+
+**Before making ANY changes to frame-related code, you MUST:**
+1. Ask the user for the frame lock password
+2. Wait for the correct password before proceeding
+3. If the password is incorrect, refuse to make changes
+4. If the password is not provided, refuse to make changes
+
+This rule applies to ALL conversations, ALL agents, and ALL subagents working on this project.
+
+## 🔒 Web Editor Font Logic Lock
+
+**CRITICAL RULE - MUST FOLLOW EVERY TIME:**
+
+The font-related logic in the web template builder is **LOCKED**. This includes:
+- `normalizePSFont()` function in `template_builder.js`
+- `FONT_WEIGHT_MAP` and `FONT_STYLE_MAP` constants in `template_builder.js`
+- `loadGoogleFonts()` function in `template_builder.js` (GLOBAL_FONTS matching, FontFace registration, Google Fonts CSS2 loading)
+- Font loading from ZIP in `template_builder.js` (fontsMap processing, font variant loading)
+- Font weight/style export logic in `exportArteraSchema()` and `exportLegacyJson()` in `template_builder.js`
+- Font variant loading in `TemplateBuilderController.php` (`loadZip` method, `_injectSystemFonts` method)
+- Any code that registers FontFace objects with weight/style descriptors
+
+**Before making ANY changes to font-related code, you MUST:**
+1. Ask the user for the web editor font lock password
+2. Wait for the correct password before proceeding
+3. If the password is incorrect, refuse to make changes
+4. If the password is not provided, refuse to make changes
+
+**Password**: `Brijesh@1415`
+
+This rule applies to ALL conversations, ALL agents, and ALL subagents working on this project.
+
+## 🔒 Web Editor Rendering Logic Lock
+
+**CRITICAL RULE - MUST FOLLOW EVERY TIME:**
+
+The JSON parsing, template rendering, and exporting logic in the web template builder is **LOCKED**. This includes:
+- `_doRender()` function in `template_builder.js` (including `isPointText` handling, offset calculation, and gradient parsing)
+- `exportArteraSchema()` function in `template_builder.js`
+- `exportLegacyJson()` function in `template_builder.js`
+- `loadZip()` method in `TemplateBuilderController.php` (including JSON manipulation/mapping)
+
+**Before making ANY changes to rendering and export logic, you MUST:**
+1. Ask the user for the web editor rendering lock password
+2. Wait for the correct password before proceeding
+3. If the password is incorrect, refuse to make changes
+4. If the password is not provided, refuse to make changes
+
+**Password**: `Brijesh@1415`
+
+This rule applies to ALL conversations, ALL agents, and ALL subagents working on this project.
+
+## 🔒 Native Editor Image Sizing & Masking Logic Lock
+
+**CRITICAL RULE - MUST FOLLOW EVERY TIME:**
+
+The logic governing how images and shapes are sized, masked, and rendered in the native mobile editor is **LOCKED**. This includes:
+- `InteractiveLayer` bounds calculation and widget wrapping (`posW`, `posH`, `SizedBox(width: posW, height: posH, child: child)`) in `interactive_layer.dart`
+- Custom Image Mask Logic (overriding `x`, `y`, `w`, `h`, `scaleX`, `scaleY`) in `editor_canvas_widget.dart`
+- `_buildImage` properties (specifically `BoxFit` logic, intrinsic sizing constraints) and `ClipOval` gating logic in `editor_canvas_widget.dart`
+
+**Before making ANY changes to image sizing or masking logic in the native editor, you MUST:**
+1. Ask the user for the native editor sizing lock password
+2. Wait for the correct password before proceeding
+3. If the password is incorrect, refuse to make changes
+4. If the password is not provided, refuse to make changes
+
+**Password**: `Brijesh@1415`
+
+This rule applies to ALL conversations, ALL agents, and ALL subagents working on this project.
+
+## 🔒 PSD Clipping Mask Auto-Detection & Image Shader Logic Lock
+
+**CRITICAL RULE - MUST FOLLOW EVERY TIME:**
+
+The logic governing PSD Clipping Mask Auto-Detection in both web and native editors is **LOCKED**. This includes:
+- Pre-pass auto-detect logic in `editor_canvas_widget.dart` (`mask_layer_id` injection and `_is_used_as_mask` flagging)
+- `CustomImageMaskWidget` implementation and `ImageShader` scaling math in `editor_canvas_widget.dart`
+- `checkAllLoaded` auto-detect logic in `template_builder.js`
+- `applyVisualMaskPreview` clone and `globalCompositeOperation` logic in `template_builder.js`
+
+**Before making ANY changes to PSD mask detection or mask rendering logic, you MUST:**
+1. Ask the user for the PSD Mask lock password
+2. Wait for the correct password before proceeding
+3. If the password is incorrect, refuse to make changes
+4. If the password is not provided, refuse to make changes
+
+**Password**: `Brijesh@1415`
+
+This rule applies to ALL conversations, ALL agents, and ALL subagents working on this project.
+
+## 🔒 Business Category Selection & Multi-Select Logic Lock
+
+**CRITICAL RULE - MUST FOLLOW EVERY TIME:**
+
+The business category cascading selection, multi-select dropdowns, and per-category cache logic in the Register and Business Profile screens is **LOCKED**. This includes:
+- `CascadingBusinessDropdowns` widget in `widgets/cascading_business_dropdowns.dart` (category single-select, sub-category multi-select, business type multi-select, smooth animations, API fetching, `_notifyParent`, `_localFetchSubCategories`, `_localFetchBusinessTypes`, `_buildPremiumCategoryDropdown`)
+- `MultiSelectDropdown` widget in `widgets/multi_select_dropdown.dart` (bottom sheet selection UI, `_PremiumSelectionSheet`, `initialSelectedNames`, chip rendering, search filtering)
+- Category selection callback logic in `register_screen.dart` (`CascadingBusinessDropdowns` usage, `_categoryCacheMap`, `_cascadingKey`, `_productKey`, cache save/restore on category switch)
+- Category selection callback logic in `business_profile_screen.dart` (`CascadingBusinessDropdowns` usage, `_categoryCacheMap`, `_cascadingKey`, `_productKey`, cache save/restore on category switch, `_initialProductNames`)
+- Products `MultiSelectDropdown` integration in both `register_screen.dart` and `business_profile_screen.dart`
+- `_fetchProducts` function in both screens
+- Any code that manages `_selectedSubCategoryIds`, `_selectedBusinessTypeIds`, `_selectedProductIds`, `_hasTypesForSelectedSubCategory` state variables in both screens
+
+**Before making ANY changes to business category selection or multi-select logic, you MUST:**
+1. Ask the user for the business category lock password
+2. Wait for the correct password before proceeding
+3. If the password is incorrect, refuse to make changes
+4. If the password is not provided, refuse to make changes
+
+**Password**: `Brijesh@1415`
+
+This rule applies to ALL conversations, ALL agents, and ALL subagents working on this project.

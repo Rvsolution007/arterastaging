@@ -108,6 +108,10 @@ Route::group(['middleware' => ['auth']], function () {
 
 });
 
+Route::get('/bg-remover', function () {
+    return view('bg_remove');
+})->name('bg.remover');
+
 // Shared UI routes
 Route::get('/client/get-sub-categories/{category_id}', 'MainController@getSubCategories')->name('client.get_sub_categories');
 Route::get('/webview-login', 'ClientAuthController@webviewLogin')->name('webview.login');

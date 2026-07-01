@@ -229,6 +229,7 @@ input:checked + .slider:before { transform: translateX(18px); }
                 </div>
             </div>
         </div>
+    </div>
 </div>
 
 <!-- Import Modal -->

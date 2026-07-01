@@ -63,24 +63,47 @@ class _CascadingBusinessDropdownsState extends State<CascadingBusinessDropdowns>
     super.dispose();
   }
 
-  void _loadCategories() {
+  bool _isLoadingCategories = false;
+
+  Future<void> _loadCategories() async {
     try {
-      final hc = Get.find<HomeController>();
-      setState(() {
-        _categories = hc.profileCategories;
-        if (_categories.isEmpty && hc.customCategories.isNotEmpty) {
-          _categories = hc.customCategories;
-        }
-      });
-      
-      if (widget.initialCategoryId != null && widget.initialCategoryId!.isNotEmpty) {
-        if (_categories.any((c) => (c['businessCategoryId']?.toString() ?? c['id']?.toString()) == widget.initialCategoryId)) {
-          _selectedCategory = widget.initialCategoryId;
-          _fetchSubCategories(_selectedCategory!, preloadSubIds: widget.initialSubCategoryIds);
-        }
+      if (Get.isRegistered<HomeController>()) {
+        final hc = Get.find<HomeController>();
+        setState(() {
+          _categories = hc.profileCategories;
+          if (_categories.isEmpty && hc.customCategories.isNotEmpty) {
+            _categories = hc.customCategories;
+          }
+        });
       }
     } catch (e) {
-      debugPrint('Error loading categories: $e');
+      debugPrint('HomeController not available: $e');
+    }
+
+    if (_categories.isEmpty) {
+      setState(() => _isLoadingCategories = true);
+      try {
+        final res = await ApiService.get('/business-category');
+        if (res.statusCode == 200) {
+          final data = jsonDecode(res.body);
+          if (mounted) {
+            setState(() {
+              _categories = data is List ? data : (data['data'] ?? []);
+            });
+          }
+        }
+      } catch (e) {
+        debugPrint('Error fetching categories: $e');
+      } finally {
+        if (mounted) setState(() => _isLoadingCategories = false);
+      }
+    }
+
+    if (widget.initialCategoryId != null && widget.initialCategoryId!.isNotEmpty) {
+      if (_categories.any((c) => (c['businessCategoryId']?.toString() ?? c['id']?.toString()) == widget.initialCategoryId)) {
+        _selectedCategory = widget.initialCategoryId;
+        _fetchSubCategories(_selectedCategory!, preloadSubIds: widget.initialSubCategoryIds);
+      }
     }
   }
 
@@ -419,10 +442,17 @@ class _CascadingBusinessDropdownsState extends State<CascadingBusinessDropdowns>
               ),
               hint: Row(
                 children: [
-                  Icon(Icons.add_circle_outline_rounded, size: 18, color: AppColors.gray400),
+                  if (_isLoadingCategories)
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                    )
+                  else
+                    Icon(Icons.add_circle_outline_rounded, size: 18, color: AppColors.gray400),
                   const SizedBox(width: 10),
                   Text(
-                    'Select Category',
+                    _isLoadingCategories ? 'Loading Categories...' : 'Select Category',
                     style: TextStyle(color: AppColors.gray400, fontSize: 14, fontWeight: FontWeight.w400),
                   ),
                 ],

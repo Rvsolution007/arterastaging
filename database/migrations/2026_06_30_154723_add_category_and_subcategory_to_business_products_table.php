@@ -14,10 +14,18 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::table('business_products', function (Blueprint $table) {
-            $table->unsignedBigInteger('business_category_id')->nullable()->after('id');
-            $table->unsignedBigInteger('business_sub_category_id')->nullable()->after('business_category_id');
-        });
+        if (!Schema::hasColumn('business_products', 'business_category_id')) {
+            Schema::table('business_products', function (Blueprint $table) {
+                $table->unsignedBigInteger('business_category_id')->nullable()->after('id');
+            });
+        }
+
+        if (!Schema::hasColumn('business_products', 'business_sub_category_id')) {
+            Schema::table('business_products', function (Blueprint $table) {
+                $table->unsignedBigInteger('business_sub_category_id')->nullable()->after('business_category_id');
+            });
+        }
+        
         DB::statement('ALTER TABLE business_products MODIFY business_type_id BIGINT UNSIGNED NULL;');
     }
 

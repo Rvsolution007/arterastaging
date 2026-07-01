@@ -25,8 +25,9 @@ return new class extends Migration
                 $table->unsignedBigInteger('business_sub_category_id')->nullable()->after('business_category_id');
             });
         }
-        
-        DB::statement('ALTER TABLE business_products MODIFY business_type_id BIGINT UNSIGNED NULL;');
+        if (Schema::hasColumn('business_products', 'business_type_id')) {
+            DB::statement('ALTER TABLE business_products MODIFY business_type_id BIGINT UNSIGNED NULL;');
+        }
     }
 
     /**

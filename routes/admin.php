@@ -145,6 +145,8 @@ Route::
             Route::delete('business-custom-frame-zip/{id}', 'BusinessFrameController@deleteBusinessCustomFrame');
             Route::post('business-custom-frame-landing', 'BusinessFrameController@business_custom_frame_landing');
             Route::Post('custom-post-action', 'BusinessFrameController@business_frame_action');
+            Route::get('custom-post-export', 'BusinessFrameController@exportTemplates')->name('custom-post.export');
+            Route::post('custom-post-import', 'BusinessFrameController@importTemplates')->name('custom-post.import');
 
             Route::resource('general-post', 'GeneralPostController');
             Route::Post('general-post-status', 'GeneralPostController@general_post_status');
@@ -389,6 +391,8 @@ Route::
 
             // Fonts Manager
             Route::get('fonts', 'FontController@index')->name('admin.fonts.index');
+            Route::get('fonts/export', 'FontController@export')->name('admin.fonts.export');
+            Route::post('fonts/import', 'FontController@import')->name('admin.fonts.import');
             Route::get('fonts/create', 'FontController@create')->name('admin.fonts.create');
             Route::post('fonts', 'FontController@store')->name('admin.fonts.store');
             Route::put('fonts/{id}', 'FontController@update')->name('admin.fonts.update');

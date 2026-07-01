@@ -675,7 +675,16 @@
                 @endforeach
             </select>
         </form>
-        <button type="button" class="cf-btn-primary" data-toggle="modal" data-target="#uploadZipModal" style="border-radius: 8px; padding: 8px 16px;"><i class="fa-solid fa-upload"></i> Upload Template</button>
+        <div class="dropdown">
+            <button class="cf-btn-secondary dropdown-toggle" type="button" id="importExportDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="border-radius: 8px; padding: 8px 16px; background: #fff; border: 1px solid #e2e8f0; color: #475569; font-weight: 600;">
+                <i class="fa-solid fa-ellipsis-vertical"></i> Manage
+            </button>
+            <div class="dropdown-menu dropdown-menu-right" aria-labelledby="importExportDropdown" style="border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);">
+                <a class="dropdown-item" href="{{ route('custom-post.export', ['filter_purpose_id' => request('filter_purpose_id')]) }}" style="padding: 10px 20px; font-weight: 500; color: #1e293b;"><i class="fa-solid fa-download" style="color: #6366f1; width: 20px;"></i> Export Templates</a>
+                <a class="dropdown-item" href="#" data-toggle="modal" data-target="#importTemplatesModal" style="padding: 10px 20px; font-weight: 500; color: #1e293b;"><i class="fa-solid fa-upload" style="color: #10b981; width: 20px;"></i> Import Templates</a>
+            </div>
+        </div>
+        <button type="button" class="cf-btn-primary" data-toggle="modal" data-target="#uploadZipModal" style="border-radius: 8px; padding: 8px 16px;"><i class="fa-solid fa-plus"></i> New Template</button>
     </div>
 </div>
                             <div class="table-responsive">
@@ -879,6 +888,37 @@
 </div>
 <!-- deleteModal -->
 @endsection
+
+<!-- Import Templates Modal -->
+<div id="importTemplatesModal" class="modal fade" role="dialog" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content" style="border-radius: 12px; border: none; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+      <div class="modal-header" style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-radius: 12px 12px 0 0;">
+        <h4 class="modal-title" style="font-weight: 600; color: #1e293b;">Import Templates</h4>
+        <button type="button" class="close" data-dismiss="modal" style="color: #64748b;">&times;</button>
+      </div>
+      <form action="{{ route('custom-post.import') }}" method="POST" enctype="multipart/form-data">
+        @csrf
+        <div class="modal-body" style="padding: 1.5rem;">
+          <div class="cf-form-group">
+            <label>Upload Exported ZIP File</label>
+            <div class="cf-file-upload" onclick="document.getElementById('import_file').click()">
+              <i class="fa-solid fa-cloud-arrow-up"></i>
+              <p style="font-weight: 500; color: #475569; margin-bottom: 0.25rem;">Click to select the exported zip file</p>
+              <p style="font-size: 0.75rem; color: #94a3b8;">Must contain data.json and templates folder</p>
+              <input type="file" id="import_file" name="import_file" accept=".zip" required onchange="document.getElementById('import_file_name').innerText = this.files[0] ? this.files[0].name : '';">
+            </div>
+            <p id="import_file_name" style="margin-top: 10px; font-weight: 600; text-align: center; color: #6366f1;"></p>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-top: 1px solid #e2e8f0;">
+          <button type="button" class="cf-btn-secondary" data-dismiss="modal" style="border-radius: 8px;">Cancel</button>
+          <button type="submit" class="cf-btn-primary" style="border-radius: 8px;" onclick="this.innerHTML='<i class=\'fa-solid fa-spinner fa-spin\'></i> Importing...'; this.style.opacity='0.8';"><i class="fa-solid fa-download"></i> Import</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
 <!-- Upload Custom Post Modal -->
 <div id="uploadZipModal" class="modal fade" role="dialog" aria-hidden="true">

@@ -617,4 +617,150 @@ class BusinessFrameController extends Controller
         $frame->show_on_landing = ($request->get("checked") == "true") ? 1 : 0;
         $frame->save();
     }
+
+    public function exportTemplates(Request $request)
+    {
+        $query = \App\Models\BusinessCustomFrame::with(['purpose', 'imageType']);
+        if ($request->has('filter_purpose_id') && $request->filter_purpose_id != '') {
+            $query->where('custom_frame_purpose_id', $request->filter_purpose_id);
+        }
+        $frames = $query->get();
+        
+        $exportData = [];
+        $zipFilePath = public_path('uploads/exported_templates_'.time().'.zip');
+        
+        $zip = new \ZipArchive();
+        if ($zip->open($zipFilePath, \ZipArchive::CREATE) === TRUE) {
+            foreach ($frames as $frame) {
+                $exportData[] = $frame->toArray();
+                
+                // Add zip to archive
+                $templateZipName = $frame->zip_file_path;
+                
+                if(StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
+                    if (Storage::disk('spaces')->exists('uploads/custom_frames_zips/' . $templateZipName)) {
+                        $fileContent = Storage::disk('spaces')->get('uploads/custom_frames_zips/' . $templateZipName);
+                        $zip->addFromString('templates/' . $templateZipName, $fileContent);
+                    }
+                } else {
+                    $localPath = public_path('uploads/custom_frames_zips/' . $templateZipName);
+                    if (file_exists($localPath)) {
+                        $zip->addFile($localPath, 'templates/' . $templateZipName);
+                    }
+                }
+            }
+            
+            $zip->addFromString('data.json', json_encode($exportData, JSON_PRETTY_PRINT));
+            $zip->close();
+            
+            return response()->download($zipFilePath)->deleteFileAfterSend(true);
+        }
+        
+        return redirect()->back()->with('error', 'Could not create export zip file.');
+    }
+
+    public function importTemplates(Request $request)
+    {
+        $request->validate([
+            'import_file' => 'required|mimes:zip'
+        ]);
+
+        $zipFile = $request->file('import_file');
+        $zip = new \ZipArchive();
+        $tempDir = public_path('uploads/temp_import_'.time());
+
+        if ($zip->open($zipFile->getPathname()) === TRUE) {
+            $zip->extractTo($tempDir);
+            $zip->close();
+
+            if (file_exists($tempDir . '/data.json')) {
+                $jsonData = file_get_contents($tempDir . '/data.json');
+                $frames = json_decode($jsonData, true);
+                
+                $count = 0;
+
+                foreach ($frames as $frameData) {
+                    // Check if already exists
+                    $existing = \App\Models\BusinessCustomFrame::where('zip_file_path', $frameData['zip_file_path'])->first();
+                    if (!$existing) {
+                        // Create purpose and imageType if missing
+                        $purposeId = $frameData['custom_frame_purpose_id'];
+                        if (isset($frameData['purpose'])) {
+                            $purpose = \App\Models\CustomFramePurpose::firstOrCreate(
+                                ['name' => $frameData['purpose']['name']]
+                            );
+                            $purposeId = $purpose->id;
+                        }
+
+                        $imageTypeId = $frameData['custom_frame_image_type_id'];
+                        if (isset($frameData['image_type'])) {
+                            $imageType = \App\Models\CustomFrameImageType::firstOrCreate(
+                                ['name' => $frameData['image_type']['name']],
+                                ['custom_frame_purpose_id' => $purposeId]
+                            );
+                            $imageTypeId = $imageType->id;
+                        }
+
+                        // Copy template zip
+                        $templateZipName = $frameData['zip_file_path'];
+                        $sourcePath = $tempDir . '/templates/' . $templateZipName;
+                        if (file_exists($sourcePath)) {
+                            if(StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
+                                Storage::disk('spaces')->put('uploads/custom_frames_zips/' . $templateZipName, file_get_contents($sourcePath), 'public');
+                            } else {
+                                if (!file_exists(public_path('uploads/custom_frames_zips'))) {
+                                    mkdir(public_path('uploads/custom_frames_zips'), 0777, true);
+                                }
+                                copy($sourcePath, public_path('uploads/custom_frames_zips/' . $templateZipName));
+                            }
+                            
+                            // Unzip to template folder
+                            $innerZip = new \ZipArchive();
+                            $zipNameWithoutExt = pathinfo($templateZipName, PATHINFO_FILENAME);
+                            $extractPath = public_path('uploads/template/' . $zipNameWithoutExt);
+                            if ($innerZip->open($sourcePath) === TRUE) {
+                                if (!file_exists($extractPath)) {
+                                    mkdir($extractPath, 0777, true);
+                                }
+                                $innerZip->extractTo($extractPath);
+                                $innerZip->close();
+
+                                if(StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
+                                    // Upload extracted files to space
+                                    $files = \Illuminate\Support\Facades\File::allFiles($extractPath);
+                                    foreach($files as $file) {
+                                        $relativePath = str_replace($extractPath.'\\', '', $file->getPathname());
+                                        $relativePath = str_replace($extractPath.'/', '', $relativePath);
+                                        $relativePath = str_replace('\\', '/', $relativePath);
+                                        Storage::disk('spaces')->put('uploads/template/'.$zipNameWithoutExt.'/'.$relativePath, file_get_contents($file->getPathname()), 'public');
+                                    }
+                                    // Remove local folder
+                                    \Illuminate\Support\Facades\File::deleteDirectory($extractPath);
+                                }
+                            }
+
+                            // Save DB
+                            \App\Models\BusinessCustomFrame::create([
+                                'custom_frame_purpose_id' => $purposeId,
+                                'custom_frame_image_type_id' => $imageTypeId,
+                                'zip_file_path' => $frameData['zip_file_path'],
+                                'original_zip_name' => $frameData['original_zip_name'] ?? $frameData['zip_file_path'],
+                                'json_rules' => $frameData['json_rules'] ?? null,
+                                'tags' => $frameData['tags'] ?? null,
+                                'status' => $frameData['status'] ?? 1,
+                                'show_on_landing' => $frameData['show_on_landing'] ?? 0,
+                            ]);
+                            $count++;
+                        }
+                    }
+                }
+                \Illuminate\Support\Facades\File::deleteDirectory($tempDir);
+                return redirect()->back()->with('success', $count.' Templates imported successfully!');
+            }
+            \Illuminate\Support\Facades\File::deleteDirectory($tempDir);
+            return redirect()->back()->with('error', 'Invalid import file. No data.json found.');
+        }
+
+        return redirect()->back()->with('error', 'Could not extract import file.');
+    }
 }

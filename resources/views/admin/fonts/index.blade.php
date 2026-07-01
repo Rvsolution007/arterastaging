@@ -140,14 +140,28 @@
             <div style="flex-grow: 1; max-width: 400px; margin-left: 30px;">
                 <input type="text" id="fontSearch" class="form-control" placeholder="Search fonts by name..." style="border-radius: 8px; padding: 10px 15px; border: 1px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
             </div>
-            <a href="{{ route('admin.fonts.create') }}" class="ai-btn-primary" style="margin-left: auto;">
-                <i class="fas fa-plus"></i> Upload Fonts
-            </a>
+            <div style="margin-left: auto; display: flex; gap: 10px;">
+                <a href="{{ route('admin.fonts.export') }}" class="ai-btn-primary" style="background: #10b981;">
+                    <i class="fas fa-file-export"></i> Export
+                </a>
+                <button type="button" class="ai-btn-primary" data-toggle="modal" data-target="#importFontsModal" style="background: #0ea5e9;">
+                    <i class="fas fa-file-import"></i> Import
+                </button>
+                <a href="{{ route('admin.fonts.create') }}" class="ai-btn-primary">
+                    <i class="fas fa-plus"></i> Upload Fonts
+                </a>
+            </div>
         </div>
 
         @if(session('success'))
         <div class="alert alert-success" style="background: #10b981; color: white; border: none; border-radius: 10px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
             <i class="fa-solid fa-circle-check"></i> {{ session('success') }}
+        </div>
+        @endif
+
+        @if(session('error'))
+        <div class="alert alert-danger" style="background: #ef4444; color: white; border: none; border-radius: 10px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
+            <i class="fa-solid fa-circle-xmark"></i> {{ session('error') }}
         </div>
         @endif
 
@@ -227,6 +241,34 @@
         <div class="modal-footer" style="border-top: 1px solid #e2e8f0; padding: 1rem 1.5rem;">
           <button type="button" class="btn btn-secondary" data-dismiss="modal" style="border-radius: 8px; padding: 8px 16px;">Cancel</button>
           <button type="submit" class="btn btn-primary" style="background: #6366f1; border: none; border-radius: 8px; padding: 8px 16px;">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Import Fonts Modal -->
+<div class="modal fade" id="importFontsModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content" style="border-radius: 12px; border: none; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+      <form action="{{ route('admin.fonts.import') }}" method="POST" enctype="multipart/form-data">
+        @csrf
+        <div class="modal-header" style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-radius: 12px 12px 0 0;">
+          <h5 class="modal-title" style="font-weight: 600; color: #1e293b;">Import Fonts (CSV)</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body" style="padding: 1.5rem;">
+          <div class="form-group">
+            <label style="font-weight: 500; color: #475569; margin-bottom: 8px;">CSV File</label>
+            <input type="file" name="file" class="form-control-file" accept=".csv" required>
+            <small class="form-text text-muted mt-2">Format: ID, Name, File Path, Status</small>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-top: 1px solid #e2e8f0; padding: 1rem 1.5rem;">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal" style="border-radius: 8px; padding: 8px 16px;">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="background: #0ea5e9; border: none; border-radius: 8px; padding: 8px 16px;">Import</button>
         </div>
       </form>
     </div>

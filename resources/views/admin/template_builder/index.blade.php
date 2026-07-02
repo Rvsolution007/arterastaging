@@ -40,7 +40,22 @@
     .aim-input:focus, .aim-select:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
     
     /* Canvas */
-    #canvas-wrapper { background: #fff; box-shadow: 0 8px 32px rgba(0,0,0,0.1); border-radius: 4px; overflow: hidden; transition: all 0.3s ease; }
+    #canvas-wrapper { position: relative; background: #fff; box-shadow: 0 8px 32px rgba(0,0,0,0.1); border-radius: 4px; overflow: hidden; transition: all 0.3s ease; }
+    
+    @if($mode === 'frame')
+    .frame-guide {
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 0;
+        border-top: 2px dashed rgba(148, 163, 184, 0.8); /* Light gray #94a3b8 */
+        z-index: 10;
+        pointer-events: none;
+    }
+    .frame-guide.header-guide { top: calc(140px * var(--canvas-scale, 1)); }
+    .frame-guide.footer-guide { bottom: calc(140px * var(--canvas-scale, 1)); }
+    @endif
+
     
     /* Force fabric canvas to respect container sizes and ignore adminLTE overrides */
     .canvas-container { margin: 0 auto !important; width: 100% !important; height: 100% !important; }
@@ -164,6 +179,18 @@
                             <div class="icon-item" data-icon="fa-solid fa-bell" title="Bell"><i class="fa-solid fa-bell"></i></div>
                             <div class="icon-item" data-icon="fa-solid fa-bookmark" title="Bookmark"><i class="fa-solid fa-bookmark"></i></div>
                             <div class="icon-item" data-icon="fa-solid fa-thumbs-up" title="Thumbs Up"><i class="fa-solid fa-thumbs-up"></i></div>
+                            <!-- Social Icons -->
+                            <div class="icon-item" data-icon="fa-brands fa-facebook" title="Facebook"><i class="fa-brands fa-facebook"></i></div>
+                            <div class="icon-item" data-icon="fa-brands fa-instagram" title="Instagram"><i class="fa-brands fa-instagram"></i></div>
+                            <div class="icon-item" data-icon="fa-brands fa-twitter" title="Twitter"><i class="fa-brands fa-twitter"></i></div>
+                            <div class="icon-item" data-icon="fa-brands fa-x-twitter" title="X (Twitter)"><i class="fa-brands fa-x-twitter"></i></div>
+                            <div class="icon-item" data-icon="fa-brands fa-whatsapp" title="WhatsApp"><i class="fa-brands fa-whatsapp"></i></div>
+                            <div class="icon-item" data-icon="fa-brands fa-youtube" title="YouTube"><i class="fa-brands fa-youtube"></i></div>
+                            <div class="icon-item" data-icon="fa-brands fa-linkedin" title="LinkedIn"><i class="fa-brands fa-linkedin"></i></div>
+                            <div class="icon-item" data-icon="fa-brands fa-telegram" title="Telegram"><i class="fa-brands fa-telegram"></i></div>
+                            <div class="icon-item" data-icon="fa-brands fa-pinterest" title="Pinterest"><i class="fa-brands fa-pinterest"></i></div>
+                            <div class="icon-item" data-icon="fa-brands fa-tiktok" title="TikTok"><i class="fa-brands fa-tiktok"></i></div>
+                            <div class="icon-item" data-icon="fa-brands fa-snapchat" title="Snapchat"><i class="fa-brands fa-snapchat"></i></div>
                         </div>
                     </div>
                 </div>
@@ -209,6 +236,10 @@
             <div class="canvas-container-wrap">
                 <div id="canvas-wrapper">
                     <canvas id="template-canvas"></canvas>
+                    @if($mode === 'frame')
+                        <div class="frame-guide header-guide"></div>
+                        <div class="frame-guide footer-guide"></div>
+                    @endif
                 </div>
             </div>
 

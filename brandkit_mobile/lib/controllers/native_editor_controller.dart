@@ -320,7 +320,9 @@ class NativeEditorController extends GetxController {
       }
     }
     
-    // Update observable map
+    // Force Obx rebuild in InteractiveLayer — templateConfig.refresh() alone
+    // doesn't trigger deep nested Map property changes for GetX tracking.
+    layerUpdateTrigger.value++;
     templateConfig.refresh();
   }
 

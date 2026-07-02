@@ -121,12 +121,19 @@ class InteractiveLayer extends StatelessWidget {
             }
           },
           onPanUpdate: (details) {
+            debugPrint('[LAYER_DRAG] onPanUpdate for "$layerName" selected=${controller.selectedLayerId.value} delta=${details.delta}');
             // Only allow drag if this layer is the selected one
-            if (controller.selectedLayerId.value != layerName) return;
+            if (controller.selectedLayerId.value != layerName) {
+              debugPrint('[LAYER_DRAG] ❌ BLOCKED - selected=${controller.selectedLayerId.value} != $layerName');
+              return;
+            }
             
             final layers = controller.templateConfig['layers'] as List<dynamic>?;
             final currentLayer = layers?.firstWhere((l) => (l['name'] ?? l['id']).toString() == layerName, orElse: () => null);
-            if (currentLayer == null) return;
+            if (currentLayer == null) {
+              debugPrint('[LAYER_DRAG] ❌ currentLayer NOT FOUND for "$layerName"');
+              return;
+            }
 
             // Update position using synchronous state to prevent drag jitter
             final dx = details.delta.dx / scale;

@@ -71,7 +71,8 @@ class InteractiveLayer extends StatelessWidget {
       final double? posW = w > 0 ? w : null;
       final double? posH = (h > 0 && !isText) ? h : null;
 
-      final bool canInteract = true;
+      final bool isFrameLayer = layerConfig['_is_frame_layer'] == true || layerConfig['_isFrameLayer'] == true;
+      final bool canInteract = !isFrameLayer;
 
       // Check if we need to show diagnostics for this specific layer
       final bool showDiag = layerName == 'layer_22' || layerName == 'ellipse_1' || layerName == 'ellipse_1-2';

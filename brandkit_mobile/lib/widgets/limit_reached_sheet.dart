@@ -122,7 +122,9 @@ class LimitReachedSheet extends StatelessWidget {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            '${feature.used}/${feature.limit} used',
+                            feature.limit > 0
+                                ? '${feature.used}/${feature.limit} used'
+                                : (feature.maxAdUses > 0 ? '${feature.adUsed}/${feature.maxAdUses} used' : 'Limit Reached'),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w800,

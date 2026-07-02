@@ -41,6 +41,8 @@ class BusinessListScreen extends StatelessWidget {
                   color: Colors.red,
                   adRewardsRemaining: 0,
                   state: 'active',
+                  adUsed: 0,
+                  maxAdUses: 0,
                 );
 
                 LimitReachedSheet.show(

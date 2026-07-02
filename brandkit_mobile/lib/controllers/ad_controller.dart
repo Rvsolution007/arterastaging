@@ -168,15 +168,6 @@ class AdController extends GetxController {
     }
   }
 
-  /// Handle access for Festival/Category posts based on free/paid status.
-  /// 
-  /// Premium template strategy (when base limit reached):
-  ///   - First access (edit): Rewarded Ad (if ad limit not reached)
-  ///   - Download time: Interstitial Ad (handled by [handlePremiumDownloadAd])
-  ///
-  /// Free template strategy:
-  ///   - First access (edit): No Ad
-  ///   - Download time: Interstitial Ad (handled by [handlePremiumDownloadAd])
   Future<bool> handlePostAccess({
     required BuildContext context,
     required String feature, // 'festival_post' or 'category_post'
@@ -185,30 +176,37 @@ class AdController extends GetxController {
   }) async {
     final config = _getFeatureConfig(feature);
     
-    if (config == null || config.isLocked) {
-      _showLockedDialog(context, feature);
-      return false;
-    }
-
-    if (config.isNoAds) {
-      onAccessGranted();
-      return true;
-    }
-
-    // Base limit reached.
-    // If it's a free template, grant access immediately (no rewarded ad for free).
+    // --- FREE TEMPLATE RULES ---
     if (!isPaid) {
+      // Free templates do not count towards usage limits, so they are never locked at access.
       onAccessGranted();
       return true;
     }
 
-    // It's a paid template and base limit is reached.
-    final flow = config.postAdFlowPaid;
-
-    if (flow == 'locked') {
+    // --- PAID (PRO) TEMPLATE RULES ---
+    if (config == null) {
       _showLockedDialog(context, feature);
       return false;
-    } else if (flow == 'no_ads') {
+    }
+
+    // Check if the user has truly exhausted both base limit AND ad limits
+    bool isTrulyLocked = (config.used >= config.baseLimit) && (config.adUsed >= config.maxAdUses);
+    
+    if (isTrulyLocked) {
+      _showLockedDialog(context, feature);
+      return false;
+    }
+
+    // If within base limit, grant access immediately with no ads
+    if (config.used < config.baseLimit) {
+      onAccessGranted();
+      return true;
+    }
+
+    // Base limit reached, but ad limit is available.
+    final flow = config.postAdFlowPaid ?? 'rewarded_then_interstitial';
+
+    if (flow == 'no_ads') {
       onAccessGranted();
       return true;
     } else {
@@ -229,11 +227,6 @@ class AdController extends GetxController {
   }
 
   /// Show an Interstitial Ad during download for templates
-  /// when the user's base limit has been reached.
-  ///
-  /// This is Phase 2 of the ad strategy:
-  ///   Phase 1 (first access): Rewarded Ad (for paid templates only) — handled by [handlePostAccess]
-  ///   Phase 2 (download):     Interstitial Ad (for ALL templates) — handled here
   ///
   /// Returns true if the download should proceed.
   bool handlePremiumDownloadAd({
@@ -242,9 +235,25 @@ class AdController extends GetxController {
   }) {
     final config = _getFeatureConfig(feature);
     if (config == null) return true;
-    if (config.isNoAds) return true; // Within base limit, no ads needed
 
-    // Base limit reached -> show interstitial on download for ALL templates
+    // --- FREE TEMPLATE RULES ---
+    if (!isPaid) {
+      if (config.baseLimit > 0) {
+        // If package base limit > 0, NO ads for free templates
+        return true; 
+      } else {
+        // If package base limit == 0, show ad at download time
+        _adService.showInterstitialAd();
+        return true;
+      }
+    }
+
+    // --- PAID (PRO) TEMPLATE RULES ---
+    if (config.used < config.baseLimit) {
+      return true; // Within base limit, no ads needed
+    }
+
+    // Base limit reached -> show interstitial on download for paid templates
     _adService.showInterstitialAd();
     
     return true;
@@ -289,6 +298,8 @@ class AdController extends GetxController {
           color: const Color(0xFFEF4444),
           adRewardsRemaining: 0,
           state: 'locked',
+          adUsed: 0,
+          maxAdUses: 0,
         ),
         onUpgrade: () {
           Navigator.push(

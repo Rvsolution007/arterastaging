@@ -69,10 +69,11 @@ class FeatureAdConfig {
   });
 
   factory FeatureAdConfig.fromJson(Map<String, dynamic> json) {
+    print('AdFeatureConfig.fromJson: max_ad_uses = ${json['max_ad_uses']}, ad_reward_limit = ${json['ad_reward_limit']}');
     return FeatureAdConfig(
       baseLimit: json['base_limit'] ?? 0,
       used: json['used'] ?? 0,
-      maxAdUses: json['max_ad_uses'] ?? 0,
+      maxAdUses: json['max_ad_uses'] ?? (json['ad_reward_limit'] ?? 0),
       adUsed: json['ad_used'] ?? 0,
       state: json['state'] ?? 'locked',
       postAdFlowPaid: json['post_ad_flow_paid'],

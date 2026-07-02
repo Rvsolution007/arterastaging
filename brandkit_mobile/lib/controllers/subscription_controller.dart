@@ -118,7 +118,7 @@ class SubscriptionController extends GetxController {
       if (fc != null) {
         final used = fc.used;
         final limit = fc.baseLimit;
-        final percentage = limit > 0 ? (used / limit).clamp(0.0, 1.0) : 0.0;
+        final percentage = limit > 0 ? (used / limit).clamp(0.0, 1.0) : (fc.maxAdUses > 0 ? (fc.adUsed / fc.maxAdUses).clamp(0.0, 1.0) : 0.0);
         final adRemaining = (fc.maxAdUses - fc.adUsed).clamp(0, fc.maxAdUses);
 
         features.add(FeatureUsageInfo(
@@ -135,6 +135,8 @@ class SubscriptionController extends GetxController {
                   : const Color(0xFFEF4444), // Red
           adRewardsRemaining: adRemaining,
           state: fc.state,
+          adUsed: fc.adUsed,
+          maxAdUses: fc.maxAdUses,
         ));
       }
     });
@@ -200,6 +202,8 @@ class FeatureUsageInfo {
   final Color color;
   final int adRewardsRemaining;
   final String state;
+  final int adUsed;
+  final int maxAdUses;
 
   FeatureUsageInfo({
     required this.key,
@@ -211,6 +215,8 @@ class FeatureUsageInfo {
     required this.color,
     required this.adRewardsRemaining,
     required this.state,
+    required this.adUsed,
+    required this.maxAdUses,
   });
 
   bool get isLocked => state == 'locked';

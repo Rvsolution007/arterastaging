@@ -390,11 +390,11 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
                 text: TextSpan(
                   children: [
                     TextSpan(
-                      text: '${f.used} ',
+                      text: f.limit > 0 ? '${f.used} ' : (f.maxAdUses > 0 ? '${f.adUsed} ' : '0 '),
                       style: TextStyle(color: f.color, fontSize: 15, fontWeight: FontWeight.w900),
                     ),
                     TextSpan(
-                      text: f.limit > 0 ? '/ ${f.limit}' : ' (Ad Based)',
+                      text: f.limit > 0 ? '/ ${f.limit}' : (f.maxAdUses > 0 ? '/ ${f.maxAdUses} (Ad Based)' : ' (Ad Based)'),
                       style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                   ],
@@ -512,8 +512,8 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
                             child: Text(
                               plan['planName'] ?? 'Plan',
                               style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w900,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
                                 color: Color(0xFF0F172A),
                                 letterSpacing: -0.5,
                               ),
@@ -539,7 +539,7 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
                       Text(
                         _isYearly ? '1 Year Plan' : '1 Month Plan',
                         style: const TextStyle(
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF64748B),
                         ),
@@ -556,23 +556,23 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
                         Text(
                           '₹${displayPrice is int ? displayPrice : (displayPrice).toInt()}',
                           style: const TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.w900,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
                             color: Color(0xFF0F172A),
-                            letterSpacing: -1,
+                            letterSpacing: -0.5,
                           ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 5),
-                          child: Text(
-                            durationLabel,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF94A3B8),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 2),
+                            child: Text(
+                              durationLabel,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF94A3B8),
+                              ),
                             ),
                           ),
-                        ),
                       ],
                     ),
                     if (hasDiscount) ...[
@@ -580,8 +580,8 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
                       Text(
                         '₹${displayOriginalPrice is int ? displayOriginalPrice : displayOriginalPrice.toInt()}',
                         style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
                           color: Color(0xFF94A3B8),
                           decoration: TextDecoration.lineThrough,
                         ),

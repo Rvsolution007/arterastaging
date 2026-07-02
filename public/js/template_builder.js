@@ -2973,7 +2973,7 @@
         contextMenu.appendChild(btnFront);
         contextMenu.appendChild(btnBack);
 
-        document.querySelector('.canvas-wrapper').addEventListener('contextmenu', function(e) {
+        document.querySelector('#canvas-wrapper').addEventListener('contextmenu', function(e) {
             e.preventDefault();
             // Check if user clicked on an object
             const pointer = canvas.getPointer(e);

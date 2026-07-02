@@ -600,8 +600,8 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     // BUILD WIDGETS (absolute positioning with adjusted Y)
     // ══════════════════════════════════════════════════════════════
     final List<Widget> stackChildren = [];
-    for (var layer in adjusted) {
-      stackChildren.add(_buildLayer(layer, scale));
+    for (int i = 0; i < adjusted.length; i++) {
+      stackChildren.add(_buildLayer(adjusted[i], scale, i));
     }
 
     return AnimatedOpacity(
@@ -623,11 +623,12 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     );
   }
 
-  Widget _buildLayer(Map<String, dynamic> layer, double scale) {
+  Widget _buildLayer(Map<String, dynamic> layer, double scale, int layerIndex) {
     final String name =
         (layer['name'] ?? layer['id'] ?? '').toString().toLowerCase();
+    // Append layerIndex to ensure uniqueness for GlobalKey even if multiple layers share the same name
     final String rawName =
-        (layer['name'] ?? layer['id'] ?? '').toString(); // original case for key lookup
+        '${(layer['name'] ?? layer['id'] ?? '').toString()}_$layerIndex';
     final String type = layer['type'] ?? '';
     final bool isFrameLayer = layer['_is_frame_layer'] == true || layer['_isFrameLayer'] == true;
     final bool isBackground = !isFrameLayer && (layer['is_background'] == true ||

@@ -464,8 +464,8 @@ class _CustomPostPreviewState extends State<CustomPostPreview> {
     // BUILD WIDGETS (absolute positioning with adjusted Y)
     // ══════════════════════════════════════════════════════════════
     final List<Widget> stackChildren = [];
-    for (var layer in adjusted) {
-      stackChildren.add(_buildLayer(layer, scale));
+    for (int i = 0; i < adjusted.length; i++) {
+      stackChildren.add(_buildLayer(adjusted[i], scale, i));
     }
 
     return Container(
@@ -482,11 +482,12 @@ class _CustomPostPreviewState extends State<CustomPostPreview> {
     );
   }
 
-  Widget _buildLayer(Map<String, dynamic> layer, double scale) {
+  Widget _buildLayer(Map<String, dynamic> layer, double scale, int layerIndex) {
     final String name =
         (layer['name'] ?? '').toString().toLowerCase();
+    // Append layerIndex to ensure uniqueness for GlobalKey even if multiple layers share the same name
     final String rawName =
-        (layer['name'] ?? '').toString(); // original case for key lookup
+        '${(layer['name'] ?? '').toString()}_$layerIndex';
     final String type = layer['type'] ?? '';
     final bool isBackground = layer['is_background'] == true ||
         (layer['is_background'] == null && (name == 'bg' ||

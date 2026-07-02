@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import '../services/ad_service.dart';
 import '../services/download_service.dart';
 import '../controllers/ad_controller.dart';
+import '../controllers/subscription_controller.dart';
 import '../utils/app_colors.dart';
 import 'editor_screen.dart';
 import 'package:http/http.dart' as http;
@@ -276,6 +277,12 @@ class _DetailListScreenState extends State<DetailListScreen> {
           itemId: trackItemId,
           isPremium: isPaid,
         );
+
+        // Refresh subscription limits so usage counters update immediately in UI
+        try {
+          await Get.find<SubscriptionController>().refreshFromApi();
+        } catch (_) {}
+
         Get.snackbar('Success', 'Design saved to gallery successfully!', snackPosition: SnackPosition.BOTTOM);
       } else {
         Get.snackbar('Error', 'Failed to download file.', snackPosition: SnackPosition.BOTTOM);
@@ -562,22 +569,8 @@ class _DetailListScreenState extends State<DetailListScreen> {
                               }
 
                               final fc = adController.adConfig.value?.features[featureKey];
-                              bool withinBaseLimit = fc != null && fc.isNoAds;
-
-                              if (withinBaseLimit || !isPaid) {
-                                // Direct access if within base limit or free
-                                if (fc != null && fc.baseLimit > 0 && isPaid) {
-                                  Get.snackbar(
-                                    'Usage Update', 
-                                    '${fc.used}/${fc.baseLimit} usage remaining.',
-                                    snackPosition: SnackPosition.BOTTOM,
-                                    backgroundColor: Colors.black87,
-                                    colorText: Colors.white,
-                                    margin: const EdgeInsets.all(16),
-                                    borderRadius: 8,
-                                    duration: const Duration(seconds: 2),
-                                  );
-                                }
+                              
+                              void goToEditor() {
                                 final editorQuery = Uri(queryParameters: {
                                   'type': widget.type,
                                   'id': widget.id.toString(),
@@ -589,29 +582,56 @@ class _DetailListScreenState extends State<DetailListScreen> {
                                     'frameData': frameData!,
                                   },
                                 );
-                              } else {
-                                // Base limit reached and template is paid
+                              }
+
+                              // ── FREE TEMPLATES ──
+                              // Never blocked by limit. No count is consumed.
+                              if (!isPaid) {
+                                goToEditor();
+                                return;
+                              }
+
+                              // ── PRO (PAID) TEMPLATES ──
+                              if (fc == null) {
+                                // No config → treat as locked
+                                adController.handlePostAccess(
+                                  context: context,
+                                  feature: featureKey,
+                                  isPaid: isPaid,
+                                  onAccessGranted: goToEditor,
+                                );
+                                return;
+                              }
+
+                              // Within base limit → direct access, no ad
+                              final bool withinBase = fc.baseLimit > 0 && fc.used < fc.baseLimit;
+                              if (withinBase) {
+                                goToEditor();
+                                return;
+                              }
+
+                              // Base limit exhausted (or base = 0) but ad slots remain → show ad
+                              final bool adAvailable = fc.maxAdUses > 0 && fc.adUsed < fc.maxAdUses;
+                              if (adAvailable) {
                                 await adController.handlePostAccess(
                                   context: context,
                                   feature: featureKey,
                                   isPaid: isPaid,
-                                  onAccessGranted: () {
-                                    final editorQuery = Uri(queryParameters: {
-                                      'type': widget.type,
-                                      'id': widget.id.toString(),
-                                      'designUrl': selectedImageUrl.isNotEmpty ? selectedImageUrl : itemImage,
-                                    }).query;
-                                    Get.toNamed(
-                                      '/editor?$editorQuery',
-                                      arguments: {
-                                        'frameData': frameData!,
-                                      },
-                                    );
-                                  }
+                                  onAccessGranted: goToEditor,
                                 );
+                                return;
                               }
+
+                              // Both base and ad limits exhausted → show Limit Reached
+                              await adController.handlePostAccess(
+                                context: context,
+                                feature: featureKey,
+                                isPaid: isPaid,
+                                onAccessGranted: goToEditor,
+                              );
                             } else {
                               Get.snackbar('Notice', 'No design available to edit.');
+
                             }
                           },
                           child: Container(

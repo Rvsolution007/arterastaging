@@ -310,26 +310,22 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
               onPointerDown: (event) {
                 debugPrint('[CANVAS_LISTENER] onPointerDown at ${event.localPosition}');
                 _lastPointerDown = event.localPosition;
-                // Remember what was selected BEFORE this tap
-                _selectedBeforeTap = controller.selectedLayerId.value;
+                controller.layerWasTapped = false;
               },
               onPointerUp: (event) {
-                debugPrint('[CANVAS_LISTENER] onPointerUp at ${event.localPosition} selectedNow=${controller.selectedLayerId.value} selectedBefore=$_selectedBeforeTap');
+                debugPrint('[CANVAS_LISTENER] onPointerUp at ${event.localPosition}');
                 final downPos = _lastPointerDown;
                 if (downPos != null) {
                   final distance = (event.localPosition - downPos).distance;
                   if (distance < 10) {
                     // It was a tap (not a drag). Use post-frame callback so child 
-                    // GestureDetector.onTap fires first and updates selectedLayerId.
+                    // GestureDetector.onTap fires first and updates the flag.
                     WidgetsBinding.instance.addPostFrameCallback((_) {
-                      // If selectedLayerId is still the same as before the tap,
-                      // it means NO child layer claimed this tap → deselect
-                      if (controller.selectedLayerId.value == _selectedBeforeTap) {
-                        debugPrint('[CANVAS_LISTENER] selectedLayerId unchanged → deselecting');
+                      if (!controller.layerWasTapped) {
+                        debugPrint('[CANVAS_LISTENER] No layer tapped → deselecting');
                         controller.selectedLayerId.value = '';
-                      } else {
-                        debugPrint('[CANVAS_LISTENER] selectedLayerId changed to ${controller.selectedLayerId.value} → keeping');
                       }
+                      controller.layerWasTapped = false;
                     });
                   }
                 }

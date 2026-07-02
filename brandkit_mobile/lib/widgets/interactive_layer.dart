@@ -74,21 +74,20 @@ class InteractiveLayer extends StatelessWidget {
       final bool isFrameLayer = layerConfig['_is_frame_layer'] == true || layerConfig['_isFrameLayer'] == true;
       final bool canInteract = !isFrameLayer;
 
-      // ── DIAGNOSTICS: Log every layer's interaction state ──
-      debugPrint('[LAYER_INTERACT] name="$layerName" type=${layerConfig['type']} '
-        'isFrameLayer=$isFrameLayer canInteract=$canInteract '
-        'posW=$posW posH=$posH x=$x y=$y w=$w h=$h opacity=${safeDouble(layerConfig['opacity'] ?? 1.0)}');
+      // Diagnostics moved to onTap/onPanStart to avoid running on every rebuild
 
       Widget layerContent = Transform.rotate(
         angle: angle * math.pi / 180,
         child: canInteract ? GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () {
-            debugPrint('[LAYER_TAP] ✅ onTap FIRED for "$layerName"');
+            debugPrint('[LAYER_TAP] ✅ onTap FIRED for "$layerName" type=${layerConfig['type']} isFrame=$isFrameLayer canInteract=$canInteract posW=$posW posH=$posH');
+            controller.layerWasTapped = true;
             controller.selectLayer(layerName);
           },
           onPanStart: (_) {
-            debugPrint('[LAYER_PAN] ✅ onPanStart FIRED for "$layerName"');
+            debugPrint('[LAYER_PAN] ✅ onPanStart FIRED for "$layerName" type=${layerConfig['type']}');
+            controller.layerWasTapped = true;
             if (controller.selectedLayerId.value != layerName) {
               controller.selectLayer(layerName);
             }

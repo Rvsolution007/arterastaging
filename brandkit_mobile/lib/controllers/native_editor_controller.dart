@@ -30,6 +30,9 @@ class NativeEditorController extends GetxController {
   // The currently active contextual tool (e.g. 'Edit', 'Font', 'Nudge')
   final RxString activeTool = ''.obs;
   final RxInt layerUpdateTrigger = 0.obs; // Forces Obx rebuild on layer property changes
+  
+  // Flag used to differentiate between canvas background taps and layer taps
+  bool layerWasTapped = false;
 
   @override
   void onInit() {

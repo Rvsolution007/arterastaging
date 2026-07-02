@@ -2920,6 +2920,89 @@
         currentScale = updateCanvasZoom();
     });
 
+        
+        // --- CUSTOM CONTEXT MENU ---
+        const contextMenu = document.createElement('div');
+        contextMenu.id = 'artera-context-menu';
+        contextMenu.style.cssText = 'display:none; position:fixed; z-index:99999; background:#fff; border:1px solid #ccc; box-shadow:0 4px 6px rgba(0,0,0,0.1); border-radius:6px; padding:4px 0; min-width:150px; font-family:sans-serif; font-size:14px;';
+        
+        const style = document.createElement('style');
+        style.innerHTML = `
+            #artera-context-menu .cm-item { padding: 8px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: #333; }
+            #artera-context-menu .cm-item:hover { background-color: #f3f4f6; color: #2563eb; }
+            #artera-context-menu .cm-item i { width: 20px; color: #6b7280; }
+            #artera-context-menu .cm-item:hover i { color: #2563eb; }
+            #artera-context-menu .cm-divider { height: 1px; background: #e5e7eb; margin: 4px 0; }
+            #artera-context-menu .cm-shortcut { font-size: 11px; color: #9ca3af; }
+        `;
+        document.head.appendChild(style);
+        document.body.appendChild(contextMenu);
+
+        function createMenuItem(icon, text, shortcut, onClick) {
+            const item = document.createElement('div');
+            item.className = 'cm-item';
+            item.innerHTML = `<span><i class="${icon}"></i> ${text}</span> <span class="cm-shortcut">${shortcut}</span>`;
+            item.addEventListener('click', (e) => {
+                contextMenu.style.display = 'none';
+                onClick(e);
+            });
+            return item;
+        }
+
+        const btnCopy = createMenuItem('fas fa-copy', 'Copy', 'Ctrl+C', () => {
+            document.dispatchEvent(new Event('copy'));
+        });
+        const btnPaste = createMenuItem('fas fa-paste', 'Paste', 'Ctrl+V', () => {
+            document.dispatchEvent(new Event('paste'));
+        });
+        const btnDelete = createMenuItem('fas fa-trash', 'Delete', 'Del', () => {
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete' }));
+        });
+        const btnFront = createMenuItem('fas fa-bring-front', 'Bring to Front', '', () => {
+            if(canvas.getActiveObject()) { canvas.getActiveObject().bringToFront(); updateLayersList(); saveHistory(); }
+        });
+        const btnBack = createMenuItem('fas fa-send-back', 'Send to Back', '', () => {
+            if(canvas.getActiveObject()) { canvas.getActiveObject().sendToBack(); updateLayersList(); saveHistory(); }
+        });
+
+        contextMenu.appendChild(btnCopy);
+        contextMenu.appendChild(btnPaste);
+        contextMenu.appendChild(btnDelete);
+        const divider = document.createElement('div'); divider.className = 'cm-divider';
+        contextMenu.appendChild(divider);
+        contextMenu.appendChild(btnFront);
+        contextMenu.appendChild(btnBack);
+
+        document.querySelector('.canvas-wrapper').addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            // Check if user clicked on an object
+            const pointer = canvas.getPointer(e);
+            let target = canvas.findTarget(e);
+            
+            // Re-select target on right click
+            if (target && !canvas.getActiveObjects().includes(target)) {
+                canvas.setActiveObject(target);
+                canvas.renderAll();
+                updateProps();
+            }
+
+            const isObjSelected = !!canvas.getActiveObject();
+            btnCopy.style.display = isObjSelected ? 'flex' : 'none';
+            btnDelete.style.display = isObjSelected ? 'flex' : 'none';
+            btnFront.style.display = isObjSelected ? 'flex' : 'none';
+            btnBack.style.display = isObjSelected ? 'flex' : 'none';
+
+            contextMenu.style.left = e.clientX + 'px';
+            contextMenu.style.top = e.clientY + 'px';
+            contextMenu.style.display = 'block';
+        });
+
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('#artera-context-menu')) return;
+            contextMenu.style.display = 'none';
+        });
+        // --- END CUSTOM CONTEXT MENU ---
+        
     } catch (err) {
         alert("CRITICAL JS ERROR: " + err.message + "\nStack: " + err.stack);
         console.error(err);

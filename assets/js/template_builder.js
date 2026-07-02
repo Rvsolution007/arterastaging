@@ -56,6 +56,7 @@
         if (wrapper) {
             wrapper.style.width = Math.round(baseWidth * scale) + 'px';
             wrapper.style.height = Math.round(baseHeight * scale) + 'px';
+            wrapper.style.setProperty('--canvas-scale', scale);
         }
 
         canvas.renderAll();

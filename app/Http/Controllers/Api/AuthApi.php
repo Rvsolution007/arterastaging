@@ -1182,7 +1182,34 @@ class AuthApi extends Controller
                 $featureKey = $featureMap[$itemType] ?? null;
 
                 if ($featureKey) {
-                    $user->consumeFeature($featureKey);
+                    $user->resetLimitsIfNeeded();
+                    $plan = $user->active_subscription;
+                    if (!$plan) {
+                        $plan = \App\Models\Subscription::where('plan_price', 0)->first();
+                    }
+
+                    if ($plan) {
+                        $limitMap = [
+                            'festival_post' => ['used' => 'festival_post_used', 'base' => 'festival_post_limit'],
+                            'category_post' => ['used' => 'category_post_used', 'base' => 'category_post_limit'],
+                            'custom_post'   => ['used' => 'custom_post_used',   'base' => 'custom_post_edit_limit'],
+                        ];
+
+                        $baseLimit = $plan->{$limitMap[$featureKey]['base']} ?? 0;
+                        $used      = $user->{$limitMap[$featureKey]['used']} ?? 0;
+
+                        if ($baseLimit > 0 && $used < $baseLimit) {
+                            // Within base limit → increment base usage
+                            $user->increment($limitMap[$featureKey]['used']);
+                            \Log::info("trackActivity: consumed base for $featureKey (used=$used, limit=$baseLimit)");
+                        } elseif ($user->isAdRewardEnabledForFeature($featureKey)) {
+                            // Base limit exhausted (or 0) → consume ad reward slot
+                            $user->consumeAdReward($featureKey);
+                            \Log::info("trackActivity: consumed ad reward for $featureKey");
+                        } else {
+                            \Log::info("trackActivity: feature $featureKey fully locked, no consume");
+                        }
+                    }
                 }
             }
         }

@@ -464,8 +464,8 @@ class _CustomPostPreviewState extends State<CustomPostPreview> {
     // BUILD WIDGETS (absolute positioning with adjusted Y)
     // ══════════════════════════════════════════════════════════════
     final List<Widget> stackChildren = [];
-    for (int i = 0; i < adjusted.length; i++) {
-      stackChildren.add(_buildLayer(adjusted[i], scale, i));
+    for (var layer in adjusted) {
+      stackChildren.add(_buildLayer(layer, scale));
     }
 
     return Container(
@@ -482,12 +482,11 @@ class _CustomPostPreviewState extends State<CustomPostPreview> {
     );
   }
 
-  Widget _buildLayer(Map<String, dynamic> layer, double scale, int layerIndex) {
+  Widget _buildLayer(Map<String, dynamic> layer, double scale) {
     final String name =
         (layer['name'] ?? '').toString().toLowerCase();
-    // Append layerIndex to ensure uniqueness for GlobalKey even if multiple layers share the same name
     final String rawName =
-        '${(layer['name'] ?? '').toString()}_$layerIndex';
+        (layer['name'] ?? '').toString(); // original case for key lookup
     final String type = layer['type'] ?? '';
     final bool isBackground = layer['is_background'] == true ||
         (layer['is_background'] == null && (name == 'bg' ||
@@ -581,8 +580,15 @@ class _CustomPostPreviewState extends State<CustomPostPreview> {
       content = _buildText(layer, scale);
 
       // Wrap text with GlobalKey for post-frame height measurement
+      // Generate a unique key name if duplicates exist to prevent Flutter from dropping layers
+      String uniqueKeyName = rawName;
+      int dupeIndex = 1;
+      while (_textKeys.containsKey(uniqueKeyName) && _textKeys[uniqueKeyName] != null) {
+        uniqueKeyName = '${rawName}_dup$dupeIndex';
+        dupeIndex++;
+      }
       final key =
-          _textKeys.putIfAbsent(rawName, () => GlobalKey());
+          _textKeys.putIfAbsent(uniqueKeyName, () => GlobalKey());
       content = KeyedSubtree(key: key, child: content);
     } else if (type == 'image') {
       content =

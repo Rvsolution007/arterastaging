@@ -6,6 +6,7 @@ use Auth;
 use App\Models\Category;
 use App\Models\Language;
 use Illuminate\Support\Str;
+use App\Traits\WatermarkImageTrait;
 use Illuminate\Http\Request;
 use App\Models\CategoryPost;
 use App\Models\StorageSetting;
@@ -15,6 +16,8 @@ use Illuminate\Support\Facades\Validator;
 
 class CategoryPostController extends Controller
 {
+    use WatermarkImageTrait;
+
     public function __construct()
     {
         $this->middleware('permission:CategoryPost');
@@ -92,6 +95,8 @@ class CategoryPostController extends Controller
                         $f = CategoryPost::find($id);
                         $f->frame_image = $file;
                         $f->save();
+
+                        $this->applyWatermark($file, 'DigitalOcean');
                     } else {
                         $this->upload_image($image, "frame_image", $id);
                     }
@@ -287,9 +292,11 @@ class CategoryPostController extends Controller
 
                         $path = Storage::disk('spaces')->put('uploads/' . $file, file_get_contents($image), 'public');
 
-                        $f = CategoryPost::find($request->get('id'));
-                        $f->frame_image = $file;
-                        $f->save();
+                        $user = CategoryPost::find($request->get("id"));
+                        $user->frame_image = $file;
+                        $user->save();
+
+                        $this->applyWatermark($file, 'DigitalOcean');
                     }
                 } else {
                     $this->upload_image($request->file("frame_image"), "frame_image", $id);
@@ -323,6 +330,10 @@ class CategoryPostController extends Controller
         $image = CategoryPost::find($id);
         $image->$field = $fileName;
         $image->save();
+
+        if ($field === 'frame_image') {
+            $this->applyWatermark($fileName, 'local');
+        }
     }
 
     public function getAspectRatio(int $width, int $height)

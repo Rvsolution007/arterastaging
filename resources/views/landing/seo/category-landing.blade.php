@@ -112,7 +112,7 @@
                            style="display: block; overflow: hidden; border-radius: 8px; border: 1px solid rgba(0,0,0,0.06); transition: transform 0.3s, box-shadow 0.3s;"
                            onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 12px 24px rgba(0,0,0,0.1)'"
                            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
-                            <img src="{{ asset('uploads/' . $tmpl->frame_image) }}"
+                            <img src="{{ $tmpl->seo_image }}"
                                  alt="{{ $category->name }} Poster Template - {{ $tmpl->id }}"
                                  style="width: 100%; height: auto; display: block;"
                                  loading="lazy"

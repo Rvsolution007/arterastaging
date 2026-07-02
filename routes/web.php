@@ -223,4 +223,14 @@ Route::group(['middleware' => 'admin', 'prefix' => 'admin'], function() {
     Route::post('/retention/settings', 'Admin\RetentionAnalyticsController@saveSettings')->name('admin.retention.settings.save');
     Route::get('/invoices-history', 'Admin\AdminInvoiceController@index')->name('admin.invoices.index');
     Route::get('/reactivate', 'Admin\RetentionAnalyticsController@reactivateUser')->name('admin.reactivate');
+
+    // AI Growth OS Routes
+    Route::get('/growth-os', 'Admin\GrowthOsController@index')->name('admin.growth_os');
+    Route::get('/growth-os/stats/dashboard', 'Admin\GrowthOsController@getDashboardStats')->name('admin.growth_os.dashboard');
+    Route::get('/growth-os/stats/acquisition', 'Admin\GrowthOsController@getAcquisitionStats')->name('admin.growth_os.acquisition');
+    Route::get('/growth-os/stats/engagement', 'Admin\GrowthOsController@getEngagementStats')->name('admin.growth_os.engagement');
+    Route::get('/growth-os/stats/content', 'Admin\GrowthOsController@getContentStats')->name('admin.growth_os.content');
+    Route::get('/growth-os/stats/planner', 'Admin\GrowthOsController@getPlannerStats')->name('admin.growth_os.planner');
+    Route::get('/growth-os/stats/marketing', 'Admin\GrowthOsController@getMarketingStats')->name('admin.growth_os.marketing');
+    Route::get('/growth-os/stats/aso', 'Admin\GrowthOsController@getAsoStats')->name('admin.growth_os.aso');
 });

@@ -97,7 +97,7 @@ class ProgrammaticSeoController extends Controller
             'description' => 'Create stunning ' . strtolower($catName) . ' posters and marketing materials with Artera. Browse ' . ($templateCount ?: '100') . '+ free ' . strtolower($catName) . ' templates. AI-powered poster maker designed for ' . strtolower($catName) . ' businesses.',
             'canonical' => config('seo.site_url') . '/poster-maker/' . ($category->slug ?: Str::slug($catName)),
             'keywords' => strtolower($catName) . ' poster maker, ' . strtolower($catName) . ' poster, ' . strtolower($catName) . ' marketing, ' . strtolower($catName) . ' templates, ' . strtolower($catName) . ' banner maker',
-            'og_image' => $templates->first() && $templates->first()->frame_image ? asset('uploads/' . $templates->first()->frame_image) : null,
+            'og_image' => $templates->first() && $templates->first()->frame_image ? $templates->first()->seo_image : null,
             'breadcrumbs' => [
                 ['name' => 'Home', 'url' => '/'],
                 ['name' => 'Poster Maker', 'url' => '/poster-maker'],
@@ -188,7 +188,7 @@ class ProgrammaticSeoController extends Controller
             'description' => 'Create professional ' . strtolower($entityName) . ' posters and marketing content with Artera. Free ' . strtolower($entityName) . ' templates with AI-powered customization. Best ' . strtolower($entityName) . ' poster maker app for ' . strtolower($category->name) . ' businesses.',
             'canonical' => config('seo.site_url') . '/poster-maker/' . ($category->slug ?: Str::slug($category->name)) . '/' . ($entity->slug ?: Str::slug($entityName)),
             'keywords' => strtolower($entityName) . ' poster maker, ' . strtolower($entityName) . ' poster, ' . strtolower($entityName) . ' marketing poster, ' . strtolower($entityName) . ' banner, ' . strtolower($entityName) . ' social media post',
-            'og_image' => $templates->first() && $templates->first()->frame_image ? asset('uploads/' . $templates->first()->frame_image) : null,
+            'og_image' => $templates->first() && $templates->first()->frame_image ? $templates->first()->seo_image : null,
             'breadcrumbs' => [
                 ['name' => 'Home', 'url' => '/'],
                 ['name' => 'Poster Maker', 'url' => '/poster-maker'],
@@ -275,7 +275,7 @@ class ProgrammaticSeoController extends Controller
             'description' => 'Create stunning ' . $festName . ' ' . $year . ' posters for your business. Browse ' . ($templateCount ?: '50') . '+ free ' . $festName . ' templates. Send branded ' . $festName . ' greetings on WhatsApp, Instagram & Facebook.',
             'canonical' => config('seo.site_url') . '/festival-poster/' . Str::slug($festName),
             'keywords' => strtolower($festName) . ' poster maker, ' . strtolower($festName) . ' poster, ' . strtolower($festName) . ' ' . $year . ', ' . strtolower($festName) . ' wishes images, ' . strtolower($festName) . ' greetings, ' . strtolower($festName) . ' social media post',
-            'og_image' => $templates->first() && $templates->first()->frame_image ? asset('uploads/' . $templates->first()->frame_image) : null,
+            'og_image' => $templates->first() && $templates->first()->frame_image ? $templates->first()->seo_image : null,
             'breadcrumbs' => [
                 ['name' => 'Home', 'url' => '/'],
                 ['name' => 'Festival Poster Maker', 'url' => '/festival-poster'],
@@ -350,7 +350,7 @@ class ProgrammaticSeoController extends Controller
         if (!$template) abort(404);
 
         $templateName = $parentName . ' Poster Template';
-        $imageUrl = $template->frame_image ? asset('uploads/' . $template->frame_image) : null;
+        $imageUrl = $template->frame_image ? $template->seo_image : null;
 
         $seo = [
             'title' => $templateName . ' — Free Download & Customize | Artera',

@@ -600,8 +600,8 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     // BUILD WIDGETS (absolute positioning with adjusted Y)
     // ══════════════════════════════════════════════════════════════
     final List<Widget> stackChildren = [];
-    for (int i = 0; i < adjusted.length; i++) {
-      stackChildren.add(_buildLayer(adjusted[i], scale, i));
+    for (var layer in adjusted) {
+      stackChildren.add(_buildLayer(layer, scale));
     }
 
     return AnimatedOpacity(
@@ -623,12 +623,11 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     );
   }
 
-  Widget _buildLayer(Map<String, dynamic> layer, double scale, int layerIndex) {
+  Widget _buildLayer(Map<String, dynamic> layer, double scale) {
     final String name =
         (layer['name'] ?? layer['id'] ?? '').toString().toLowerCase();
-    // Append layerIndex to ensure uniqueness for GlobalKey even if multiple layers share the same name
     final String rawName =
-        '${(layer['name'] ?? layer['id'] ?? '').toString()}_$layerIndex';
+        (layer['name'] ?? layer['id'] ?? '').toString(); // original case for key lookup
     final String type = layer['type'] ?? '';
     final bool isFrameLayer = layer['_is_frame_layer'] == true || layer['_isFrameLayer'] == true;
     final bool isBackground = !isFrameLayer && (layer['is_background'] == true ||
@@ -784,8 +783,15 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       content = _buildText(effectiveLayer, scale);
 
       // Wrap text with GlobalKey for post-frame height measurement
+      // Generate a unique key name if duplicates exist to prevent Flutter from dropping layers
+      String uniqueKeyName = rawName;
+      int dupeIndex = 1;
+      while (_textKeys.containsKey(uniqueKeyName) && _textKeys[uniqueKeyName] != null) {
+        uniqueKeyName = '${rawName}_dup$dupeIndex';
+        dupeIndex++;
+      }
       final key =
-          _textKeys.putIfAbsent(rawName, () => GlobalKey());
+          _textKeys.putIfAbsent(uniqueKeyName, () => GlobalKey());
       content = KeyedSubtree(key: key, child: content);
     } else if (type == 'image' || type == 'shape' || type == 'rect') {
       // ══ IMAGE/SHAPE DIAGNOSTICS ══

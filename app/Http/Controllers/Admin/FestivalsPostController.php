@@ -6,6 +6,7 @@ use Auth;
 use App\Models\Language;
 use App\Models\Festivals;
 use Illuminate\Support\Str;
+use App\Traits\WatermarkImageTrait;
 use Illuminate\Http\Request;
 use App\Models\FestivalsPost;
 use App\Models\StorageSetting;
@@ -15,6 +16,8 @@ use Illuminate\Support\Facades\Validator;
 
 class FestivalsPostController extends Controller
 {
+    use WatermarkImageTrait;
+
     public function __construct()
     {
         $this->middleware('permission:FestivalPost');
@@ -92,6 +95,8 @@ class FestivalsPostController extends Controller
                         $f = FestivalsPost::find($id);
                         $f->frame_image = $file;
                         $f->save();
+
+                        $this->applyWatermark($file, 'DigitalOcean');
                     } else {
                         $this->upload_image($image, "frame_image", $id);
                     }
@@ -236,6 +241,8 @@ class FestivalsPostController extends Controller
                         $user = FestivalsPost::find($request->get("id"));
                         $user->frame_image = $file;
                         $user->save();
+
+                        $this->applyWatermark($file, 'DigitalOcean');
                     }
                 } else {
                     $this->upload_image($request->file("frame_image"), "frame_image", $id);
@@ -274,6 +281,10 @@ class FestivalsPostController extends Controller
         $image = FestivalsPost::find($id);
         $image->$field = $fileName;
         $image->save();
+
+        if ($field === 'frame_image') {
+            $this->applyWatermark($fileName, 'local');
+        }
     }
 
     public function getAspectRatio(int $width, int $height)

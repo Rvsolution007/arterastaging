@@ -60,6 +60,10 @@ class Kernel extends ConsoleKernel
 
         // AI Error Analysis - Daily scan of unanalyzed client errors
         $schedule->command('artera:ai-error-scan --limit=30')->dailyAt('04:00')->runInBackground();
+
+        // AI Growth OS - Midnight Analysis & Morning Execution
+        $schedule->command('growth:generate-report')->dailyAt('00:00')->runInBackground();
+        $schedule->command('growth:execute-tasks')->dailyAt('06:00')->runInBackground();
     }
 
     /**

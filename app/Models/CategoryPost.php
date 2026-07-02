@@ -28,4 +28,21 @@ class CategoryPost extends Model
     {
         return $this->hasOne("App\Models\Language", "id", "language_id");
     }
+
+    public function getSeoImageAttribute()
+    {
+        if (!$this->frame_image) return null;
+        
+        $watermarked = 'watermarked_' . $this->frame_image;
+        $diskType = \App\Models\StorageSetting::getStorageSetting("storage");
+        
+        if ($diskType == 'DigitalOcean') {
+            return asset('uploads/' . $watermarked);
+        } else {
+            if (file_exists(public_path('uploads/' . $watermarked))) {
+                return asset('uploads/' . $watermarked);
+            }
+            return asset('uploads/' . $this->frame_image);
+        }
+    }
 }

@@ -235,12 +235,13 @@
             <span class="eyebrow-plain reveal-left">COLLECTION 01</span>
             <h2 class="tpl-section-title draw-underline">Festival Templates</h2>
             <div class="tpl-divider"></div>
+            <a href="{{ url('/festival-poster') }}" style="display: inline-block; margin-top: 15px; font-weight: 600; color: var(--blue); text-decoration: none;">Explore All Festivals &rarr;</a>
         </div>
         <div class="tpl-grid">
             @foreach($festivals as $post)
             <div class="tpl-card reveal-scale">
                 <div class="tpl-card-img-wrap">
-                    <img src="{{ $post->frame_image ? asset('uploads/'.$post->frame_image) : asset('assets/images/placeholder.png') }}" class="tpl-card-img" alt="{{ $post->festivals->title ?? 'Festival' }}" loading="lazy">
+                    <img src="{{ $post->seo_image ?? ($post->frame_image ? asset('uploads/'.$post->frame_image) : asset('assets/images/placeholder.png')) }}" class="tpl-card-img" alt="{{ $post->festivals->title ?? 'Festival' }}" loading="lazy">
                     <div class="tpl-card-overlay">
                         <a href="{{ route('client.login') }}" class="tpl-overlay-btn">
                             Login to Customize
@@ -266,12 +267,13 @@
             <span class="eyebrow-plain reveal-left">COLLECTION 02</span>
             <h2 class="tpl-section-title draw-underline">Business Templates</h2>
             <div class="tpl-divider"></div>
+            <a href="{{ url('/poster-maker') }}" style="display: inline-block; margin-top: 15px; font-weight: 600; color: var(--blue); text-decoration: none;">Explore All Categories &rarr;</a>
         </div>
         <div class="tpl-grid">
             @foreach($businessPosts as $post)
             <div class="tpl-card reveal-scale">
                 <div class="tpl-card-img-wrap">
-                    <img src="{{ $post->frame_image ? asset('uploads/'.$post->frame_image) : asset('assets/images/placeholder.png') }}" class="tpl-card-img" alt="{{ $post->category->name ?? 'Business Post' }}" loading="lazy">
+                    <img src="{{ $post->seo_image ?? ($post->frame_image ? asset('uploads/'.$post->frame_image) : asset('assets/images/placeholder.png')) }}" class="tpl-card-img" alt="{{ $post->category->name ?? 'Business Post' }}" loading="lazy">
                     <div class="tpl-card-overlay">
                         <a href="{{ route('client.login') }}" class="tpl-overlay-btn">
                             Login to Customize
@@ -302,7 +304,7 @@
             @foreach($customPosts as $post)
             <div class="tpl-card reveal-scale">
                 <div class="tpl-card-img-wrap">
-                    <img src="{{ $post->frame_image ? asset('uploads/'.$post->frame_image) : asset('assets/images/placeholder.png') }}" class="tpl-card-img" alt="{{ $post->custom_post->name ?? 'Custom' }}" loading="lazy">
+                    <img src="{{ $post->seo_image ?? ($post->frame_image ? asset('uploads/'.$post->frame_image) : asset('assets/images/placeholder.png')) }}" class="tpl-card-img" alt="{{ $post->custom_post->name ?? 'Custom' }}" loading="lazy">
                     <div class="tpl-card-overlay">
                         <a href="{{ route('client.login') }}" class="tpl-overlay-btn">
                             Login to Customize

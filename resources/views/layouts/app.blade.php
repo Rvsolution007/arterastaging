@@ -356,15 +356,17 @@
             </a>
           </li>
 
-          <!-- The God View -->
+          <!-- Growth OS -->
           <li class="nav-item">
-            <a href="{{ route('admin.god_view') }}" class="nav-link {{ (Request::is('admin/god-view*')) ? 'active' : '' }}" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(79, 70, 229, 0.4) 100%); border-radius: 8px;">
-              <i class="nav-icon fa-solid fa-eye" style="color: #818cf8; text-shadow: 0 0 8px rgba(129, 140, 248, 0.5);"></i>
+            <a href="{{ route('admin.growth_os') }}" class="nav-link {{ (Request::is('admin/growth-os*')) ? 'active' : '' }}" style="background: linear-gradient(135deg, rgba(236, 72, 153, 0.2) 0%, rgba(219, 39, 119, 0.4) 100%); border-radius: 8px;">
+              <i class="nav-icon fa-solid fa-rocket" style="color: #f472b6; text-shadow: 0 0 8px rgba(244, 114, 182, 0.5);"></i>
               <p style="color: white; font-weight: 700; letter-spacing: 0.5px;">
-                  God View <span class="right badge badge-danger" style="background: #ef4444; font-size: 0.6rem; padding: 3px 5px;">LIVE</span>
+                  AI Growth OS <span class="right badge badge-warning" style="background: #f59e0b; font-size: 0.6rem; padding: 3px 5px; color: #fff;">NEW</span>
               </p>
             </a>
           </li>
+
+
 
           <!-- Template Builder -->
           <li class="nav-item">

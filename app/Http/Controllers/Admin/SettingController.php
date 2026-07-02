@@ -112,6 +112,9 @@ class SettingController extends Controller
                     if ($key == "admin_favicon" && $val && $val->isValid()) {
                         $this->upload_image($val, $key);
                     }
+                    if ($key == "seo_watermark_image" && $val && $val->isValid()) {
+                        $this->upload_image($val, $key);
+                    }
                 }
             } else {
                 AppSetting::where('key_name', $key)->update(['key_value' => $val]);
@@ -132,12 +135,23 @@ class SettingController extends Controller
 
                         AppSetting::where('key_name', $key)->update(['key_value' => $file]);
                     }
+                    if ($key == "seo_watermark_image" && $val && $val->isValid()) {
+                        $image = $val;
+                        $file = Str::uuid() . '.' . $image->getClientOriginalExtension();
+
+                        Storage::disk('spaces')->put('uploads/' . $file, file_get_contents($image), 'public');
+
+                        AppSetting::where('key_name', $key)->update(['key_value' => $file]);
+                    }
                 } else {
                     if ($key == "app_logo" && $val && $val->isValid()) {
                         $this->upload_image($val, $key);
                     }
 
                     if ($key == "admin_favicon" && $val && $val->isValid()) {
+                        $this->upload_image($val, $key);
+                    }
+                    if ($key == "seo_watermark_image" && $val && $val->isValid()) {
                         $this->upload_image($val, $key);
                     }
                 }

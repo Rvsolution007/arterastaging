@@ -132,7 +132,7 @@
                     <a href="{{ url('/template/' . $relPrefix . $rel->id . '/' . $relSlug) }}"
                        style="display: block; overflow: hidden; border-radius: 8px; border: 1px solid rgba(0,0,0,0.06); transition: transform 0.3s;"
                        onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='translateY(0)'">
-                        <img src="{{ asset('uploads/' . $rel->frame_image) }}"
+                        <img src="{{ $rel->seo_image }}"
                              alt="{{ $parentName }} Poster Template"
                              style="width: 100%; height: auto; display: block;" loading="lazy">
                     </a>

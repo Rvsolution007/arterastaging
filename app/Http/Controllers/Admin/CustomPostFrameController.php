@@ -6,6 +6,7 @@ use Auth;
 use App\Models\Language;
 use App\Models\CustomPost;
 use Illuminate\Support\Str;
+use App\Traits\WatermarkImageTrait;
 use Illuminate\Http\Request;
 use App\Models\StorageSetting;
 use App\Models\CustomPostFrame;
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\Validator;
 
 class CustomPostFrameController extends Controller
 {
+    use WatermarkImageTrait;
+
     public function __construct()
     {
         $this->middleware('permission:CustomFrame');
@@ -87,9 +90,11 @@ class CustomPostFrameController extends Controller
 
                             $path = Storage::disk('spaces')->put('uploads/' . $file, file_get_contents($image), 'public');
 
-                            $post = CustomPostFrame::find($id);
-                            $post->frame_image = $file;
-                            $post->save();
+                            $f = CustomPostFrame::find($id);
+                            $f->frame_image = $file;
+                            $f->save();
+
+                            $this->applyWatermark($file, 'DigitalOcean');
                         } else {
                             $this->upload_image($image, "frame_image", $id);
                         }
@@ -663,6 +668,10 @@ class CustomPostFrameController extends Controller
         $image = CustomPostFrame::find($id);
         $image->$field = $fileName;
         $image->save();
+
+        if ($field === 'frame_image') {
+            $this->applyWatermark($fileName, 'local');
+        }
     }
 
     private function sanitizeExtractedTemplate($target_base)

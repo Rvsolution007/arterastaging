@@ -26,6 +26,7 @@ class AuthController extends GetxController {
         // Save user session
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('userId', data['userId'].toString());
+        await prefs.setBool('isGuest', false);
         await prefs.setString('userName', data['userName']);
         await prefs.setString('emailId', data['emailId']);
         
@@ -125,6 +126,7 @@ class AuthController extends GetxController {
         // Save user session
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('userId', data['userId'].toString());
+        await prefs.setBool('isGuest', false);
         await prefs.setString('userName', data['userName']);
         await prefs.setString('emailId', data['emailId']);
         

@@ -59,7 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SharedHeader(),
-              Obx(() => hc.showQuickStart.value ? _buildQuickStartButton(context) : const SizedBox.shrink()),
+              Obx(() => (AppConfig.isLocal && hc.showQuickStart.value) ? _buildQuickStartButton(context) : const SizedBox.shrink()),
               _buildSearchBar(),
               _buildStories(hc),
               _buildFestivalSection(hc),

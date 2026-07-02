@@ -1,4 +1,5 @@
 import 'package:brandkit_mobile/utils/string_extensions.dart';
+import '../config/app_config.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/auth_controller.dart';
@@ -117,14 +118,15 @@ class MyBusinessScreen extends StatelessWidget {
         spacing: 16,
         runSpacing: 16,
         children: [
-          _buildActionCard(
-            title: 'ai_setup'.trFormat,
-            icon: Icons.smart_toy_outlined,
-            iconBg: AppColors.primary,
-            iconColor: Colors.white,
-            isGradient: true,
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AiSetupWizardScreen())),
-          ),
+          if (AppConfig.isLocal)
+            _buildActionCard(
+              title: 'ai_setup'.trFormat,
+              icon: Icons.smart_toy_outlined,
+              iconBg: AppColors.primary,
+              iconColor: Colors.white,
+              isGradient: true,
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AiSetupWizardScreen())),
+            ),
           _buildActionCard(
             title: 'products'.trFormat,
             icon: Icons.inventory_2_outlined,

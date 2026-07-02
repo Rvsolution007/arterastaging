@@ -877,7 +877,12 @@
         'fa-bolt': '\uf0e7', 'fa-gift': '\uf06b', 'fa-trophy': '\uf091',
         'fa-crown': '\uf521', 'fa-gem': '\uf3a5', 'fa-fire': '\uf06d',
         'fa-rocket': '\uf135', 'fa-flag': '\uf024', 'fa-bell': '\uf0f3',
-        'fa-bookmark': '\uf02e', 'fa-thumbs-up': '\uf164'
+        'fa-bookmark': '\uf02e', 'fa-thumbs-up': '\uf164',
+        // Brands
+        'fa-facebook': '\uf09a', 'fa-instagram': '\uf16d', 'fa-twitter': '\uf099', 
+        'fa-x-twitter': '\ue61b', 'fa-whatsapp': '\uf232', 'fa-youtube': '\uf167',
+        'fa-linkedin': '\uf08c', 'fa-telegram': '\uf2c6', 'fa-pinterest': '\uf0d2',
+        'fa-tiktok': '\ue07b', 'fa-snapchat': '\uf2ab'
     };
 
     if (iconsGrid) {
@@ -889,10 +894,15 @@
                 const unicode = iconUnicodeMap[baseClass] || '\uf005'; // default star
                 const title = this.getAttribute('title') || 'Icon';
                 
-                // For FontAwesome 5/6 Free Solid
+                const isBrand = iconClass.includes('fa-brands');
+                const fontFamily = isBrand 
+                    ? '"Font Awesome 6 Brands", "Font Awesome 5 Brands"' 
+                    : '"Font Awesome 6 Free", "FontAwesome", "Font Awesome 5 Free"';
+                const fontWeight = isBrand ? 400 : 900;
+                
                 const iconText = new fabric.IText(unicode, {
                     left: 150, top: 150, fontSize: 80, fill: '#333333',
-                    fontFamily: '"Font Awesome 6 Free", "FontAwesome", "Font Awesome 5 Free"', fontWeight: 900,
+                    fontFamily: fontFamily, fontWeight: fontWeight,
                     customType: 'icon', customName: 'Icon', textBaseline: 'alphabetic'
                 });
                 canvas.add(iconText);

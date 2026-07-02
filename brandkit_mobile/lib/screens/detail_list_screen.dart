@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import '../services/ad_service.dart';
 import '../services/download_service.dart';
 import '../controllers/ad_controller.dart';
+import '../controllers/auth_controller.dart';
 import '../controllers/subscription_controller.dart';
 import '../utils/app_colors.dart';
 import 'editor_screen.dart';
@@ -577,7 +578,7 @@ class _DetailListScreenState extends State<DetailListScreen> {
                                   'id': widget.id.toString(),
                                   'designUrl': selectedImageUrl.isNotEmpty ? selectedImageUrl : itemImage,
                                 }).query;
-                                Get.toNamed(
+                                Get.find<AuthController>().checkAndNavigateToEditor(
                                   '/editor?$editorQuery',
                                   arguments: {
                                     'frameData': frameData!,

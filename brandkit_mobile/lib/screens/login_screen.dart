@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:get/get.dart';
 import '../controllers/auth_controller.dart';
 import '../utils/app_colors.dart';
@@ -6,7 +7,10 @@ import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String? redirectRoute;
+  final dynamic redirectArguments;
+
+  const LoginScreen({super.key, this.redirectRoute, this.redirectArguments});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -89,7 +93,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ? null 
                   : () {
                       if (emailController.text.isNotEmpty && passwordController.text.isNotEmpty) {
-                        authController.login(emailController.text, passwordController.text);
+                        authController.login(emailController.text, passwordController.text, redirectRoute: widget.redirectRoute, redirectArguments: widget.redirectArguments);
                       } else {
                         Get.snackbar('Error', 'Please fill all fields', backgroundColor: Colors.redAccent, colorText: Colors.white);
                       }
@@ -106,9 +110,18 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 20),
               TextButton(
                 onPressed: () {
-                  Get.to(() => const RegisterScreen());
+                  Get.to(() => RegisterScreen(redirectRoute: widget.redirectRoute, redirectArguments: widget.redirectArguments));
                 },
                 child: const Text('Don\'t have an account? Sign Up', style: TextStyle(color: AppColors.primary)),
+              ),
+              const SizedBox(height: 10),
+              TextButton(
+                onPressed: () async {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setBool('isGuest', true);
+                  Get.offAllNamed('/DashboardScreen');
+                },
+                child: const Text('Skip for now', style: TextStyle(color: AppColors.textSecondary, decoration: TextDecoration.underline)),
               )
             ],
           ),

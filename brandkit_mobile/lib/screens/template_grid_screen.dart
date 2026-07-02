@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:get/get.dart';
+import 'package:brandkit_mobile/controllers/auth_controller.dart';
 import '../utils/app_colors.dart';
 import '../controllers/home_controller.dart';
 import '../controllers/ad_controller.dart';
@@ -314,7 +315,7 @@ class _TemplateGridScreenState extends State<TemplateGridScreen> {
               'id': post['id'].toString(),
               'designUrl': imgUrl,
             }).query;
-            Get.toNamed(
+            Get.find<AuthController>().checkAndNavigateToEditor(
               '/editor?$editorQuery',
               arguments: {
                 'frameData': {

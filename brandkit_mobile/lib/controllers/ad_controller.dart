@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -136,6 +137,15 @@ class AdController extends GetxController {
     required String feature,
     required VoidCallback onAccessGranted,
   }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final isGuest = prefs.getBool('isGuest') ?? false;
+
+    // Guests should bypass limit checks and hit the auth interceptor
+    if (isGuest) {
+      onAccessGranted();
+      return true;
+    }
+
     final config = _getFeatureConfig(feature);
     
     if (config == null || config.isLocked) {
@@ -176,6 +186,15 @@ class AdController extends GetxController {
   }) async {
     final config = _getFeatureConfig(feature);
     
+    final prefs = await SharedPreferences.getInstance();
+    final isGuest = prefs.getBool('isGuest') ?? false;
+
+    // Guests should bypass limit checks and hit the auth interceptor
+    if (isGuest) {
+      onAccessGranted();
+      return true;
+    }
+
     // --- FREE TEMPLATE RULES ---
     if (!isPaid) {
       // Free templates do not count towards usage limits, so they are never locked at access.

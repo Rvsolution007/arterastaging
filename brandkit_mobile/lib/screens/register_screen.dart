@@ -9,7 +9,10 @@ import '../utils/app_text_styles.dart';
 import '../widgets/multi_select_dropdown.dart';
 import '../widgets/cascading_business_dropdowns.dart';
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+  final String? redirectRoute;
+  final dynamic redirectArguments;
+
+  const RegisterScreen({super.key, this.redirectRoute, this.redirectArguments});
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -90,6 +93,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       businessSubCategoryIds: _selectedSubCategoryIds,
       businessTypeIds: _selectedBusinessTypeIds,
       productIds: _selectedProductIds,
+      redirectRoute: widget.redirectRoute,
+      redirectArguments: widget.redirectArguments,
     );
   }
 

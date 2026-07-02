@@ -1,6 +1,7 @@
 import 'package:brandkit_mobile/utils/string_extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:brandkit_mobile/controllers/auth_controller.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
@@ -118,7 +119,7 @@ class _SearchScreenState extends State<SearchScreen> {
       'designUrl': imgUrl,
     }).query;
     
-    Get.toNamed(
+    Get.find<AuthController>().checkAndNavigateToEditor(
       '/editor?$editorQuery',
       arguments: {
         'frameData': post,

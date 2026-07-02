@@ -848,10 +848,14 @@ class NativeEditorController extends GetxController {
         final name = (layer['name'] ?? layer['id'] ?? '').toString();
         if (name.isNotEmpty) {
           String dedupeKey = layer['_is_frame_layer'] == true ? 'frame_$name' : 'native_$name';
-          if (!seenNames.contains(dedupeKey)) {
-            seenNames.add(dedupeKey);
-            uniqueLayers.add(layer);
+          int suffix = 1;
+          String finalKey = dedupeKey;
+          while (seenNames.contains(finalKey)) {
+            finalKey = '${dedupeKey}_$suffix';
+            suffix++;
           }
+          seenNames.add(finalKey);
+          uniqueLayers.add(layer);
         } else {
           uniqueLayers.add(layer);
         }

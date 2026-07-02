@@ -177,11 +177,12 @@ class _SplashGateState extends State<SplashGate> {
   Future<void> _checkLoginStatus() async {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId');
+    final isGuest = prefs.getBool('isGuest') ?? false;
 
     // Small delay for splash feel
     await Future.delayed(const Duration(milliseconds: 300));
 
-    if (userId != null && userId.isNotEmpty) {
+    if ((userId != null && userId.isNotEmpty) || isGuest) {
       try {
         // Fetch latest user data to sync ad limits and subscription state
         final response = await ApiService.post('/user_data', {'id': userId});

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../screens/dashboard_screen.dart'; // We will create this next
 import '../screens/login_screen.dart';
+import '../widgets/guest_login_prompt_sheet.dart';
 import '../controllers/ad_controller.dart';
 import '../controllers/home_controller.dart';
 import '../services/notification_service.dart';
@@ -12,7 +13,7 @@ import '../services/notification_service.dart';
 class AuthController extends GetxController {
   var isLoading = false.obs;
 
-  Future<void> login(String email, String password) async {
+  Future<void> login(String email, String password, {String? redirectRoute, dynamic redirectArguments}) async {
     try {
       isLoading.value = true;
       final response = await ApiService.post('/login', {
@@ -57,8 +58,13 @@ class AuthController extends GetxController {
         
         Get.snackbar('Success', 'Login Successful!', backgroundColor: Colors.green, colorText: Colors.white);
         
-        // Navigate to Dashboard
-        Get.offAll(() => const DashboardScreen());
+        // Navigate to Dashboard or Redirect Route
+        if (redirectRoute != null) {
+          Get.offAll(() => const DashboardScreen());
+          Get.toNamed(redirectRoute, arguments: redirectArguments);
+        } else {
+          Get.offAll(() => const DashboardScreen());
+        }
       } else {
         try {
           final errorData = jsonDecode(response.body);
@@ -87,6 +93,8 @@ class AuthController extends GetxController {
     List<String>? productIds,
     String? businessWebsite,
     String? businessAddress,
+    String? redirectRoute,
+    dynamic redirectArguments,
   }) async {
     try {
       isLoading.value = true;
@@ -149,8 +157,13 @@ class AuthController extends GetxController {
 
         Get.snackbar('Success', 'Registration successful! Welcome aboard.', backgroundColor: Colors.green, colorText: Colors.white);
         
-        // Auto-login and navigate to Dashboard
-        Get.offAll(() => const DashboardScreen());
+        // Auto-login and navigate to Dashboard or Redirect Route
+        if (redirectRoute != null) {
+          Get.offAll(() => const DashboardScreen());
+          Get.toNamed(redirectRoute, arguments: redirectArguments);
+        } else {
+          Get.offAll(() => const DashboardScreen());
+        }
       } else {
         try {
           final errorData = jsonDecode(response.body);
@@ -213,6 +226,25 @@ class AuthController extends GetxController {
       }
     } catch (e) {
       debugPrint("Failed to register FCM Token: $e");
+    }
+  }
+
+  Future<void> checkAndNavigateToEditor(String route, {dynamic arguments}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final isGuest = prefs.getBool('isGuest') ?? false;
+    final userId = prefs.getString('userId');
+    
+    if (userId == null || userId.isEmpty || isGuest) {
+      Get.bottomSheet(
+        GuestLoginPromptSheet(
+          redirectRoute: route,
+          redirectArguments: arguments,
+        ),
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+      );
+    } else {
+      Get.toNamed(route, arguments: arguments);
     }
   }
 }

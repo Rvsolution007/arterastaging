@@ -690,6 +690,11 @@ class _CustomPostPreviewState extends State<CustomPostPreview> {
     String fontName = (layer['fontFamily'] ?? layer['font_name'] ?? layer['font'] ?? '').toString();
     fontName = fontName.replaceAll("'", "").replaceAll('"', '');
 
+    // CSS font-stack: take only the first font from comma-separated list
+    if (fontName.contains(',')) {
+      fontName = fontName.split(',').first.trim();
+    }
+
     // Map Web Editor FontAwesome names to Flutter's font_awesome_flutter package families
     if (fontName.toLowerCase().contains('brands')) {
       fontName = 'packages/font_awesome_flutter/FontAwesomeBrands';

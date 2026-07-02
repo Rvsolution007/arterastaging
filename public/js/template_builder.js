@@ -1551,7 +1551,7 @@
                             document.fonts.add(loaded);
                             console.log('[FONTS] Loaded custom font:', fontName, 'as', fontInfo.family, 'weight=' + fontInfo.weight, 'style=' + fontInfo.style);
                         }).catch(err => {
-                            console.warn('[FONTS] Failed to load custom font:', fontName, err);
+                            console.debug('[FONTS] Custom font not available (Google Fonts fallback will be used):', fontName, err.message || err);
                         });
                         // Collect family names for Google Fonts fallback
                         if (fontInfo.family && fontInfo.family !== 'Arial') zipFontFamilies.add(fontInfo.family);
@@ -1786,7 +1786,7 @@
                                     document.fonts.add(loaded);
                                     console.log('[FONTS] Loaded custom font:', variant.name, 'as', fontInfo.family, 'weight=' + fontInfo.weight, 'style=' + fontInfo.style);
                                 }).catch(function(err) {
-                                    console.warn('[FONTS] Failed to load custom font:', variant.name, err);
+                                    console.debug('[FONTS] Custom font not available (Google Fonts fallback will be used):', variant.name, err.message || err);
                                 });
                                 customFontsLoaded.push(p);
                             });

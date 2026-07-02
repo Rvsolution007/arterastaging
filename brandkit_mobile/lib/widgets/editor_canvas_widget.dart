@@ -849,11 +849,20 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     String fontName = (layer['fontFamily'] ?? layer['font_name'] ?? layer['font'] ?? '').toString();
     fontName = fontName.replaceAll("'", "").replaceAll('"', '');
 
+    // CSS font-stack: take only the first font from comma-separated list
+    // e.g. "Font Awesome 6 Brands, Font Awesome 5 Brands" → "Font Awesome 6 Brands"
+    if (fontName.contains(',')) {
+      fontName = fontName.split(',').first.trim();
+    }
+
     // Map Web Editor FontAwesome names to Flutter's font_awesome_flutter package families
+    bool isPackageFont = false;
     if (fontName.toLowerCase().contains('brands')) {
       fontName = 'packages/font_awesome_flutter/FontAwesomeBrands';
+      isPackageFont = true;
     } else if (fontName.toLowerCase().contains('font awesome') || fontName.toLowerCase().contains('fontawesome')) {
       fontName = 'packages/font_awesome_flutter/FontAwesomeSolid';
+      isPackageFont = true;
     }
 
     FontWeight fontWeight = FontWeight.normal;
@@ -863,7 +872,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         
     String cleanFontFamily = fontName;
 
-    if (fontName.contains('-')) {
+    if (!fontName.startsWith('packages/') && fontName.contains('-')) {
       final parts = fontName.split('-');
       cleanFontFamily = parts[0];
       final weightPart = parts.sublist(1).join('-').toLowerCase();
@@ -991,7 +1000,11 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       }(),
     );
 
-    if (cleanFontFamily.isNotEmpty) {
+    if (isPackageFont) {
+      // Package fonts (FontAwesome etc.) — set fontFamily directly, skip GoogleFonts
+      textStyle = textStyle.copyWith(fontFamily: fontName);
+      debugPrint('[TEXT_FONT] Using package font: $fontName');
+    } else if (cleanFontFamily.isNotEmpty) {
       try {
         textStyle = GoogleFonts.getFont(
           cleanFontFamily,
@@ -1005,6 +1018,8 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     final String lname = (layer['name'] ?? layer['id'] ?? '').toString().toLowerCase();
     
     // ── RC-2: Point vs Paragraph text detection (matches web editor) ──
+    debugPrint('[TEXT_DIAG_CODEPOINTS] name="$lname" text="$textValue" codePoints="${textValue.runes.map((r) => r.toRadixString(16)).join(',')}"');
+    
     // Web editor exports 'kind': 'Point' (fabric.Text, no wrap) or 'Paragraph' (fabric.Textbox, wraps within w).
     // Use kind from JSON first, fall back to heuristic for old templates.
     final String? textKind = layer['kind']?.toString().toLowerCase();

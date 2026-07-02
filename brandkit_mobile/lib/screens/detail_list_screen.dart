@@ -553,7 +553,8 @@ class _DetailListScreenState extends State<DetailListScreen> {
                               
                               bool isPaid = false;
                               if (list.isNotEmpty && selectedIndex < list.length) {
-                                isPaid = list[selectedIndex]['isPaid'] == true;
+                                final item = list[selectedIndex];
+                                isPaid = item['isPaid'] == true || item['isPaid'] == '1' || item['isPaid'] == 1 || item['premium'] == true || item['premium'] == '1' || item['premium'] == 1;
                               }
                               if (widget.type == 'custom' || widget.type == 'business_custom') {
                                 isPaid = true; // All custom templates are paid

@@ -21,6 +21,19 @@ class InteractiveLayer extends StatelessWidget {
     required this.layerConfig,
   });
 
+  /// Get the live layer data from the controller's templateConfig
+  /// instead of the stale copy passed via constructor.
+  Map<String, dynamic>? _getLiveLayer(NativeEditorController controller) {
+    final layers = controller.templateConfig['layers'] as List<dynamic>?;
+    if (layers == null) return null;
+    for (var l in layers) {
+      if ((l['name'] ?? l['id']).toString() == layerName) {
+        return l as Map<String, dynamic>;
+      }
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<NativeEditorController>();
@@ -31,23 +44,24 @@ class InteractiveLayer extends StatelessWidget {
       final _ = controller.templateConfig.values.toList(); // Force GetX to track config changes like opacity
       final isSelected = controller.selectedLayerId.value == layerName;
       
-      final double x = safeDouble(layerConfig['x'] ?? 0) * scale;
-      double y = safeDouble(layerConfig['y'] ?? 0) * scale;
+      // Read LIVE position from controller's templateConfig (not stale layerConfig copy)
+      // so drag updates are reflected immediately.
+      final liveLayer = _getLiveLayer(controller) ?? layerConfig;
+      
+      final double x = safeDouble(liveLayer['x'] ?? 0) * scale;
+      double y = safeDouble(liveLayer['y'] ?? 0) * scale;
       
       // RC-6: Point Text Y-offset correction (matches web editor's Fabric.js em-box adjustment)
-      // Web editor: for Point text, renders at y - fontSize*0.12 (Fabric em-box vs visual bounds).
-      // On export, adds the offset back. So JSON Y = original PSD Y.
-      // Native must also subtract the offset for Point text to match web positioning.
-      if (layerConfig['type'] == 'text' && layerConfig['kind']?.toString().toLowerCase() == 'point') {
-        final double rawSize = safeDouble(layerConfig['fontSize'] ?? layerConfig['font_size'] ?? layerConfig['size'] ?? 16);
+      if (liveLayer['type'] == 'text' && liveLayer['kind']?.toString().toLowerCase() == 'point') {
+        final double rawSize = safeDouble(liveLayer['fontSize'] ?? liveLayer['font_size'] ?? liveLayer['size'] ?? 16);
         final double docPPI = safeDouble(controller.templateConfig['info']?['ppi'] ?? 72);
         final double ppiScale = docPPI / 72.0;
-        final double layerScaleYForFont = safeDouble(layerConfig['scaleY'] ?? layerConfig['scaleX'] ?? 1.0);
+        final double layerScaleYForFont = safeDouble(liveLayer['scaleY'] ?? liveLayer['scaleX'] ?? 1.0);
         final double effectiveFontSize = rawSize * ppiScale * layerScaleYForFont * scale;
         y -= (effectiveFontSize * 0.12);
       }
-      double rawW = safeDouble(layerConfig['w'] ?? layerConfig['width'] ?? 0);
-      double rawH = safeDouble(layerConfig['h'] ?? layerConfig['height'] ?? 0);
+      double rawW = safeDouble(liveLayer['w'] ?? liveLayer['width'] ?? 0);
+      double rawH = safeDouble(liveLayer['h'] ?? liveLayer['height'] ?? 0);
 
       // For frames lacking explicit dimensions, force them to 100% canvas size
       if ((layerName == '_frame_bg' || layerName == '_frame' || layerName == 'frame') && (rawW <= 0 || rawH <= 0)) {

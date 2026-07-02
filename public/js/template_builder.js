@@ -840,37 +840,40 @@
     // --- ADD ICONS (Font Awesome as text objects) ---
     const iconsGrid = $('icons-grid');
     const iconSearch = $('icon-search');
-    const iconUnicodeMap = {
-        'fa-heart': '\uf004', 'fa-star': '\uf005', 'fa-house': '\uf015',
-        'fa-user': '\uf007', 'fa-phone': '\uf095', 'fa-envelope': '\uf0e0',
-        'fa-map-marker-alt': '\uf3c5', 'fa-camera': '\uf030', 'fa-music': '\uf001',
-        'fa-bolt': '\uf0e7', 'fa-gift': '\uf06b', 'fa-trophy': '\uf091',
-        'fa-crown': '\uf521', 'fa-gem': '\uf3a5', 'fa-fire': '\uf06d',
-        'fa-rocket': '\uf135', 'fa-flag': '\uf024', 'fa-bell': '\uf0f3',
-        'fa-bookmark': '\uf02e', 'fa-thumbs-up': '\uf164',
-        // Brands
-        'fa-facebook': '\uf09a', 'fa-instagram': '\uf16d', 'fa-twitter': '\uf099',
-        'fa-x-twitter': '\ue61b', 'fa-whatsapp': '\uf232', 'fa-youtube': '\uf167',
-        'fa-linkedin': '\uf08c', 'fa-telegram': '\uf2c6', 'fa-pinterest': '\uf0d2',
-        'fa-tiktok': '\ue07b', 'fa-snapchat': '\uf2ab'
-    };
-
     if (iconsGrid) {
         const iconItems = iconsGrid.querySelectorAll('.icon-item');
         iconItems.forEach(item => {
             item.addEventListener('click', function() {
                 const iconClass = this.getAttribute('data-icon') || '';
-                const baseClass = iconClass.split(' ').pop(); // e.g., 'fa-heart'
                 const isBrand = iconClass.includes('fa-brands');
-                const unicode = iconUnicodeMap[baseClass] || '\uf005'; // default star
                 const title = this.getAttribute('title') || 'Icon';
+                
+                // Dynamically fetch the unicode character from CSS
+                const iElement = this.querySelector('i');
+                let unicodeChar = '\uf005'; // default star
+                if (iElement) {
+                    const style = window.getComputedStyle(iElement, '::before');
+                    let content = style.getPropertyValue('content');
+                    if (content && content !== 'none' && content !== 'normal') {
+                        content = content.replace(/^["']|["']$/g, '');
+                        if (content.length === 1) {
+                            unicodeChar = content;
+                        } else if (content.startsWith('\\')) {
+                            let hex = content.substring(1);
+                            if (hex.startsWith('u')) hex = hex.substring(1);
+                            unicodeChar = String.fromCharCode(parseInt(hex, 16));
+                        } else if (content.length > 0) {
+                            unicodeChar = content;
+                        }
+                    }
+                }
                 
                 let fontFamilies = '"Font Awesome 6 Free", "FontAwesome", "Font Awesome 5 Free"';
                 if (isBrand) {
                     fontFamilies = '"Font Awesome 6 Brands", "Font Awesome 5 Brands", "FontAwesome"';
                 }
                 
-                const iconText = new fabric.IText(unicode, {
+                const iconText = new fabric.IText(unicodeChar, {
                     left: 150, top: 150, fontSize: 80, fill: '#333333',
                     fontFamily: fontFamilies, fontWeight: 900,
                     customType: 'icon', customName: 'Icon', textBaseline: 'alphabetic'

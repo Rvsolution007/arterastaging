@@ -873,10 +873,14 @@
                     fontFamilies = '"Font Awesome 6 Brands", "Font Awesome 5 Brands", "FontAwesome"';
                 }
                 
+                // Generate unique icon name to avoid conflicts when multiple icons are added
+                const existingIcons = canvas.getObjects().filter(o => o.customType === 'icon').length;
+                const iconName = 'Icon_' + (existingIcons + 1);
+                
                 const iconText = new fabric.IText(unicodeChar, {
                     left: 150, top: 150, fontSize: 80, fill: '#333333',
                     fontFamily: fontFamilies, fontWeight: 900,
-                    customType: 'icon', customName: 'Icon', textBaseline: 'alphabetic'
+                    customType: 'icon', customName: iconName, textBaseline: 'alphabetic'
                 });
                 canvas.add(iconText);
                 canvas.setActiveObject(iconText);

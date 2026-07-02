@@ -858,7 +858,24 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     // Map Web Editor FontAwesome names to Flutter's font_awesome_flutter package families
     bool isPackageFont = false;
     String? fontPackage;
-    if (fontName.toLowerCase().contains('brands')) {
+    
+    bool isBrand = fontName.toLowerCase().contains('brands');
+    if (!isBrand && (fontName.toLowerCase().contains('font awesome') || fontName.toLowerCase().contains('fontawesome'))) {
+        // Fallback for PSDs that exported as "Font Awesome 5 Free" but contain brand icons
+        final List<int> brandRunes = [
+          0xf09a, 0xf39e, 0xf082, 0xf16d, 0xfe66, 0xf167, 0xf431, 
+          0xf099, 0xf081, 0xe61b, 0xf232, 0xf08c, 0xf0e1, 0xe07b, 
+          0xf2c6, 0xf2ab, 0xf0d2, 0xf231
+        ];
+        for (var rune in textValue.runes) {
+          if (brandRunes.contains(rune)) {
+            isBrand = true;
+            break;
+          }
+        }
+    }
+
+    if (isBrand) {
       fontName = 'FontAwesomeBrands';
       fontPackage = 'font_awesome_flutter';
       isPackageFont = true;

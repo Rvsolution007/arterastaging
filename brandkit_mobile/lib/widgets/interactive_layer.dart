@@ -90,7 +90,17 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
         _lName == 'bg' ||
         _lName.contains('background')
       );
-      final bool canInteract = !isFrameStructural;
+
+      // Block interaction on the main template background image (Festival post main image etc)
+      final bool isMainBackground = !isFrameLayer && (
+        widget.layerConfig['is_background'] == true ||
+        widget.layerConfig['is_background'] == 1 ||
+        _lName == '_bg_image' ||
+        _lName == 'background' ||
+        _lName == 'bg'
+      );
+
+      final bool canInteract = !isFrameStructural && !isMainBackground;
 
       // Apply local drag offset for smooth dragging
       final double visualX = x + (_isDragging ? _dragDx : 0.0);

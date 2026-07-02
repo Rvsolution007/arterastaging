@@ -687,10 +687,18 @@ class _CustomPostPreviewState extends State<CustomPostPreview> {
 
     // Font weight
     final String weightStr = (layer['weight'] ?? '').toString();
-    final String fontName =
-        (layer['font'] ?? '').toString().toLowerCase();
+    String fontName = (layer['fontFamily'] ?? layer['font_name'] ?? layer['font'] ?? '').toString();
+    fontName = fontName.replaceAll("'", "").replaceAll('"', '');
+
+    // Map Web Editor FontAwesome names to Flutter's font_awesome_flutter package families
+    if (fontName.toLowerCase().contains('brands')) {
+      fontName = 'packages/font_awesome_flutter/FontAwesomeBrands';
+    } else if (fontName.toLowerCase().contains('font awesome') || fontName.toLowerCase().contains('fontawesome')) {
+      fontName = 'packages/font_awesome_flutter/FontAwesomeSolid';
+    }
+
     FontWeight fontWeight = FontWeight.normal;
-    if (weightStr == 'bold' || fontName.contains('bold')) {
+    if (weightStr == 'bold' || fontName.toLowerCase().contains('bold')) {
       fontWeight = FontWeight.bold;
     }
 

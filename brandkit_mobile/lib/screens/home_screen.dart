@@ -1,3 +1,4 @@
+import 'package:brandkit_mobile/utils/string_extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -90,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Icon(Icons.rocket_launch, color: Colors.white, size: 18),
             const SizedBox(width: 8),
-            Text('quick_start'.tr, style: AppTextStyles.buttonPrimary.copyWith(fontSize: 14)),
+            Text('quick_start'.trFormat, style: AppTextStyles.buttonPrimary.copyWith(fontSize: 14)),
           ],
         ),
       ),
@@ -104,7 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Padding(
       padding: const EdgeInsets.only(left: 16, right: 16, top: 4, bottom: 16),
       child: SearchBarWidget(
-        hintText: 'search_categories_festivals'.tr,
+        hintText: 'search_categories_festivals'.trFormat,
         readOnly: true,
         onTap: () {
           Navigator.push(
@@ -130,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen> {
           itemBuilder: (context, i) {
             final story = hc.stories[i];
             final img = story['image'] ?? story['storyImage'] ?? '';
-            final label = story['story_type'] ?? story['storyType'] ?? 'story'.tr;
+            final label = story['story_type'] ?? story['storyType'] ?? 'story'.trFormat;
             final images = <String>[];
             if (story['story_images'] is List) {
               for (var si in story['story_images']) {
@@ -191,7 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(children: [
             Icon(Icons.calendar_today_outlined, color: AppColors.gray400, size: 24),
             AppSpacing.gapH12,
-            Text('${'upcoming_festivals'.tr} ${now.year}', style: AppTextStyles.heading3),
+            Text('${'upcoming_festivals'.trFormat} ${now.year}', style: AppTextStyles.heading3),
           ]),
           Text(DateFormat('MMMM').format(now), style: AppTextStyles.sectionSubtitle),
         ]),
@@ -255,7 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                 Icon(Icons.celebration_outlined, size: 48, color: AppColors.gray300),
                 AppSpacing.gapV8,
-                Text('no_festivals_found'.tr, style: TextStyle(color: AppColors.gray400, fontWeight: FontWeight.w500)),
+                Text('no_festivals_found'.trFormat, style: TextStyle(color: AppColors.gray400, fontWeight: FontWeight.w500)),
               ])
             );
           } else {
@@ -275,7 +276,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onTap: () => Get.toNamed('/details', arguments: {
                     'type': 'festival',
                     'id': f['festivalId'] ?? f['id'] ?? 0,
-                    'title': f['festivalTitle'] ?? f['title'] ?? 'festival'.tr,
+                    'title': f['festivalTitle'] ?? f['title'] ?? 'festival'.trFormat,
                   }),
                   child: Container(
                     width: 155, margin: const EdgeInsets.only(right: 16),
@@ -316,12 +317,12 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── 5. Categories ──
   Widget _buildCategorySection(HomeController hc) {
     return Column(children: [
-      SectionHeader(icon: Icons.layers_outlined, title: 'category_posts'.tr),
+      SectionHeader(icon: Icons.layers_outlined, title: 'category_posts'.trFormat),
       AppSpacing.gapV16,
       SizedBox(
         child: Obx(() {
           if (hc.isLoading.value) return const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()));
-          if (hc.categories.isEmpty) return Center(child: Padding(padding: EdgeInsets.all(32), child: Text('no_categories_found'.tr)));
+          if (hc.categories.isEmpty) return Center(child: Padding(padding: EdgeInsets.all(32), child: Text('no_categories_found'.trFormat)));
           return GridView.builder(
             physics: const NeverScrollableScrollPhysics(),
             shrinkWrap: true,
@@ -341,7 +342,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () => Get.toNamed('/details', arguments: {
                   'type': 'category',
                   'id': cat['categoryId'] ?? cat['id'] ?? 0,
-                  'title': cat['categoryName'] ?? cat['name'] ?? 'category'.tr,
+                  'title': cat['categoryName'] ?? cat['name'] ?? 'category'.trFormat,
                 }),
                 child: Column(
                   children: [
@@ -379,8 +380,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(children: [
       SectionHeader(
         icon: Icons.work_outline, 
-        title: 'new_custom_posts'.tr, 
-        actionText: 'view_all'.tr, 
+        title: 'new_custom_posts'.trFormat, 
+        actionText: 'view_all'.trFormat, 
         onAction: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomPostsScreen()))
       ),
       AppSpacing.gapV16,
@@ -435,7 +436,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Obx(() {
       if (hc.news.isEmpty) return const SizedBox.shrink();
       return Column(children: [
-        SectionHeader(icon: Icons.newspaper_outlined, title: 'news_updates'.tr),
+        SectionHeader(icon: Icons.newspaper_outlined, title: 'news_updates'.trFormat),
         AppSpacing.gapV16,
         SizedBox(
           height: 230,

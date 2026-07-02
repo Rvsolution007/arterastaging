@@ -1,3 +1,4 @@
+import 'package:brandkit_mobile/utils/string_extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:url_launcher/url_launcher.dart';
@@ -136,7 +137,7 @@ class _TemplateGridScreenState extends State<TemplateGridScreen> {
                 icon: Icons.fiber_new_rounded,
                 iconBgColor: Colors.green.shade50,
                 iconColor: Colors.green.shade600,
-                title: 'new_posts'.tr,
+                title: 'new_posts'.trFormat,
               ),
               const SizedBox(height: 16),
               SizedBox(
@@ -148,7 +149,7 @@ class _TemplateGridScreenState extends State<TemplateGridScreen> {
                       return const Center(child: CircularProgressIndicator());
                     }
                     return Center(
-                      child: Text('no_templates_yet'.tr, style: TextStyle(color: Colors.grey.shade400)),
+                      child: Text('no_templates_yet'.trFormat, style: TextStyle(color: Colors.grey.shade400)),
                     );
                   }
                   return ListView.builder(
@@ -176,7 +177,7 @@ class _TemplateGridScreenState extends State<TemplateGridScreen> {
                 }
                 return Column(
                   children: purposes.map<Widget>((purpose) {
-                    final purposeName = purpose['customCategoryName'] ?? 'templates'.tr;
+                    final purposeName = purpose['customCategoryName'] ?? 'templates'.trFormat;
                     final purposeId = purpose['customCategoryId'];
                     final posts = (purpose['posts'] as List<dynamic>?) ?? [];
 
@@ -224,7 +225,7 @@ class _TemplateGridScreenState extends State<TemplateGridScreen> {
                                   },
                                   child: Row(
                                     children: [
-                                      Text('view_all'.tr, style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14)),
+                                      Text('view_all'.trFormat, style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14)),
                                       Icon(Icons.chevron_right, color: AppColors.primary, size: 18),
                                     ],
                                   ),

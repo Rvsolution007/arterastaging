@@ -74,18 +74,21 @@ class InteractiveLayer extends StatelessWidget {
       final bool isFrameLayer = layerConfig['_is_frame_layer'] == true || layerConfig['_isFrameLayer'] == true;
       final bool canInteract = !isFrameLayer;
 
-      // Check if we need to show diagnostics for this specific layer
-      final bool showDiag = layerName == 'layer_22' || layerName == 'ellipse_1' || layerName == 'ellipse_1-2';
+      // ── DIAGNOSTICS: Log every layer's interaction state ──
+      debugPrint('[LAYER_INTERACT] name="$layerName" type=${layerConfig['type']} '
+        'isFrameLayer=$isFrameLayer canInteract=$canInteract '
+        'posW=$posW posH=$posH x=$x y=$y w=$w h=$h opacity=${safeDouble(layerConfig['opacity'] ?? 1.0)}');
 
       Widget layerContent = Transform.rotate(
         angle: angle * math.pi / 180,
         child: canInteract ? GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () {
+            debugPrint('[LAYER_TAP] ✅ onTap FIRED for "$layerName"');
             controller.selectLayer(layerName);
           },
           onPanStart: (_) {
-            // Auto-select layer on drag start so user can tap-and-drag in one gesture
+            debugPrint('[LAYER_PAN] ✅ onPanStart FIRED for "$layerName"');
             if (controller.selectedLayerId.value != layerName) {
               controller.selectLayer(layerName);
             }

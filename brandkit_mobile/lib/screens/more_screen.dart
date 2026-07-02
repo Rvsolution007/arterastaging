@@ -1,3 +1,4 @@
+import 'package:brandkit_mobile/utils/string_extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../utils/app_colors.dart';
@@ -83,7 +84,7 @@ class _MoreScreenState extends State<MoreScreen> {
   Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-      child: Text('settings'.tr, style: AppTextStyles.heading2),
+      child: Text('settings'.trFormat, style: AppTextStyles.heading2),
     );
   }
 
@@ -126,13 +127,13 @@ class _MoreScreenState extends State<MoreScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionTitle('partner_program'.tr),
+            _buildSectionTitle('partner_program'.trFormat),
             _buildSectionContainer(
               children: [
                 SettingsItem(
                   icon: Icons.monetization_on_outlined,
-                  title: 'partner_dashboard'.tr,
-                  subtitle: 'view_earnings'.tr,
+                  title: 'partner_dashboard'.trFormat,
+                  subtitle: 'view_earnings'.trFormat,
                   iconColor: AppColors.success,
                   iconBgColor: Colors.transparent,
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PartnerDashboardScreen())),
@@ -150,12 +151,12 @@ class _MoreScreenState extends State<MoreScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('app_preferences'.tr),
+        _buildSectionTitle('app_preferences'.trFormat),
         _buildSectionContainer(
           children: [
             SettingsItem(
               icon: Icons.translate_rounded,
-              title: 'preferred_languages'.tr,
+              title: 'preferred_languages'.trFormat,
               iconColor: AppColors.gray500,
               iconBgColor: Colors.transparent,
               trailing: Row(
@@ -179,7 +180,7 @@ class _MoreScreenState extends State<MoreScreen> {
               final hc = Get.find<HomeController>();
               return SettingsItem(
                 icon: Icons.notifications_none_rounded,
-                title: 'notifications'.tr,
+                title: 'notifications'.trFormat,
                 badgeCount: hc.notifications.length,
                 iconColor: AppColors.gray500,
                 iconBgColor: Colors.transparent,
@@ -258,11 +259,11 @@ class _MoreScreenState extends State<MoreScreen> {
         _buildSectionTitle('Help & Support'),
         _buildSectionContainer(
           children: [
-            SettingsItem(icon: Icons.help_outline, title: 'help_support'.tr, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen()))),
-            SettingsItem(icon: Icons.chat_bubble_outline, title: 'faqs'.tr, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FaqsScreen()))),
+            SettingsItem(icon: Icons.help_outline, title: 'help_support'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen()))),
+            SettingsItem(icon: Icons.chat_bubble_outline, title: 'faqs'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FaqsScreen()))),
             SettingsItem(
               icon: Icons.bug_report_outlined,
-              title: 'report_problem'.tr,
+              title: 'report_problem'.trFormat,
               iconColor: AppColors.gray500,
               iconBgColor: Colors.transparent,
               onTap: () {
@@ -284,13 +285,13 @@ class _MoreScreenState extends State<MoreScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('about_app'.tr),
+        _buildSectionTitle('about_app'.trFormat),
         _buildSectionContainer(
           children: [
-            SettingsItem(icon: Icons.rss_feed, title: 'blog'.tr, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
-            SettingsItem(icon: Icons.lock_outline, title: 'privacy_policy'.tr, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
-            SettingsItem(icon: Icons.description_outlined, title: 'terms_conditions'.tr, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
-            SettingsItem(icon: Icons.credit_card_outlined, title: 'refund_policy'.tr, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
+            SettingsItem(icon: Icons.rss_feed, title: 'blog'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
+            SettingsItem(icon: Icons.lock_outline, title: 'privacy_policy'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
+            SettingsItem(icon: Icons.description_outlined, title: 'terms_conditions'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
+            SettingsItem(icon: Icons.credit_card_outlined, title: 'refund_policy'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
           ],
         ),
       ],
@@ -398,7 +399,7 @@ class _MoreScreenState extends State<MoreScreen> {
             children: [
               Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Text('select_language'.tr, style: AppTextStyles.heading3),
+                child: Text('select_language'.trFormat, style: AppTextStyles.heading3),
               ),
               const Divider(height: 1),
               StatefulBuilder(

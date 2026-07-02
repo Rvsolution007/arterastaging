@@ -1,3 +1,4 @@
+import 'package:brandkit_mobile/utils/string_extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -143,7 +144,7 @@ class _SearchScreenState extends State<SearchScreen> {
           onChanged: _onSearchChanged,
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
-            hintText: 'search_templates_categories'.tr,
+            hintText: 'search_templates_categories'.trFormat,
             hintStyle: TextStyle(color: AppColors.gray400, fontSize: 15),
             border: InputBorder.none,
             enabledBorder: InputBorder.none,

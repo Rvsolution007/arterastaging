@@ -1,3 +1,4 @@
+import 'package:brandkit_mobile/utils/string_extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../utils/app_colors.dart';
@@ -20,7 +21,7 @@ class ComingSoonWidget extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            title.tr,
+            title.trFormat,
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -29,7 +30,7 @@ class ComingSoonWidget extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Coming Soon!'.tr,
+            'Coming Soon!'.trFormat,
             style: const TextStyle(
               fontSize: 18,
               color: AppColors.textMuted,

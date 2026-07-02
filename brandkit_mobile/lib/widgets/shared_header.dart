@@ -1,3 +1,4 @@
+import 'package:brandkit_mobile/utils/string_extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -53,12 +54,12 @@ class SharedHeader extends StatelessWidget {
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Obx(() => Text(
-                    hc.businessName.value.isNotEmpty ? hc.businessName.value : 'update_business'.tr,
+                    hc.businessName.value.isNotEmpty ? hc.businessName.value : 'update_business'.trFormat,
                     style: AppTextStyles.cardTitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   )),
-                  Text('business'.tr, style: AppTextStyles.cardSubtitle),
+                  Text('business'.trFormat, style: AppTextStyles.cardSubtitle),
                 ]),
               ),
             ]),
@@ -68,7 +69,7 @@ class SharedHeader extends StatelessWidget {
             // ── Subscription Badge ──
             Obx(() {
               final sc = Get.find<SubscriptionController>();
-              final planLabel = sc.planName.value.isNotEmpty ? sc.planName.value : 'free'.tr;
+              final planLabel = sc.planName.value.isNotEmpty ? sc.planName.value : 'free'.trFormat;
               final isFree = !sc.hasActivePlan;
               return GestureDetector(
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SubscriptionPlansScreen())),

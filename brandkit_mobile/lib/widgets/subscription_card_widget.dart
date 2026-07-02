@@ -1,3 +1,4 @@
+import 'package:brandkit_mobile/utils/string_extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/subscription_controller.dart';
@@ -17,7 +18,7 @@ class SubscriptionCardWidget extends StatelessWidget {
 
     return Obx(() {
       final features = sc.getFeatureUsageList();
-      final planLabel = sc.planName.value.isNotEmpty ? sc.planName.value : 'free'.tr;
+      final planLabel = sc.planName.value.isNotEmpty ? sc.planName.value : 'free'.trFormat;
       final hasActivePlan = sc.hasActivePlan;
 
       return Container(
@@ -98,7 +99,7 @@ class SubscriptionCardWidget extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        '${sc.daysRemaining}d ${'days_left'.tr}',
+                        '${sc.daysRemaining}d ${'days_left'.trFormat}',
                         style: TextStyle(
                           color: sc.isExpiringSoon ? Colors.red.shade100 : Colors.white,
                           fontSize: 12,
@@ -145,7 +146,7 @@ class SubscriptionCardWidget extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'usage_this_month'.tr.toUpperCase(),
+                      'usage_this_month'.trFormat.toUpperCase(),
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.6),
                         fontSize: 10,
@@ -184,7 +185,7 @@ class SubscriptionCardWidget extends StatelessWidget {
                       Icon(Icons.auto_awesome, color: AppColors.indigo600, size: 18),
                       const SizedBox(width: 8),
                       Text(
-                        hasActivePlan ? 'view_plans'.tr : 'upgrade_plan'.tr,
+                        hasActivePlan ? 'view_plans'.trFormat : 'upgrade_plan'.trFormat,
                         style: TextStyle(
                           color: AppColors.indigo600,
                           fontSize: 15,

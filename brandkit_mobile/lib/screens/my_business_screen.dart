@@ -1,3 +1,4 @@
+import 'package:brandkit_mobile/utils/string_extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/auth_controller.dart';
@@ -80,7 +81,7 @@ class MyBusinessScreen extends StatelessWidget {
               }),
               AppSpacing.gapH20,
               Obx(() => Text(
-                hc.businessName.value.isNotEmpty ? hc.businessName.value : 'business'.tr,
+                hc.businessName.value.isNotEmpty ? hc.businessName.value : 'business'.trFormat,
                 style: AppTextStyles.heading2,
               )),
             ],
@@ -88,7 +89,7 @@ class MyBusinessScreen extends StatelessWidget {
           GestureDetector(
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BusinessProfileScreen())),
             child: Text(
-              'edit'.tr,
+              'edit'.trFormat,
               style: TextStyle(
                 color: AppColors.indigo600,
                 fontWeight: FontWeight.w700,
@@ -117,7 +118,7 @@ class MyBusinessScreen extends StatelessWidget {
         runSpacing: 16,
         children: [
           _buildActionCard(
-            title: 'ai_setup'.tr,
+            title: 'ai_setup'.trFormat,
             icon: Icons.smart_toy_outlined,
             iconBg: AppColors.primary,
             iconColor: Colors.white,
@@ -125,35 +126,35 @@ class MyBusinessScreen extends StatelessWidget {
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AiSetupWizardScreen())),
           ),
           _buildActionCard(
-            title: 'products'.tr,
+            title: 'products'.trFormat,
             icon: Icons.inventory_2_outlined,
             iconBg: AppColors.slate100,
             iconColor: AppColors.slate600,
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProductsScreen())),
           ),
           _buildActionCard(
-            title: 'catalogue_setting'.tr,
+            title: 'catalogue_setting'.trFormat,
             icon: Icons.list_alt_outlined,
             iconBg: AppColors.slate100,
             iconColor: AppColors.slate600,
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CatalogueColumnsScreen())),
           ),
           _buildActionCard(
-            title: 'frames'.tr,
+            title: 'frames'.trFormat,
             icon: Icons.filter_frames_outlined,
             iconBg: AppColors.slate100,
             iconColor: AppColors.slate600,
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FramesScreen())),
           ),
           _buildActionCard(
-            title: 'my_businesses'.tr,
+            title: 'my_businesses'.trFormat,
             icon: Icons.business_center_outlined,
             iconBg: AppColors.indigo50,
             iconColor: AppColors.indigo500,
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BusinessListScreen())),
           ),
           _buildActionCard(
-            title: 'downloads'.tr,
+            title: 'downloads'.trFormat,
             icon: Icons.download_outlined,
             iconBg: AppColors.indigo50,
             iconColor: AppColors.indigo500,

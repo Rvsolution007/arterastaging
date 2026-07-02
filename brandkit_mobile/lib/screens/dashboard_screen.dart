@@ -1,3 +1,4 @@
+import 'package:brandkit_mobile/utils/string_extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../utils/app_colors.dart';
@@ -85,11 +86,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildNavItem(0, Icons.home_outlined, Icons.home, 'home'.tr),
-                    if (!AppConfig.isStaging) _buildNavItem(1, Icons.image_outlined, Icons.image, 'custom'.tr),
-                    _buildNavItem(2, Icons.storefront_outlined, Icons.storefront, 'business'.tr),
+                    _buildNavItem(0, Icons.home_outlined, Icons.home, 'home'.trFormat),
+                    if (!AppConfig.isStaging) _buildNavItem(1, Icons.image_outlined, Icons.image, 'custom'.trFormat),
+                    _buildNavItem(2, Icons.storefront_outlined, Icons.storefront, 'business'.trFormat),
                     if (!AppConfig.isStaging) _buildNavItem(3, Icons.celebration_outlined, Icons.celebration, 'Greetings'),
-                    _buildNavItem(4, Icons.menu, Icons.menu, 'more'.tr),
+                    _buildNavItem(4, Icons.menu, Icons.menu, 'more'.trFormat),
                   ],
                 ),
               ),

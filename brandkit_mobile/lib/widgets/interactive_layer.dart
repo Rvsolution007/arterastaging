@@ -72,7 +72,21 @@ class InteractiveLayer extends StatelessWidget {
       final double? posH = (h > 0 && !isText) ? h : null;
 
       final bool isFrameLayer = layerConfig['_is_frame_layer'] == true || layerConfig['_isFrameLayer'] == true;
-      final bool canInteract = !isFrameLayer;
+      
+      // Only block interaction on STRUCTURAL frame layers (bg, overlay, frame border).
+      // Content layers from frames (text, logo, icons, contact info) should be interactive
+      // so users can select, edit, and move them.
+      final String _lName = layerName.toLowerCase();
+      final bool isFrameStructural = isFrameLayer && (
+        layerConfig['is_background'] == true ||
+        _lName == '_frame_bg' || 
+        _lName == '_frame' || 
+        _lName == 'frame' ||
+        _lName == 'background' ||
+        _lName == 'bg' ||
+        _lName.contains('background')
+      );
+      final bool canInteract = !isFrameStructural;
 
       // Diagnostics moved to onTap/onPanStart to avoid running on every rebuild
 

@@ -1360,6 +1360,91 @@
         }
     });
 
+    document.addEventListener('copy', function(e) {
+        if (!canvas) return;
+        const activeObject = canvas.getActiveObject();
+        // If editing text, let the browser copy text natively
+        if (activeObject && activeObject.isEditing) return;
+        
+        if (activeObject) {
+            activeObject.clone(function(cloned) {
+                window._canvasClipboard = cloned;
+                window._canvasClipboardTime = Date.now();
+                try {
+                    const jsonObj = activeObject.toObject(customAttrs);
+                    localStorage.setItem('artera_clipboard', JSON.stringify(jsonObj));
+                    localStorage.setItem('artera_clipboard_time', window._canvasClipboardTime.toString());
+                } catch(err) { console.warn('Cross-tab copy failed', err); }
+                console.log('Copied to clipboard via native copy event');
+            }, customAttrs);
+        }
+    });
+
+    document.addEventListener('paste', function(e) {
+        if (!canvas) return;
+        const activeObject = canvas.getActiveObject();
+        if (activeObject && activeObject.isEditing) return; // Let native text paste work
+        
+        const localTimestamp = parseInt(localStorage.getItem('artera_clipboard_time') || '0');
+        const memoryTimestamp = window._canvasClipboardTime || 0;
+        
+        if (localTimestamp > memoryTimestamp) {
+            e.preventDefault();
+            try {
+                const localClipStr = localStorage.getItem('artera_clipboard');
+                if (localClipStr) {
+                    const parsed = JSON.parse(localClipStr);
+                    fabric.util.enlivenObjects([parsed], function(objects) {
+                        if (objects.length) {
+                            window._canvasClipboard = objects[0];
+                            window._canvasClipboardTime = localTimestamp;
+                            _doPasteNative();
+                        }
+                    });
+                }
+            } catch(err) { console.warn('Cross-tab paste failed', err); }
+        } else if (window._canvasClipboard) {
+            e.preventDefault();
+            _doPasteNative();
+        }
+        
+        function _doPasteNative() {
+            if (!window._canvasClipboard) return;
+            window._canvasClipboard.clone(function(clonedObj) {
+                canvas.discardActiveObject();
+                clonedObj.set({
+                    left: clonedObj.left + 20,
+                    top: clonedObj.top + 20,
+                    evented: true,
+                });
+                if (clonedObj.type === 'activeSelection') {
+                    clonedObj.canvas = canvas;
+                    clonedObj.forEachObject(function(obj) { canvas.add(obj); });
+                    clonedObj.setCoords();
+                } else {
+                    canvas.add(clonedObj);
+                }
+                window._canvasClipboard.top += 20;
+                window._canvasClipboard.left += 20;
+                
+                try {
+                    const localClipStr = localStorage.getItem('artera_clipboard');
+                    if (localClipStr) {
+                        const parsed = JSON.parse(localClipStr);
+                        parsed.top = (parsed.top || 0) + 20;
+                        parsed.left = (parsed.left || 0) + 20;
+                        localStorage.setItem('artera_clipboard', JSON.stringify(parsed));
+                    }
+                } catch(err) {}
+                
+                canvas.setActiveObject(clonedObj);
+                canvas.requestRenderAll();
+                updateLayersList();
+                saveHistory();
+            }, customAttrs);
+        }
+    });
+
     // Nudge buttons
     function nudgeObj(dir) {
         var obj = canvas.getActiveObject();

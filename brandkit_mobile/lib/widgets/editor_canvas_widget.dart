@@ -877,7 +877,9 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     }
 
     // Add spaces for PascalCase fonts like BebasNeue -> Bebas Neue to match Google Fonts
-    cleanFontFamily = cleanFontFamily.replaceAllMapped(RegExp(r'([a-z])([A-Z])'), (Match m) => '${m[1]} ${m[2]}');
+    if (!cleanFontFamily.startsWith('packages/')) {
+      cleanFontFamily = cleanFontFamily.replaceAllMapped(RegExp(r'([a-z])([A-Z])'), (Match m) => '${m[1]} ${m[2]}');
+    }
 
     if (weightStr == 'bold' || fontName.toLowerCase().contains('bold')) {
       fontWeight = FontWeight.bold;

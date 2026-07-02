@@ -857,11 +857,14 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
 
     // Map Web Editor FontAwesome names to Flutter's font_awesome_flutter package families
     bool isPackageFont = false;
+    String? fontPackage;
     if (fontName.toLowerCase().contains('brands')) {
-      fontName = 'packages/font_awesome_flutter/FontAwesomeBrands';
+      fontName = 'FontAwesomeBrands';
+      fontPackage = 'font_awesome_flutter';
       isPackageFont = true;
     } else if (fontName.toLowerCase().contains('font awesome') || fontName.toLowerCase().contains('fontawesome')) {
-      fontName = 'packages/font_awesome_flutter/FontAwesomeSolid';
+      fontName = 'FontAwesomeSolid';
+      fontPackage = 'font_awesome_flutter';
       isPackageFont = true;
     }
 
@@ -990,6 +993,8 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       fontStyle: fontStyle,
       letterSpacing: letterSpacing,
       shadows: shadows,
+      package: fontPackage,
+      fontFamily: isPackageFont ? fontName : null,
       // RC-1: Web exports 'lineHeight' (camelCase), PSD ZIP uses 'line_height'. Default 1.16 matches Fabric.js.
       // Guard: corrupted lineHeight values (e.g. 0.0387 from legacy export dividing multiplier by fontSize)
       // are clamped to default 1.16. Valid Fabric multipliers range ~0.5–10.
@@ -1000,11 +1005,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       }(),
     );
 
-    if (isPackageFont) {
-      // Package fonts (FontAwesome etc.) — set fontFamily directly, skip GoogleFonts
-      textStyle = textStyle.copyWith(fontFamily: fontName);
-      debugPrint('[TEXT_FONT] Using package font: $fontName');
-    } else if (cleanFontFamily.isNotEmpty) {
+    if (!isPackageFont && cleanFontFamily.isNotEmpty) {
       try {
         textStyle = GoogleFonts.getFont(
           cleanFontFamily,
@@ -1087,14 +1088,6 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       // CRITICAL: Disable system accessibility font scaling so canvas designs don't break
       textScaler: TextScaler.noScaling,
     );
-
-    if (isSingleLine) {
-      textWidget = FittedBox(
-        fit: BoxFit.scaleDown,
-        alignment: alignment,
-        child: textWidget,
-      );
-    }
 
     final double rawW = safeDouble(layer['w'] ?? layer['width'] ?? 0);
     if (rawW > 0) {

@@ -696,10 +696,13 @@ class _CustomPostPreviewState extends State<CustomPostPreview> {
     }
 
     // Map Web Editor FontAwesome names to Flutter's font_awesome_flutter package families
+    String? fontPackage;
     if (fontName.toLowerCase().contains('brands')) {
-      fontName = 'packages/font_awesome_flutter/FontAwesomeBrands';
+      fontName = 'FontAwesomeBrands';
+      fontPackage = 'font_awesome_flutter';
     } else if (fontName.toLowerCase().contains('font awesome') || fontName.toLowerCase().contains('fontawesome')) {
-      fontName = 'packages/font_awesome_flutter/FontAwesomeSolid';
+      fontName = 'FontAwesomeSolid';
+      fontPackage = 'font_awesome_flutter';
     }
 
     FontWeight fontWeight = FontWeight.normal;
@@ -769,6 +772,7 @@ class _CustomPostPreviewState extends State<CustomPostPreview> {
       textAlign: textAlign,
       style: TextStyle(
         fontFamily: fontName.isNotEmpty ? fontName : null,
+        package: fontPackage,
         color: fontColor,
         fontSize: fontSize,
         fontWeight: fontWeight,

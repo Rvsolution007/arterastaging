@@ -301,14 +301,22 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
             ),
           ),
           Expanded(
-            child: GestureDetector(
-              onTap: () {
-                // Deselect layers when tapping outside
-                controller.selectedLayerId.value = '';
+            child: Listener(
+              behavior: HitTestBehavior.translucent,
+              onPointerUp: (event) {
+                // Deselect layers when tapping on the background (outside any layer)
+                // Using Listener instead of GestureDetector so it does NOT enter the
+                // gesture arena and block child InteractiveLayer GestureDetectors.
               },
-              child: Container(
-                color: const Color(0xFFE2E8F0), // Match web canvas area background
-                width: double.infinity,
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: () {
+                  // Deselect only when tapping outside any layer
+                  controller.selectedLayerId.value = '';
+                },
+                child: Container(
+                  color: const Color(0xFFE2E8F0), // Match web canvas area background
+                  width: double.infinity,
                 child: Center(
                   child: LayoutBuilder(
                     builder: (context, constraints) {
@@ -360,6 +368,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                     }
                   ),
                 ),
+              ),
               ),
             ),
           ),

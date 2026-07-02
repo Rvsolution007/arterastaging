@@ -80,10 +80,20 @@ class InteractiveLayer extends StatelessWidget {
       Widget layerContent = Transform.rotate(
         angle: angle * math.pi / 180,
         child: canInteract ? GestureDetector(
+          behavior: HitTestBehavior.opaque,
           onTap: () {
             controller.selectLayer(layerName);
           },
-          onPanUpdate: isSelected ? (details) {
+          onPanStart: (_) {
+            // Auto-select layer on drag start so user can tap-and-drag in one gesture
+            if (controller.selectedLayerId.value != layerName) {
+              controller.selectLayer(layerName);
+            }
+          },
+          onPanUpdate: (details) {
+            // Only allow drag if this layer is the selected one
+            if (controller.selectedLayerId.value != layerName) return;
+            
             final layers = controller.templateConfig['layers'] as List<dynamic>?;
             final currentLayer = layers?.firstWhere((l) => (l['name'] ?? l['id']).toString() == layerName, orElse: () => null);
             if (currentLayer == null) return;
@@ -102,8 +112,12 @@ class InteractiveLayer extends StatelessWidget {
               safeDouble(currentLayer['h'] ?? currentLayer['height'] ?? 0), 
               angle
             );
-          } : null,
-          onPanEnd: isSelected ? (_) => controller.commitLayerChange() : null,
+          },
+          onPanEnd: (_) {
+            if (controller.selectedLayerId.value == layerName) {
+              controller.commitLayerChange();
+            }
+          },
           child: Stack(
             clipBehavior: Clip.none,
             children: [

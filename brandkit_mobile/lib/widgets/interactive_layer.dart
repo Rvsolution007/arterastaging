@@ -7,7 +7,7 @@ import '../controllers/native_editor_controller.dart';
 
 import 'dart:math' as math;
 
-class InteractiveLayer extends StatelessWidget {
+class InteractiveLayer extends StatefulWidget {
   final String layerName;
   final Widget child;
   final double scale;
@@ -21,80 +21,70 @@ class InteractiveLayer extends StatelessWidget {
     required this.layerConfig,
   });
 
-  /// Get the live layer data from the controller's templateConfig
-  /// instead of the stale copy passed via constructor.
-  Map<String, dynamic>? _getLiveLayer(NativeEditorController controller) {
-    final layers = controller.templateConfig['layers'] as List<dynamic>?;
-    if (layers == null) return null;
-    for (var l in layers) {
-      if ((l['name'] ?? l['id']).toString() == layerName) {
-        return l as Map<String, dynamic>;
-      }
-    }
-    return null;
-  }
+  @override
+  State<InteractiveLayer> createState() => _InteractiveLayerState();
+}
+
+class _InteractiveLayerState extends State<InteractiveLayer> {
+  // Local drag offset — accumulated during pan, applied to visual position.
+  // Committed to controller only on pan end.
+  double _dragDx = 0.0;
+  double _dragDy = 0.0;
+  bool _isDragging = false;
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<NativeEditorController>();
 
-
     return Obx(() {
       final _layerUpdate = controller.layerUpdateTrigger.value;
-      final _ = controller.templateConfig.values.toList(); // Force GetX to track config changes like opacity
-      final isSelected = controller.selectedLayerId.value == layerName;
-      
-      // Read LIVE position from controller's templateConfig (not stale layerConfig copy)
-      // so drag updates are reflected immediately.
-      final liveLayer = _getLiveLayer(controller) ?? layerConfig;
-      
-      final double x = safeDouble(liveLayer['x'] ?? 0) * scale;
-      double y = safeDouble(liveLayer['y'] ?? 0) * scale;
-      
-      // RC-6: Point Text Y-offset correction (matches web editor's Fabric.js em-box adjustment)
-      if (liveLayer['type'] == 'text' && liveLayer['kind']?.toString().toLowerCase() == 'point') {
-        final double rawSize = safeDouble(liveLayer['fontSize'] ?? liveLayer['font_size'] ?? liveLayer['size'] ?? 16);
+      final _ = controller.templateConfig.values.toList();
+      final isSelected = controller.selectedLayerId.value == widget.layerName;
+
+      final double x = safeDouble(widget.layerConfig['x'] ?? 0) * widget.scale;
+      double y = safeDouble(widget.layerConfig['y'] ?? 0) * widget.scale;
+
+      // RC-6: Point Text Y-offset correction
+      if (widget.layerConfig['type'] == 'text' && widget.layerConfig['kind']?.toString().toLowerCase() == 'point') {
+        final double rawSize = safeDouble(widget.layerConfig['fontSize'] ?? widget.layerConfig['font_size'] ?? widget.layerConfig['size'] ?? 16);
         final double docPPI = safeDouble(controller.templateConfig['info']?['ppi'] ?? 72);
         final double ppiScale = docPPI / 72.0;
-        final double layerScaleYForFont = safeDouble(liveLayer['scaleY'] ?? liveLayer['scaleX'] ?? 1.0);
-        final double effectiveFontSize = rawSize * ppiScale * layerScaleYForFont * scale;
+        final double layerScaleYForFont = safeDouble(widget.layerConfig['scaleY'] ?? widget.layerConfig['scaleX'] ?? 1.0);
+        final double effectiveFontSize = rawSize * ppiScale * layerScaleYForFont * widget.scale;
         y -= (effectiveFontSize * 0.12);
       }
-      double rawW = safeDouble(liveLayer['w'] ?? liveLayer['width'] ?? 0);
-      double rawH = safeDouble(liveLayer['h'] ?? liveLayer['height'] ?? 0);
+      double rawW = safeDouble(widget.layerConfig['w'] ?? widget.layerConfig['width'] ?? 0);
+      double rawH = safeDouble(widget.layerConfig['h'] ?? widget.layerConfig['height'] ?? 0);
 
       // For frames lacking explicit dimensions, force them to 100% canvas size
-      if ((layerName == '_frame_bg' || layerName == '_frame' || layerName == 'frame') && (rawW <= 0 || rawH <= 0)) {
+      if ((widget.layerName == '_frame_bg' || widget.layerName == '_frame' || widget.layerName == 'frame') && (rawW <= 0 || rawH <= 0)) {
         rawW = safeDouble(controller.templateConfig['info']?['width'] ?? controller.templateConfig['width'] ?? 1080);
         rawH = safeDouble(controller.templateConfig['info']?['height'] ?? controller.templateConfig['height'] ?? 1080);
       }
 
-      final double opacity = safeDouble(layerConfig['opacity'] ?? 1.0);
+      final double opacity = safeDouble(widget.layerConfig['opacity'] ?? 1.0);
       if (opacity <= 0.0) return const SizedBox.shrink();
 
-      final double layerScaleX = safeDouble(layerConfig['scaleX'] ?? 1.0);
-      final double layerScaleY = safeDouble(layerConfig['scaleY'] ?? 1.0);
+      final double layerScaleX = safeDouble(widget.layerConfig['scaleX'] ?? 1.0);
+      final double layerScaleY = safeDouble(widget.layerConfig['scaleY'] ?? 1.0);
 
-      final double w = rawW * layerScaleX * scale;
-      final double h = rawH * layerScaleY * scale;
-      final double angle = safeDouble(layerConfig['angle'] ?? 0);
+      final double w = rawW * layerScaleX * widget.scale;
+      final double h = rawH * layerScaleY * widget.scale;
+      final double angle = safeDouble(widget.layerConfig['angle'] ?? 0);
 
-      // For layers with zero/missing dimensions, use the child's intrinsic size
-      // but cap it to prevent unbounded overflow
-      final bool isText = layerConfig['type'] == 'text';
+      final bool isText = widget.layerConfig['type'] == 'text';
       final double? posW = w > 0 ? w : null;
       final double? posH = (h > 0 && !isText) ? h : null;
 
-      final bool isFrameLayer = layerConfig['_is_frame_layer'] == true || layerConfig['_isFrameLayer'] == true;
-      
+      final bool isFrameLayer = widget.layerConfig['_is_frame_layer'] == true || widget.layerConfig['_isFrameLayer'] == true;
+
       // Only block interaction on STRUCTURAL frame layers (bg, overlay, frame border).
-      // Content layers from frames (text, logo, icons, contact info) should be interactive
-      // so users can select, edit, and move them.
-      final String _lName = layerName.toLowerCase();
+      // Content layers from frames (text, logo, icons, contact info) should be interactive.
+      final String _lName = widget.layerName.toLowerCase();
       final bool isFrameStructural = isFrameLayer && (
-        layerConfig['is_background'] == true ||
-        _lName == '_frame_bg' || 
-        _lName == '_frame' || 
+        widget.layerConfig['is_background'] == true ||
+        _lName == '_frame_bg' ||
+        _lName == '_frame' ||
         _lName == 'frame' ||
         _lName == 'background' ||
         _lName == 'bg' ||
@@ -102,58 +92,67 @@ class InteractiveLayer extends StatelessWidget {
       );
       final bool canInteract = !isFrameStructural;
 
-      // Diagnostics moved to onTap/onPanStart to avoid running on every rebuild
+      // Apply local drag offset for smooth dragging
+      final double visualX = x + (_isDragging ? _dragDx : 0.0);
+      final double visualY = y + (_isDragging ? _dragDy : 0.0);
 
       Widget layerContent = Transform.rotate(
         angle: angle * math.pi / 180,
         child: canInteract ? GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () {
-            debugPrint('[LAYER_TAP] ✅ onTap FIRED for "$layerName" type=${layerConfig['type']} isFrame=$isFrameLayer canInteract=$canInteract posW=$posW posH=$posH');
+            debugPrint('[LAYER_TAP] ✅ onTap FIRED for "${widget.layerName}"');
             controller.layerWasTapped = true;
-            controller.selectLayer(layerName);
+            controller.selectLayer(widget.layerName);
           },
-          onPanStart: (_) {
-            debugPrint('[LAYER_PAN] ✅ onPanStart FIRED for "$layerName" type=${layerConfig['type']}');
+          onPanStart: (details) {
+            debugPrint('[LAYER_PAN] ✅ onPanStart for "${widget.layerName}"');
             controller.layerWasTapped = true;
-            if (controller.selectedLayerId.value != layerName) {
-              controller.selectLayer(layerName);
+            if (controller.selectedLayerId.value != widget.layerName) {
+              controller.selectLayer(widget.layerName);
             }
+            setState(() {
+              _isDragging = true;
+              _dragDx = 0.0;
+              _dragDy = 0.0;
+            });
           },
           onPanUpdate: (details) {
-            debugPrint('[LAYER_DRAG] onPanUpdate for "$layerName" selected=${controller.selectedLayerId.value} delta=${details.delta}');
-            // Only allow drag if this layer is the selected one
-            if (controller.selectedLayerId.value != layerName) {
-              debugPrint('[LAYER_DRAG] ❌ BLOCKED - selected=${controller.selectedLayerId.value} != $layerName');
-              return;
-            }
-            
-            final layers = controller.templateConfig['layers'] as List<dynamic>?;
-            final currentLayer = layers?.firstWhere((l) => (l['name'] ?? l['id']).toString() == layerName, orElse: () => null);
-            if (currentLayer == null) {
-              debugPrint('[LAYER_DRAG] ❌ currentLayer NOT FOUND for "$layerName"');
-              return;
-            }
-
-            // Update position using synchronous state to prevent drag jitter
-            final dx = details.delta.dx / scale;
-            final dy = details.delta.dy / scale;
-            final currentX = safeDouble(currentLayer['x'] ?? 0);
-            final currentY = safeDouble(currentLayer['y'] ?? 0);
-            
-            controller.updateLayerBounds(
-              layerName, 
-              currentX + dx, 
-              currentY + dy, 
-              safeDouble(currentLayer['w'] ?? currentLayer['width'] ?? 0), 
-              safeDouble(currentLayer['h'] ?? currentLayer['height'] ?? 0), 
-              angle
-            );
+            if (controller.selectedLayerId.value != widget.layerName) return;
+            // Accumulate drag offset locally for instant visual feedback
+            setState(() {
+              _dragDx += details.delta.dx;
+              _dragDy += details.delta.dy;
+            });
           },
           onPanEnd: (_) {
-            if (controller.selectedLayerId.value == layerName) {
+            debugPrint('[LAYER_PAN] onPanEnd for "${widget.layerName}" dx=$_dragDx dy=$_dragDy');
+            if (controller.selectedLayerId.value == widget.layerName) {
+              // Commit the accumulated drag to the controller
+              final layers = controller.templateConfig['layers'] as List<dynamic>?;
+              final currentLayer = layers?.firstWhere(
+                (l) => (l['name'] ?? l['id']).toString() == widget.layerName,
+                orElse: () => null,
+              );
+              if (currentLayer != null) {
+                final currentX = safeDouble(currentLayer['x'] ?? 0);
+                final currentY = safeDouble(currentLayer['y'] ?? 0);
+                controller.updateLayerBounds(
+                  widget.layerName,
+                  currentX + _dragDx / widget.scale,
+                  currentY + _dragDy / widget.scale,
+                  safeDouble(currentLayer['w'] ?? currentLayer['width'] ?? 0),
+                  safeDouble(currentLayer['h'] ?? currentLayer['height'] ?? 0),
+                  angle,
+                );
+              }
               controller.commitLayerChange();
             }
+            setState(() {
+              _isDragging = false;
+              _dragDx = 0.0;
+              _dragDy = 0.0;
+            });
           },
           child: Stack(
             clipBehavior: Clip.none,
@@ -161,7 +160,7 @@ class InteractiveLayer extends StatelessWidget {
               SizedBox(
                 width: posW,
                 height: posH,
-                child: child,
+                child: widget.child,
               ),
               if (isSelected)
                 Positioned.fill(
@@ -175,41 +174,35 @@ class InteractiveLayer extends StatelessWidget {
                 ..._buildHandles(),
             ],
           ),
-        ) : child,
+        ) : widget.child,
       );
 
-      final String just = (layerConfig['justification']?.toString().toLowerCase().trim()) ?? 'left';
+      final String just = (widget.layerConfig['justification']?.toString().toLowerCase().trim()) ?? 'left';
       double? finalLeft;
       double? finalRight;
-      
+
       if (posW != null) {
-        // If width is known, always use left: x and width: posW
-        // The container inside will handle the right alignment
-        finalLeft = x;
+        finalLeft = visualX;
       } else {
-        // If width is unknown, alignment determines origin
         if (just == 'right') {
-          // Web editor: originX = right, tLeft = x. Right edge is at x!
-          final double canvasW = safeDouble(controller.templateConfig['info']?['width'] ?? controller.templateConfig['width'] ?? 1080) * scale;
-          finalRight = canvasW - x;
+          final double canvasW = safeDouble(controller.templateConfig['info']?['width'] ?? controller.templateConfig['width'] ?? 1080) * widget.scale;
+          finalRight = canvasW - visualX;
         } else if (just == 'center') {
-          // Fallback, not strictly perfect without width
-          finalLeft = x; 
+          finalLeft = visualX;
         } else {
-          finalLeft = x;
+          finalLeft = visualX;
         }
       }
 
       return Positioned(
         left: finalLeft,
         right: finalRight,
-        top: y,
+        top: visualY,
         width: posW,
         height: posH,
         child: layerContent,
       );
     });
-
   }
 
   List<Widget> _buildHandles() {
@@ -239,5 +232,3 @@ class InteractiveLayer extends StatelessWidget {
     );
   }
 }
-
-

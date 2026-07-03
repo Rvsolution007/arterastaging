@@ -77,12 +77,11 @@ trait WatermarkImageTrait
 
             $watermark = $manager->read($watermarkData);
 
-            // Resize watermark (40% of original image width)
-            $watermarkWidth = intval($imageWidth * 0.4); 
-            $watermark->scale(width: $watermarkWidth);
+            // Resize watermark to fully fit the original image
+            $watermark->resize($imageWidth, $imageHeight);
 
-            // Place watermark in the center with 50% opacity
-            $image->place($watermark, 'center', 0, 0, 50);
+            // Place watermark over the entire image with 100% opacity (preserving PNG transparency)
+            $image->place($watermark, 'center', 0, 0, 100);
 
             $watermarkedFilename = 'watermarked_' . $originalFilename;
 

@@ -182,6 +182,76 @@
         }
     });
 
+    // --- Pan (Scroll) by Dragging ---
+    let isPanning = false;
+    let panStartX = 0, panStartY = 0;
+    let initialScrollLeft = 0, initialScrollTop = 0;
+    let isSpaceDown = false;
+
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+            isSpaceDown = true;
+            if (wrapEl) wrapEl.style.cursor = 'grab';
+            e.preventDefault();
+        }
+    });
+    window.addEventListener('keyup', (e) => {
+        if (e.code === 'Space') {
+            isSpaceDown = false;
+            if (wrapEl && !isPanning) wrapEl.style.cursor = '';
+        }
+    });
+
+    if (wrapEl) {
+        wrapEl.addEventListener('mousedown', (e) => {
+            if (e.target === wrapEl || e.button === 1 || (e.button === 0 && isSpaceDown)) {
+                isPanning = true;
+                wrapEl.style.cursor = 'grabbing';
+                panStartX = e.clientX;
+                panStartY = e.clientY;
+                initialScrollLeft = wrapEl.scrollLeft;
+                initialScrollTop = wrapEl.scrollTop;
+                if (e.button === 1) e.preventDefault();
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isPanning) return;
+            const dx = e.clientX - panStartX;
+            const dy = e.clientY - panStartY;
+            wrapEl.scrollLeft = initialScrollLeft - dx;
+            wrapEl.scrollTop = initialScrollTop - dy;
+        });
+
+        window.addEventListener('mouseup', (e) => {
+            if (isPanning) {
+                isPanning = false;
+                wrapEl.style.cursor = isSpaceDown ? 'grab' : '';
+            }
+        });
+    }
+
+    window.addEventListener('mousedown', (e) => {
+        if (e.button === 1 || (e.button === 0 && isSpaceDown) || e.altKey) {
+            if (e.target.closest('#canvas-wrapper')) {
+                isPanning = true;
+                if (wrapEl) {
+                    wrapEl.style.cursor = 'grabbing';
+                    panStartX = e.clientX;
+                    panStartY = e.clientY;
+                    initialScrollLeft = wrapEl.scrollLeft;
+                    initialScrollTop = wrapEl.scrollTop;
+                }
+                
+                canvas.discardActiveObject();
+                canvas.requestRenderAll();
+                
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }
+    }, true);
+
     // --- Helper: safe getElementById ---
     function $(id) { return document.getElementById(id); }
     function $$(selector) { return document.querySelectorAll(selector); }

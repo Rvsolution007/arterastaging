@@ -130,6 +130,25 @@
             <!-- Left Sidebar: Tools & Layers -->
             <div class="editor-sidebar">
                 
+                @if($mode === 'frame')
+                <div>
+                    <div class="panel-section-title"><i class="fa-solid fa-tags"></i> Placeholders</div>
+                    <select id="placeholder-select" class="aim-select mb-2">
+                        <option value="name">Business Name</option>
+                        <option value="phone_1">Mobile Number</option>
+                        <option value="email">Email ID</option>
+                        <option value="website">Website</option>
+                        <option value="address">Address</option>
+                    </select>
+                    <div style="display: flex; gap: 6px;">
+                        <button class="aim-btn aim-btn-outline" id="add-placeholder" style="flex-grow: 1; color: #10b981; border-color: #a7f3d0;"><i class="fa fa-plus"></i> Add Placeholder</button>
+                        <button class="aim-btn aim-btn-outline" id="duplicate-placeholder" style="color: #6366f1; border-color: #c7d2fe; padding: 0 12px;" title="Duplicate Selected Layer (e.g. phone_1 -> phone_2)"><i class="fa fa-clone"></i></button>
+                    </div>
+                </div>
+                
+                <hr>
+                @endif
+
                 <div>
                     <div class="panel-section-title"><i class="fa-solid fa-plus-circle"></i> Add Elements</div>
                     <button class="aim-btn aim-btn-outline w-100 mb-2" id="add-text"><i class="fa fa-font"></i> Add Text</button>
@@ -209,20 +228,7 @@
                     </div>
                 </div>
                 
-                <hr>
-                
-                <div>
-                    <div class="panel-section-title"><i class="fa-solid fa-tags"></i> Placeholders</div>
-                    <select id="placeholder-select" class="aim-select mb-2">
-                        <option value="business_name">Business Name</option>
-                        <option value="mobile_number">Mobile Number</option>
-                        <option value="address">Address</option>
-                        <option value="website">Website</option>
-                    </select>
-                    <button class="aim-btn aim-btn-outline w-100" id="add-placeholder" style="color: #10b981; border-color: #a7f3d0;"><i class="fa fa-plus"></i> Add Placeholder</button>
-                </div>
 
-                <hr>
                 
                 <div style="flex-grow: 1; display: flex; flex-direction: column; min-height: 0;">
                     <div class="panel-section-title"><i class="fa-solid fa-layer-group"></i> Layers</div>

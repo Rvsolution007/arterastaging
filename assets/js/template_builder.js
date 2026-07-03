@@ -812,16 +812,77 @@
     // --- ADD PLACEHOLDER ---
     const addPlaceholderBtn = $('add-placeholder');
     if (addPlaceholderBtn) addPlaceholderBtn.addEventListener('click', function() {
-        const val = $('placeholder-select').value;
-        const text = new fabric.IText('{{' + val + '}}', {
-            left: 100, top: 200, fontSize: 60, fill: '#000000', fontFamily: 'Arial',
+        const selectEl = $('placeholder-select');
+        if (!selectEl) return;
+        const val = selectEl.value;
+        
+        let displayStr = '{{' + val + '}}';
+        if (val === 'phone_1') displayStr = '+91 9876543210';
+        else if (val === 'email') displayStr = 'example@email.com';
+        else if (val === 'website') displayStr = 'www.yourwebsite.com';
+        else if (val === 'address') displayStr = 'Your Business Address Here';
+        else if (val === 'name') displayStr = 'Your Business Name';
+
+        const text = new fabric.IText(displayStr, {
+            left: 100, top: 200, fontSize: 30, fill: '#000000', fontFamily: 'Arial',
             textBaseline: 'alphabetic',
-            customType: 'placeholder', placeholderKey: val, ai_field: val, ai_semantic_role: 'body_text'
+            customType: 'placeholder', placeholderKey: val, customName: val, ai_field: val, ai_semantic_role: 'body_text'
         });
         canvas.add(text);
         canvas.setActiveObject(text);
         updateLayersList();
         saveHistory();
+    });
+
+    // --- DUPLICATE PLACEHOLDER / LAYER ---
+    const duplicatePlaceholderBtn = $('duplicate-placeholder');
+    if (duplicatePlaceholderBtn) duplicatePlaceholderBtn.addEventListener('click', function() {
+        let targetObj = canvas.getActiveObject();
+        if (!targetObj) {
+            const selectEl = $('placeholder-select');
+            if (selectEl) {
+                const searchVal = selectEl.value;
+                targetObj = canvas.getObjects().find(o => (o.customName || o.placeholderKey) === searchVal || (o.customName || '').startsWith(searchVal.replace(/_\d+$/, '')));
+            }
+        }
+        if (!targetObj) {
+            alert('Please select a layer on the canvas to duplicate!');
+            return;
+        }
+
+        let baseName = (targetObj.customName || targetObj.placeholderKey || 'layer').replace(/_\d+$/, '');
+        let newNum = 1;
+        const existingNames = canvas.getObjects().map(o => o.customName || o.placeholderKey || '');
+        while (existingNames.includes(baseName + (newNum === 1 && !baseName.includes('phone') ? '' : '_' + newNum))) {
+            newNum++;
+        }
+        let newName = baseName + '_' + newNum;
+
+        targetObj.clone(function(clonedObj) {
+            canvas.discardActiveObject();
+            clonedObj.set({
+                left: (targetObj.left || 100) + 20,
+                top: (targetObj.top || 200) + 30,
+                customName: newName,
+                placeholderKey: newName,
+                ai_field: newName,
+                evented: true
+            });
+            if (clonedObj.text && clonedObj.text.startsWith('{{') && clonedObj.text.endsWith('}}')) {
+                clonedObj.set('text', '{{' + newName + '}}');
+            }
+            if (clonedObj.type === 'activeSelection') {
+                clonedObj.canvas = canvas;
+                clonedObj.forEachObject(function(obj) { canvas.add(obj); });
+                clonedObj.setCoords();
+            } else {
+                canvas.add(clonedObj);
+            }
+            canvas.setActiveObject(clonedObj);
+            canvas.requestRenderAll();
+            updateLayersList();
+            saveHistory();
+        }, customAttrs);
     });
 
     // --- ADD SHAPES ---
@@ -1020,7 +1081,7 @@
             // Layer name
             var nameSpan = document.createElement('span');
             var name = obj.customName || '';
-            if (obj.customType === 'placeholder') name = obj.placeholderKey || 'Placeholder';
+            if (obj.customType === 'placeholder') name = obj.customName || obj.placeholderKey || 'Placeholder';
             else if (obj.customType === 'icon') name = obj.customName || 'Icon';
             else if (obj.customType === 'shape') name = obj.type;
             else if (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') name = obj.text ? obj.text.substring(0, 18) : 'Text';

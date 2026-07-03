@@ -25,9 +25,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   List<Widget> get _pages => [
     const HomeScreen(),
-    AppConfig.isProduction ? const ComingSoonWidget(title: 'Custom') : const TemplateGridScreen(),
+    const TemplateGridScreen(),
     const MyBusinessScreen(),
-    AppConfig.isProduction ? const ComingSoonWidget(title: 'Greetings') : const AiTrendsScreen(),
+    const AiTrendsScreen(),
     const MoreScreen(),
   ];
 

@@ -118,18 +118,7 @@ class _CustomPostsScreenState extends State<CustomPostsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!AppConfig.isLocal) {
-      return Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(
-          title: const Text('Custom Posts', style: TextStyle(color: Colors.black)),
-          backgroundColor: Colors.white,
-          elevation: 0,
-          iconTheme: const IconThemeData(color: Colors.black),
-        ),
-        body: const ComingSoonWidget(title: 'Custom Posts'),
-      );
-    }
+    // Custom posts now available on all environments
 
     return Scaffold(
       backgroundColor: AppColors.background,

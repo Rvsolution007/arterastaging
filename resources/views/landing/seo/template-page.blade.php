@@ -34,7 +34,7 @@
                     @if($imageUrl)
                         <div style="border-radius: 12px; overflow: hidden; border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 20px 60px rgba(0,0,0,0.1);">
                             <img src="{{ $imageUrl }}"
-                                 alt="{{ $templateName }} - Free Download"
+                                 alt="{{ $templateName }} - Free Download by {{ App\Models\AppSetting::getAppSetting('app_title') }} Pixel"
                                  style="width: 100%; height: auto; display: block;"
                                  width="{{ $template->width ?? 400 }}"
                                  height="{{ $template->height ?? 400 }}">
@@ -133,7 +133,7 @@
                        style="display: block; overflow: hidden; border-radius: 8px; border: 1px solid rgba(0,0,0,0.06); transition: transform 0.3s;"
                        onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='translateY(0)'">
                         <img src="{{ $rel->seo_image }}"
-                             alt="{{ $parentName }} Poster Template"
+                             alt="{{ $parentName }} Poster Template - {{ App\Models\AppSetting::getAppSetting('app_title') }} Pixel"
                              style="width: 100%; height: auto; display: block;" loading="lazy">
                     </a>
                 @endif

@@ -101,8 +101,16 @@ class SubscriptionController extends Controller
 
     public function edit($id)
     {
-        $index['subscription'] = Subscription::find($id);
-        $index['plan_detail'] = unserialize($index['subscription']->plan_detail);
+        $subscription = Subscription::find($id);
+        if (!$subscription) {
+            return redirect()->route('subscription-plan.index')->withErrors('Subscription plan not found.');
+        }
+        $index['subscription'] = $subscription;
+        $plan_detail = $subscription->plan_detail;
+        $index['plan_detail'] = $plan_detail ? @unserialize($plan_detail) : [];
+        if ($index['plan_detail'] === false && $plan_detail !== 'b:0;') {
+            $index['plan_detail'] = [];
+        }
         return view("subscription.edit", $index);
     }
 
@@ -120,7 +128,7 @@ class SubscriptionController extends Controller
         if ($validation->fails()) {
             return back()->withErrors($validation)->withInput();
         } else {
-            $subscription = Subscription::find($request->get("id"));
+            $subscription = Subscription::find($id);
             $subscription->plan_name = $request->plan_name;
             $subscription->monthly_price = $request->monthly_price;
             $subscription->monthly_discount_price = $request->monthly_discount_price;
@@ -165,7 +173,9 @@ class SubscriptionController extends Controller
         {
             foreach($story as $s)
             {
-                unlink(public_path('uploads/').$s->image);
+                if ($s->image && file_exists(public_path('uploads/').$s->image)) {
+                    @unlink(public_path('uploads/').$s->image);
+                }
             }
         }
 
@@ -194,11 +204,15 @@ class SubscriptionController extends Controller
                 {
                     foreach($business as $b)
                     {
-                        unlink(public_path('uploads/').$b->logo);
+                        if ($b->logo && file_exists(public_path('uploads/').$b->logo)) {
+                            @unlink(public_path('uploads/').$b->logo);
+                        }
                     }
                     foreach($customFrame as $frame)
                     {
-                        unlink(public_path('uploads/').$frame->frame_image);
+                        if ($frame->frame_image && file_exists(public_path('uploads/').$frame->frame_image)) {
+                            @unlink(public_path('uploads/').$frame->frame_image);
+                        }
                     }
                 }
                 User::find($u->id)->delete();

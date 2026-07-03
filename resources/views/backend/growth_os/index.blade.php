@@ -385,32 +385,85 @@
 
         <!-- Smart Content Planner (Phase 2) -->
         <div class="tab-pane fade" id="content-planner" role="tabpanel">
-            <div class="table-panel">
+            
+            <!-- Section 1: Upcoming Festivals -->
+            <div class="table-panel mb-4">
                 <div class="table-panel-header">
-                    <div class="table-icon-wrapper icon-user">
-                        <i class="fas fa-calendar-alt"></i>
+                    <div class="table-icon-wrapper icon-user" style="background:#fbcfe8; color:#be185d;">
+                        <i class="fas fa-gift"></i>
                     </div>
-                    <h3 class="table-panel-title">30-Day Smart Content Planner</h3>
+                    <h3 class="table-panel-title">Upcoming Festivals & Events</h3>
                 </div>
                 <div class="table-responsive">
                     <table class="custom-table table">
                         <thead>
                             <tr>
                                 <th>Target Date</th>
-                                <th>Content Type</th>
-                                <th>Event / Category Name</th>
+                                <th>Event Name</th>
                                 <th>Opp. Score</th>
                                 <th>Templates Needed</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
-                        <tbody id="planner_tbody">
-                            <!-- Populated via AJAX -->
-                            <tr><td colspan="6" class="text-center">Loading planner data...</td></tr>
+                        <tbody id="planner_festivals_tbody">
+                            <tr><td colspan="5" class="text-center">Loading planner data...</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
+
+            <!-- Section 2: Business Categories -->
+            <div class="table-panel mb-4">
+                <div class="table-panel-header">
+                    <div class="table-icon-wrapper icon-user" style="background:#d1fae5; color:#047857;">
+                        <i class="fas fa-th-large"></i>
+                    </div>
+                    <h3 class="table-panel-title">High-Growth Business Categories</h3>
+                </div>
+                <div class="table-responsive">
+                    <table class="custom-table table">
+                        <thead>
+                            <tr>
+                                <th>Category Name</th>
+                                <th>Growth Trend</th>
+                                <th>Opp. Score</th>
+                                <th>Templates Needed</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="planner_categories_tbody">
+                            <tr><td colspan="5" class="text-center">Loading planner data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Section 3: Custom / Business Posts -->
+            <div class="table-panel">
+                <div class="table-panel-header">
+                    <div class="table-icon-wrapper icon-user" style="background:#e0e7ff; color:#4338ca;">
+                        <i class="fas fa-bullhorn"></i>
+                    </div>
+                    <h3 class="table-panel-title">Promotional & Custom Posts</h3>
+                </div>
+                <div class="table-responsive">
+                    <table class="custom-table table">
+                        <thead>
+                            <tr>
+                                <th>Target Date</th>
+                                <th>Post Idea</th>
+                                <th>Opp. Score</th>
+                                <th>Templates Needed</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="planner_custom_tbody">
+                            <tr><td colspan="5" class="text-center">Loading planner data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
 
         <!-- Marketing AI (Phase 3) -->
@@ -580,19 +633,65 @@
         else if (tabName === 'planner') {
             $.get("{{ route('admin.growth_os.planner') }}", function(data) {
                 if(data.status === 'success') {
-                    $('#planner_tbody').empty();
-                    if(data.plans.length === 0) {
-                        $('#planner_tbody').append('<tr><td colspan="6" class="text-center">No upcoming plans found.</td></tr>');
+                    
+                    // 1. Upcoming Festivals
+                    $('#planner_festivals_tbody').empty();
+                    if(data.festivals.length === 0) {
+                        $('#planner_festivals_tbody').append('<tr><td colspan="5" class="text-center">No upcoming festivals found.</td></tr>');
                     } else {
-                        data.plans.forEach(plan => {
+                        data.festivals.forEach(plan => {
                             let badgeColor = plan.opportunity_score > 80 ? 'background: #fee2e2; color: #e11d48;' : 'background: #e0e7ff; color: #4338ca;';
                             let oppBadge = '<span class="badge-soft" style="'+badgeColor+'">' + plan.opportunity_score + '</span>';
                             let statusBadge = plan.status === 'completed' ? '<span class="badge badge-success">Completed</span>' : '<span class="badge badge-warning">Pending</span>';
                             
-                            $('#planner_tbody').append(`
+                            $('#planner_festivals_tbody').append(`
                                 <tr>
                                     <td class="font-weight-bold text-dark">${plan.plan_date}</td>
-                                    <td><span class="badge badge-light border text-uppercase">${plan.content_type}</span></td>
+                                    <td class="font-weight-bold">${plan.target_name}</td>
+                                    <td>${oppBadge}</td>
+                                    <td>${plan.suggested_templates}</td>
+                                    <td>${statusBadge}</td>
+                                </tr>
+                            `);
+                        });
+                    }
+
+                    // 2. High-Growth Categories
+                    $('#planner_categories_tbody').empty();
+                    if(data.categories.length === 0) {
+                        $('#planner_categories_tbody').append('<tr><td colspan="5" class="text-center">No high-growth categories found.</td></tr>');
+                    } else {
+                        data.categories.forEach(plan => {
+                            let badgeColor = plan.opportunity_score > 80 ? 'background: #fee2e2; color: #e11d48;' : 'background: #e0e7ff; color: #4338ca;';
+                            let oppBadge = '<span class="badge-soft" style="'+badgeColor+'">' + plan.opportunity_score + '</span>';
+                            let statusBadge = plan.status === 'completed' ? '<span class="badge badge-success">Completed</span>' : '<span class="badge badge-warning">Pending</span>';
+                            let trendIcon = '<i class="fas fa-arrow-up text-success"></i> Trending';
+                            
+                            $('#planner_categories_tbody').append(`
+                                <tr>
+                                    <td class="font-weight-bold">${plan.target_name}</td>
+                                    <td>${trendIcon}</td>
+                                    <td>${oppBadge}</td>
+                                    <td>${plan.suggested_templates}</td>
+                                    <td>${statusBadge}</td>
+                                </tr>
+                            `);
+                        });
+                    }
+
+                    // 3. Custom / Business Posts
+                    $('#planner_custom_tbody').empty();
+                    if(data.custom.length === 0) {
+                        $('#planner_custom_tbody').append('<tr><td colspan="5" class="text-center">No custom plans found.</td></tr>');
+                    } else {
+                        data.custom.forEach(plan => {
+                            let badgeColor = plan.opportunity_score > 80 ? 'background: #fee2e2; color: #e11d48;' : 'background: #e0e7ff; color: #4338ca;';
+                            let oppBadge = '<span class="badge-soft" style="'+badgeColor+'">' + plan.opportunity_score + '</span>';
+                            let statusBadge = plan.status === 'completed' ? '<span class="badge badge-success">Completed</span>' : '<span class="badge badge-warning">Pending</span>';
+                            
+                            $('#planner_custom_tbody').append(`
+                                <tr>
+                                    <td class="font-weight-bold text-dark">${plan.plan_date}</td>
                                     <td class="font-weight-bold">${plan.target_name}</td>
                                     <td>${oppBadge}</td>
                                     <td>${plan.suggested_templates}</td>

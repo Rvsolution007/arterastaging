@@ -7,7 +7,6 @@ use App\Models\StorageSetting;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
-use Intervention\Image\Modifiers\OpacityModifier;
 
 trait WatermarkImageTrait
 {
@@ -59,12 +58,9 @@ trait WatermarkImageTrait
             // Resize watermark (40% of original image width)
             $watermarkWidth = intval($image->width() * 0.4); 
             $watermark->scale(width: $watermarkWidth);
-            
-            // Set opacity to 50%
-            $watermark->modify(new OpacityModifier(50));
 
-            // Place watermark in the center
-            $image->place($watermark, 'center');
+            // Place watermark in the center with 50% opacity
+            $image->place($watermark, 'center', 0, 0, 50);
 
             $watermarkedFilename = 'watermarked_' . $originalFilename;
 

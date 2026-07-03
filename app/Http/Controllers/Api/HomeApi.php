@@ -1978,7 +1978,7 @@ class HomeApi extends Controller
         {
             foreach ($subscription as $s) 
             {
-                $plan_detail = unserialize($s->plan_detail);
+                $plan_detail = $s->plan_detail ? @unserialize($s->plan_detail) : [];
                 $planDetail = array();
                 if($plan_detail != null)
                 {

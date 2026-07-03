@@ -487,18 +487,56 @@
                                                     <div class="row">
                                                         <div class="col-12">
                                                             <div class="form-group row">
-                                                                {!! Form::label('seo_watermark_image', 'SEO Watermark Logo', ['class' => 'col-xl-2 col-md-3 col-3 col-form-label']) !!}
+                                                                {!! Form::label('seo_watermark_image_1_1', 'SEO Watermark Logo (Square / 1:1)', ['class' => 'col-xl-2 col-md-3 col-3 col-form-label']) !!}
                                                                 <div class="col-xl-10 col-md-9 col-9">
                                                                     <div class="custom-file">
-                                                                        <input type="file" class="custom-file-input" id="seo_watermark_image" name="name[seo_watermark_image]" accept="image/*">
-                                                                        <label class="custom-file-label" for="seo_watermark_image">Choose SEO Watermark Logo (PNG)</label>
+                                                                        <input type="file" class="custom-file-input" id="seo_watermark_image_1_1" name="name[seo_watermark_image_1_1]" accept="image/*">
+                                                                        <label class="custom-file-label" for="seo_watermark_image_1_1">Choose SEO Watermark Logo (1:1 PNG)</label>
                                                                     </div>
-                                                                    @if(App\Models\AppSetting::getAppSetting('seo_watermark_image'))
+                                                                    @if(App\Models\AppSetting::getAppSetting('seo_watermark_image_1_1'))
                                                                         <div class="mt-2">
-                                                                            <img src="{{ asset('uploads/' . App\Models\AppSetting::getAppSetting('seo_watermark_image')) }}" alt="Watermark Logo" style="max-height: 50px;">
+                                                                            <img src="{{ asset('uploads/' . App\Models\AppSetting::getAppSetting('seo_watermark_image_1_1')) }}" alt="Watermark Logo 1:1" style="max-height: 50px;">
                                                                         </div>
                                                                     @endif
-                                                                    <small class="text-muted mt-1 d-block">This watermark will be added to the center of templates shown on the website and Google Image Search (50% opacity).</small>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="row">
+                                                        <div class="col-12">
+                                                            <div class="form-group row">
+                                                                {!! Form::label('seo_watermark_image_16_9', 'SEO Watermark Logo (Landscape / 16:9)', ['class' => 'col-xl-2 col-md-3 col-3 col-form-label']) !!}
+                                                                <div class="col-xl-10 col-md-9 col-9">
+                                                                    <div class="custom-file">
+                                                                        <input type="file" class="custom-file-input" id="seo_watermark_image_16_9" name="name[seo_watermark_image_16_9]" accept="image/*">
+                                                                        <label class="custom-file-label" for="seo_watermark_image_16_9">Choose SEO Watermark Logo (16:9 PNG)</label>
+                                                                    </div>
+                                                                    @if(App\Models\AppSetting::getAppSetting('seo_watermark_image_16_9'))
+                                                                        <div class="mt-2">
+                                                                            <img src="{{ asset('uploads/' . App\Models\AppSetting::getAppSetting('seo_watermark_image_16_9')) }}" alt="Watermark Logo 16:9" style="max-height: 50px;">
+                                                                        </div>
+                                                                    @endif
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="row">
+                                                        <div class="col-12">
+                                                            <div class="form-group row">
+                                                                {!! Form::label('seo_watermark_image_9_16', 'SEO Watermark Logo (Portrait / 9:16)', ['class' => 'col-xl-2 col-md-3 col-3 col-form-label']) !!}
+                                                                <div class="col-xl-10 col-md-9 col-9">
+                                                                    <div class="custom-file">
+                                                                        <input type="file" class="custom-file-input" id="seo_watermark_image_9_16" name="name[seo_watermark_image_9_16]" accept="image/*">
+                                                                        <label class="custom-file-label" for="seo_watermark_image_9_16">Choose SEO Watermark Logo (9:16 PNG)</label>
+                                                                    </div>
+                                                                    @if(App\Models\AppSetting::getAppSetting('seo_watermark_image_9_16'))
+                                                                        <div class="mt-2">
+                                                                            <img src="{{ asset('uploads/' . App\Models\AppSetting::getAppSetting('seo_watermark_image_9_16')) }}" alt="Watermark Logo 9:16" style="max-height: 50px;">
+                                                                        </div>
+                                                                    @endif
+                                                                    <small class="text-muted mt-2 d-block">These watermarks will be added to the center of templates based on their aspect ratio.</small>
                                                                 </div>
                                                             </div>
                                                         </div>

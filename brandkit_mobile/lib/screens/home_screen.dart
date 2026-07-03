@@ -390,9 +390,7 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: SizedBox(
           height: 170,
-          child: !AppConfig.isLocal 
-              ? const ComingSoonWidget(title: 'Custom Posts')
-              : Obx(() {
+          child: Obx(() {
                   if (hc.customPosts.isEmpty) {
                     return Center(child: Text('No custom posts available', style: AppTextStyles.bodyMedium));
                   }

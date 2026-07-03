@@ -14,18 +14,7 @@ class MiniWebsiteDashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!AppConfig.isLocal) {
-      return Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(
-          title: const Text('Mini Website', style: TextStyle(color: Colors.black)),
-          backgroundColor: Colors.white,
-          elevation: 0,
-          iconTheme: const IconThemeData(color: Colors.black),
-        ),
-        body: const ComingSoonWidget(title: 'Mini Website'),
-      );
-    }
+    // Mini Website now available on all environments
 
     return Scaffold(
       backgroundColor: Colors.white,

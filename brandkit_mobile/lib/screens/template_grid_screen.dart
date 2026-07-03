@@ -26,9 +26,7 @@ class _TemplateGridScreenState extends State<TemplateGridScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!AppConfig.isLocal) {
-      return const ComingSoonWidget(title: 'Greetings & Templates');
-    }
+    // Greetings & Templates now available on all environments
 
     final HomeController homeController = Get.find<HomeController>();
 

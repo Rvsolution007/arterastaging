@@ -19,33 +19,13 @@
         <meta name="twitter:card" content="summary_large_image">
     @endif
 
-    <!-- Google Fonts — loaded after first paint to eliminate render-blocking -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Preconnect to FontAwesome CDN (loads early via preload) -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <!-- Font Awesome — deferred with font-display fix -->
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
-    <style>
-        /* Force font-display:swap on FontAwesome webfonts to eliminate FOIT */
-        @font-face { font-family: 'Font Awesome 6 Free'; font-display: swap; }
-        @font-face { font-family: 'Font Awesome 6 Brands'; font-display: swap; }
-    </style>
-    <script>
-        // Load Google Fonts AFTER first paint — non-blocking
-        (function(){
-            if('requestIdleCallback' in window){
-                requestIdleCallback(function(){loadGF();});
-            } else {
-                window.addEventListener('load',loadGF);
-            }
-            function loadGF(){
-                var l=document.createElement('link');
-                l.rel='stylesheet';
-                l.href='https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap';
-                document.head.appendChild(l);
-            }
-        })();
-    </script>
+    <style>@font-face{font-family:'Font Awesome 6 Free';font-display:swap}@font-face{font-family:'Font Awesome 6 Brands';font-display:swap}</style>
+    <script>!function(){function f(){var l=document.createElement('link');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap';document.head.appendChild(l)}'requestIdleCallback'in window?requestIdleCallback(f):window.addEventListener('load',f)}()</script>
 
     <style>
         /* ============================================

@@ -124,7 +124,7 @@
        ============================================ */
     .trusted-section {
         padding: 48px 0;
-        background: var(--blue);
+        background: #1d4ed8;
     }
     .trusted-label {
         text-align: center;
@@ -132,7 +132,7 @@
         font-size: 12px;
         text-transform: uppercase;
         letter-spacing: 0.2em;
-        color: rgba(255,255,255,0.7);
+        color: rgba(255,255,255,0.9);
         margin-bottom: 32px;
     }
     .trusted-logos {
@@ -148,10 +148,9 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        opacity: 0.9;
         transition: opacity 0.3s ease;
     }
-    .trusted-logo-item:hover { opacity: 1; }
+    .trusted-logo-item:hover { opacity: 0.85; }
     .trusted-logo-item i {
         font-size: 28px;
         color: #fff;

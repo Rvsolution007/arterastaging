@@ -967,7 +967,9 @@
     const iconUnicodeMap = {
         'fa-heart': '\uf004', 'fa-star': '\uf005', 'fa-house': '\uf015',
         'fa-user': '\uf007', 'fa-phone': '\uf095', 'fa-envelope': '\uf0e0',
-        'fa-map-marker-alt': '\uf3c5', 'fa-camera': '\uf030', 'fa-music': '\uf001',
+        'fa-map-marker-alt': '\uf3c5', 'fa-location-dot': '\uf3c5',
+        'fa-address-book': '\uf2b9', 'fa-address-card': '\uf2bb', 'fa-globe': '\uf0ac', 'fa-building': '\uf1ad',
+        'fa-camera': '\uf030', 'fa-music': '\uf001',
         'fa-bolt': '\uf0e7', 'fa-gift': '\uf06b', 'fa-trophy': '\uf091',
         'fa-crown': '\uf521', 'fa-gem': '\uf3a5', 'fa-fire': '\uf06d',
         'fa-rocket': '\uf135', 'fa-flag': '\uf024', 'fa-bell': '\uf0f3',

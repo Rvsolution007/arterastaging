@@ -185,7 +185,12 @@
                             <div class="icon-item" data-icon="fa-solid fa-user" title="User"><i class="fa-solid fa-user"></i></div>
                             <div class="icon-item" data-icon="fa-solid fa-phone" title="Phone"><i class="fa-solid fa-phone"></i></div>
                             <div class="icon-item" data-icon="fa-solid fa-envelope" title="Envelope"><i class="fa-solid fa-envelope"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-map-marker-alt" title="Map Marker"><i class="fa-solid fa-map-marker-alt"></i></div>
+                            <div class="icon-item" data-icon="fa-solid fa-map-marker-alt" title="Address Location Map Marker"><i class="fa-solid fa-map-marker-alt"></i></div>
+                            <div class="icon-item" data-icon="fa-solid fa-location-dot" title="Address Pin Location"><i class="fa-solid fa-location-dot"></i></div>
+                            <div class="icon-item" data-icon="fa-solid fa-address-book" title="Address Book Contact"><i class="fa-solid fa-address-book"></i></div>
+                            <div class="icon-item" data-icon="fa-solid fa-address-card" title="Address Card Contact"><i class="fa-solid fa-address-card"></i></div>
+                            <div class="icon-item" data-icon="fa-solid fa-globe" title="Website Globe Web Address"><i class="fa-solid fa-globe"></i></div>
+                            <div class="icon-item" data-icon="fa-solid fa-building" title="Office Building Address"><i class="fa-solid fa-building"></i></div>
                             <div class="icon-item" data-icon="fa-solid fa-camera" title="Camera"><i class="fa-solid fa-camera"></i></div>
                             <div class="icon-item" data-icon="fa-solid fa-music" title="Music"><i class="fa-solid fa-music"></i></div>
                             <div class="icon-item" data-icon="fa-solid fa-bolt" title="Bolt"><i class="fa-solid fa-bolt"></i></div>

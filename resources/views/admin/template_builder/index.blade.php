@@ -185,7 +185,12 @@
                             <div class="icon-item" data-icon="fa-solid fa-user" title="User"><i class="fa-solid fa-user"></i></div>
                             <div class="icon-item" data-icon="fa-solid fa-phone" title="Phone"><i class="fa-solid fa-phone"></i></div>
                             <div class="icon-item" data-icon="fa-solid fa-envelope" title="Envelope"><i class="fa-solid fa-envelope"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-map-marker-alt" title="Map Marker"><i class="fa-solid fa-map-marker-alt"></i></div>
+                            <div class="icon-item" data-icon="fa-solid fa-map-marker-alt" title="Address Location Map Marker"><i class="fa-solid fa-map-marker-alt"></i></div>
+                            <div class="icon-item" data-icon="fa-solid fa-location-dot" title="Address Pin Location"><i class="fa-solid fa-location-dot"></i></div>
+                            <div class="icon-item" data-icon="fa-solid fa-address-book" title="Address Book Contact"><i class="fa-solid fa-address-book"></i></div>
+                            <div class="icon-item" data-icon="fa-solid fa-address-card" title="Address Card Contact"><i class="fa-solid fa-address-card"></i></div>
+                            <div class="icon-item" data-icon="fa-solid fa-globe" title="Website Globe Web Address"><i class="fa-solid fa-globe"></i></div>
+                            <div class="icon-item" data-icon="fa-solid fa-building" title="Office Building Address"><i class="fa-solid fa-building"></i></div>
                             <div class="icon-item" data-icon="fa-solid fa-camera" title="Camera"><i class="fa-solid fa-camera"></i></div>
                             <div class="icon-item" data-icon="fa-solid fa-music" title="Music"><i class="fa-solid fa-music"></i></div>
                             <div class="icon-item" data-icon="fa-solid fa-bolt" title="Bolt"><i class="fa-solid fa-bolt"></i></div>
@@ -448,9 +453,20 @@
                                 <label class="aim-label">Stroke Width</label>
                                 <input type="number" class="aim-input" id="prop-stroke-width" value="0" min="0">
                             </div>
-                            <div class="col-6 mb-3">
-                                <label class="aim-label">Border Radius</label>
-                                <input type="number" class="aim-input" id="prop-border-radius" value="0" min="0">
+                            <div class="col-12 mb-3">
+                                <label class="aim-label d-flex justify-content-between align-items-center mb-1">
+                                    <span>Border Radius (TL, TR, BR, BL)</span>
+                                    <button type="button" class="btn btn-sm btn-primary p-0 px-2" id="prop-radius-lock" title="Lock Uniform Radius" style="border-radius: 6px; font-size: 0.75rem; height: 22px;">
+                                        <i class="fa-solid fa-lock" id="radius-lock-icon"></i>
+                                    </button>
+                                </label>
+                                <div class="d-flex align-items-center gap-1">
+                                    <input type="number" class="aim-input p-1 text-center" id="prop-radius-tl" value="0" min="0" title="Top-Left Corner" placeholder="TL" style="border-radius: 6px;">
+                                    <input type="number" class="aim-input p-1 text-center" id="prop-radius-tr" value="0" min="0" title="Top-Right Corner" placeholder="TR" style="border-radius: 6px;">
+                                    <input type="number" class="aim-input p-1 text-center" id="prop-radius-br" value="0" min="0" title="Bottom-Right Corner" placeholder="BR" style="border-radius: 6px;">
+                                    <input type="number" class="aim-input p-1 text-center" id="prop-radius-bl" value="0" min="0" title="Bottom-Left Corner" placeholder="BL" style="border-radius: 6px;">
+                                    <input type="hidden" id="prop-border-radius" value="0">
+                                </div>
                             </div>
                         </div>
                     </div>

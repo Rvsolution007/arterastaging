@@ -1038,9 +1038,22 @@ class _CustomPostPreviewState extends State<CustomPostPreview> {
       case 'website':
       case 'web':
         return FontAwesomeIcons.globe;
+      case 'address':
       case 'location':
       case 'locationdot':
+      case 'location-dot':
       case 'mapmarker':
+      case 'map-marker':
+      case 'map-marker-alt':
+      case 'map-pin':
+      case 'mappin':
+      case 'pin':
+      case 'address-book':
+      case 'addressbook':
+      case 'address-card':
+      case 'addresscard':
+      case 'building':
+      case 'office':
         return FontAwesomeIcons.locationDot;
       case 'whatsapp':
         return FontAwesomeIcons.whatsapp;

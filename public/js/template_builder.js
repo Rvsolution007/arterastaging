@@ -10,6 +10,43 @@
         fabric.Text.prototype.textBaseline = 'alphabetic';
         if (fabric.Textbox) fabric.Textbox.prototype.textBaseline = 'alphabetic';
         if (fabric.IText) fabric.IText.prototype.textBaseline = 'alphabetic';
+        if (fabric.Rect) {
+            const originalRectRender = fabric.Rect.prototype._render;
+            fabric.Rect.prototype._render = function(ctx) {
+                const tl = this.rx_tl !== undefined ? this.rx_tl : (this.rx || 0);
+                const tr = this.rx_tr !== undefined ? this.rx_tr : (this.rx || 0);
+                const br = this.rx_br !== undefined ? this.rx_br : (this.rx || 0);
+                const bl = this.rx_bl !== undefined ? this.rx_bl : (this.rx || 0);
+                if (tl === 0 && tr === 0 && br === 0 && bl === 0 && !this.rx && !this.ry) {
+                    originalRectRender.call(this, ctx);
+                    return;
+                }
+                const w = this.width, h = this.height, x = -w / 2, y = -h / 2;
+                ctx.beginPath();
+                if (ctx.roundRect) {
+                    ctx.roundRect(x, y, w, h, [Math.min(tl, w/2, h/2), Math.min(tr, w/2, h/2), Math.min(br, w/2, h/2), Math.min(bl, w/2, h/2)]);
+                } else {
+                    ctx.moveTo(x + Math.min(tl, w/2), y);
+                    ctx.lineTo(x + w - Math.min(tr, w/2), y);
+                    if (tr > 0) ctx.arcTo(x + w, y, x + w, y + Math.min(tr, h/2), tr); else ctx.lineTo(x + w, y);
+                    ctx.lineTo(x + w, y + h - Math.min(br, h/2));
+                    if (br > 0) ctx.arcTo(x + w, y + h, x + w - Math.min(br, w/2), y + h, br); else ctx.lineTo(x + w, y + h);
+                    ctx.lineTo(x + Math.min(bl, w/2), y + h);
+                    if (bl > 0) ctx.arcTo(x, y + h, x, y + h - Math.min(bl, h/2), bl); else ctx.lineTo(x, y + h);
+                    ctx.lineTo(x, y + Math.min(tl, h/2));
+                    if (tl > 0) ctx.arcTo(x, y, x + Math.min(tl, w/2), y, tl); else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                if (this.fill) ctx.fill();
+                if (this.stroke && this.strokeWidth !== 0) ctx.stroke();
+            };
+            const originalToObject = fabric.Rect.prototype.toObject;
+            fabric.Rect.prototype.toObject = function(propertiesToInclude) {
+                return Object.assign(originalToObject.call(this, propertiesToInclude), {
+                    rx_tl: this.rx_tl || 0, rx_tr: this.rx_tr || 0, rx_br: this.rx_br || 0, rx_bl: this.rx_bl || 0
+                });
+            };
+        }
     }
 
     // Global tracking for editing an existing custom frame
@@ -53,6 +90,46 @@
     
     let currentScale = updateCanvasZoom();
     window.addEventListener('resize', () => { currentScale = updateCanvasZoom(); });
+
+    // --- Ctrl + Mouse Wheel Zoom (in center canvas area) ---
+    function handleZoomWheel(e) {
+        if (!e.ctrlKey && !e.metaKey) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const delta = e.deltaY || e.detail || 0;
+        let zoomStep = 0.05;
+        if (delta > 0) {
+            currentScale = Math.max(0.1, currentScale - zoomStep);
+        } else {
+            currentScale = Math.min(5.0, currentScale + zoomStep);
+        }
+
+        canvas.setZoom(currentScale);
+        canvas.setDimensions({
+            width: Math.round(baseWidth * currentScale),
+            height: Math.round(baseHeight * currentScale)
+        });
+
+        const wrapper = document.getElementById('canvas-wrapper');
+        if (wrapper) {
+            wrapper.style.width = Math.round(baseWidth * currentScale) + 'px';
+            wrapper.style.height = Math.round(baseHeight * currentScale) + 'px';
+            wrapper.style.setProperty('--canvas-scale', currentScale);
+        }
+
+        canvas.renderAll();
+    }
+
+    const wrapEl = document.querySelector('.canvas-container-wrap');
+    if (wrapEl) {
+        wrapEl.addEventListener('wheel', handleZoomWheel, { passive: false });
+    }
+    canvas.on('mouse:wheel', function(opt) {
+        if (opt.e && (opt.e.ctrlKey || opt.e.metaKey)) {
+            handleZoomWheel(opt.e);
+        }
+    });
 
     // --- Helper: safe getElementById ---
     function $(id) { return document.getElementById(id); }
@@ -153,6 +230,12 @@
     const inputStrokeColor = $('prop-stroke-color');
     const inputStrokeWidth = $('prop-stroke-width');
     const inputBorderRadius = $('prop-border-radius');
+    const inputRadiusTL = $('prop-radius-tl');
+    const inputRadiusTR = $('prop-radius-tr');
+    const inputRadiusBR = $('prop-radius-br');
+    const inputRadiusBL = $('prop-radius-bl');
+    const btnRadiusLock = $('prop-radius-lock');
+    let isRadiusLocked = true;
 
     const inputShapeGradient = $('prop-shape-gradient');
     const shapeGradientProps = $('shape-gradient-props');
@@ -324,6 +407,14 @@
             if (inputStrokeColor) inputStrokeColor.value = hexStroke;
             if (inputStrokeWidth) inputStrokeWidth.value = obj.strokeWidth || 0;
             if (inputBorderRadius) inputBorderRadius.value = obj.rx || 0;
+            const tl = obj.rx_tl !== undefined ? obj.rx_tl : (obj.rx || 0);
+            const tr = obj.rx_tr !== undefined ? obj.rx_tr : (obj.rx || 0);
+            const br = obj.rx_br !== undefined ? obj.rx_br : (obj.rx || 0);
+            const bl = obj.rx_bl !== undefined ? obj.rx_bl : (obj.rx || 0);
+            if (inputRadiusTL) inputRadiusTL.value = tl;
+            if (inputRadiusTR) inputRadiusTR.value = tr;
+            if (inputRadiusBR) inputRadiusBR.value = br;
+            if (inputRadiusBL) inputRadiusBL.value = bl;
         } else {
             if (textProps) textProps.style.display = 'none';
             if (imageProps) imageProps.style.display = 'none';

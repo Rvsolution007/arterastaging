@@ -202,55 +202,64 @@
         }
     });
 
+    function startPan(e) {
+        isPanning = true;
+        if (wrapEl) wrapEl.style.cursor = 'grabbing';
+        panStartX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches.length > 0 ? e.touches[0].clientX : 0);
+        panStartY = e.clientY !== undefined ? e.clientY : (e.touches && e.touches.length > 0 ? e.touches[0].clientY : 0);
+        if (wrapEl) {
+            initialScrollLeft = wrapEl.scrollLeft;
+            initialScrollTop = wrapEl.scrollTop;
+        }
+    }
+
+    function doPan(e) {
+        if (!isPanning || !wrapEl) return;
+        const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches.length > 0 ? e.touches[0].clientX : panStartX);
+        const clientY = e.clientY !== undefined ? e.clientY : (e.touches && e.touches.length > 0 ? e.touches[0].clientY : panStartY);
+        const dx = clientX - panStartX;
+        const dy = clientY - panStartY;
+        wrapEl.scrollLeft = initialScrollLeft - dx;
+        wrapEl.scrollTop = initialScrollTop - dy;
+    }
+
+    function endPan(e) {
+        if (isPanning) {
+            isPanning = false;
+            if (wrapEl) wrapEl.style.cursor = isSpaceDown ? 'grab' : '';
+            if (typeof canvas !== 'undefined' && canvas) canvas.selection = true;
+        }
+    }
+
     if (wrapEl) {
         wrapEl.addEventListener('mousedown', (e) => {
             if (e.target === wrapEl || e.button === 1 || (e.button === 0 && isSpaceDown)) {
-                isPanning = true;
-                wrapEl.style.cursor = 'grabbing';
-                panStartX = e.clientX;
-                panStartY = e.clientY;
-                initialScrollLeft = wrapEl.scrollLeft;
-                initialScrollTop = wrapEl.scrollTop;
-                if (e.button === 1) e.preventDefault();
+                startPan(e);
+                if (e.button === 1 && e.preventDefault) e.preventDefault();
             }
         });
+        wrapEl.addEventListener('touchstart', (e) => {
+            if (e.target === wrapEl) startPan(e);
+        }, { passive: true });
 
-        window.addEventListener('mousemove', (e) => {
-            if (!isPanning) return;
-            const dx = e.clientX - panStartX;
-            const dy = e.clientY - panStartY;
-            wrapEl.scrollLeft = initialScrollLeft - dx;
-            wrapEl.scrollTop = initialScrollTop - dy;
-        });
+        window.addEventListener('mousemove', doPan);
+        window.addEventListener('touchmove', doPan, { passive: true });
 
-        window.addEventListener('mouseup', (e) => {
-            if (isPanning) {
-                isPanning = false;
-                wrapEl.style.cursor = isSpaceDown ? 'grab' : '';
+        window.addEventListener('mouseup', endPan);
+        window.addEventListener('touchend', endPan);
+    }
+
+    if (typeof canvas !== 'undefined' && canvas) {
+        canvas.on('mouse:down', function(opt) {
+            var e = opt.e;
+            // Panning if Middle-click, Space+click, Alt+click, OR left-click on empty canvas area
+            if (e.button === 1 || (e.button === 0 && isSpaceDown) || e.altKey || (!opt.target && (e.button === 0 || e.type === 'touchstart'))) {
+                startPan(e);
+                canvas.selection = false;
+                if (e.preventDefault) e.preventDefault();
             }
         });
     }
-
-    window.addEventListener('mousedown', (e) => {
-        if (e.button === 1 || (e.button === 0 && isSpaceDown) || e.altKey) {
-            if (e.target.closest('#canvas-wrapper')) {
-                isPanning = true;
-                if (wrapEl) {
-                    wrapEl.style.cursor = 'grabbing';
-                    panStartX = e.clientX;
-                    panStartY = e.clientY;
-                    initialScrollLeft = wrapEl.scrollLeft;
-                    initialScrollTop = wrapEl.scrollTop;
-                }
-                
-                canvas.discardActiveObject();
-                canvas.requestRenderAll();
-                
-                e.preventDefault();
-                e.stopPropagation();
-            }
-        }
-    }, true);
 
     // --- Helper: safe getElementById ---
     function $(id) { return document.getElementById(id); }

@@ -643,12 +643,7 @@ class TemplateBuilderController extends Controller
     }
 
     private function deleteDirectory($dir) {
-        if (!file_exists($dir)) return true;
-        if (!is_dir($dir)) return unlink($dir);
-        foreach (scandir($dir) as $item) {
-            if ($item == '.' || $item == '..') continue;
-            if (!$this->deleteDirectory($dir . DIRECTORY_SEPARATOR . $item)) return false;
-        }
+        return \Illuminate\Support\Facades\File::deleteDirectory($dir);
     }
 
     public function saveFrame(Request $request)
@@ -661,8 +656,8 @@ class TemplateBuilderController extends Controller
             'template_type' => 'required',
         ]);
 
-        $schemaJson = json_decode($request->input('schema_json'), true);
-        $legacyJson = json_decode($request->input('legacy_json', '[]'), true);
+        $schemaJson = is_string($request->input('schema_json')) ? json_decode($request->input('schema_json'), true) : $request->input('schema_json');
+        $legacyJson = is_string($request->input('legacy_json')) ? json_decode($request->input('legacy_json', '[]'), true) : $request->input('legacy_json', []);
 
         $existingFrame = null;
         $existingTemplate = null;
@@ -692,33 +687,37 @@ class TemplateBuilderController extends Controller
             mkdir($assetsDir, 0777, true);
         }
 
-        if (isset($schemaJson['elements'])) {
+        if (isset($schemaJson['elements']) && is_array($schemaJson['elements'])) {
             foreach ($schemaJson['elements'] as &$el) {
                 if ($el['type'] === 'image' && isset($el['src']) && str_starts_with($el['src'], 'data:image')) {
-                    list($type, $data) = explode(';', $el['src']);
-                    list(, $data)      = explode(',', $data);
-                    $data = base64_decode($data);
-                    
-                    $ext = 'png';
-                    if (str_contains($type, 'jpeg') || str_contains($type, 'jpg')) $ext = 'jpg';
-                    elseif (str_contains($type, 'webp')) $ext = 'webp';
-                    
-                    $filename = uniqid('asset_') . '.' . $ext;
-                    file_put_contents($assetsDir . '/' . $filename, $data);
-                    $el['src'] = $filename; 
+                    $parts = explode(';base64,', $el['src']);
+                    if (count($parts) === 2) {
+                        $typeAux = explode('image/', $parts[0]);
+                        $ext = isset($typeAux[1]) ? ($typeAux[1] === 'jpeg' ? 'jpg' : $typeAux[1]) : 'png';
+                        if (!in_array($ext, ['png', 'jpg', 'jpeg', 'webp'])) $ext = 'png';
+                        $data = base64_decode($parts[1]);
+                        if ($data !== false) {
+                            $filename = uniqid('asset_') . '.' . $ext;
+                            file_put_contents($assetsDir . '/' . $filename, $data);
+                            $el['src'] = 'assets/' . $filename;
+                        }
+                    }
                 }
             }
         }
 
         $thumbData = $request->input('thumbnail');
         $thumbPath = null;
-        if (str_starts_with($thumbData, 'data:image')) {
-            list($type, $data) = explode(';', $thumbData);
-            list(, $data)      = explode(',', $data);
-            $data = base64_decode($data);
-            $thumbName = 'thumb_' . time() . '.webp';
-            file_put_contents($templateDir . '/' . $thumbName, $data);
-            $thumbPath = 'uploads/editor/templates/' . $uuid . '/' . $thumbName;
+        if (is_string($thumbData) && str_starts_with($thumbData, 'data:image')) {
+            $parts = explode(';base64,', $thumbData);
+            if (count($parts) === 2) {
+                $data = base64_decode($parts[1]);
+                if ($data !== false) {
+                    $thumbName = 'thumb_' . time() . '.webp';
+                    file_put_contents($templateDir . '/' . $thumbName, $data);
+                    $thumbPath = 'uploads/editor/templates/' . $uuid . '/' . $thumbName;
+                }
+            }
         }
 
         if ($existingTemplate) {
@@ -771,49 +770,72 @@ class TemplateBuilderController extends Controller
         if ($existingFrame && $existingFrame->zip_name) {
             $oldExtracted = public_path('uploads/template/' . $existingFrame->zip_name . '/skins');
             if (is_dir($oldExtracted)) {
-                $oldFiles = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($oldExtracted), \RecursiveIteratorIterator::LEAVES_ONLY);
-                foreach ($oldFiles as $name => $file) {
-                    if (!$file->isDir()) {
-                        copy($file->getRealPath(), $skinsPath . '/' . $file->getFilename());
+                try {
+                    $oldFiles = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($oldExtracted, \FilesystemIterator::SKIP_DOTS), \RecursiveIteratorIterator::LEAVES_ONLY);
+                    foreach ($oldFiles as $name => $file) {
+                        if ($file->isFile()) {
+                            @copy($file->getRealPath(), $skinsPath . '/' . $file->getFilename());
+                        }
                     }
+                } catch (\Exception $e) {
+                    \Log::warning('Could not copy old skins for frame: ' . $e->getMessage());
                 }
             }
         }
 
-        if (file_exists($assetsDir)) {
+        if (file_exists($assetsDir) && is_dir($assetsDir)) {
             $files = array_diff(scandir($assetsDir), ['.', '..']);
             foreach ($files as $file) {
-                copy($assetsDir . '/' . $file, $skinsPath . '/' . $file);
+                if (is_file($assetsDir . '/' . $file)) {
+                    @copy($assetsDir . '/' . $file, $skinsPath . '/' . $file);
+                }
             }
         }
 
         $legacyJson['name'] = $templateName;
         $legacyJson['path'] = $templateName . '/';
         
-        if (isset($legacyJson['layers'])) {
+        if (isset($legacyJson['layers']) && is_array($legacyJson['layers'])) {
             foreach ($legacyJson['layers'] as &$layer) {
                 if ($layer['type'] === 'image' && isset($layer['src'])) {
                     if (str_starts_with($layer['src'], 'data:image')) {
-                        list($type, $data) = explode(';', $layer['src']);
-                        list(, $data)      = explode(',', $data);
-                        $data = base64_decode($data);
-                        
-                        $ext = 'png';
-                        if (str_contains($type, 'jpeg') || str_contains($type, 'jpg')) $ext = 'jpg';
-                        elseif (str_contains($type, 'webp')) $ext = 'webp';
-                        
-                        $filename = uniqid('shape_') . '.' . $ext;
-                        file_put_contents($skinsPath . '/' . $filename, $data);
-                        $layer['src'] = '../skins/' . $templateName . '/' . $filename;
-                    } elseif (str_starts_with($layer['src'], 'http')) {
-                        $filename = uniqid('sticker_') . '_' . basename(parse_url($layer['src'], PHP_URL_PATH));
-                        try {
-                            $imgData = @file_get_contents($layer['src']);
-                            if ($imgData) {
-                                file_put_contents($skinsPath . '/' . $filename, $imgData);
+                        $parts = explode(';base64,', $layer['src']);
+                        if (count($parts) === 2) {
+                            $typeAux = explode('image/', $parts[0]);
+                            $ext = isset($typeAux[1]) ? ($typeAux[1] === 'jpeg' ? 'jpg' : $typeAux[1]) : 'png';
+                            if (!in_array($ext, ['png', 'jpg', 'jpeg', 'webp'])) $ext = 'png';
+                            $data = base64_decode($parts[1]);
+                            if ($data !== false) {
+                                $filename = uniqid('shape_') . '.' . $ext;
+                                file_put_contents($skinsPath . '/' . $filename, $data);
                                 $layer['src'] = '../skins/' . $templateName . '/' . $filename;
                             }
-                        } catch (\Exception $e) { }
+                        }
+                    } elseif (str_starts_with($layer['src'], 'http')) {
+                        $copied = false;
+                        if (strpos($layer['src'], 'uploads/') !== false) {
+                            $parts = explode('uploads/', $layer['src']);
+                            if (isset($parts[1])) {
+                                $relPath = 'uploads/' . strtok($parts[1], '?');
+                                $localPath = public_path($relPath);
+                                if (file_exists($localPath) && is_file($localPath)) {
+                                    $filename = uniqid('sticker_') . '_' . basename($localPath);
+                                    @copy($localPath, $skinsPath . '/' . $filename);
+                                    $layer['src'] = '../skins/' . $templateName . '/' . $filename;
+                                    $copied = true;
+                                }
+                            }
+                        }
+                        if (!$copied) {
+                            $filename = uniqid('sticker_') . '_' . basename(parse_url($layer['src'], PHP_URL_PATH));
+                            try {
+                                $imgData = @file_get_contents($layer['src']);
+                                if ($imgData) {
+                                    file_put_contents($skinsPath . '/' . $filename, $imgData);
+                                    $layer['src'] = '../skins/' . $templateName . '/' . $filename;
+                                }
+                            } catch (\Exception $e) { }
+                        }
                     } else {
                         $basename = basename($layer['src']);
                         $layer['src'] = '../skins/' . $templateName . '/' . $basename;
@@ -831,36 +853,48 @@ class TemplateBuilderController extends Controller
         $zip = new \ZipArchive();
         if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === TRUE) {
             $zip->addFile($jsonDir . '/' . $templateName . '.json', 'json/' . $templateName . '.json');
-            $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($skinsPath), \RecursiveIteratorIterator::LEAVES_ONLY);
-            foreach ($files as $name => $file) {
-                if (!$file->isDir()) {
-                    $filePath = $file->getRealPath();
-                    $relativePath = 'skins/' . $templateName . '/' . basename($filePath);
-                    $zip->addFile($filePath, $relativePath);
+            try {
+                $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($skinsPath, \FilesystemIterator::SKIP_DOTS), \RecursiveIteratorIterator::LEAVES_ONLY);
+                foreach ($files as $name => $file) {
+                    if ($file->isFile()) {
+                        $filePath = $file->getRealPath();
+                        $relativePath = 'skins/' . $templateName . '/' . basename($filePath);
+                        $zip->addFile($filePath, $relativePath);
+                    }
                 }
+            } catch (\Exception $e) {
+                \Log::error('Error adding skins to zip in saveFrame: ' . $e->getMessage());
             }
             $zip->close();
+        } else {
+            \Log::error('Could not create ZipArchive at path: ' . $zipPath);
         }
 
         $extractPath = public_path('uploads/template/' . $templateName);
         if (file_exists($extractPath)) {
-            $this->deleteDirectory($extractPath);
+            \Illuminate\Support\Facades\File::deleteDirectory($extractPath);
         }
         \Illuminate\Support\Facades\File::copyDirectory($tempDir, $extractPath);
-        $this->deleteDirectory($tempDir);
+        \Illuminate\Support\Facades\File::deleteDirectory($tempDir);
 
-        // Thumbnail for preview
-        if ($template->thumbnail_path) {
+        // Thumbnail for preview and custom_frames_zips
+        if ($template->thumbnail_path && file_exists(public_path($template->thumbnail_path))) {
             $thumbExt = pathinfo($template->thumbnail_path, PATHINFO_EXTENSION);
-            if (file_exists(public_path($template->thumbnail_path))) {
-                copy(public_path($template->thumbnail_path), $extractPath . '/preview.' . $thumbExt);
-            }
+            @copy(public_path($template->thumbnail_path), $extractPath . '/preview.' . $thumbExt);
+            @copy(public_path($template->thumbnail_path), $zipDir . '/' . $templateName . '_thumb.' . $thumbExt);
         }
         
         // Digital Ocean upload if needed
         if (\App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean') {
             try {
-                \Illuminate\Support\Facades\Storage::disk('spaces')->putFileAs('uploads/custom_frames_zips', new \Illuminate\Http\File($zipPath), $templateName . '.zip', 'public');
+                if (file_exists($zipPath)) {
+                    \Illuminate\Support\Facades\Storage::disk('spaces')->putFileAs('uploads/custom_frames_zips', new \Illuminate\Http\File($zipPath), $templateName . '.zip', 'public');
+                }
+                if ($thumbPath && file_exists(public_path($thumbPath))) {
+                    $thumbFile = new \Illuminate\Http\File(public_path($thumbPath));
+                    \Illuminate\Support\Facades\Storage::disk('spaces')->putFileAs('uploads/editor/templates/' . $uuid, $thumbFile, basename($thumbPath), 'public');
+                    \Illuminate\Support\Facades\Storage::disk('spaces')->putFileAs('uploads', $thumbFile, basename($thumbPath), 'public');
+                }
             } catch (\Exception $e) {
                 \Log::error('DigitalOcean upload failed: ' . $e->getMessage());
             }
@@ -876,14 +910,10 @@ class TemplateBuilderController extends Controller
             $existingFrame->req_website = $request->input('req_website', 0);
             
             if ($thumbPath) {
-                // Remove 'uploads/' prefix because Blade adds it: asset('uploads/' . $frame->post_thumb)
                 $existingFrame->post_thumb = str_replace('uploads/', '', $thumbPath);
             }
             
-            // IMPORTANT: Update zip_name so Native App downloads the newly exported Template_{uuid}.zip
-            // which contains the updated legacy json with new fonts, sizes, colors, and positions.
             if ($templateName && $templateName !== $existingFrame->zip_name) {
-                // Optionally delete the old zip if we are overwriting, but it's safer to just change the reference.
                 $existingFrame->zip_name = $templateName;
             }
             $existingFrame->save();
@@ -898,8 +928,7 @@ class TemplateBuilderController extends Controller
                 'req_phone' => $request->input('req_phone', 0),
                 'req_website' => $request->input('req_website', 0),
                 'post_thumb' => $thumbPath ? str_replace('uploads/', '', $thumbPath) : null,
-                'status' => 1,
-                'paid' => 0
+                'paid' => 1
             ]);
         }
         

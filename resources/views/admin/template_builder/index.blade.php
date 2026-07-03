@@ -134,6 +134,7 @@
                 <div>
                     <div class="panel-section-title"><i class="fa-solid fa-tags"></i> Placeholders</div>
                     <select id="placeholder-select" class="aim-select mb-2">
+                        <option value="logo">Business Logo</option>
                         <option value="name">Business Name</option>
                         <option value="phone_1">Mobile Number</option>
                         <option value="email">Email ID</option>
@@ -370,10 +371,12 @@
                             <input type="checkbox" class="custom-control-input" id="prop-is-placeholder">
                             <label class="custom-control-label small" for="prop-is-placeholder">Is Post Images</label>
                         </div>
+                        @if($mode === 'frame')
                         <div class="mb-2 custom-control custom-switch">
                             <input type="checkbox" class="custom-control-input" id="prop-is-logo">
                             <label class="custom-control-label small" for="prop-is-logo">Set as Business Logo</label>
                         </div>
+                        @endif
                         <div class="mb-3 mt-2">
                             <label class="aim-label">Mask with Shape <small class="text-muted">(Optional)</small></label>
                             <select class="aim-input p-1 w-100" id="prop-mask-layer" style="height: 34px;">

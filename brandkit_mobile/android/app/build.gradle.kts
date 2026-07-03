@@ -19,7 +19,14 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "com.arterapixel.pro"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "28.2.13676358"
+
+    packaging {
+        jniLibs {
+            doNotStrip.add("**/*.so")
+            keepDebugSymbols.add("**/*.so")
+        }
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

@@ -44,8 +44,19 @@
                 ctx.lineTo(x, y + rTL);
                 if (rTL > 0) ctx.arcTo(x, y, x + rTL, y, rTL); else ctx.lineTo(x, y);
                 ctx.closePath();
-                if (this.fill) ctx.fill();
-                if (this.stroke && this.strokeWidth !== 0) ctx.stroke();
+                if (typeof this._renderFill === 'function') {
+                    this._renderFill(ctx);
+                } else if (this.fill) {
+                    ctx.fillStyle = this.fill;
+                    ctx.fill();
+                }
+                if (typeof this._renderStroke === 'function') {
+                    this._renderStroke(ctx);
+                } else if (this.stroke && this.strokeWidth !== 0) {
+                    ctx.strokeStyle = this.stroke;
+                    ctx.lineWidth = this.strokeWidth;
+                    ctx.stroke();
+                }
             };
             const originalToObject = fabric.Rect.prototype.toObject;
             fabric.Rect.prototype.toObject = function(propertiesToInclude) {
@@ -303,6 +314,114 @@
     
     canvas.on('object:scaling', updateCoords);
     canvas.on('object:moving', updateCoords);
+
+    // --- Canva-style Smart Guidelines & Alignment Snapping ---
+    let alignmentLines = { vertical: [], horizontal: [] };
+    const SNAP_DIST = 6;
+
+    canvas.on('object:moving', function(e) {
+        alignmentLines = { vertical: [], horizontal: [] };
+        const target = e.target;
+        if (!target) return;
+
+        const zoom = canvas.getZoom() || 1;
+        const cW = canvas.width / zoom;
+        const cH = canvas.height / zoom;
+        const targetRect = target.getBoundingRect(true);
+
+        const targetX = [
+            { val: targetRect.left },
+            { val: targetRect.left + targetRect.width / 2 },
+            { val: targetRect.left + targetRect.width }
+        ];
+        const targetY = [
+            { val: targetRect.top },
+            { val: targetRect.top + targetRect.height / 2 },
+            { val: targetRect.top + targetRect.height }
+        ];
+
+        let snappedX = false;
+        let snappedY = false;
+
+        let refX = [0, cW / 2, cW];
+        let refY = [0, cH / 2, cH];
+
+        canvas.getObjects().forEach(obj => {
+            if (obj === target || !obj.visible || obj.evented === false || obj.id === 'workarea' || obj.id === 'frame_bg' || obj.isFrameStructural) return;
+            const r = obj.getBoundingRect(true);
+            refX.push(r.left, r.left + r.width / 2, r.left + r.width);
+            refY.push(r.top, r.top + r.height / 2, r.top + r.height);
+        });
+
+        for (let i = 0; i < targetX.length && !snappedX; i++) {
+            for (let j = 0; j < refX.length; j++) {
+                if (Math.abs(targetX[i].val - refX[j]) <= SNAP_DIST) {
+                    const dx = refX[j] - targetX[i].val;
+                    target.set('left', target.left + dx);
+                    target.setCoords();
+                    alignmentLines.vertical.push(refX[j]);
+                    snappedX = true;
+                    break;
+                }
+            }
+        }
+
+        for (let i = 0; i < targetY.length && !snappedY; i++) {
+            for (let j = 0; j < refY.length; j++) {
+                if (Math.abs(targetY[i].val - refY[j]) <= SNAP_DIST) {
+                    const dy = refY[j] - targetY[i].val;
+                    target.set('top', target.top + dy);
+                    target.setCoords();
+                    alignmentLines.horizontal.push(refY[j]);
+                    snappedY = true;
+                    break;
+                }
+            }
+        }
+        if (typeof updateCoords === 'function') updateCoords();
+        else if (typeof updateProps === 'function') updateProps();
+    });
+
+    canvas.on('after:render', function(opt) {
+        if (alignmentLines.vertical.length === 0 && alignmentLines.horizontal.length === 0) return;
+        const ctx = opt.ctx || canvas.contextContainer;
+        if (!ctx) return;
+        ctx.save();
+        const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
+        ctx.transform(vpt[0], vpt[1], vpt[2], vpt[3], vpt[4], vpt[5]);
+        const zoom = canvas.getZoom() || 1;
+        const cW = canvas.width / zoom;
+        const cH = canvas.height / zoom;
+        ctx.lineWidth = 1.5 / zoom;
+        ctx.strokeStyle = '#ff007f';
+        ctx.setLineDash([5 / zoom, 5 / zoom]);
+
+        alignmentLines.vertical.forEach(x => {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, cH);
+            ctx.stroke();
+        });
+
+        alignmentLines.horizontal.forEach(y => {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(cW, y);
+            ctx.stroke();
+        });
+
+        ctx.restore();
+    });
+
+    const clearGuidelines = function() {
+        if (alignmentLines.vertical.length > 0 || alignmentLines.horizontal.length > 0) {
+            alignmentLines = { vertical: [], horizontal: [] };
+            canvas.requestRenderAll();
+        }
+    };
+
+    canvas.on('mouse:up', clearGuidelines);
+    canvas.on('object:modified', clearGuidelines);
 
     function updateProps() {
         const obj = canvas.getActiveObject();

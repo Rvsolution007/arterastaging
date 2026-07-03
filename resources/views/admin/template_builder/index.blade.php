@@ -32,7 +32,7 @@
     .builder-container { display: flex; flex-grow: 1; gap: 1rem; min-height: 600px; }
     .editor-sidebar { width: 280px; min-width: 280px; background: #fff; padding: 1.25rem; border-radius: 16px; border: 1px solid #e2e8f0; overflow-y: auto; display: flex; flex-direction: column; gap: 1.25rem; }
     .properties-panel { width: 300px; min-width: 300px; background: #fff; padding: 1.25rem; border-radius: 16px; border: 1px solid #e2e8f0; overflow-y: auto; }
-    .canvas-container-wrap { flex-grow: 1; display: flex; justify-content: center; align-items: flex-start; background: #e2e8f0; border-radius: 16px; border: 1px inset #cbd5e1; overflow: auto; padding: 20px;}
+    .canvas-container-wrap { flex-grow: 1; min-width: 0; display: block; text-align: center; background: #e2e8f0; border-radius: 16px; border: 1px inset #cbd5e1; overflow: auto; padding: 20px;}
     
     /* Form Elements */
     .aim-label { font-size: 0.75rem; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px; }
@@ -40,7 +40,7 @@
     .aim-input:focus, .aim-select:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
     
     /* Canvas */
-    #canvas-wrapper { position: relative; background: #fff; box-shadow: 0 8px 32px rgba(0,0,0,0.1); border-radius: 4px; overflow: hidden; transition: all 0.3s ease; }
+    #canvas-wrapper { position: relative; display: inline-block; text-align: left; background: #fff; box-shadow: 0 8px 32px rgba(0,0,0,0.1); border-radius: 4px; overflow: hidden; transition: all 0.3s ease; }
     
     @if($mode === 'frame')
     .frame-guide {

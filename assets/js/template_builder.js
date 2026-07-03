@@ -127,13 +127,30 @@
         e.preventDefault();
         e.stopPropagation();
 
+        const wrapEl = document.querySelector('.canvas-container-wrap');
+        const wrapper = document.getElementById('canvas-wrapper');
+        if (!wrapEl || !wrapper) return;
+
         const delta = e.deltaY || e.detail || 0;
         let zoomStep = 0.05;
+        let newScale = currentScale;
         if (delta > 0) {
-            currentScale = Math.max(0.1, currentScale - zoomStep);
+            newScale = Math.max(0.1, currentScale - zoomStep);
         } else {
-            currentScale = Math.min(5.0, currentScale + zoomStep);
+            newScale = Math.min(5.0, currentScale + zoomStep);
         }
+
+        if (newScale === currentScale) return;
+
+        // Calculate mouse position relative to canvas wrapper
+        const wrapperRect = wrapper.getBoundingClientRect();
+        const mouseX = e.clientX - wrapperRect.left;
+        const mouseY = e.clientY - wrapperRect.top;
+
+        // Calculate the ratio of the new scale to the old scale
+        const scaleMultiplier = newScale / currentScale;
+        
+        currentScale = newScale;
 
         canvas.setZoom(currentScale);
         canvas.setDimensions({
@@ -141,14 +158,18 @@
             height: Math.round(baseHeight * currentScale)
         });
 
-        const wrapper = document.getElementById('canvas-wrapper');
-        if (wrapper) {
-            wrapper.style.width = Math.round(baseWidth * currentScale) + 'px';
-            wrapper.style.height = Math.round(baseHeight * currentScale) + 'px';
-            wrapper.style.setProperty('--canvas-scale', currentScale);
-        }
+        wrapper.style.width = Math.round(baseWidth * currentScale) + 'px';
+        wrapper.style.height = Math.round(baseHeight * currentScale) + 'px';
+        wrapper.style.setProperty('--canvas-scale', currentScale);
 
         canvas.renderAll();
+
+        // Adjust scroll position to keep the point under the mouse stationary
+        const newMouseX = mouseX * scaleMultiplier;
+        const newMouseY = mouseY * scaleMultiplier;
+        
+        wrapEl.scrollLeft += (newMouseX - mouseX);
+        wrapEl.scrollTop += (newMouseY - mouseY);
     }
 
     const wrapEl = document.querySelector('.canvas-container-wrap');

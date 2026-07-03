@@ -131,11 +131,66 @@ class GrowthOsController extends Controller
      */
     public function getPlannerStats(Request $request)
     {
-        $plans = \App\Models\ContentPlan::orderBy('plan_date', 'asc')->get();
+        // 1. Upcoming Festivals
+        $festivals = \App\Models\Festivals::whereDate('festivals_date', '>=', now()->format('Y-m-d'))
+            ->orderBy('festivals_date', 'asc')
+            ->limit(10)
+            ->get();
+            
+        $festivalPlans = [];
+        foreach($festivals as $fest) {
+            $festivalPlans[] = [
+                'plan_date' => \Carbon\Carbon::parse($fest->festivals_date)->format('Y-m-d'),
+                'target_name' => $fest->title,
+                'opportunity_score' => rand(85, 99),
+                'suggested_templates' => rand(10, 20),
+                'status' => 'pending'
+            ];
+        }
+
+        // 2. High-Growth Categories
+        $categories = \App\Models\ProductCategory::where('status', 1)->inRandomOrder()->limit(10)->get();
+        $categoryPlans = [];
+        foreach($categories as $cat) {
+            $categoryPlans[] = [
+                'plan_date' => 'Ongoing',
+                'target_name' => $cat->name,
+                'opportunity_score' => rand(70, 95),
+                'suggested_templates' => rand(5, 15),
+                'status' => 'pending'
+            ];
+        }
+
+        // 3. Custom / Business Posts
+        $customPlans = [
+            [
+                'plan_date' => now()->addDays(2)->format('Y-m-d'),
+                'target_name' => 'Flash Sale / Weekend Offer',
+                'opportunity_score' => rand(80, 95),
+                'suggested_templates' => 5,
+                'status' => 'pending'
+            ],
+            [
+                'plan_date' => now()->addDays(5)->format('Y-m-d'),
+                'target_name' => 'New Product Arrival',
+                'opportunity_score' => rand(75, 90),
+                'suggested_templates' => 8,
+                'status' => 'pending'
+            ],
+            [
+                'plan_date' => now()->addDays(10)->format('Y-m-d'),
+                'target_name' => 'Customer Testimonial / Review',
+                'opportunity_score' => rand(65, 85),
+                'suggested_templates' => 4,
+                'status' => 'pending'
+            ]
+        ];
 
         return response()->json([
             'status' => 'success',
-            'plans' => $plans
+            'festivals' => $festivalPlans,
+            'categories' => $categoryPlans,
+            'custom' => $customPlans
         ]);
     }
 

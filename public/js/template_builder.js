@@ -786,6 +786,39 @@
         if (!selectEl) return;
         const val = selectEl.value;
         
+        if (val === 'logo') {
+            const tmpCanvas = document.createElement('canvas');
+            tmpCanvas.width = 200;
+            tmpCanvas.height = 200;
+            const ctx = tmpCanvas.getContext('2d');
+            ctx.fillStyle = '#6366f1';
+            ctx.fillRect(0, 0, 200, 200);
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(100, 75, 35, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(100, 170, 55, Math.PI, Math.PI * 2);
+            ctx.fill();
+            ctx.font = 'bold 26px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('LOGO', 100, 185);
+            
+            const logoDataUrl = tmpCanvas.toDataURL('image/png');
+            fabric.Image.fromURL(logoDataUrl, function(img) {
+                img.set({
+                    left: 100, top: 100, width: 200, height: 200,
+                    scaleX: 0.6, scaleY: 0.6,
+                    customType: 'image', customName: 'logo', is_logo: true
+                });
+                canvas.add(img);
+                canvas.setActiveObject(img);
+                updateLayersList();
+                saveHistory();
+            });
+            return;
+        }
+
         let displayStr = '{{' + val + '}}';
         if (val === 'phone_1') displayStr = '+91 9876543210';
         else if (val === 'email') displayStr = 'example@email.com';

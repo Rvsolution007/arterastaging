@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Artera — AI-Powered Business Poster Maker App')</title>
 
     {{-- SEO Head Component — Dynamic meta, OG, schema --}}
@@ -19,14 +19,13 @@
         <meta name="twitter:card" content="summary_large_image">
     @endif
 
-    <!-- Google Fonts Deferred -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap"></noscript>
-    <!-- Font Awesome Deferred -->
+    <!-- Preconnect to FontAwesome CDN (loads early via preload) -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <!-- Font Awesome — deferred with font-display fix -->
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
+    <style>@font-face{font-family:'Font Awesome 6 Free';font-display:swap}@font-face{font-family:'Font Awesome 6 Brands';font-display:swap}</style>
+    <script>!function(){function f(){var l=document.createElement('link');l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap';document.head.appendChild(l)}'requestIdleCallback'in window?requestIdleCallback(f):window.addEventListener('load',f)}()</script>
 
     <style>
         /* ============================================
@@ -141,7 +140,7 @@
             font-family: 'Inter', sans-serif;
         }
         .btn-sharp-primary {
-            background-color: var(--blue);
+            background-color: #2563eb;
             color: #fff;
         }
         .btn-sharp-primary:hover { background-color: #2563eb; transform: translateY(-2px); }
@@ -289,38 +288,26 @@
             display: inline-block;
         }
 
-        /* ---- Text Shimmer / Gradient Sweep ---- */
-        .text-shimmer {
-            background: linear-gradient(
-                90deg,
-                var(--text-dark) 0%,
-                var(--blue) 40%,
-                var(--text-dark) 60%,
-                var(--text-dark) 100%
-            );
-            background-size: 200% 100%;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            animation: shimmer-sweep 3s ease-in-out infinite;
+        /* ---- Text Shimmer / Gradient Sweep (composited via transform) ---- */
+        .text-shimmer, .text-shimmer-white {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
         }
-        .text-shimmer-white {
-            background: linear-gradient(
-                90deg,
-                #fff 0%,
-                var(--blue) 40%,
-                #fff 60%,
-                #fff 100%
-            );
-            background-size: 200% 100%;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+        .text-shimmer-white { color: #fff; }
+        .text-shimmer { color: var(--text-dark); }
+        .text-shimmer::after, .text-shimmer-white::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent 0%, rgba(59,130,246,0.35) 50%, transparent 100%);
             animation: shimmer-sweep 3s ease-in-out infinite;
+            mix-blend-mode: overlay;
+            will-change: transform;
         }
         @keyframes shimmer-sweep {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
         }
 
         /* ---- Floating / Pulsing glow effect for CTAs ---- */
@@ -454,22 +441,25 @@
             color: var(--blue);
         }
 
-        /* Nav CTA */
+        /* Nav CTA — fixed dimensions prevent CLS */
         .nav-cta {
             display: inline-flex;
             align-items: center;
             gap: 8px;
             padding: 10px 24px;
-            background: var(--blue);
+            background: #1d4ed8;
             color: #fff !important;
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             text-decoration: none;
             transition: var(--transition);
+            min-height: 42px;
+            min-width: 160px;
+            justify-content: center;
         }
-        .nav-cta:hover { background: #2563eb; }
+        .nav-cta:hover { background: #1e40af; }
 
         /* Mobile toggle */
         .mobile-toggle {
@@ -530,7 +520,7 @@
         .footer-links { list-style: none; }
         .footer-links li { margin-bottom: 10px; }
         .footer-links a {
-            color: rgba(255, 255, 255, 0.5);
+            color: rgba(255, 255, 255, 0.65);
             text-decoration: none;
             font-size: 14px;
             transition: color 0.2s ease;
@@ -545,7 +535,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            color: rgba(255, 255, 255, 0.35);
+            color: rgba(255, 255, 255, 0.6);
             font-size: 13px;
         }
         .footer-socials { display: flex; gap: 16px; }
@@ -569,6 +559,24 @@
 
         /* ---- Utility spacer ---- */
         .header-spacer { height: 64px; }
+
+        /* ---- Hero LCP Fix: make hero heading visible instantly (no animation delay) ---- */
+        .hero-section .split-text {
+            opacity: 1 !important;
+            transform: none !important;
+        }
+        .hero-section .split-text .split-line-inner,
+        .hero-section .split-text .split-line {
+            transform: none !important;
+            opacity: 1 !important;
+        }
+        .hero-section > .container-full .reveal:first-child {
+            opacity: 1 !important;
+            transform: none !important;
+        }
+        .hero-section .typewriter {
+            clip-path: none !important;
+        }
     </style>
     @yield('extra_css')
 </head>
@@ -689,17 +697,42 @@
 
     <!-- Scripts -->
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-
-            // ============================================
-            // 1. SPLIT TEXT — Auto-wrap lines for mask reveal
-            // ============================================
-            document.querySelectorAll('.split-text').forEach(el => {
-                const lines = el.querySelectorAll('span[style*="display:block"], span[style*="display: block"]');
-                if (lines.length > 0) {
-                    // Already has span blocks — wrap each inner content
-                    lines.forEach(line => {
-                        const inner = document.createElement('span');
+        // ============================================
+        // NAVBAR SCROLL + MOBILE TOGGLE (lightweight, run immediately)
+        // ============================================
+        (function(){
+            var header = document.getElementById('siteHeader');
+            if(header){
+                window.addEventListener('scroll', function(){
+                    if(window.scrollY > 30){ header.classList.add('scrolled'); }
+                    else { header.classList.remove('scrolled'); }
+                }, {passive:true});
+            }
+            document.addEventListener('DOMContentLoaded', function(){
+                var mt = document.getElementById('mobileToggle');
+                var nm = document.getElementById('navMenu');
+                if(mt && nm){
+                    mt.addEventListener('click', function(){
+                        nm.classList.toggle('open');
+                        var icon = mt.querySelector('i');
+                        if(icon){ icon.classList.toggle('fa-bars'); icon.classList.toggle('fa-xmark'); }
+                    });
+                }
+            });
+        })();
+    </script>
+    <script>
+        // ============================================
+        // ANIMATIONS — Deferred to after first paint
+        // ============================================
+        function _initAnimations(){
+            // 1. SPLIT TEXT — skip hero for LCP
+            document.querySelectorAll('.split-text').forEach(function(el){
+                if(el.closest('.hero-section')) return;
+                var lines = el.querySelectorAll('span[style*="display:block"], span[style*="display: block"]');
+                if(lines.length > 0){
+                    lines.forEach(function(line){
+                        var inner = document.createElement('span');
                         inner.className = 'split-line-inner';
                         inner.innerHTML = line.innerHTML;
                         line.innerHTML = '';
@@ -707,115 +740,81 @@
                         line.appendChild(inner);
                     });
                 } else {
-                    // No span blocks — split by <br> or treat as single line
-                    const html = el.innerHTML;
-                    const parts = html.split(/<br\s*\/?>/i);
-                    if (parts.length > 1) {
-                        el.innerHTML = parts.map(p =>
-                            `<span class="split-line"><span class="split-line-inner">${p.trim()}</span></span>`
-                        ).join('');
+                    var html = el.innerHTML;
+                    var parts = html.split(/<br\s*\/?>/i);
+                    if(parts.length > 1){
+                        el.innerHTML = parts.map(function(p){
+                            return '<span class="split-line"><span class="split-line-inner">'+p.trim()+'</span></span>';
+                        }).join('');
                     } else {
-                        el.innerHTML = `<span class="split-line"><span class="split-line-inner">${html}</span></span>`;
+                        el.innerHTML = '<span class="split-line"><span class="split-line-inner">'+html+'</span></span>';
                     }
                 }
             });
 
-            // ============================================
-            // 2. STAGGER WORDS — Split text into word spans
-            // ============================================
-            document.querySelectorAll('.stagger-words').forEach(el => {
-                const text = el.textContent.trim();
-                const words = text.split(/\s+/);
-                el.innerHTML = words.map((w, i) =>
-                    `<span class="stagger-word" style="transition-delay:${i * 0.04}s">${w}</span>`
-                ).join(' ');
+            // 2. STAGGER WORDS
+            document.querySelectorAll('.stagger-words').forEach(function(el){
+                var text = el.textContent.trim();
+                var words = text.split(/\s+/);
+                el.innerHTML = words.map(function(w, i){
+                    return '<span class="stagger-word" style="transition-delay:'+i*0.04+'s">'+w+'</span>';
+                }).join(' ');
             });
 
-            // ============================================
-            // 3. STAGGER LIST — Add delay to each item
-            // ============================================
-            document.querySelectorAll('.stagger-list').forEach(list => {
-                const items = list.querySelectorAll('.stagger-item');
-                items.forEach((item, i) => {
-                    item.style.transitionDelay = `${i * 0.08}s`;
-                });
+            // 3. STAGGER LIST
+            document.querySelectorAll('.stagger-list').forEach(function(list){
+                var items = list.querySelectorAll('.stagger-item');
+                items.forEach(function(item, i){ item.style.transitionDelay = i*0.08+'s'; });
             });
 
-            // ============================================
-            // 4. INTERSECTION OBSERVER — Unified for all animated elements
-            // ============================================
-            const animatedSelectors = '.reveal, .reveal-left, .reveal-right, .reveal-scale, .reveal-blur, .split-text, .stagger-words, .stagger-list, .typewriter, .draw-underline';
-            const animatedEls = document.querySelectorAll(animatedSelectors);
-
-            if ('IntersectionObserver' in window) {
-                const observer = new IntersectionObserver((entries) => {
-                    entries.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            entry.target.classList.add('revealed');
-                            observer.unobserve(entry.target);
+            // 4. INTERSECTION OBSERVER
+            var sel = '.reveal, .reveal-left, .reveal-right, .reveal-scale, .reveal-blur, .split-text:not(.hero-section .split-text), .stagger-words, .stagger-list, .typewriter:not(.hero-section .typewriter), .draw-underline';
+            var els = document.querySelectorAll(sel);
+            if('IntersectionObserver' in window){
+                var obs = new IntersectionObserver(function(entries){
+                    for(var i=0;i<entries.length;i++){
+                        if(entries[i].isIntersecting){
+                            entries[i].target.classList.add('revealed');
+                            obs.unobserve(entries[i].target);
                         }
-                    });
-                }, { threshold: 0.1, rootMargin: '0px 0px -60px 0px' });
-                animatedEls.forEach(el => observer.observe(el));
+                    }
+                }, {threshold:0.1, rootMargin:'0px 0px -60px 0px'});
+                els.forEach(function(el){ obs.observe(el); });
             } else {
-                animatedEls.forEach(el => el.classList.add('revealed'));
+                els.forEach(function(el){ el.classList.add('revealed'); });
             }
 
-            // ============================================
-            // 5. COUNTER UP — Animate numbers from 0
-            // ============================================
-            const counterEls = document.querySelectorAll('.counter-up');
-            if (counterEls.length > 0) {
-                const counterObserver = new IntersectionObserver((entries) => {
-                    entries.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            const el = entry.target;
-                            const target = parseInt(el.getAttribute('data-target')) || 0;
-                            const suffix = el.getAttribute('data-suffix') || '';
-                            const duration = 1500;
-                            const start = performance.now();
-                            function updateCounter(now) {
-                                const elapsed = now - start;
-                                const progress = Math.min(elapsed / duration, 1);
-                                // Ease out cubic
-                                const eased = 1 - Math.pow(1 - progress, 3);
-                                el.textContent = Math.floor(eased * target).toLocaleString() + suffix;
-                                if (progress < 1) requestAnimationFrame(updateCounter);
+            // 5. COUNTER UP
+            var counterEls = document.querySelectorAll('.counter-up');
+            if(counterEls.length > 0){
+                var cObs = new IntersectionObserver(function(entries){
+                    entries.forEach(function(entry){
+                        if(entry.isIntersecting){
+                            var el = entry.target;
+                            var target = parseInt(el.getAttribute('data-target'))||0;
+                            var suffix = el.getAttribute('data-suffix')||'';
+                            var duration = 1500, start = performance.now();
+                            function upd(now){
+                                var p = Math.min((now-start)/duration,1);
+                                var e = 1-Math.pow(1-p,3);
+                                el.textContent = Math.floor(e*target).toLocaleString()+suffix;
+                                if(p<1) requestAnimationFrame(upd);
                             }
-                            requestAnimationFrame(updateCounter);
-                            counterObserver.unobserve(el);
+                            requestAnimationFrame(upd);
+                            cObs.unobserve(el);
                         }
                     });
-                }, { threshold: 0.3 });
-                counterEls.forEach(el => counterObserver.observe(el));
+                }, {threshold:0.3});
+                counterEls.forEach(function(el){ cObs.observe(el); });
             }
+        }
 
-            // ============================================
-            // 6. NAVBAR SCROLL EFFECT
-            // ============================================
-            const header = document.getElementById('siteHeader');
-            window.addEventListener('scroll', () => {
-                if (window.scrollY > 30) {
-                    header.classList.add('scrolled');
-                } else {
-                    header.classList.remove('scrolled');
-                }
-            });
-
-            // ============================================
-            // 7. MOBILE TOGGLE
-            // ============================================
-            const mobileToggle = document.getElementById('mobileToggle');
-            const navMenu = document.getElementById('navMenu');
-            if (mobileToggle && navMenu) {
-                mobileToggle.addEventListener('click', () => {
-                    navMenu.classList.toggle('open');
-                    const icon = mobileToggle.querySelector('i');
-                    icon.classList.toggle('fa-bars');
-                    icon.classList.toggle('fa-xmark');
-                });
-            }
-        });
+        // Run animations after first paint to avoid forced reflow
+        if('requestIdleCallback' in window){
+            requestIdleCallback(_initAnimations);
+        } else {
+            window.addEventListener('load', function(){ setTimeout(_initAnimations, 0); });
+        }
     </script>
     @yield('extra_js')
 </body>

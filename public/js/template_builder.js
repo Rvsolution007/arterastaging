@@ -230,6 +230,12 @@
     const inputStrokeColor = $('prop-stroke-color');
     const inputStrokeWidth = $('prop-stroke-width');
     const inputBorderRadius = $('prop-border-radius');
+    const inputRadiusTL = $('prop-radius-tl');
+    const inputRadiusTR = $('prop-radius-tr');
+    const inputRadiusBR = $('prop-radius-br');
+    const inputRadiusBL = $('prop-radius-bl');
+    const btnRadiusLock = $('prop-radius-lock');
+    let isRadiusLocked = true;
 
     const inputShapeGradient = $('prop-shape-gradient');
     const shapeGradientProps = $('shape-gradient-props');
@@ -401,6 +407,14 @@
             if (inputStrokeColor) inputStrokeColor.value = hexStroke;
             if (inputStrokeWidth) inputStrokeWidth.value = obj.strokeWidth || 0;
             if (inputBorderRadius) inputBorderRadius.value = obj.rx || 0;
+            const tl = obj.rx_tl !== undefined ? obj.rx_tl : (obj.rx || 0);
+            const tr = obj.rx_tr !== undefined ? obj.rx_tr : (obj.rx || 0);
+            const br = obj.rx_br !== undefined ? obj.rx_br : (obj.rx || 0);
+            const bl = obj.rx_bl !== undefined ? obj.rx_bl : (obj.rx || 0);
+            if (inputRadiusTL) inputRadiusTL.value = tl;
+            if (inputRadiusTR) inputRadiusTR.value = tr;
+            if (inputRadiusBR) inputRadiusBR.value = br;
+            if (inputRadiusBL) inputRadiusBL.value = bl;
         } else {
             if (textProps) textProps.style.display = 'none';
             if (imageProps) imageProps.style.display = 'none';

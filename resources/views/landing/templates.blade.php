@@ -243,8 +243,8 @@
                 <div class="tpl-card-img-wrap">
                     <img src="{{ $post->seo_image ?? ($post->frame_image ? asset('uploads/'.$post->frame_image) : asset('assets/images/placeholder.png')) }}" class="tpl-card-img" alt="{{ $post->festivals->title ?? 'Festival' }}" loading="lazy">
                     <div class="tpl-card-overlay">
-                        <a href="{{ route('client.login') }}" class="tpl-overlay-btn">
-                            Login to Customize
+                        <a href="{{ App\Models\AppUpdateSetting::getAppUpdateSetting('app_link') }}" target="_blank" class="tpl-overlay-btn">
+                            DOWNLOAD APP TO CUSTOMIZE
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                         </a>
                     </div>
@@ -275,8 +275,8 @@
                 <div class="tpl-card-img-wrap">
                     <img src="{{ $post->seo_image ?? ($post->frame_image ? asset('uploads/'.$post->frame_image) : asset('assets/images/placeholder.png')) }}" class="tpl-card-img" alt="{{ $post->category->name ?? 'Business Post' }}" loading="lazy">
                     <div class="tpl-card-overlay">
-                        <a href="{{ route('client.login') }}" class="tpl-overlay-btn">
-                            Login to Customize
+                        <a href="{{ App\Models\AppUpdateSetting::getAppUpdateSetting('app_link') }}" target="_blank" class="tpl-overlay-btn">
+                            DOWNLOAD APP TO CUSTOMIZE
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                         </a>
                     </div>
@@ -306,8 +306,8 @@
                 <div class="tpl-card-img-wrap">
                     <img src="{{ $post->seo_image ?? ($post->frame_image ? asset('uploads/'.$post->frame_image) : asset('assets/images/placeholder.png')) }}" class="tpl-card-img" alt="{{ $post->custom_post->name ?? 'Custom' }}" loading="lazy">
                     <div class="tpl-card-overlay">
-                        <a href="{{ route('client.login') }}" class="tpl-overlay-btn">
-                            Login to Customize
+                        <a href="{{ App\Models\AppUpdateSetting::getAppUpdateSetting('app_link') }}" target="_blank" class="tpl-overlay-btn">
+                            DOWNLOAD APP TO CUSTOMIZE
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                         </a>
                     </div>

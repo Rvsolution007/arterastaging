@@ -45,7 +45,7 @@
                 <div class="template-img-wrapper">
                     <img src="{{ $post->frame_image ? asset('uploads/'.$post->frame_image) : asset('assets/images/placeholder.png') }}" class="template-img" alt="Template">
                     <div class="template-overlay">
-                        <a href="{{ route('client.login') }}" class="btn-customize">Login to Customize</a>
+                        <a href="{{ App\Models\AppUpdateSetting::getAppUpdateSetting('app_link') }}" target="_blank" class="btn-customize">DOWNLOAD APP TO CUSTOMIZE</a>
                     </div>
                 </div>
                 <div class="template-info">

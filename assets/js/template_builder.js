@@ -11,34 +11,52 @@
         if (fabric.Textbox) fabric.Textbox.prototype.textBaseline = 'alphabetic';
         if (fabric.IText) fabric.IText.prototype.textBaseline = 'alphabetic';
         if (fabric.Rect) {
+            if (fabric.Rect.prototype.cacheProperties) {
+                fabric.Rect.prototype.cacheProperties = fabric.Rect.prototype.cacheProperties.concat(['rx_tl', 'rx_tr', 'rx_br', 'rx_bl']);
+            }
+            if (fabric.Rect.prototype.stateProperties) {
+                fabric.Rect.prototype.stateProperties = fabric.Rect.prototype.stateProperties.concat(['rx_tl', 'rx_tr', 'rx_br', 'rx_bl']);
+            }
             const originalRectRender = fabric.Rect.prototype._render;
             fabric.Rect.prototype._render = function(ctx) {
-                const tl = this.rx_tl !== undefined ? this.rx_tl : (this.rx || 0);
-                const tr = this.rx_tr !== undefined ? this.rx_tr : (this.rx || 0);
-                const br = this.rx_br !== undefined ? this.rx_br : (this.rx || 0);
-                const bl = this.rx_bl !== undefined ? this.rx_bl : (this.rx || 0);
+                const tl = this.rx_tl !== undefined ? Number(this.rx_tl) : Number(this.rx || 0);
+                const tr = this.rx_tr !== undefined ? Number(this.rx_tr) : Number(this.rx || 0);
+                const br = this.rx_br !== undefined ? Number(this.rx_br) : Number(this.rx || 0);
+                const bl = this.rx_bl !== undefined ? Number(this.rx_bl) : Number(this.rx || 0);
                 if (tl === 0 && tr === 0 && br === 0 && bl === 0 && !this.rx && !this.ry) {
                     originalRectRender.call(this, ctx);
                     return;
                 }
                 const w = this.width, h = this.height, x = -w / 2, y = -h / 2;
+                const maxR = Math.min(w, h) / 2;
+                const rTL = Math.min(tl, maxR);
+                const rTR = Math.min(tr, maxR);
+                const rBR = Math.min(br, maxR);
+                const rBL = Math.min(bl, maxR);
                 ctx.beginPath();
-                if (ctx.roundRect) {
-                    ctx.roundRect(x, y, w, h, [Math.min(tl, w/2, h/2), Math.min(tr, w/2, h/2), Math.min(br, w/2, h/2), Math.min(bl, w/2, h/2)]);
-                } else {
-                    ctx.moveTo(x + Math.min(tl, w/2), y);
-                    ctx.lineTo(x + w - Math.min(tr, w/2), y);
-                    if (tr > 0) ctx.arcTo(x + w, y, x + w, y + Math.min(tr, h/2), tr); else ctx.lineTo(x + w, y);
-                    ctx.lineTo(x + w, y + h - Math.min(br, h/2));
-                    if (br > 0) ctx.arcTo(x + w, y + h, x + w - Math.min(br, w/2), y + h, br); else ctx.lineTo(x + w, y + h);
-                    ctx.lineTo(x + Math.min(bl, w/2), y + h);
-                    if (bl > 0) ctx.arcTo(x, y + h, x, y + h - Math.min(bl, h/2), bl); else ctx.lineTo(x, y + h);
-                    ctx.lineTo(x, y + Math.min(tl, h/2));
-                    if (tl > 0) ctx.arcTo(x, y, x + Math.min(tl, w/2), y, tl); else ctx.lineTo(x, y);
-                }
+                ctx.moveTo(x + rTL, y);
+                ctx.lineTo(x + w - rTR, y);
+                if (rTR > 0) ctx.arcTo(x + w, y, x + w, y + rTR, rTR); else ctx.lineTo(x + w, y);
+                ctx.lineTo(x + w, y + h - rBR);
+                if (rBR > 0) ctx.arcTo(x + w, y + h, x + w - rBR, y + h, rBR); else ctx.lineTo(x + w, y + h);
+                ctx.lineTo(x + rBL, y + h);
+                if (rBL > 0) ctx.arcTo(x, y + h, x, y + h - rBL, rBL); else ctx.lineTo(x, y + h);
+                ctx.lineTo(x, y + rTL);
+                if (rTL > 0) ctx.arcTo(x, y, x + rTL, y, rTL); else ctx.lineTo(x, y);
                 ctx.closePath();
-                if (this.fill) ctx.fill();
-                if (this.stroke && this.strokeWidth !== 0) ctx.stroke();
+                if (typeof this._renderFill === 'function') {
+                    this._renderFill(ctx);
+                } else if (this.fill) {
+                    ctx.fillStyle = this.fill;
+                    ctx.fill();
+                }
+                if (typeof this._renderStroke === 'function') {
+                    this._renderStroke(ctx);
+                } else if (this.stroke && this.strokeWidth !== 0) {
+                    ctx.strokeStyle = this.stroke;
+                    ctx.lineWidth = this.strokeWidth;
+                    ctx.stroke();
+                }
             };
             const originalToObject = fabric.Rect.prototype.toObject;
             fabric.Rect.prototype.toObject = function(propertiesToInclude) {
@@ -109,13 +127,30 @@
         e.preventDefault();
         e.stopPropagation();
 
+        const wrapEl = document.querySelector('.canvas-container-wrap');
+        const wrapper = document.getElementById('canvas-wrapper');
+        if (!wrapEl || !wrapper) return;
+
         const delta = e.deltaY || e.detail || 0;
         let zoomStep = 0.05;
+        let newScale = currentScale;
         if (delta > 0) {
-            currentScale = Math.max(0.1, currentScale - zoomStep);
+            newScale = Math.max(0.1, currentScale - zoomStep);
         } else {
-            currentScale = Math.min(5.0, currentScale + zoomStep);
+            newScale = Math.min(5.0, currentScale + zoomStep);
         }
+
+        if (newScale === currentScale) return;
+
+        // Calculate mouse position relative to canvas wrapper
+        const wrapperRect = wrapper.getBoundingClientRect();
+        const mouseX = e.clientX - wrapperRect.left;
+        const mouseY = e.clientY - wrapperRect.top;
+
+        // Calculate the ratio of the new scale to the old scale
+        const scaleMultiplier = newScale / currentScale;
+        
+        currentScale = newScale;
 
         canvas.setZoom(currentScale);
         canvas.setDimensions({
@@ -123,14 +158,18 @@
             height: Math.round(baseHeight * currentScale)
         });
 
-        const wrapper = document.getElementById('canvas-wrapper');
-        if (wrapper) {
-            wrapper.style.width = Math.round(baseWidth * currentScale) + 'px';
-            wrapper.style.height = Math.round(baseHeight * currentScale) + 'px';
-            wrapper.style.setProperty('--canvas-scale', currentScale);
-        }
+        wrapper.style.width = Math.round(baseWidth * currentScale) + 'px';
+        wrapper.style.height = Math.round(baseHeight * currentScale) + 'px';
+        wrapper.style.setProperty('--canvas-scale', currentScale);
 
         canvas.renderAll();
+
+        // Adjust scroll position to keep the point under the mouse stationary
+        const newMouseX = mouseX * scaleMultiplier;
+        const newMouseY = mouseY * scaleMultiplier;
+        
+        wrapEl.scrollLeft += (newMouseX - mouseX);
+        wrapEl.scrollTop += (newMouseY - mouseY);
     }
 
     const wrapEl = document.querySelector('.canvas-container-wrap');
@@ -296,6 +335,114 @@
     
     canvas.on('object:scaling', updateCoords);
     canvas.on('object:moving', updateCoords);
+
+    // --- Canva-style Smart Guidelines & Alignment Snapping ---
+    let alignmentLines = { vertical: [], horizontal: [] };
+    const SNAP_DIST = 6;
+
+    canvas.on('object:moving', function(e) {
+        alignmentLines = { vertical: [], horizontal: [] };
+        const target = e.target;
+        if (!target) return;
+
+        const zoom = canvas.getZoom() || 1;
+        const cW = canvas.width / zoom;
+        const cH = canvas.height / zoom;
+        const targetRect = target.getBoundingRect(true);
+
+        const targetX = [
+            { val: targetRect.left },
+            { val: targetRect.left + targetRect.width / 2 },
+            { val: targetRect.left + targetRect.width }
+        ];
+        const targetY = [
+            { val: targetRect.top },
+            { val: targetRect.top + targetRect.height / 2 },
+            { val: targetRect.top + targetRect.height }
+        ];
+
+        let snappedX = false;
+        let snappedY = false;
+
+        let refX = [0, cW / 2, cW];
+        let refY = [0, cH / 2, cH];
+
+        canvas.getObjects().forEach(obj => {
+            if (obj === target || !obj.visible || obj.evented === false || obj.id === 'workarea' || obj.id === 'frame_bg' || obj.isFrameStructural) return;
+            const r = obj.getBoundingRect(true);
+            refX.push(r.left, r.left + r.width / 2, r.left + r.width);
+            refY.push(r.top, r.top + r.height / 2, r.top + r.height);
+        });
+
+        for (let i = 0; i < targetX.length && !snappedX; i++) {
+            for (let j = 0; j < refX.length; j++) {
+                if (Math.abs(targetX[i].val - refX[j]) <= SNAP_DIST) {
+                    const dx = refX[j] - targetX[i].val;
+                    target.set('left', target.left + dx);
+                    target.setCoords();
+                    alignmentLines.vertical.push(refX[j]);
+                    snappedX = true;
+                    break;
+                }
+            }
+        }
+
+        for (let i = 0; i < targetY.length && !snappedY; i++) {
+            for (let j = 0; j < refY.length; j++) {
+                if (Math.abs(targetY[i].val - refY[j]) <= SNAP_DIST) {
+                    const dy = refY[j] - targetY[i].val;
+                    target.set('top', target.top + dy);
+                    target.setCoords();
+                    alignmentLines.horizontal.push(refY[j]);
+                    snappedY = true;
+                    break;
+                }
+            }
+        }
+        if (typeof updateCoords === 'function') updateCoords();
+        else if (typeof updateProps === 'function') updateProps();
+    });
+
+    canvas.on('after:render', function(opt) {
+        if (alignmentLines.vertical.length === 0 && alignmentLines.horizontal.length === 0) return;
+        const ctx = opt.ctx || canvas.contextContainer;
+        if (!ctx) return;
+        ctx.save();
+        const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
+        ctx.transform(vpt[0], vpt[1], vpt[2], vpt[3], vpt[4], vpt[5]);
+        const zoom = canvas.getZoom() || 1;
+        const cW = canvas.width / zoom;
+        const cH = canvas.height / zoom;
+        ctx.lineWidth = 1.5 / zoom;
+        ctx.strokeStyle = '#ff007f';
+        ctx.setLineDash([5 / zoom, 5 / zoom]);
+
+        alignmentLines.vertical.forEach(x => {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, cH);
+            ctx.stroke();
+        });
+
+        alignmentLines.horizontal.forEach(y => {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(cW, y);
+            ctx.stroke();
+        });
+
+        ctx.restore();
+    });
+
+    const clearGuidelines = function() {
+        if (alignmentLines.vertical.length > 0 || alignmentLines.horizontal.length > 0) {
+            alignmentLines = { vertical: [], horizontal: [] };
+            canvas.requestRenderAll();
+        }
+    };
+
+    canvas.on('mouse:up', clearGuidelines);
+    canvas.on('object:modified', clearGuidelines);
 
     function updateProps() {
         const obj = canvas.getActiveObject();
@@ -875,12 +1022,14 @@
             if (inputRadiusBL) inputRadiusBL.value = val;
             if (inputBorderRadius) inputBorderRadius.value = val;
             obj.set({ rx: val, ry: val, rx_tl: val, rx_tr: val, rx_br: val, rx_bl: val });
+            obj.dirty = true;
         } else {
             const tl = parseInt(inputRadiusTL ? inputRadiusTL.value : 0) || 0;
             const tr = parseInt(inputRadiusTR ? inputRadiusTR.value : 0) || 0;
             const br = parseInt(inputRadiusBR ? inputRadiusBR.value : 0) || 0;
             const bl = parseInt(inputRadiusBL ? inputRadiusBL.value : 0) || 0;
             obj.set({ rx: 0, ry: 0, rx_tl: tl, rx_tr: tr, rx_br: br, rx_bl: bl });
+            obj.dirty = true;
         }
         canvas.renderAll();
         saveHistory();

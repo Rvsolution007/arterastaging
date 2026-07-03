@@ -21,6 +21,8 @@ class ApplyWatermarks extends Command
 
     public function handle()
     {
+        ini_set('memory_limit', '-1'); // Prevent Out of Memory error during heavy image processing
+        
         $watermarkImage = AppSetting::getAppSetting('seo_watermark_image');
         
         if (empty($watermarkImage)) {
@@ -69,6 +71,7 @@ class ApplyWatermarks extends Command
 
             if (!$exists) {
                 $this->applyWatermark($filename, $diskType);
+                gc_collect_cycles(); // Force garbage collection to free image memory
             }
             
             $bar->advance();

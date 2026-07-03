@@ -11,31 +11,38 @@
         if (fabric.Textbox) fabric.Textbox.prototype.textBaseline = 'alphabetic';
         if (fabric.IText) fabric.IText.prototype.textBaseline = 'alphabetic';
         if (fabric.Rect) {
+            if (fabric.Rect.prototype.cacheProperties) {
+                fabric.Rect.prototype.cacheProperties = fabric.Rect.prototype.cacheProperties.concat(['rx_tl', 'rx_tr', 'rx_br', 'rx_bl']);
+            }
+            if (fabric.Rect.prototype.stateProperties) {
+                fabric.Rect.prototype.stateProperties = fabric.Rect.prototype.stateProperties.concat(['rx_tl', 'rx_tr', 'rx_br', 'rx_bl']);
+            }
             const originalRectRender = fabric.Rect.prototype._render;
             fabric.Rect.prototype._render = function(ctx) {
-                const tl = this.rx_tl !== undefined ? this.rx_tl : (this.rx || 0);
-                const tr = this.rx_tr !== undefined ? this.rx_tr : (this.rx || 0);
-                const br = this.rx_br !== undefined ? this.rx_br : (this.rx || 0);
-                const bl = this.rx_bl !== undefined ? this.rx_bl : (this.rx || 0);
+                const tl = this.rx_tl !== undefined ? Number(this.rx_tl) : Number(this.rx || 0);
+                const tr = this.rx_tr !== undefined ? Number(this.rx_tr) : Number(this.rx || 0);
+                const br = this.rx_br !== undefined ? Number(this.rx_br) : Number(this.rx || 0);
+                const bl = this.rx_bl !== undefined ? Number(this.rx_bl) : Number(this.rx || 0);
                 if (tl === 0 && tr === 0 && br === 0 && bl === 0 && !this.rx && !this.ry) {
                     originalRectRender.call(this, ctx);
                     return;
                 }
                 const w = this.width, h = this.height, x = -w / 2, y = -h / 2;
+                const maxR = Math.min(w, h) / 2;
+                const rTL = Math.min(tl, maxR);
+                const rTR = Math.min(tr, maxR);
+                const rBR = Math.min(br, maxR);
+                const rBL = Math.min(bl, maxR);
                 ctx.beginPath();
-                if (ctx.roundRect) {
-                    ctx.roundRect(x, y, w, h, [Math.min(tl, w/2, h/2), Math.min(tr, w/2, h/2), Math.min(br, w/2, h/2), Math.min(bl, w/2, h/2)]);
-                } else {
-                    ctx.moveTo(x + Math.min(tl, w/2), y);
-                    ctx.lineTo(x + w - Math.min(tr, w/2), y);
-                    if (tr > 0) ctx.arcTo(x + w, y, x + w, y + Math.min(tr, h/2), tr); else ctx.lineTo(x + w, y);
-                    ctx.lineTo(x + w, y + h - Math.min(br, h/2));
-                    if (br > 0) ctx.arcTo(x + w, y + h, x + w - Math.min(br, w/2), y + h, br); else ctx.lineTo(x + w, y + h);
-                    ctx.lineTo(x + Math.min(bl, w/2), y + h);
-                    if (bl > 0) ctx.arcTo(x, y + h, x, y + h - Math.min(bl, h/2), bl); else ctx.lineTo(x, y + h);
-                    ctx.lineTo(x, y + Math.min(tl, h/2));
-                    if (tl > 0) ctx.arcTo(x, y, x + Math.min(tl, w/2), y, tl); else ctx.lineTo(x, y);
-                }
+                ctx.moveTo(x + rTL, y);
+                ctx.lineTo(x + w - rTR, y);
+                if (rTR > 0) ctx.arcTo(x + w, y, x + w, y + rTR, rTR); else ctx.lineTo(x + w, y);
+                ctx.lineTo(x + w, y + h - rBR);
+                if (rBR > 0) ctx.arcTo(x + w, y + h, x + w - rBR, y + h, rBR); else ctx.lineTo(x + w, y + h);
+                ctx.lineTo(x + rBL, y + h);
+                if (rBL > 0) ctx.arcTo(x, y + h, x, y + h - rBL, rBL); else ctx.lineTo(x, y + h);
+                ctx.lineTo(x, y + rTL);
+                if (rTL > 0) ctx.arcTo(x, y, x + rTL, y, rTL); else ctx.lineTo(x, y);
                 ctx.closePath();
                 if (this.fill) ctx.fill();
                 if (this.stroke && this.strokeWidth !== 0) ctx.stroke();
@@ -831,7 +838,50 @@
     });
     if (inputBorderRadius) inputBorderRadius.addEventListener('change', function() {
         const obj = canvas.getActiveObject();
-        if (obj && obj.type === 'rect') { obj.set({ rx: parseInt(this.value) || 0, ry: parseInt(this.value) || 0 }); canvas.renderAll(); saveHistory(); }
+        if (obj && obj.type === 'rect') { 
+            let val = parseInt(this.value) || 0;
+            obj.set({ rx: val, ry: val, rx_tl: val, rx_tr: val, rx_br: val, rx_bl: val }); 
+            canvas.renderAll(); saveHistory(); 
+        }
+    });
+    if (btnRadiusLock) {
+        btnRadiusLock.addEventListener('click', function() {
+            isRadiusLocked = !isRadiusLocked;
+            const icon = this.querySelector('i');
+            if (icon) icon.className = isRadiusLocked ? 'fa-solid fa-lock' : 'fa-solid fa-lock-open';
+            this.classList.toggle('btn-outline-secondary', !isRadiusLocked);
+            this.classList.toggle('btn-primary', isRadiusLocked);
+            this.title = isRadiusLocked ? 'Lock Uniform Radius (Click to Unlock)' : 'Unlock Independent Corners (Click to Lock)';
+        });
+    }
+    const updateCornerRadius = function(sourceInput) {
+        const obj = canvas.getActiveObject();
+        if (!obj || obj.type !== 'rect') return;
+        if (isRadiusLocked) {
+            let val = parseInt(sourceInput.value) || 0;
+            if (inputRadiusTL) inputRadiusTL.value = val;
+            if (inputRadiusTR) inputRadiusTR.value = val;
+            if (inputRadiusBR) inputRadiusBR.value = val;
+            if (inputRadiusBL) inputRadiusBL.value = val;
+            if (inputBorderRadius) inputBorderRadius.value = val;
+            obj.set({ rx: val, ry: val, rx_tl: val, rx_tr: val, rx_br: val, rx_bl: val });
+            obj.dirty = true;
+        } else {
+            const tl = parseInt(inputRadiusTL ? inputRadiusTL.value : 0) || 0;
+            const tr = parseInt(inputRadiusTR ? inputRadiusTR.value : 0) || 0;
+            const br = parseInt(inputRadiusBR ? inputRadiusBR.value : 0) || 0;
+            const bl = parseInt(inputRadiusBL ? inputRadiusBL.value : 0) || 0;
+            obj.set({ rx: 0, ry: 0, rx_tl: tl, rx_tr: tr, rx_br: br, rx_bl: bl });
+            obj.dirty = true;
+        }
+        canvas.renderAll();
+        saveHistory();
+    };
+    [inputRadiusTL, inputRadiusTR, inputRadiusBR, inputRadiusBL].forEach(inp => {
+        if (inp) {
+            inp.addEventListener('input', function() { updateCornerRadius(this); });
+            inp.addEventListener('change', function() { updateCornerRadius(this); });
+        }
     });
 
     // Image events

@@ -148,7 +148,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        opacity: 0.7;
+        opacity: 0.9;
         transition: opacity 0.3s ease;
     }
     .trusted-logo-item:hover { opacity: 1; }

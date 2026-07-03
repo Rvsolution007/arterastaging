@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Artera — AI-Powered Business Poster Maker App')</title>
 
     {{-- SEO Head Component — Dynamic meta, OG, schema --}}
@@ -19,14 +19,18 @@
         <meta name="twitter:card" content="summary_large_image">
     @endif
 
-    <!-- Google Fonts Deferred -->
+    <!-- Google Fonts — display=swap prevents FOIT -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap"></noscript>
-    <!-- Font Awesome Deferred -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <!-- Font Awesome — deferred with font-display fix -->
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
+    <style>
+        /* Force font-display:swap on FontAwesome webfonts to eliminate FOIT */
+        @font-face { font-family: 'Font Awesome 6 Free'; font-display: swap; }
+        @font-face { font-family: 'Font Awesome 6 Brands'; font-display: swap; }
+    </style>
 
     <style>
         /* ============================================
@@ -141,7 +145,7 @@
             font-family: 'Inter', sans-serif;
         }
         .btn-sharp-primary {
-            background-color: var(--blue);
+            background-color: #2563eb;
             color: #fff;
         }
         .btn-sharp-primary:hover { background-color: #2563eb; transform: translateY(-2px); }
@@ -289,38 +293,26 @@
             display: inline-block;
         }
 
-        /* ---- Text Shimmer / Gradient Sweep ---- */
-        .text-shimmer {
-            background: linear-gradient(
-                90deg,
-                var(--text-dark) 0%,
-                var(--blue) 40%,
-                var(--text-dark) 60%,
-                var(--text-dark) 100%
-            );
-            background-size: 200% 100%;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            animation: shimmer-sweep 3s ease-in-out infinite;
+        /* ---- Text Shimmer / Gradient Sweep (composited via transform) ---- */
+        .text-shimmer, .text-shimmer-white {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
         }
-        .text-shimmer-white {
-            background: linear-gradient(
-                90deg,
-                #fff 0%,
-                var(--blue) 40%,
-                #fff 60%,
-                #fff 100%
-            );
-            background-size: 200% 100%;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+        .text-shimmer-white { color: #fff; }
+        .text-shimmer { color: var(--text-dark); }
+        .text-shimmer::after, .text-shimmer-white::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent 0%, rgba(59,130,246,0.35) 50%, transparent 100%);
             animation: shimmer-sweep 3s ease-in-out infinite;
+            mix-blend-mode: overlay;
+            will-change: transform;
         }
         @keyframes shimmer-sweep {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
         }
 
         /* ---- Floating / Pulsing glow effect for CTAs ---- */
@@ -454,22 +446,25 @@
             color: var(--blue);
         }
 
-        /* Nav CTA */
+        /* Nav CTA — fixed dimensions prevent CLS */
         .nav-cta {
             display: inline-flex;
             align-items: center;
             gap: 8px;
             padding: 10px 24px;
-            background: var(--blue);
+            background: #1d4ed8;
             color: #fff !important;
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             text-decoration: none;
             transition: var(--transition);
+            min-height: 42px;
+            min-width: 160px;
+            justify-content: center;
         }
-        .nav-cta:hover { background: #2563eb; }
+        .nav-cta:hover { background: #1e40af; }
 
         /* Mobile toggle */
         .mobile-toggle {
@@ -530,7 +525,7 @@
         .footer-links { list-style: none; }
         .footer-links li { margin-bottom: 10px; }
         .footer-links a {
-            color: rgba(255, 255, 255, 0.5);
+            color: rgba(255, 255, 255, 0.65);
             text-decoration: none;
             font-size: 14px;
             transition: color 0.2s ease;
@@ -545,7 +540,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            color: rgba(255, 255, 255, 0.35);
+            color: rgba(255, 255, 255, 0.6);
             font-size: 13px;
         }
         .footer-socials { display: flex; gap: 16px; }
@@ -569,6 +564,24 @@
 
         /* ---- Utility spacer ---- */
         .header-spacer { height: 64px; }
+
+        /* ---- Hero LCP Fix: make hero heading visible instantly (no animation delay) ---- */
+        .hero-section .split-text {
+            opacity: 1 !important;
+            transform: none !important;
+        }
+        .hero-section .split-text .split-line-inner,
+        .hero-section .split-text .split-line {
+            transform: none !important;
+            opacity: 1 !important;
+        }
+        .hero-section > .container-full .reveal:first-child {
+            opacity: 1 !important;
+            transform: none !important;
+        }
+        .hero-section .typewriter {
+            clip-path: none !important;
+        }
     </style>
     @yield('extra_css')
 </head>
@@ -691,13 +704,18 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
 
+            // Use rAF to batch all DOM reads/writes and avoid forced reflows
+            requestAnimationFrame(() => {
+
             // ============================================
-            // 1. SPLIT TEXT — Auto-wrap lines for mask reveal
+            // 1. SPLIT TEXT — Auto-wrap lines for mask reveal (skip hero for LCP)
             // ============================================
             document.querySelectorAll('.split-text').forEach(el => {
+                // Skip hero heading — it must paint immediately for LCP
+                if (el.closest('.hero-section')) return;
+
                 const lines = el.querySelectorAll('span[style*="display:block"], span[style*="display: block"]');
                 if (lines.length > 0) {
-                    // Already has span blocks — wrap each inner content
                     lines.forEach(line => {
                         const inner = document.createElement('span');
                         inner.className = 'split-line-inner';
@@ -707,7 +725,6 @@
                         line.appendChild(inner);
                     });
                 } else {
-                    // No span blocks — split by <br> or treat as single line
                     const html = el.innerHTML;
                     const parts = html.split(/<br\s*\/?>/i);
                     if (parts.length > 1) {
@@ -744,7 +761,7 @@
             // ============================================
             // 4. INTERSECTION OBSERVER — Unified for all animated elements
             // ============================================
-            const animatedSelectors = '.reveal, .reveal-left, .reveal-right, .reveal-scale, .reveal-blur, .split-text, .stagger-words, .stagger-list, .typewriter, .draw-underline';
+            const animatedSelectors = '.reveal, .reveal-left, .reveal-right, .reveal-scale, .reveal-blur, .split-text:not(.hero-section .split-text), .stagger-words, .stagger-list, .typewriter:not(.hero-section .typewriter), .draw-underline';
             const animatedEls = document.querySelectorAll(animatedSelectors);
 
             if ('IntersectionObserver' in window) {
@@ -760,6 +777,8 @@
             } else {
                 animatedEls.forEach(el => el.classList.add('revealed'));
             }
+
+            }); // end rAF
 
             // ============================================
             // 5. COUNTER UP — Animate numbers from 0

@@ -21,10 +21,15 @@ class ApplyWatermarks extends Command
 
     public function handle()
     {
-        $watermarkImage = AppSetting::getAppSetting('seo_watermark_image');
+        ini_set('memory_limit', '-1'); // Prevent Out of Memory error during heavy image processing
         
-        if (empty($watermarkImage)) {
-            $this->error('No SEO Watermark Logo is set in Admin Settings. Please upload it first.');
+        $watermarkImage = AppSetting::getAppSetting('seo_watermark_image');
+        $watermarkImage11 = AppSetting::getAppSetting('seo_watermark_image_1_1');
+        $watermarkImage169 = AppSetting::getAppSetting('seo_watermark_image_16_9');
+        $watermarkImage916 = AppSetting::getAppSetting('seo_watermark_image_9_16');
+        
+        if (empty($watermarkImage) && empty($watermarkImage11) && empty($watermarkImage169) && empty($watermarkImage916)) {
+            $this->error('No SEO Watermark Logo is set in Admin Settings (for any aspect ratio). Please upload it first.');
             return;
         }
 
@@ -59,17 +64,8 @@ class ApplyWatermarks extends Command
             $filename = $item->frame_image;
             $watermarkedFilename = 'watermarked_' . $filename;
 
-            // Check if watermarked version already exists
-            $exists = false;
-            if ($diskType == 'DigitalOcean') {
-                $exists = Storage::disk('spaces')->exists('uploads/' . $watermarkedFilename);
-            } else {
-                $exists = file_exists(public_path('uploads/' . $watermarkedFilename));
-            }
-
-            if (!$exists) {
-                $this->applyWatermark($filename, $diskType);
-            }
+            $this->applyWatermark($filename, $diskType);
+            gc_collect_cycles(); // Force garbage collection to free image memory
             
             $bar->advance();
         }

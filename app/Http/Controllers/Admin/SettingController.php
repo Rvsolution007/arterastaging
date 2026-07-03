@@ -104,6 +104,14 @@ class SettingController extends Controller
 
                         AppSetting::where('key_name', $key)->update(['key_value' => $file]);
                     }
+                    if (in_array($key, ["seo_watermark_image", "seo_watermark_image_1_1", "seo_watermark_image_16_9", "seo_watermark_image_9_16"]) && $val && $val->isValid()) {
+                        $image = $val;
+                        $file = Str::uuid() . '.' . $image->getClientOriginalExtension();
+
+                        Storage::disk('spaces')->put('uploads/' . $file, file_get_contents($image), 'public');
+
+                        AppSetting::where('key_name', $key)->update(['key_value' => $file]);
+                    }
                 } else {
                     if ($key == "app_logo" && $val && $val->isValid()) {
                         $this->upload_image($val, $key);
@@ -112,7 +120,7 @@ class SettingController extends Controller
                     if ($key == "admin_favicon" && $val && $val->isValid()) {
                         $this->upload_image($val, $key);
                     }
-                    if ($key == "seo_watermark_image" && $val && $val->isValid()) {
+                    if (in_array($key, ["seo_watermark_image", "seo_watermark_image_1_1", "seo_watermark_image_16_9", "seo_watermark_image_9_16"]) && $val && $val->isValid()) {
                         $this->upload_image($val, $key);
                     }
                 }
@@ -135,7 +143,7 @@ class SettingController extends Controller
 
                         AppSetting::where('key_name', $key)->update(['key_value' => $file]);
                     }
-                    if ($key == "seo_watermark_image" && $val && $val->isValid()) {
+                    if (in_array($key, ["seo_watermark_image", "seo_watermark_image_1_1", "seo_watermark_image_16_9", "seo_watermark_image_9_16"]) && $val && $val->isValid()) {
                         $image = $val;
                         $file = Str::uuid() . '.' . $image->getClientOriginalExtension();
 
@@ -151,7 +159,7 @@ class SettingController extends Controller
                     if ($key == "admin_favicon" && $val && $val->isValid()) {
                         $this->upload_image($val, $key);
                     }
-                    if ($key == "seo_watermark_image" && $val && $val->isValid()) {
+                    if (in_array($key, ["seo_watermark_image", "seo_watermark_image_1_1", "seo_watermark_image_16_9", "seo_watermark_image_9_16"]) && $val && $val->isValid()) {
                         $this->upload_image($val, $key);
                     }
                 }

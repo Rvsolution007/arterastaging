@@ -12,34 +12,12 @@ trait WatermarkImageTrait
 {
     public function applyWatermark($originalFilename, $diskType = null)
     {
-        $watermarkImage = AppSetting::getAppSetting('seo_watermark_image');
-        
-        // If no watermark logo is set, we skip
-        if (empty($watermarkImage)) {
-            return;
-        }
-
         if ($diskType === null) {
             $diskType = StorageSetting::getStorageSetting("storage");
         }
 
-        $watermarkPath = public_path('uploads/' . $watermarkImage);
-        
-        if ($diskType == 'DigitalOcean') {
-            if (!Storage::disk('spaces')->exists('uploads/' . $watermarkImage)) {
-                return;
-            }
-            $watermarkData = Storage::disk('spaces')->get('uploads/' . $watermarkImage);
-        } else {
-            if (!file_exists($watermarkPath)) {
-                return;
-            }
-            $watermarkData = $watermarkPath;
-        }
-
         try {
             $manager = new ImageManager(new Driver());
-            $watermark = $manager->read($watermarkData);
 
             if ($diskType == 'DigitalOcean') {
                 if (!Storage::disk('spaces')->exists('uploads/' . $originalFilename)) {
@@ -55,8 +33,52 @@ trait WatermarkImageTrait
                 $image = $manager->read($originalPath);
             }
 
+            // Calculate Aspect Ratio
+            $imageWidth = $image->width();
+            $imageHeight = $image->height();
+            $ratio = $imageWidth / $imageHeight;
+            
+            // Determine Watermark Key
+            $watermarkImageKey = 'seo_watermark_image_1_1'; // Default square
+            
+            if ($ratio >= 1.2) { 
+                $watermarkImageKey = 'seo_watermark_image_16_9'; // Landscape
+            } else if ($ratio <= 0.8) { 
+                $watermarkImageKey = 'seo_watermark_image_9_16'; // Portrait
+            }
+            
+            $watermarkImage = AppSetting::getAppSetting($watermarkImageKey);
+            
+            // Fallbacks
+            if (empty($watermarkImage)) {
+                $watermarkImage = AppSetting::getAppSetting('seo_watermark_image_1_1'); // Fallback to 1:1 if specific size missing
+            }
+            if (empty($watermarkImage)) {
+                $watermarkImage = AppSetting::getAppSetting('seo_watermark_image'); // Fallback to legacy
+            }
+            if (empty($watermarkImage)) {
+                return; // No watermark configured
+            }
+
+            // Load Watermark
+            $watermarkPath = public_path('uploads/' . $watermarkImage);
+            
+            if ($diskType == 'DigitalOcean') {
+                if (!Storage::disk('spaces')->exists('uploads/' . $watermarkImage)) {
+                    return;
+                }
+                $watermarkData = Storage::disk('spaces')->get('uploads/' . $watermarkImage);
+            } else {
+                if (!file_exists($watermarkPath)) {
+                    return;
+                }
+                $watermarkData = $watermarkPath;
+            }
+
+            $watermark = $manager->read($watermarkData);
+
             // Resize watermark (40% of original image width)
-            $watermarkWidth = intval($image->width() * 0.4); 
+            $watermarkWidth = intval($imageWidth * 0.4); 
             $watermark->scale(width: $watermarkWidth);
 
             // Place watermark in the center with 50% opacity

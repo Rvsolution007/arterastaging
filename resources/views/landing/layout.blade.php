@@ -19,10 +19,9 @@
         <meta name="twitter:card" content="summary_large_image">
     @endif
 
-    <!-- Google Fonts — display=swap prevents FOIT -->
+    <!-- Google Fonts — loaded after first paint to eliminate render-blocking -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <!-- Font Awesome — deferred with font-display fix -->
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
@@ -31,6 +30,22 @@
         @font-face { font-family: 'Font Awesome 6 Free'; font-display: swap; }
         @font-face { font-family: 'Font Awesome 6 Brands'; font-display: swap; }
     </style>
+    <script>
+        // Load Google Fonts AFTER first paint — non-blocking
+        (function(){
+            if('requestIdleCallback' in window){
+                requestIdleCallback(function(){loadGF();});
+            } else {
+                window.addEventListener('load',loadGF);
+            }
+            function loadGF(){
+                var l=document.createElement('link');
+                l.rel='stylesheet';
+                l.href='https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap';
+                document.head.appendChild(l);
+            }
+        })();
+    </script>
 
     <style>
         /* ============================================
@@ -702,22 +717,42 @@
 
     <!-- Scripts -->
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-
-            // Use rAF to batch all DOM reads/writes and avoid forced reflows
-            requestAnimationFrame(() => {
-
-            // ============================================
-            // 1. SPLIT TEXT — Auto-wrap lines for mask reveal (skip hero for LCP)
-            // ============================================
-            document.querySelectorAll('.split-text').forEach(el => {
-                // Skip hero heading — it must paint immediately for LCP
-                if (el.closest('.hero-section')) return;
-
-                const lines = el.querySelectorAll('span[style*="display:block"], span[style*="display: block"]');
-                if (lines.length > 0) {
-                    lines.forEach(line => {
-                        const inner = document.createElement('span');
+        // ============================================
+        // NAVBAR SCROLL + MOBILE TOGGLE (lightweight, run immediately)
+        // ============================================
+        (function(){
+            var header = document.getElementById('siteHeader');
+            if(header){
+                window.addEventListener('scroll', function(){
+                    if(window.scrollY > 30){ header.classList.add('scrolled'); }
+                    else { header.classList.remove('scrolled'); }
+                }, {passive:true});
+            }
+            document.addEventListener('DOMContentLoaded', function(){
+                var mt = document.getElementById('mobileToggle');
+                var nm = document.getElementById('navMenu');
+                if(mt && nm){
+                    mt.addEventListener('click', function(){
+                        nm.classList.toggle('open');
+                        var icon = mt.querySelector('i');
+                        if(icon){ icon.classList.toggle('fa-bars'); icon.classList.toggle('fa-xmark'); }
+                    });
+                }
+            });
+        })();
+    </script>
+    <script>
+        // ============================================
+        // ANIMATIONS — Deferred to after first paint
+        // ============================================
+        function _initAnimations(){
+            // 1. SPLIT TEXT — skip hero for LCP
+            document.querySelectorAll('.split-text').forEach(function(el){
+                if(el.closest('.hero-section')) return;
+                var lines = el.querySelectorAll('span[style*="display:block"], span[style*="display: block"]');
+                if(lines.length > 0){
+                    lines.forEach(function(line){
+                        var inner = document.createElement('span');
                         inner.className = 'split-line-inner';
                         inner.innerHTML = line.innerHTML;
                         line.innerHTML = '';
@@ -725,116 +760,81 @@
                         line.appendChild(inner);
                     });
                 } else {
-                    const html = el.innerHTML;
-                    const parts = html.split(/<br\s*\/?>/i);
-                    if (parts.length > 1) {
-                        el.innerHTML = parts.map(p =>
-                            `<span class="split-line"><span class="split-line-inner">${p.trim()}</span></span>`
-                        ).join('');
+                    var html = el.innerHTML;
+                    var parts = html.split(/<br\s*\/?>/i);
+                    if(parts.length > 1){
+                        el.innerHTML = parts.map(function(p){
+                            return '<span class="split-line"><span class="split-line-inner">'+p.trim()+'</span></span>';
+                        }).join('');
                     } else {
-                        el.innerHTML = `<span class="split-line"><span class="split-line-inner">${html}</span></span>`;
+                        el.innerHTML = '<span class="split-line"><span class="split-line-inner">'+html+'</span></span>';
                     }
                 }
             });
 
-            // ============================================
-            // 2. STAGGER WORDS — Split text into word spans
-            // ============================================
-            document.querySelectorAll('.stagger-words').forEach(el => {
-                const text = el.textContent.trim();
-                const words = text.split(/\s+/);
-                el.innerHTML = words.map((w, i) =>
-                    `<span class="stagger-word" style="transition-delay:${i * 0.04}s">${w}</span>`
-                ).join(' ');
+            // 2. STAGGER WORDS
+            document.querySelectorAll('.stagger-words').forEach(function(el){
+                var text = el.textContent.trim();
+                var words = text.split(/\s+/);
+                el.innerHTML = words.map(function(w, i){
+                    return '<span class="stagger-word" style="transition-delay:'+i*0.04+'s">'+w+'</span>';
+                }).join(' ');
             });
 
-            // ============================================
-            // 3. STAGGER LIST — Add delay to each item
-            // ============================================
-            document.querySelectorAll('.stagger-list').forEach(list => {
-                const items = list.querySelectorAll('.stagger-item');
-                items.forEach((item, i) => {
-                    item.style.transitionDelay = `${i * 0.08}s`;
-                });
+            // 3. STAGGER LIST
+            document.querySelectorAll('.stagger-list').forEach(function(list){
+                var items = list.querySelectorAll('.stagger-item');
+                items.forEach(function(item, i){ item.style.transitionDelay = i*0.08+'s'; });
             });
 
-            // ============================================
-            // 4. INTERSECTION OBSERVER — Unified for all animated elements
-            // ============================================
-            const animatedSelectors = '.reveal, .reveal-left, .reveal-right, .reveal-scale, .reveal-blur, .split-text:not(.hero-section .split-text), .stagger-words, .stagger-list, .typewriter:not(.hero-section .typewriter), .draw-underline';
-            const animatedEls = document.querySelectorAll(animatedSelectors);
-
-            if ('IntersectionObserver' in window) {
-                const observer = new IntersectionObserver((entries) => {
-                    entries.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            entry.target.classList.add('revealed');
-                            observer.unobserve(entry.target);
+            // 4. INTERSECTION OBSERVER
+            var sel = '.reveal, .reveal-left, .reveal-right, .reveal-scale, .reveal-blur, .split-text:not(.hero-section .split-text), .stagger-words, .stagger-list, .typewriter:not(.hero-section .typewriter), .draw-underline';
+            var els = document.querySelectorAll(sel);
+            if('IntersectionObserver' in window){
+                var obs = new IntersectionObserver(function(entries){
+                    for(var i=0;i<entries.length;i++){
+                        if(entries[i].isIntersecting){
+                            entries[i].target.classList.add('revealed');
+                            obs.unobserve(entries[i].target);
                         }
-                    });
-                }, { threshold: 0.1, rootMargin: '0px 0px -60px 0px' });
-                animatedEls.forEach(el => observer.observe(el));
+                    }
+                }, {threshold:0.1, rootMargin:'0px 0px -60px 0px'});
+                els.forEach(function(el){ obs.observe(el); });
             } else {
-                animatedEls.forEach(el => el.classList.add('revealed'));
+                els.forEach(function(el){ el.classList.add('revealed'); });
             }
 
-            }); // end rAF
-
-            // ============================================
-            // 5. COUNTER UP — Animate numbers from 0
-            // ============================================
-            const counterEls = document.querySelectorAll('.counter-up');
-            if (counterEls.length > 0) {
-                const counterObserver = new IntersectionObserver((entries) => {
-                    entries.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            const el = entry.target;
-                            const target = parseInt(el.getAttribute('data-target')) || 0;
-                            const suffix = el.getAttribute('data-suffix') || '';
-                            const duration = 1500;
-                            const start = performance.now();
-                            function updateCounter(now) {
-                                const elapsed = now - start;
-                                const progress = Math.min(elapsed / duration, 1);
-                                // Ease out cubic
-                                const eased = 1 - Math.pow(1 - progress, 3);
-                                el.textContent = Math.floor(eased * target).toLocaleString() + suffix;
-                                if (progress < 1) requestAnimationFrame(updateCounter);
+            // 5. COUNTER UP
+            var counterEls = document.querySelectorAll('.counter-up');
+            if(counterEls.length > 0){
+                var cObs = new IntersectionObserver(function(entries){
+                    entries.forEach(function(entry){
+                        if(entry.isIntersecting){
+                            var el = entry.target;
+                            var target = parseInt(el.getAttribute('data-target'))||0;
+                            var suffix = el.getAttribute('data-suffix')||'';
+                            var duration = 1500, start = performance.now();
+                            function upd(now){
+                                var p = Math.min((now-start)/duration,1);
+                                var e = 1-Math.pow(1-p,3);
+                                el.textContent = Math.floor(e*target).toLocaleString()+suffix;
+                                if(p<1) requestAnimationFrame(upd);
                             }
-                            requestAnimationFrame(updateCounter);
-                            counterObserver.unobserve(el);
+                            requestAnimationFrame(upd);
+                            cObs.unobserve(el);
                         }
                     });
-                }, { threshold: 0.3 });
-                counterEls.forEach(el => counterObserver.observe(el));
+                }, {threshold:0.3});
+                counterEls.forEach(function(el){ cObs.observe(el); });
             }
+        }
 
-            // ============================================
-            // 6. NAVBAR SCROLL EFFECT
-            // ============================================
-            const header = document.getElementById('siteHeader');
-            window.addEventListener('scroll', () => {
-                if (window.scrollY > 30) {
-                    header.classList.add('scrolled');
-                } else {
-                    header.classList.remove('scrolled');
-                }
-            });
-
-            // ============================================
-            // 7. MOBILE TOGGLE
-            // ============================================
-            const mobileToggle = document.getElementById('mobileToggle');
-            const navMenu = document.getElementById('navMenu');
-            if (mobileToggle && navMenu) {
-                mobileToggle.addEventListener('click', () => {
-                    navMenu.classList.toggle('open');
-                    const icon = mobileToggle.querySelector('i');
-                    icon.classList.toggle('fa-bars');
-                    icon.classList.toggle('fa-xmark');
-                });
-            }
-        });
+        // Run animations after first paint to avoid forced reflow
+        if('requestIdleCallback' in window){
+            requestIdleCallback(_initAnimations);
+        } else {
+            window.addEventListener('load', function(){ setTimeout(_initAnimations, 0); });
+        }
     </script>
     @yield('extra_js')
 </body>

@@ -19,12 +19,14 @@
         <meta name="twitter:card" content="summary_large_image">
     @endif
 
-    <!-- Google Fonts — Inter with full weight range -->
+    <!-- Google Fonts Deferred -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap"></noscript>
+    <!-- Font Awesome Deferred -->
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"></noscript>
 
     <style>
         /* ============================================
@@ -255,22 +257,31 @@
 
         /* ---- Typewriter Effect ---- */
         .typewriter {
-            display: inline-block;
-            overflow: hidden;
+            display: inline-flex;
+            position: relative;
             white-space: nowrap;
-            border-right: 2px solid var(--blue);
-            width: 0;
+            clip-path: inset(0 100% 0 0);
+        }
+        .typewriter::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 10%;
+            height: 80%;
+            width: 2px;
+            background-color: var(--blue);
             animation: typewriter-blink 0.8s step-end infinite;
         }
         .typewriter.revealed {
-            animation: typewriter-expand 1.5s steps(30, end) forwards, typewriter-blink 0.8s step-end infinite;
+            animation: typewriter-expand 1.5s steps(30, end) forwards;
         }
         @keyframes typewriter-expand {
-            from { width: 0; }
-            to { width: 100%; }
+            from { clip-path: inset(0 100% 0 0); }
+            to { clip-path: inset(0 0 0 0); }
         }
         @keyframes typewriter-blink {
-            50% { border-color: transparent; }
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
         }
 
         /* ---- Counter Animated Numbers ---- */

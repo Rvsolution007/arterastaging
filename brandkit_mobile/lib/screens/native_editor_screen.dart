@@ -17,6 +17,7 @@ import 'dart:typed_data';
 import 'package:flutter/rendering.dart';
 import 'package:gal/gal.dart';
 import '../services/download_service.dart';
+import '../controllers/ad_controller.dart';
 import '../controllers/subscription_controller.dart';
 
 class NativeEditorScreen extends StatefulWidget {
@@ -79,6 +80,17 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
       } else {
         isPaid = true; // Custom templates are always paid
       }
+
+      String featureKey = 'festival_post';
+      if (widget.type == 'category' || widget.type == 'business_custom') {
+        featureKey = 'category_post';
+      }
+      if (widget.type == 'custom') {
+        featureKey = 'custom_post';
+      }
+
+      final adController = Get.find<AdController>();
+      adController.handlePremiumDownloadAd(feature: featureKey, isPaid: isPaid);
 
       await ApiService.trackActivity(
         action: 'download_template',

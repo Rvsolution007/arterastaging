@@ -241,8 +241,13 @@ class HomeApi extends Controller
                             }
                             else
                             {
-                                $file = scandir('./uploads/template/'.$cc->zip_name.'/json/', 1);
-                                return file_get_contents(asset('uploads/template/'.$cc->zip_name.'/json/'.$file[0]));
+                                if (is_dir('./uploads/template/'.$cc->zip_name.'/json/')) {
+                                    $file = scandir('./uploads/template/'.$cc->zip_name.'/json/', 1);
+                                    if (isset($file[0]) && $file[0] != '.' && $file[0] != '..') {
+                                        return file_get_contents(asset('uploads/template/'.$cc->zip_name.'/json/'.$file[0]));
+                                    }
+                                }
+                                return "";
                             }
                         });
                     }
@@ -1228,8 +1233,12 @@ class HomeApi extends Controller
                     }
                     else
                     {
-                        $file = scandir('./uploads/template/'.$c->zip_name.'/json/', 1);
-                        $json_data = file_get_contents(asset('uploads/template/'.$c->zip_name.'/json/'.$file[0]));
+                        if (is_dir('./uploads/template/'.$c->zip_name.'/json/')) {
+                            $file = scandir('./uploads/template/'.$c->zip_name.'/json/', 1);
+                            if (isset($file[0]) && $file[0] != '.' && $file[0] != '..') {
+                                $json_data = file_get_contents(asset('uploads/template/'.$c->zip_name.'/json/'.$file[0]));
+                            }
+                        }
                     }
                 }
 
@@ -3883,8 +3892,12 @@ class HomeApi extends Controller
                 }
                 else
                 {
-                    $file = scandir('./uploads/template/'.$p->zip_name.'/json/', 1);
-                    $json_data = file_get_contents(asset('uploads/template/'.$p->zip_name.'/json/'.$file[0]));
+                    if (is_dir('./uploads/template/'.$p->zip_name.'/json/')) {
+                        $file = scandir('./uploads/template/'.$p->zip_name.'/json/', 1);
+                        if (isset($file[0]) && $file[0] != '.' && $file[0] != '..') {
+                            $json_data = file_get_contents(asset('uploads/template/'.$p->zip_name.'/json/'.$file[0]));
+                        }
+                    }
                 }
 
                 $data[] = array(

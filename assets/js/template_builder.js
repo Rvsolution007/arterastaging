@@ -353,6 +353,7 @@
 
     const inputIsBackground = $('prop-is-background');
     const inputIsPlaceholder = $('prop-is-placeholder');
+    const inputIsColorizableShape = $('prop-is-colorizable-shape');
     const inputIsLogo = $('prop-is-logo');
     const inputMaskLayer = $('prop-mask-layer');
     const btnPickMask = $('btn-pick-mask');
@@ -524,18 +525,34 @@
     canvas.on('object:modified', clearGuidelines);
 
     function updateProps() {
-        const obj = canvas.getActiveObject();
+        let obj = canvas.getActiveObject();
         if (!obj) return;
 
         updateCoords();
 
-        const isGroup = obj.type === 'activeSelection' || obj.type === 'group';
-        if (isGroup) {
+        if (obj.type === 'group') {
             if (textProps) textProps.style.display = 'none';
             if (imageProps) imageProps.style.display = 'none';
             if (shapeProps) shapeProps.style.display = 'none';
             if (sharedProps) sharedProps.style.display = 'none';
             return;
+        }
+
+        if (obj.type === 'activeSelection') {
+            let firstText = obj._objects.find(o => o.type === 'text' || o.type === 'i-text' || o.type === 'textbox');
+            let firstShape = obj._objects.find(o => o.customType === 'shape' || o.is_shape || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(o.type));
+            let firstImage = obj._objects.find(o => o.type === 'image');
+            
+            if (firstText) obj = firstText;
+            else if (firstShape) obj = firstShape;
+            else if (firstImage) obj = firstImage;
+            else {
+                if (textProps) textProps.style.display = 'none';
+                if (imageProps) imageProps.style.display = 'none';
+                if (shapeProps) shapeProps.style.display = 'none';
+                if (sharedProps) sharedProps.style.display = 'none';
+                return;
+            }
         }
 
         if (propForm) propForm.style.display = 'block';
@@ -588,12 +605,13 @@
             if (inputWordSpacing) inputWordSpacing.value = (obj.wordSpacing || 0);
             if (inputLineHeight) inputLineHeight.value = (obj.lineHeight || 1.16);
             if (inputAiAutoscale) inputAiAutoscale.checked = obj.auto_scale || false;
-        } else if (obj.type === 'image') {
+        } else if (obj.type === 'image' && !(obj.customType === 'shape' || obj.is_shape)) {
             if (textProps) textProps.style.display = 'none';
             if (imageProps) imageProps.style.display = 'block';
             if (shapeProps) shapeProps.style.display = 'none';
             if (inputIsBackground) inputIsBackground.checked = obj.is_background || false;
             if (inputIsPlaceholder) inputIsPlaceholder.checked = obj.is_placeholder || false;
+            if (inputIsColorizableShape) inputIsColorizableShape.checked = false;
             if (inputIsLogo) inputIsLogo.checked = obj.is_logo || (obj.customName || '').toLowerCase().includes('logo');
             
             if (inputMaskLayer) {
@@ -609,7 +627,7 @@
                 });
             }
 
-        } else if (obj.customType === 'shape') {
+        } else if (obj.customType === 'shape' || obj.is_shape || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type)) {
             if (textProps) textProps.style.display = 'none';
             if (imageProps) imageProps.style.display = 'none';
             if (shapeProps) shapeProps.style.display = 'block';
@@ -828,18 +846,26 @@
     });
 
     if (inputFontSize) inputFontSize.addEventListener('change', function() {
-        const obj = canvas.getActiveObject();
-        if(obj && (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox')) {
-            obj.set('fontSize', parseInt(this.value));
+        const objs = canvas.getActiveObjects();
+        if(objs.length) {
+            objs.forEach(obj => {
+                if(obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
+                    obj.set('fontSize', parseInt(this.value));
+                }
+            });
             canvas.renderAll();
             saveHistory();
         }
     });
 
     if (inputColor) inputColor.addEventListener('input', function() {
-        const obj = canvas.getActiveObject();
-        if(obj && (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox')) {
-            obj.set('fill', this.value);
+        const objs = canvas.getActiveObjects();
+        if(objs.length) {
+            objs.forEach(obj => {
+                if(obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
+                    obj.set('fill', this.value);
+                }
+            });
             canvas.renderAll();
         }
     });
@@ -879,15 +905,22 @@
     }
 
     if (inputFontFamily) inputFontFamily.addEventListener('change', function() {
-        const obj = canvas.getActiveObject();
-        if(obj && (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox')) {
+        const objs = canvas.getActiveObjects();
+        if(objs.length) {
             const fontVal = this.value;
-            obj.set('fontFamily', fontVal);
+            let fontsToLoad = [];
             
-            if (document.fonts && document.fonts.load) {
-                let weight = obj.fontWeight || 'normal';
-                let style = obj.fontStyle || 'normal';
-                document.fonts.load(`${style} ${weight} 1em "${fontVal}"`).then(function() {
+            objs.forEach(obj => {
+                if(obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
+                    obj.set('fontFamily', fontVal);
+                    let weight = obj.fontWeight || 'normal';
+                    let style = obj.fontStyle || 'normal';
+                    fontsToLoad.push(`${style} ${weight} 1em "${fontVal}"`);
+                }
+            });
+            
+            if (document.fonts && document.fonts.load && fontsToLoad.length > 0) {
+                Promise.all(fontsToLoad.map(f => document.fonts.load(f))).then(function() {
                     canvas.renderAll();
                 });
             }
@@ -1049,24 +1082,33 @@
 
     if (inputFillColor) inputFillColor.addEventListener('input', function() {
         if (inputShapeGradient && inputShapeGradient.checked) return; // Don't apply solid color if gradient is on
-        const obj = canvas.getActiveObject();
-        if (obj && obj.customType === 'shape') { 
-            obj.set('fill', this.value); 
-            if (obj.type === 'image' && typeof fabric.Image.filters.BlendColor !== 'undefined') {
-                obj.filters = [new fabric.Image.filters.BlendColor({
-                    color: this.value,
-                    mode: 'tint',
-                    alpha: 1
-                })];
-                obj.applyFilters();
-            }
+        const objs = canvas.getActiveObjects();
+        if (objs.length) {
+            objs.forEach(obj => {
+                if (obj.customType === 'shape' || obj.is_shape || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type)) { 
+                    obj.set('fill', this.value); 
+                    if (obj.type === 'image' && typeof fabric.Image.filters.BlendColor !== 'undefined') {
+                        obj.filters = [new fabric.Image.filters.BlendColor({
+                            color: this.value,
+                            mode: 'tint',
+                            alpha: 1
+                        })];
+                        obj.applyFilters();
+                    }
+                }
+            });
             canvas.renderAll(); 
         }
     });
     if (inputFillColor) inputFillColor.addEventListener('change', saveHistory);
     if (inputStrokeColor) inputStrokeColor.addEventListener('input', function() {
-        const obj = canvas.getActiveObject();
-        if (obj && obj.customType === 'shape') { obj.set('stroke', this.value); canvas.renderAll(); }
+        const objs = canvas.getActiveObjects();
+        if (objs.length) {
+            objs.forEach(obj => {
+                if (obj.customType === 'shape' || obj.is_shape || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type)) { obj.set('stroke', this.value); }
+            });
+            canvas.renderAll(); 
+        }
     });
     if (inputStrokeWidth) inputStrokeWidth.addEventListener('change', function() {
         const obj = canvas.getActiveObject();
@@ -1136,6 +1178,21 @@
             canvas.renderAll();
         }
     });
+
+    if (inputIsColorizableShape) inputIsColorizableShape.addEventListener('change', function() {
+        const objs = canvas.getActiveObjects();
+        if (objs.length) {
+            objs.forEach(obj => {
+                if (obj.type === 'image') {
+                    obj.is_shape = this.checked;
+                    obj.customType = this.checked ? 'shape' : 'image';
+                }
+            });
+            updateProps();
+            saveHistory();
+        }
+    });
+
     if (inputIsLogo) inputIsLogo.addEventListener('change', function() {
         const obj = canvas.getActiveObject();
         if (obj && obj.type === 'image') {
@@ -2146,8 +2203,8 @@
                                 };
                                 if (el.type === 'image') {
                                     l.src = el.src;
-                                    if (el.is_shape) l.is_shape = true;
-                                    console.log('[LOAD] Layer ' + idx + ' "' + el.name + '" → image' + (el.is_shape ? ' (rasterized shape)' : '') + ', src=' + (el.src||'').substring(0,60));
+                                    if (el.is_shape || /shape|rect|circle|triangle|polygon|ellipse|path/i.test(el.name)) l.is_shape = true;
+                                    console.log('[LOAD] Layer ' + idx + ' "' + el.name + '" → image' + (l.is_shape ? ' (rasterized shape)' : '') + ', src=' + (el.src||'').substring(0,60));
                                 } else if (el.type === 'text' || el.type === 'i-text' || el.type === 'textbox') {
                                     l.type = 'text';
                                     l.text = el.text;

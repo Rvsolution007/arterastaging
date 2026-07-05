@@ -154,7 +154,7 @@ class NativeEditorController extends GetxController {
       layers.add({
         'name': '_b_phone',
         'type': 'text',
-        'text': homeCtrl.businessPhone.value,
+        'text': homeCtrl.businessPhone.value.replaceAll(' ', '\u00A0'),
         'x': cW * 0.12, 'y': cH * 0.88,
         'w': cW * 0.4, 'h': 26,
         'fontSize': 22,
@@ -748,7 +748,7 @@ class NativeEditorController extends GetxController {
           } else if (Get.isRegistered<HomeController>() && newLayer['_businessKey'] != null) {
             final homeCtrl = Get.find<HomeController>();
             if (newLayer['_businessKey'] == 'name') newLayer['text'] = homeCtrl.businessName.value;
-            else if (newLayer['_businessKey'] == 'phone') newLayer['text'] = homeCtrl.businessPhone.value;
+            else if (newLayer['_businessKey'] == 'phone') newLayer['text'] = homeCtrl.businessPhone.value.replaceAll(' ', '\u00A0');
             else if (newLayer['_businessKey'] == 'email') newLayer['text'] = homeCtrl.businessEmail.value;
             else if (newLayer['_businessKey'] == 'website') newLayer['text'] = homeCtrl.businessWebsite.value;
             else if (newLayer['_businessKey'] == 'address') newLayer['text'] = homeCtrl.businessAddress.value;
@@ -979,6 +979,82 @@ class NativeEditorController extends GetxController {
       debugPrint('[BRIGHTNESS] Applying colors: templateIsDark=$templateIsDark, shapeLayers=${shapeLayers.length}, textLayers=${newLayers.where((l) => l['type'] == 'text').length}');
       bool needsRefresh = false;
       
+      // PASS 0: Logo Background Plate (auto-detect dark background)
+      // When background is dark, inject a white rectangle behind the frame's logo
+      // so it remains visible on any background color.
+      if (templateIsDark) {
+        final layers = templateConfig['layers'] as List;
+        
+        // Find the frame logo layer
+        Map<String, dynamic>? logoLayer;
+        int logoIndex = -1;
+        for (int i = 0; i < layers.length; i++) {
+          final l = layers[i];
+          if (l['_businessKey'] == 'logo' && 
+              (l['_isFrameLayer'] == true || l['_is_frame_layer'] == true)) {
+            logoLayer = l;
+            logoIndex = i;
+            break;
+          }
+        }
+        
+        if (logoLayer != null && logoIndex >= 0) {
+          // Remove any existing plate (prevents duplicates on frame switch)
+          layers.removeWhere((l) => l['name'] == '_logo_bg_plate');
+          
+          // Recalculate logoIndex after removal
+          logoIndex = layers.indexOf(logoLayer);
+          
+          // Calculate plate dimensions
+          double logoX = safeDouble(logoLayer['x'] ?? 0);
+          double logoY = safeDouble(logoLayer['y'] ?? 0);
+          double logoW = safeDouble(logoLayer['w'] ?? logoLayer['width'] ?? 0);
+          double logoH = safeDouble(logoLayer['h'] ?? logoLayer['height'] ?? 0);
+          double paddingX = 40.0;
+          double paddingBottom = 20.0;
+          
+          double plateX = logoX - paddingX;          // 40px left gap
+          double plateY = 0;                         // Touch top edge
+          double plateW = logoW + (paddingX * 2);    // 40px left + 40px right
+          double plateH = logoY + logoH + paddingBottom;   // From top to 20px below logo
+          
+          // Create the plate layer
+          Map<String, dynamic> plateLayer = {
+            'name': '_logo_bg_plate',
+            'type': 'solid_rect',
+            'x': plateX,
+            'y': plateY,
+            'w': plateW,
+            'h': plateH,
+            'color': '#FFFFFF',
+            'z_index': (logoLayer['z_index'] ?? 99) is int 
+                ? (logoLayer['z_index'] ?? 99) - 1 
+                : ((logoLayer['z_index'] ?? 99) as num).toInt() - 1,
+            '_isFrameLayer': true,
+            '_is_logo_plate': true,
+          };
+          
+          // Insert BEFORE the logo so it renders behind it
+          if (logoIndex >= 0 && logoIndex <= layers.length) {
+            layers.insert(logoIndex, plateLayer);
+          }
+          needsRefresh = true;
+          
+          debugPrint('[LOGO_PLATE] ✅ Injected white plate: '
+            'x=$plateX y=$plateY w=$plateW h=$plateH '
+            'logoAt=($logoX,$logoY,$logoW,$logoH)');
+        }
+      } else {
+        // Light background: remove any existing plate
+        final layers = templateConfig['layers'] as List;
+        final removed = layers.where((l) => l['name'] == '_logo_bg_plate').length;
+        layers.removeWhere((l) => l['name'] == '_logo_bg_plate');
+        if (removed > 0) {
+          needsRefresh = true;
+          debugPrint('[LOGO_PLATE] ❌ Removed plate (light background)');
+        }
+      }
+
       // PASS 1: Apply colors to TEXT layers first
       for (var newLayer in newLayers) {
         if (newLayer['type'] == 'text') {

@@ -10,6 +10,38 @@
         fabric.Text.prototype.textBaseline = 'alphabetic';
         if (fabric.Textbox) fabric.Textbox.prototype.textBaseline = 'alphabetic';
         if (fabric.IText) fabric.IText.prototype.textBaseline = 'alphabetic';
+
+        // ══ CANVA/PHOTOSHOP TEXT BEHAVIOR ══
+        // 1. lockUniScaling forces all handles to scale proportionally (no stretch)
+        // 2. Hide mt/mb (vertical stretch is nonsensical for text)
+        // 3. Override fabric.Text to fabric.IText so double-click editing works on point text (avoids Textbox call stack crash)
+        if (fabric.IText) {
+            fabric.IText.prototype.lockUniScaling = true;
+            fabric.IText.prototype.setControlsVisibility({ mt: false, mb: false });
+        }
+        if (fabric.Textbox) {
+            fabric.Textbox.prototype.lockUniScaling = true;
+            fabric.Textbox.prototype.setControlsVisibility({ mt: false, mb: false });
+        }
+        if (fabric.Text) {
+            fabric.Text.prototype.lockUniScaling = true;
+            fabric.Text.prototype.setControlsVisibility({ mt: false, mb: false });
+        }
+
+        (function() {
+            var _OrigText = fabric.Text;
+            fabric.Text = function(text, options) {
+                return new fabric.IText(text, options || {});
+            };
+            for (var key in _OrigText) {
+                if (_OrigText.hasOwnProperty(key)) fabric.Text[key] = _OrigText[key];
+            }
+            fabric.Text.prototype = fabric.IText.prototype;
+            fabric.Text.fromObject = function(object, callback) {
+                return fabric.IText.fromObject(object, callback);
+            };
+            fabric.Text.async = true;
+        })();
         if (fabric.Rect) {
             if (fabric.Rect.prototype.cacheProperties) {
                 fabric.Rect.prototype.cacheProperties = fabric.Rect.prototype.cacheProperties.concat(['rx_tl', 'rx_tr', 'rx_br', 'rx_bl']);
@@ -400,7 +432,34 @@
         if (noSelect) noSelect.style.display = 'block';
     });
     canvas.on('object:modified', updateProps);
-    
+
+    // ── Anti-stretch: convert scale → width + fontSize on text objects ──
+    canvas.on('object:modified', function(e) {
+        const obj = e.target;
+        if (!obj) return;
+        const isText = (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox');
+        if (!isText) return;
+        const sx = obj.scaleX || 1;
+        const sy = obj.scaleY || 1;
+        if (Math.abs(sx - 1) < 0.001 && Math.abs(sy - 1) < 0.001) return;
+        
+        // lockUniScaling makes sx and sy equal on corner drag
+        const uniformScale = Math.max(sx, sy);
+        const newWidth = obj.width * uniformScale;
+        const newFontSize = Math.round(obj.fontSize * uniformScale);
+        
+        obj.set({
+            width: newWidth,
+            fontSize: newFontSize > 1 ? newFontSize : 1,
+            scaleX: 1,
+            scaleY: 1
+        });
+        obj.setCoords();
+        canvas.renderAll();
+        if (inputFontSize) inputFontSize.value = newFontSize > 1 ? newFontSize : 1;
+    });
+
+
     function updateCoords() {
         const obj = canvas.getActiveObject();
         if (!obj) return;
@@ -1832,41 +1891,66 @@
         // Copy (Ctrl+C)
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
             const activeObject = canvas.getActiveObject();
-            if (activeObject) {
+            if (activeObject && !activeObject.isEditing) {
                 e.preventDefault();
-                activeObject.clone(function(cloned) {
-                    window._canvasClipboard = cloned;
-                    console.log('Copied to clipboard');
-                }, customAttrs);
+                try {
+                    const jsonObj = activeObject.toObject(customAttrs);
+                    localStorage.setItem('artera_clipboard', JSON.stringify(jsonObj));
+                    localStorage.setItem('artera_clipboard_time', Date.now().toString());
+                    // Also keep in-memory for same-tab fast paste
+                    window._canvasClipboard = jsonObj;
+                    console.log('[Artera] Copied to clipboard (localStorage + memory)');
+                } catch(err) { console.warn('[Artera] Copy failed:', err); }
             }
         }
         
         // Paste (Ctrl+V)
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
-            if (window._canvasClipboard) {
-                e.preventDefault();
-                window._canvasClipboard.clone(function(clonedObj) {
-                    canvas.discardActiveObject();
-                    clonedObj.set({
-                        left: clonedObj.left + 20,
-                        top: clonedObj.top + 20,
-                        evented: true,
-                    });
-                    if (clonedObj.type === 'activeSelection') {
-                        clonedObj.canvas = canvas;
-                        clonedObj.forEachObject(function(obj) { canvas.add(obj); });
-                        clonedObj.setCoords();
-                    } else {
-                        canvas.add(clonedObj);
+            const activeObj = canvas.getActiveObject();
+            if (activeObj && activeObj.isEditing) return; // don't paste when editing text
+            
+            e.preventDefault();
+            try {
+                // Read from localStorage (works cross-tab)
+                const clipStr = localStorage.getItem('artera_clipboard');
+                if (!clipStr) { console.log('[Artera] No clipboard data'); return; }
+                const parsed = JSON.parse(clipStr);
+                
+                fabric.util.enlivenObjects([parsed], function(objects) {
+                    if (objects.length) {
+                        const clonedObj = objects[0];
+                        // Restore custom attributes that enlivenObjects may not preserve
+                        customAttrs.forEach(function(attr) {
+                            if (parsed[attr] !== undefined) clonedObj.set(attr, parsed[attr]);
+                        });
+                        
+                        canvas.discardActiveObject();
+                        clonedObj.set({
+                            left: clonedObj.left + 20,
+                            top: clonedObj.top + 20,
+                            evented: true,
+                        });
+                        if (clonedObj.type === 'activeSelection') {
+                            clonedObj.canvas = canvas;
+                            clonedObj.forEachObject(function(obj) { canvas.add(obj); });
+                            clonedObj.setCoords();
+                        } else {
+                            canvas.add(clonedObj);
+                        }
+                        
+                        // Update clipboard position so next paste offsets further
+                        parsed.top = clonedObj.top;
+                        parsed.left = clonedObj.left;
+                        localStorage.setItem('artera_clipboard', JSON.stringify(parsed));
+                        
+                        canvas.setActiveObject(clonedObj);
+                        canvas.requestRenderAll();
+                        updateLayersList();
+                        saveHistory();
+                        console.log('[Artera] Pasted from clipboard');
                     }
-                    window._canvasClipboard.top += 20;
-                    window._canvasClipboard.left += 20;
-                    canvas.setActiveObject(clonedObj);
-                    canvas.requestRenderAll();
-                    updateLayersList();
-                    saveHistory();
-                }, customAttrs);
-            }
+                });
+            } catch(err) { console.warn('[Artera] Paste failed:', err); }
         }
 
         // Arrow keys: move selected object (1px default, 10px with Shift)

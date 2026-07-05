@@ -170,7 +170,10 @@ Route::
 
             Route::resource('Frame', 'PosterMakerController');
             Route::post('Frame/bulk-delete', 'PosterMakerController@bulkDelete')->name('admin.poster_maker.bulk_delete');
+            Route::post('Frame/duplicate', 'PosterMakerController@duplicate')->name('admin.poster_maker.duplicate');
             Route::post('Frame-frame-type', 'PosterMakerController@poster_maker_frame_type');
+            Route::get('Frame-export', 'PosterMakerController@exportFrames')->name('admin.poster_maker.export');
+            Route::post('Frame-import', 'PosterMakerController@importFrames')->name('admin.poster_maker.import');
             Route::resource('Frame-category', 'PosterCategoryController');
             Route::Post('Frame-category-status', 'PosterCategoryController@poster_category_status');
 
@@ -293,6 +296,15 @@ Route::
             // Phase 4 & 5 Missing Routes
             
             Route::get('blogs', 'BlogController@index')->name('admin.blogs');
+            Route::get('blogs/{id}/edit', 'BlogController@edit')->name('admin.blogs.edit');
+            Route::put('blogs/{id}', 'BlogController@update')->name('admin.blogs.update');
+            Route::delete('blogs/{id}', 'BlogController@destroy')->name('admin.blogs.destroy');
+
+            // Home Banners
+            Route::get('home-banners', 'HomeBannerController@index')->name('admin.home_banners.index');
+            Route::post('home-banners', 'HomeBannerController@store')->name('admin.home_banners.store');
+            Route::post('home-banners/sort', 'HomeBannerController@updateSort')->name('admin.home_banners.sort');
+            Route::delete('home-banners/{id}', 'HomeBannerController@destroy')->name('admin.home_banners.destroy');
             Route::get('auto-notification', 'MarketingSettingsController@index')->name('admin.auto_notification');
             Route::get('manual-notification', 'AiSmartCampaignController@index')->name('admin.manual_notification');
             Route::post('manual-notification/generate', 'AiSmartCampaignController@generateCopy')->name('admin.manual_notification.generate');

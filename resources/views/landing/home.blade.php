@@ -114,9 +114,11 @@
     }
     .marquee-card img {
         width: 100%;
-        height: 100%;
-        object-fit: cover;
+        height: auto;
         display: block;
+        pointer-events: none;
+        user-select: none;
+        -webkit-user-drag: none;
     }
 
     /* ============================================
@@ -167,7 +169,7 @@
        ============================================ */
     .why-section {
         padding: 128px 0;
-        background: var(--bg-dark);
+        background: #1d4ed8;
         color: #fff;
         position: relative;
     }
@@ -204,13 +206,14 @@
     .why-card:hover { border-color: rgba(59, 130, 246, 0.5); }
     .why-card-icon {
         width: 48px; height: 48px;
-        background: rgba(59, 130, 246, 0.2);
+        background: rgba(255, 255, 255, 0.15);
         display: flex;
         align-items: center;
         justify-content: center;
         margin-bottom: 24px;
+        border-radius: 12px;
     }
-    .why-card-icon i { font-size: 20px; color: var(--blue); }
+    .why-card-icon i { font-size: 20px; color: #fff; }
     .why-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 12px; }
     .why-card p { color: rgba(255,255,255,0.5); line-height: 1.65; font-size: 15px; }
 
@@ -261,41 +264,57 @@
         background: #fff;
     }
     .categories-header { margin-bottom: 64px; }
+    .category-hidden { display: none !important; }
     .categories-grid {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
-        gap: 24px;
+        gap: 16px;
     }
-    @media (min-width: 768px) { .categories-grid { grid-template-columns: repeat(3, 1fr); } }
-    @media (min-width: 1024px) { .categories-grid { grid-template-columns: repeat(6, 1fr); } }
+    @media (min-width: 576px) { .categories-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (min-width: 992px) { .categories-grid { grid-template-columns: repeat(4, 1fr); } }
+    @media (min-width: 1200px) { .categories-grid { grid-template-columns: repeat(6, 1fr); gap: 24px; } }
 
     .category-card {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 32px 16px;
-        border: 2px solid rgba(26, 26, 26, 0.08);
+        padding: 24px 12px;
+        border: 1px solid rgba(0, 0, 0, 0.04);
+        border-radius: 16px;
         text-decoration: none;
         color: var(--text-dark);
-        transition: var(--transition);
+        background: #fff;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         text-align: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.02);
     }
     .category-card:hover {
-        border-color: var(--blue);
-        transform: translateY(-4px);
-        box-shadow: 0 20px 40px rgba(59, 130, 246, 0.1);
+        transform: translateY(-8px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+        border-color: transparent;
     }
-    .category-card i {
-        font-size: 32px;
-        color: var(--blue);
+    .category-card .icon-wrapper {
+        width: 60px;
+        height: 60px;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         margin-bottom: 16px;
+        font-size: 28px;
+        color: #fff;
+        transition: transform 0.4s;
+    }
+    .category-card:hover .icon-wrapper {
+        transform: scale(1.1) rotate(5deg);
     }
     .category-card h4 {
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.03em;
+        letter-spacing: 0.05em;
+        margin: 0;
     }
 
     /* ============================================
@@ -303,7 +322,7 @@
        ============================================ */
     .lang-section {
         padding: 96px 0;
-        background: linear-gradient(135deg, var(--primary), #1E3A8A);
+        background: #1d4ed8;
         color: #fff;
         text-align: center;
         position: relative;
@@ -402,8 +421,8 @@
        ============================================ */
     .cta-section {
         padding: 128px 0;
-        background: var(--bg-dark);
-        color: #fff;
+        background: #fff;
+        color: #1a1a1a;
         position: relative;
         overflow: hidden;
     }
@@ -412,7 +431,7 @@
         top: 0; right: 0;
         width: 384px; height: 384px;
         border-radius: 50%;
-        background: rgba(255,255,255,0.06);
+        background: rgba(59, 130, 246, 0.05);
         filter: blur(80px);
     }
     .cta-glow-2 {
@@ -420,7 +439,7 @@
         bottom: 0; left: 0;
         width: 384px; height: 384px;
         border-radius: 50%;
-        background: rgba(59, 130, 246, 0.08);
+        background: rgba(59, 130, 246, 0.05);
         filter: blur(80px);
     }
     .cta-inner {
@@ -430,10 +449,10 @@
         position: relative;
         z-index: 1;
     }
-    .cta-inner .heading-xl { margin-bottom: 32px; }
+    .cta-inner .heading-xl { margin-bottom: 32px; color: #1a1a1a; }
     .cta-inner .cta-desc {
         font-size: clamp(1.125rem, 2vw, 1.5rem);
-        color: rgba(255,255,255,0.85);
+        color: #4b5563;
         margin-bottom: 48px;
         max-width: 600px;
         margin-left: auto;
@@ -466,59 +485,47 @@
             <div class="hero-marquee-col reveal">
                 <div class="marquee-fade-top"></div>
                 <div class="marquee-fade-bottom"></div>
-                <div class="marquee-columns">
+                <div class="marquee-columns" oncontextmenu="return false;">
                     {{-- Column 1 — Up --}}
                     <div class="marquee-col">
                         <div class="marquee-track marquee-track-up">
-                            <div class="marquee-card" style="height:280px; background:linear-gradient(135deg,#667eea,#764ba2);"></div>
-                            <div class="marquee-card" style="height:200px; background:linear-gradient(135deg,#f093fb,#f5576c);"></div>
-                            <div class="marquee-card" style="height:240px; background:linear-gradient(135deg,#4facfe,#00f2fe);"></div>
-                            <div class="marquee-card" style="height:220px; background:linear-gradient(135deg,#43e97b,#38f9d7);"></div>
-                            <div class="marquee-card" style="height:260px; background:linear-gradient(135deg,#fa709a,#fee140);"></div>
-                            <div class="marquee-card" style="height:200px; background:linear-gradient(135deg,#a18cd1,#fbc2eb);"></div>
-                            {{-- Duplicate for seamless loop --}}
-                            <div class="marquee-card" style="height:280px; background:linear-gradient(135deg,#667eea,#764ba2);"></div>
-                            <div class="marquee-card" style="height:200px; background:linear-gradient(135deg,#f093fb,#f5576c);"></div>
-                            <div class="marquee-card" style="height:240px; background:linear-gradient(135deg,#4facfe,#00f2fe);"></div>
-                            <div class="marquee-card" style="height:220px; background:linear-gradient(135deg,#43e97b,#38f9d7);"></div>
-                            <div class="marquee-card" style="height:260px; background:linear-gradient(135deg,#fa709a,#fee140);"></div>
-                            <div class="marquee-card" style="height:200px; background:linear-gradient(135deg,#a18cd1,#fbc2eb);"></div>
+                            @if(isset($homeBanners[1]) && $homeBanners[1]->count() > 0)
+                                @foreach($homeBanners[1] as $banner)
+                                    <div class="marquee-card"><img src="{{ asset($banner->image_path) }}" loading="lazy" alt="Banner"></div>
+                                @endforeach
+                                {{-- Duplicate for seamless loop --}}
+                                @foreach($homeBanners[1] as $banner)
+                                    <div class="marquee-card"><img src="{{ asset($banner->image_path) }}" loading="lazy" alt="Banner"></div>
+                                @endforeach
+                            @endif
                         </div>
                     </div>
                     {{-- Column 2 — Down --}}
                     <div class="marquee-col">
                         <div class="marquee-track marquee-track-down">
-                            <div class="marquee-card" style="height:220px; background:linear-gradient(135deg,#ffecd2,#fcb69f);"></div>
-                            <div class="marquee-card" style="height:280px; background:linear-gradient(135deg,#a1c4fd,#c2e9fb);"></div>
-                            <div class="marquee-card" style="height:200px; background:linear-gradient(135deg,#d4fc79,#96e6a1);"></div>
-                            <div class="marquee-card" style="height:260px; background:linear-gradient(135deg,#84fab0,#8fd3f4);"></div>
-                            <div class="marquee-card" style="height:220px; background:linear-gradient(135deg,#fbc2eb,#a6c1ee);"></div>
-                            <div class="marquee-card" style="height:240px; background:linear-gradient(135deg,#fdcbf1,#e6dee9);"></div>
-                            {{-- Duplicate --}}
-                            <div class="marquee-card" style="height:220px; background:linear-gradient(135deg,#ffecd2,#fcb69f);"></div>
-                            <div class="marquee-card" style="height:280px; background:linear-gradient(135deg,#a1c4fd,#c2e9fb);"></div>
-                            <div class="marquee-card" style="height:200px; background:linear-gradient(135deg,#d4fc79,#96e6a1);"></div>
-                            <div class="marquee-card" style="height:260px; background:linear-gradient(135deg,#84fab0,#8fd3f4);"></div>
-                            <div class="marquee-card" style="height:220px; background:linear-gradient(135deg,#fbc2eb,#a6c1ee);"></div>
-                            <div class="marquee-card" style="height:240px; background:linear-gradient(135deg,#fdcbf1,#e6dee9);"></div>
+                            @if(isset($homeBanners[2]) && $homeBanners[2]->count() > 0)
+                                @foreach($homeBanners[2] as $banner)
+                                    <div class="marquee-card"><img src="{{ asset($banner->image_path) }}" loading="lazy" alt="Banner"></div>
+                                @endforeach
+                                {{-- Duplicate --}}
+                                @foreach($homeBanners[2] as $banner)
+                                    <div class="marquee-card"><img src="{{ asset($banner->image_path) }}" loading="lazy" alt="Banner"></div>
+                                @endforeach
+                            @endif
                         </div>
                     </div>
                     {{-- Column 3 — Up --}}
-                    <div class="marquee-col" style="display:none;">
-                        <div class="marquee-track marquee-track-up" style="animation-duration:45s;">
-                            <div class="marquee-card" style="height:200px; background:linear-gradient(135deg,#e0c3fc,#8ec5fc);"></div>
-                            <div class="marquee-card" style="height:260px; background:linear-gradient(135deg,#f5576c,#ff6a00);"></div>
-                            <div class="marquee-card" style="height:220px; background:linear-gradient(135deg,#667eea,#764ba2);"></div>
-                            <div class="marquee-card" style="height:240px; background:linear-gradient(135deg,#ffecd2,#fcb69f);"></div>
-                            <div class="marquee-card" style="height:200px; background:linear-gradient(135deg,#89f7fe,#66a6ff);"></div>
-                            <div class="marquee-card" style="height:260px; background:linear-gradient(135deg,#fddb92,#d1fdff);"></div>
-                            {{-- Duplicate --}}
-                            <div class="marquee-card" style="height:200px; background:linear-gradient(135deg,#e0c3fc,#8ec5fc);"></div>
-                            <div class="marquee-card" style="height:260px; background:linear-gradient(135deg,#f5576c,#ff6a00);"></div>
-                            <div class="marquee-card" style="height:220px; background:linear-gradient(135deg,#667eea,#764ba2);"></div>
-                            <div class="marquee-card" style="height:240px; background:linear-gradient(135deg,#ffecd2,#fcb69f);"></div>
-                            <div class="marquee-card" style="height:200px; background:linear-gradient(135deg,#89f7fe,#66a6ff);"></div>
-                            <div class="marquee-card" style="height:260px; background:linear-gradient(135deg,#fddb92,#d1fdff);"></div>
+                    <div class="marquee-col">
+                        <div class="marquee-track marquee-track-up" style="animation-duration:30s;">
+                            @if(isset($homeBanners[3]) && $homeBanners[3]->count() > 0)
+                                @foreach($homeBanners[3] as $banner)
+                                    <div class="marquee-card"><img src="{{ asset($banner->image_path) }}" loading="lazy" alt="Banner"></div>
+                                @endforeach
+                                {{-- Duplicate --}}
+                                @foreach($homeBanners[3] as $banner)
+                                    <div class="marquee-card"><img src="{{ asset($banner->image_path) }}" loading="lazy" alt="Banner"></div>
+                                @endforeach
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -551,27 +558,108 @@
                     </div>
                 </div>
             </div>
-        </div>
     </div>
 </section>
 
 {{-- ============================================
-    TRUSTED BY — Blue bar
+    FESTIVALS & TEMPLATE SEARCH
     ============================================ --}}
-<section class="trusted-section">
+<section class="search-festivals-section" style="padding: 60px 0; background: #fff;">
     <div class="container-full">
-        <p class="trusted-label reveal">Trusted by growing businesses</p>
-        <div class="trusted-logos">
-            <div class="trusted-logo-item reveal reveal-delay-1"><span><i class="fa-solid fa-building-columns"></i>&nbsp; Real Estate</span></div>
-            <div class="trusted-logo-item reveal reveal-delay-1"><span><i class="fa-solid fa-user-doctor"></i>&nbsp; Healthcare</span></div>
-            <div class="trusted-logo-item reveal reveal-delay-2"><span><i class="fa-solid fa-graduation-cap"></i>&nbsp; Education</span></div>
-            <div class="trusted-logo-item reveal reveal-delay-2"><span><i class="fa-solid fa-utensils"></i>&nbsp; Restaurants</span></div>
-            <div class="trusted-logo-item reveal reveal-delay-3"><span><i class="fa-solid fa-gem"></i>&nbsp; Jewellery</span></div>
-            <div class="trusted-logo-item reveal reveal-delay-3"><span><i class="fa-solid fa-store"></i>&nbsp; Retail</span></div>
-            <div class="trusted-logo-item reveal reveal-delay-4"><span><i class="fa-solid fa-car"></i>&nbsp; Automotive</span></div>
+        <div class="search-header" style="text-align: center; margin-bottom: 40px;">
+            <h2 class="heading-lg" style="font-size: 2.5rem; color: #1e293b; margin-bottom: 16px;">Find Your Perfect Template</h2>
+            <p style="color: #64748b; font-size: 1.1rem; max-width: 600px; margin: 0 auto 30px;">Search for any upcoming festival or business category to instantly discover thousands of beautiful, AI-generated marketing posts.</p>
+            
+            <div class="search-container" style="max-width: 700px; margin: 0 auto; position: relative;">
+                <form action="{{ route('landing.search') }}" method="GET" id="mainSearchForm" class="search-form" style="position: relative; display: flex; align-items: center; background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 50px; padding: 5px 5px 5px 24px; transition: all 0.3s ease;">
+                    <i class="fa-solid fa-magnifying-glass" style="color: #94a3b8; font-size: 1.2rem;"></i>
+                    <input type="text" name="q" id="ajaxSearchInput" placeholder="Search for festivals, categories, quotes..." autocomplete="off" style="flex: 1; border: none; background: transparent; padding: 15px; font-size: 1.1rem; color: #334155; outline: none; box-shadow: none;">
+                    <button type="submit" class="btn-sharp btn-sharp-primary" style="border-radius: 50px; padding: 12px 30px; font-weight: 600;">Search</button>
+                </form>
+                
+                {{-- AJAX Results Dropdown --}}
+                <div id="ajaxSearchResults" class="ajax-results-dropdown" style="display: none; position: absolute; top: 110%; left: 0; right: 0; background: #fff; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; z-index: 100; overflow: hidden; text-align: left;">
+                    <div class="results-list" id="ajaxResultsList" style="max-height: 400px; overflow-y: auto;">
+                        <!-- Results injected via JS -->
+                    </div>
+                    <div class="view-more-container" style="padding: 12px; text-align: center; border-top: 1px solid #f1f5f9; background: #f8fafc;">
+                        <a href="#" id="viewMoreBtn" style="color: var(--blue); font-weight: 600; text-decoration: none; font-size: 0.95rem;">View all results <i class="fa-solid fa-arrow-right" style="margin-left: 5px;"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Upcoming Festivals Strip --}}
+        <div class="upcoming-festivals" style="margin-top: 60px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+                <h3 style="font-size: 1.5rem; font-weight: 700; color: #0f172a; margin: 0;">Upcoming Festivals</h3>
+            </div>
+            
+            <div class="festivals-scroll-container" style="display: flex; gap: 20px; overflow-x: auto; padding-bottom: 20px; scrollbar-width: none;">
+                @foreach($festivalsByDate as $dateKey => $data)
+                    <div class="festival-date-group" style="min-width: 300px; background: #f8fafc; border-radius: 20px; padding: 20px; border: 1px solid #e2e8f0;">
+                        <div class="date-badge" style="display: inline-block; background: #e0e7ff; color: var(--blue); padding: 6px 14px; border-radius: 50px; font-weight: 700; font-size: 0.9rem; margin-bottom: 16px;">
+                            <i class="fa-regular fa-calendar" style="margin-right: 6px;"></i> {{ $data['date_string'] }}
+                        </div>
+                        
+                        <div class="festivals-list" style="display: flex; flex-direction: column; gap: 12px;">
+                            @foreach($data['festivals'] as $festival)
+                                <a href="{{ route('seo.festival', ['festivalSlug' => \Illuminate\Support\Str::slug($festival->title)]) }}" class="festival-card-mini" style="display: flex; align-items: center; gap: 12px; background: #fff; padding: 10px; border-radius: 12px; text-decoration: none; transition: all 0.2s ease; border: 1px solid #f1f5f9; position: relative; overflow: hidden;">
+                                    <div class="fest-img" style="width: 50px; height: 50px; border-radius: 8px; overflow: hidden; background: #f1f5f9; flex-shrink: 0;">
+                                        @if($festival->image)
+                                            <img src="{{ asset('uploads/' . $festival->image) }}" alt="{{ $festival->title }}" style="width: 100%; height: 100%; object-fit: cover;">
+                                        @else
+                                            <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #94a3b8;"><i class="fa-solid fa-image"></i></div>
+                                        @endif
+                                    </div>
+                                    <div class="fest-info" style="flex: 1; min-width: 0;">
+                                        <h4 style="font-size: 1rem; font-weight: 600; color: #1e293b; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ $festival->title }}</h4>
+                                        <span style="font-size: 0.8rem; color: #64748b;">Explore Templates</span>
+                                    </div>
+                                    <div class="fest-arrow" style="color: #cbd5e1;">
+                                        <i class="fa-solid fa-chevron-right"></i>
+                                    </div>
+                                </a>
+                            @endforeach
+                        </div>
+                    </div>
+                @endforeach
+            </div>
         </div>
     </div>
 </section>
+<style>
+    .search-form:focus-within {
+        border-color: var(--blue) !important;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1) !important;
+    }
+    .ajax-results-dropdown .result-item {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 12px 20px;
+        text-decoration: none;
+        transition: background 0.2s;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .ajax-results-dropdown .result-item:hover {
+        background: #f8fafc;
+    }
+    .ajax-results-dropdown .result-item:last-child {
+        border-bottom: none;
+    }
+    .festival-card-mini:hover {
+        border-color: #cbd5e1 !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .festival-card-mini:hover .fest-arrow {
+        color: var(--blue) !important;
+    }
+    .festivals-scroll-container::-webkit-scrollbar {
+        display: none;
+    }
+</style>
 
 {{-- ============================================
     WHY ARTERA — Dark section
@@ -581,7 +669,7 @@
     <div class="noise-overlay"></div>
     <div class="container-full" style="position:relative; z-index:1;">
         <div class="why-header">
-            <span class="eyebrow-plain reveal" style="color:var(--blue);">WHY ARTERA IS DIFFERENT</span>
+            <span class="eyebrow-plain reveal" style="color:#bfdbfe;">WHY ARTERA IS DIFFERENT</span>
             <h2 class="heading-lg split-text" style="margin-top:16px;">Not just templates.
 An AI marketing machine.</h2>
             <p class="why-desc stagger-words">Most apps give you static templates. Artera generates personalized, branded content using AI — automatically, every single day, in your language.</p>
@@ -593,9 +681,9 @@ An AI marketing machine.</h2>
                 <p>Our AI engine creates unique posters and templates tailored to your business, brand colors, and industry — no design skills needed.</p>
             </div>
             <div class="why-card reveal-blur reveal-delay-1">
-                <div class="why-card-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
-                <h3>Daily Drip Marketing</h3>
-                <p>Wake up to a fresh, branded marketing post every morning. Automatic content for your WhatsApp status and social media.</p>
+                <div class="why-card-icon"><i class="fa-solid fa-calendar-day"></i></div>
+                <h3>Festival & Quote Posts</h3>
+                <p>Never miss an opportunity to connect. Generate high-quality festival greetings, daily quotes, and custom business posts instantly with your branding.</p>
             </div>
             <div class="why-card reveal-blur reveal-delay-2">
                 <div class="why-card-icon"><i class="fa-solid fa-language"></i></div>
@@ -614,83 +702,364 @@ An AI marketing machine.</h2>
 {{-- ============================================
     COMPARISON TABLE
     ============================================ --}}
-<section class="compare-section">
+<style>
+/* Modern Pricing Cards */
+.pricing-section {
+    padding: 100px 0;
+    background: #f8fafc;
+    position: relative;
+    overflow: hidden;
+}
+.pricing-header {
+    text-align: center;
+    margin-bottom: 60px;
+}
+.pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+.pricing-card {
+    background: #fff;
+    border-radius: 24px;
+    padding: 40px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.04);
+    border: 1px solid rgba(0,0,0,0.05);
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+.pricing-card:hover {
+    transform: translateY(-12px);
+    box-shadow: 0 20px 50px rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.3);
+}
+.pricing-card.popular {
+    border: 2px solid #6366f1;
+    box-shadow: 0 20px 50px rgba(99, 102, 241, 0.2);
+}
+.pricing-badge {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 16px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.plan-name {
+    font-size: 24px;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 12px;
+}
+.plan-price-wrap {
+    margin-bottom: 24px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+.plan-price {
+    font-size: 48px;
+    font-weight: 900;
+    color: #0f172a;
+    line-height: 1;
+}
+.plan-currency {
+    font-size: 24px;
+    font-weight: 700;
+    color: #64748b;
+}
+.plan-duration {
+    font-size: 16px;
+    color: #64748b;
+    font-weight: 500;
+}
+.plan-discount {
+    font-size: 16px;
+    color: #ef4444;
+    text-decoration: line-through;
+    font-weight: 600;
+    margin-left: 8px;
+}
+.plan-features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 32px 0;
+    flex-grow: 1;
+}
+.plan-features li {
+    font-size: 16px;
+    color: #475569;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.plan-features li i.fa-check-circle {
+    color: #10b981;
+    font-size: 18px;
+}
+.plan-features li i.fa-times-circle {
+    color: #cbd5e1;
+    font-size: 18px;
+}
+.plan-btn {
+    display: block;
+    width: 100%;
+    text-align: center;
+    padding: 16px;
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 16px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+.pricing-card.popular .plan-btn {
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+}
+.pricing-card.popular .plan-btn:hover {
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+    transform: scale(1.02);
+}
+.pricing-card:not(.popular) .plan-btn {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+.pricing-card:not(.popular) .plan-btn:hover {
+    background: #e2e8f0;
+    transform: scale(1.02);
+}
+
+/* Toggle Styles */
+.pricing-toggle-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 40px;
+}
+.toggle-label {
+    font-size: 16px;
+    font-weight: 600;
+    color: #64748b;
+    transition: color 0.3s;
+    cursor: pointer;
+}
+.toggle-label.active {
+    color: #0f172a;
+}
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+}
+.switch input { 
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #cbd5e1;
+    transition: .4s;
+}
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+input:checked + .slider {
+    background-color: #6366f1;
+}
+input:checked + .slider:before {
+    transform: translateX(26px);
+}
+.slider.round {
+    border-radius: 34px;
+}
+.badge-save {
+    background-color: #10b981;
+    color: white;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+</style>
+
+<section class="pricing-section" id="pricing">
     <div class="container-full">
-        <div class="compare-header">
-            <span class="eyebrow-plain reveal">HOW WE COMPARE</span>
-            <h2 class="heading-md split-text" style="margin-top:16px; max-width:600px; white-space:pre-line;">Artera vs. generic editors
-vs. manual design</h2>
-            <p class="stagger-words" style="font-size:clamp(1rem,1.5vw,1.25rem); color:var(--text-gray); margin-top:24px; max-width:640px; line-height:1.65;">AI-powered templates give you professional quality, local language support, and automation. Here's why businesses are switching.</p>
+        <div class="pricing-header">
+            <span class="eyebrow-plain reveal">PRICING PLANS</span>
+            <h2 class="heading-md split-text" style="margin-top:16px;">Choose the right plan for your business</h2>
+            <p class="stagger-words" style="font-size:clamp(1rem,1.5vw,1.25rem); color:var(--text-gray); margin-top:24px; max-width:640px; margin-left:auto; margin-right:auto; line-height:1.65;">Start for free, upgrade when you need more features. No hidden fees.</p>
         </div>
-        <div class="compare-table-wrap reveal-scale reveal-delay-1">
-            <table class="compare-table">
-                <thead>
-                    <tr>
-                        <th></th>
-                        <th class="col-highlight col-highlight-top">
-                            <div class="highlight-name">Artera</div>
-                            <div class="highlight-sub">AI Marketing Platform</div>
-                        </th>
-                        <th><span style="font-weight:700; color:var(--text-dark);">Canva / Generic</span></th>
-                        <th><span style="font-weight:700; color:var(--text-dark);">Manual Design</span></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>AI-generated content</td>
-                        <td class="cell-highlight"><i class="fa-solid fa-check compare-check"></i></td>
-                        <td><i class="fa-solid fa-xmark compare-x"></i></td>
-                        <td><i class="fa-solid fa-xmark compare-x"></i></td>
-                    </tr>
-                    <tr>
-                        <td>Auto daily posts</td>
-                        <td class="cell-highlight"><i class="fa-solid fa-check compare-check"></i></td>
-                        <td><i class="fa-solid fa-xmark compare-x"></i></td>
-                        <td><i class="fa-solid fa-xmark compare-x"></i></td>
-                    </tr>
-                    <tr>
-                        <td>Festival templates (auto)</td>
-                        <td class="cell-highlight"><i class="fa-solid fa-check compare-check"></i></td>
-                        <td><span style="color:var(--text-gray);">Manual search</span></td>
-                        <td><i class="fa-solid fa-xmark compare-x"></i></td>
-                    </tr>
-                    <tr>
-                        <td>Regional language support</td>
-                        <td class="cell-highlight"><span style="font-weight:700; color:var(--blue);">7+ languages</span></td>
-                        <td><span style="color:var(--text-gray);">Limited</span></td>
-                        <td><span style="color:var(--text-gray);">Manual only</span></td>
-                    </tr>
-                    <tr>
-                        <td>Brand kit integration</td>
-                        <td class="cell-highlight"><i class="fa-solid fa-check compare-check"></i></td>
-                        <td><i class="fa-solid fa-check compare-check"></i></td>
-                        <td><i class="fa-solid fa-xmark compare-x"></i></td>
-                    </tr>
-                    <tr>
-                        <td>Time to create a post</td>
-                        <td class="cell-highlight"><span style="font-weight:700; color:var(--blue);">&lt; 30 sec</span></td>
-                        <td><span style="color:var(--text-gray);">5–15 min</span></td>
-                        <td><span style="color:var(--text-gray);">30+ min</span></td>
-                    </tr>
-                    <tr>
-                        <td>Cost per month</td>
-                        <td class="cell-highlight"><span style="font-weight:700; color:var(--blue);">₹99–499</span></td>
-                        <td><span style="color:var(--text-gray);">₹500–3999</span></td>
-                        <td><span style="color:var(--text-gray);">₹5000+</span></td>
-                    </tr>
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <td></td>
-                        <td class="col-highlight col-highlight-bottom"></td>
-                        <td></td>
-                        <td></td>
-                    </tr>
-                </tfoot>
-            </table>
+
+        @php
+            $plans = \App\Models\Subscription::where('status', 1)->orderBy('plan_price', 'asc')->get();
+        @endphp
+
+        <div class="pricing-toggle-wrap reveal">
+            <span class="toggle-label" id="label-monthly" onclick="document.getElementById('billing-toggle').click()">Monthly</span>
+            <label class="switch">
+                <input type="checkbox" id="billing-toggle" checked>
+                <span class="slider round"></span>
+            </label>
+            <span class="toggle-label active" id="label-yearly" onclick="document.getElementById('billing-toggle').click()">Yearly <span class="badge-save">Save 20%</span></span>
+        </div>
+
+        <div class="pricing-grid reveal-scale reveal-delay-1">
+            @foreach($plans as $plan)
+                @php
+                    $isPopular = $plan->plan_name == 'Basic' || $plan->yearly_price > 0 && $plan->yearly_price < 2000;
+                    $monthlyFinal = $plan->monthly_discount_price > 0 ? $plan->monthly_discount_price : $plan->monthly_price;
+                    $yearlyFinal = $plan->yearly_discount_price > 0 ? $plan->yearly_discount_price : $plan->yearly_price;
+                    if ($yearlyFinal == 0 && $plan->plan_price > 0) {
+                        $yearlyFinal = $plan->discount_price > 0 ? $plan->discount_price : $plan->plan_price;
+                    }
+                    $isFree = $monthlyFinal == 0 && $yearlyFinal == 0 && $plan->plan_price == 0;
+                    $finalPrice = $yearlyFinal; 
+                @endphp
+                <div class="pricing-card {{ $isPopular ? 'popular' : '' }}" data-is-free="{{ $isFree ? 'true' : 'false' }}">
+                    @if($isPopular)
+                        <div class="pricing-badge">Most Popular</div>
+                    @endif
+                    <h3 class="plan-name">{{ $plan->plan_name }}</h3>
+                    
+                    @if($isFree)
+                        <div class="plan-price-wrap">
+                            <span class="plan-currency">₹</span>
+                            <span class="plan-price">0</span>
+                        </div>
+                    @else
+                        <!-- Monthly Price -->
+                        <div class="plan-price-wrap price-monthly" style="display: none;">
+                            <span class="plan-currency">₹</span>
+                            <span class="plan-price">{{ round($monthlyFinal) }}</span>
+                            @if($plan->monthly_discount_price > 0 && $plan->monthly_price > $plan->monthly_discount_price)
+                                <span class="plan-discount">₹{{ round($plan->monthly_price) }}</span>
+                            @endif
+                            @if($monthlyFinal > 0)
+                                <span class="plan-duration">/ month</span>
+                            @endif
+                        </div>
+                        <!-- Yearly Price -->
+                        <div class="plan-price-wrap price-yearly">
+                            <span class="plan-currency">₹</span>
+                            <span class="plan-price">{{ round($yearlyFinal) }}</span>
+                            @if($plan->yearly_discount_price > 0 && $plan->yearly_price > $plan->yearly_discount_price)
+                                <span class="plan-discount">₹{{ round($plan->yearly_price) }}</span>
+                            @endif
+                            @if($yearlyFinal > 0)
+                                <span class="plan-duration">/ year</span>
+                            @endif
+                        </div>
+                    @endif
+                    
+                    <ul class="plan-features">
+                        @if($finalPrice == 0)
+                            <li>
+                                <i class="fas fa-check-circle"></i>
+                                Unlimited Free Templates (Ad-Supported)
+                            </li>
+                            <li>
+                                <i class="fas fa-check-circle"></i>
+                                Festival & Quote Posts (Watch Ad)
+                            </li>
+                            <li>
+                                <i class="fas fa-check-circle"></i>
+                                {{ $plan->business_limit }} Business {{ Str::plural('Profile', $plan->business_limit) }}
+                            </li>
+                            <li>
+                                <i class="fas fa-times-circle"></i>
+                                Ad-Free Experience
+                            </li>
+                        @else
+                            <li>
+                                <i class="{{ $plan->festival_post_limit > 0 ? 'fas fa-check-circle' : 'fas fa-times-circle' }}"></i>
+                                {{ $plan->festival_post_limit > 0 ? $plan->festival_post_limit . ' Ad-Free Festival Posts' : 'No Festival Posts' }}
+                            </li>
+                            <li>
+                                <i class="{{ $plan->custom_post_edit_limit > 0 ? 'fas fa-check-circle' : 'fas fa-times-circle' }}"></i>
+                                {{ $plan->custom_post_edit_limit > 0 ? $plan->custom_post_edit_limit . ' Ad-Free Custom Posts' : 'No Custom Posts' }}
+                            </li>
+                            <li>
+                                <i class="{{ $plan->category_post_limit > 0 ? 'fas fa-check-circle' : 'fas fa-times-circle' }}"></i>
+                                {{ $plan->category_post_limit > 0 ? $plan->category_post_limit . ' Ad-Free Category Posts' : 'No Category Posts' }}
+                            </li>
+                            <li>
+                                <i class="{{ $plan->daily_drip_limit > 0 ? 'fas fa-check-circle' : 'fas fa-times-circle' }}"></i>
+                                {{ $plan->daily_drip_limit > 0 ? $plan->daily_drip_limit . ' Daily Drip Automations' : 'No Daily Drip' }}
+                            </li>
+                            <li>
+                                <i class="fas fa-check-circle"></i>
+                                100% Ad-Free Experience
+                            </li>
+                        @endif
+                    </ul>
+                    
+                    <a href="{{ config('seo.app_links.android', '#') }}" class="plan-btn">
+                        {{ $finalPrice == 0 ? 'Get Started Free' : 'Choose ' . $plan->plan_name }}
+                    </a>
+                </div>
+            @endforeach
         </div>
     </div>
 </section>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const toggle = document.getElementById('billing-toggle');
+        const cards = document.querySelectorAll('.pricing-card');
+        
+        function updatePricingDisplay() {
+            const isYearly = toggle.checked;
+            document.getElementById('label-yearly').classList.toggle('active', isYearly);
+            document.getElementById('label-monthly').classList.toggle('active', !isYearly);
+            
+            cards.forEach(card => {
+                const isFree = card.getAttribute('data-is-free') === 'true';
+                
+                if (!isFree) {
+                    const monthlyEl = card.querySelector('.price-monthly');
+                    const yearlyEl = card.querySelector('.price-yearly');
+                    if (monthlyEl && yearlyEl) {
+                        monthlyEl.style.display = isYearly ? 'none' : 'flex';
+                        yearlyEl.style.display = isYearly ? 'flex' : 'none';
+                    }
+                }
+            });
+        }
+        
+        if(toggle) {
+            toggle.addEventListener('change', updatePricingDisplay);
+            // Run on load
+            updatePricingDisplay();
+        }
+    });
+</script>
 
 {{-- ============================================
     HOW IT WORKS — 3 Steps
@@ -738,38 +1107,136 @@ vs. manual design</h2>
             <h2 class="heading-md" style="margin-top:16px; max-width:600px;">Templates for every business.</h2>
             <p style="font-size:clamp(1rem,1.5vw,1.25rem); color:var(--text-gray); margin-top:24px; max-width:640px; line-height:1.65;">Find professionally designed templates specifically curated for your industry.</p>
         </div>
-        <div class="categories-grid">
-            <a href="{{ route('landing.category', 'real-estate') }}" class="category-card reveal-scale">
-                <i class="fa-solid fa-building"></i>
-                <h4>Real Estate</h4>
-            </a>
-            <a href="{{ route('landing.category', 'doctors') }}" class="category-card reveal-scale reveal-delay-1">
-                <i class="fa-solid fa-user-doctor"></i>
-                <h4>Doctors</h4>
-            </a>
-            <a href="{{ route('landing.category', 'politicians') }}" class="category-card reveal-scale reveal-delay-1">
-                <i class="fa-solid fa-bullhorn"></i>
-                <h4>Politicians</h4>
-            </a>
-            <a href="{{ route('landing.category', 'education') }}" class="category-card reveal-scale reveal-delay-2">
-                <i class="fa-solid fa-graduation-cap"></i>
-                <h4>Education</h4>
-            </a>
-            <a href="{{ route('landing.category', 'restaurants') }}" class="category-card reveal-scale reveal-delay-2">
-                <i class="fa-solid fa-utensils"></i>
-                <h4>Restaurants</h4>
-            </a>
-            <a href="{{ route('landing.category', 'jewellery') }}" class="category-card reveal-scale reveal-delay-3">
-                <i class="fa-solid fa-gem"></i>
-                <h4>Jewellery</h4>
-            </a>
+        @php
+            $categories = \App\Models\BusinessCategory::where('status', 1)->get();
+            $iconMap = [
+                'retail' => 'fa-shop',
+                'manufacturing' => 'fa-industry',
+                'wholesale' => 'fa-boxes-stacked',
+                'local' => 'fa-wrench',
+                'healthcare' => 'fa-heart-pulse',
+                'education' => 'fa-graduation-cap',
+                'food' => 'fa-utensils',
+                'restaurant' => 'fa-utensils',
+                'real estate' => 'fa-building',
+                'finance' => 'fa-chart-pie',
+                'insurance' => 'fa-shield-halved',
+                'agriculture' => 'fa-seedling',
+                'technology' => 'fa-laptop-code',
+                'fashion' => 'fa-shirt',
+                'apparel' => 'fa-shirt',
+                'beauty' => 'fa-spa',
+                'wellness' => 'fa-spa',
+                'home' => 'fa-house-chimney',
+                'travel' => 'fa-plane-up',
+                'tourism' => 'fa-earth-americas',
+                'software' => 'fa-code',
+                'it &' => 'fa-computer',
+                'entertainment' => 'fa-film',
+                'media' => 'fa-photo-film',
+                'consultant' => 'fa-user-tie',
+                'advisor' => 'fa-user-tie',
+                'industrial' => 'fa-industry',
+                'engineering' => 'fa-gear',
+                'logistic' => 'fa-truck-fast',
+                'transport' => 'fa-truck',
+                'commerce' => 'fa-cart-shopping',
+                'online business' => 'fa-globe',
+                'hospitality' => 'fa-bell-concierge',
+                'sports' => 'fa-volleyball',
+                'fitness' => 'fa-dumbbell',
+                'electronic' => 'fa-plug',
+                'electrical' => 'fa-bolt',
+                'print' => 'fa-print',
+                'packag' => 'fa-box-open',
+                'advertis' => 'fa-bullhorn',
+                'marketing' => 'fa-bullseye',
+                'telecom' => 'fa-satellite-dish',
+                'internet' => 'fa-wifi',
+                'energy' => 'fa-solar-panel',
+                'renewable' => 'fa-leaf',
+                'ngo' => 'fa-hand-holding-heart',
+                'non-profit' => 'fa-hand-holding-heart',
+                'government' => 'fa-building-columns',
+                'public sector' => 'fa-building-columns',
+                'import' => 'fa-ship',
+                'export' => 'fa-plane-departure',
+                'pet' => 'fa-paw',
+                'animal' => 'fa-paw',
+                'event' => 'fa-calendar-check',
+                'wedding' => 'fa-ring',
+                'religious' => 'fa-hands-praying',
+                'spiritual' => 'fa-hands-praying',
+                'arts' => 'fa-palette',
+                'crafts' => 'fa-palette',
+                'gifts' => 'fa-gift',
+                'books' => 'fa-book',
+                'stationery' => 'fa-pen-ruler',
+                'office' => 'fa-paperclip',
+                'baby' => 'fa-baby',
+                'kids' => 'fa-child',
+                'security' => 'fa-shield-halved',
+                'safety' => 'fa-shield',
+                'automotive' => 'fa-car',
+                'construction' => 'fa-trowel-bricks',
+                'infrastructure' => 'fa-helmet-safety',
+                'others' => 'fa-layer-group',
+                'default' => 'fa-briefcase'
+            ];
+            
+            function getIconClass($name, $map) {
+                $lower = strtolower($name);
+                foreach($map as $key => $iconClass) {
+                    if (str_contains($lower, $key)) {
+                        return $iconClass;
+                    }
+                }
+                return $map['default'];
+            }
+        @endphp
+        
+        <div class="categories-grid" id="categoriesGrid">
+            @foreach($categories as $index => $cat)
+                @php
+                    $iconClass = getIconClass($cat->name, $iconMap);
+                    $bgStyle = "linear-gradient(135deg, var(--blue) 0%, #0ea5e9 50%, #1e3a8a 100%)";
+                    $hideClass = $index >= 12 ? 'category-hidden' : '';
+                @endphp
+                <div class="category-card reveal-scale {{ $hideClass }}">
+                    <div class="icon-wrapper" style="background: {{ $bgStyle }}">
+                        @if($cat->icon)
+                            <img src="{{ asset('storage/'.$cat->icon) }}" alt="{{ $cat->name }}" style="width:32px; height:32px; object-fit:contain; filter:brightness(0) invert(1);">
+                        @else
+                            <i class="fa-solid {{ $iconClass }}"></i>
+                        @endif
+                    </div>
+                    <h4>{{ $cat->name }}</h4>
+                </div>
+            @endforeach
         </div>
-        <div style="text-align:center; margin-top:48px;" class="reveal">
-            <a href="{{ route('landing.templates') }}" class="btn-sharp btn-sharp-outline">
-                View All Templates
-                <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            </a>
-        </div>
+        @if(count($categories) > 12)
+            <div style="text-align:center; margin-top:48px;" class="reveal">
+                <button id="viewAllCategoriesBtn" class="btn-sharp btn-sharp-outline">
+                    Explore {{ count($categories) - 12 }} More Industries
+                    <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+            </div>
+            <script>
+                document.getElementById('viewAllCategoriesBtn').addEventListener('click', function() {
+                    const hiddenCards = document.querySelectorAll('#categoriesGrid .category-hidden');
+                    if (hiddenCards.length > 0) {
+                        hiddenCards.forEach(card => card.classList.remove('category-hidden'));
+                        this.innerHTML = `Show Less <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(180deg); margin-left: 8px;"><path d="m6 9 6 6 6-6"/></svg>`;
+                    } else {
+                        const allCards = document.querySelectorAll('#categoriesGrid .category-card');
+                        allCards.forEach((card, index) => {
+                            if (index >= 12) card.classList.add('category-hidden');
+                        });
+                        this.innerHTML = `Explore {{ count($categories) - 12 }} More Industries <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
+                    }
+                });
+            </script>
+        @endif
     </div>
 </section>
 
@@ -805,12 +1272,12 @@ vs. manual design</h2>
     <div class="noise-overlay"></div>
     <div class="container-full">
         <div class="cta-inner reveal">
-            <h2 class="heading-xl text-shimmer-white">Ready to grow<br>your business?</h2>
+            <h2 class="heading-xl">Ready to grow<br>your business?</h2>
             <p class="cta-desc">Join thousands of businesses using Artera to create professional marketing content — automatically, every day.</p>
-            <a href="#" class="btn-sharp btn-sharp-white btn-glow">
+            <a href="#" class="btn-sharp btn-sharp-primary btn-glow">
                 <i class="fa-brands fa-google-play"></i>
                 Download the App
-                <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--blue);"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff;"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
             </a>
         </div>
     </div>
@@ -820,16 +1287,71 @@ vs. manual design</h2>
 
 @section('extra_js')
 <script>
-    // Show 3rd marquee column on desktop
-    (function() {
-        const cols = document.querySelectorAll('.marquee-col');
-        function checkWidth() {
-            if (cols.length >= 3) {
-                cols[2].style.display = window.innerWidth >= 1024 ? 'block' : 'none';
-            }
+    document.addEventListener('DOMContentLoaded', function() {
+        // AJAX Search Logic
+        const searchInput = document.getElementById('ajaxSearchInput');
+        const searchResults = document.getElementById('ajaxSearchResults');
+        const resultsList = document.getElementById('ajaxResultsList');
+        const viewMoreBtn = document.getElementById('viewMoreBtn');
+        const searchForm = document.getElementById('mainSearchForm');
+        let searchTimeout = null;
+
+        if(searchInput) {
+            searchInput.addEventListener('input', function() {
+                const query = this.value.trim();
+                
+                if(searchTimeout) clearTimeout(searchTimeout);
+                
+                if(query.length < 1) {
+                    searchResults.style.display = 'none';
+                    return;
+                }
+                
+                searchTimeout = setTimeout(() => {
+                    fetch(`{{ route('landing.ajax_search') }}?q=${encodeURIComponent(query)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            resultsList.innerHTML = '';
+                            if(data.length > 0) {
+                                data.forEach(item => {
+                                    const imgHtml = item.image ? `<img src="${item.image}" alt="${item.title}" style="width:40px; height:40px; border-radius:8px; object-fit:cover;">` : `<div style="width:40px; height:40px; border-radius:8px; background:#f1f5f9; display:flex; align-items:center; justify-content:center;"><i class="fa-solid fa-image" style="color:#94a3b8;"></i></div>`;
+                                    const itemHtml = `
+                                        <a href="${item.url}" class="result-item">
+                                            ${imgHtml}
+                                            <div style="flex:1;">
+                                                <h4 style="margin:0; font-size:1rem; color:#1e293b;">${item.title}</h4>
+                                                <span style="font-size:0.75rem; color:#64748b; text-transform:uppercase; font-weight:600; letter-spacing:0.5px;">${item.type}</span>
+                                            </div>
+                                            <i class="fa-solid fa-chevron-right" style="color:#cbd5e1;"></i>
+                                        </a>
+                                    `;
+                                    resultsList.insertAdjacentHTML('beforeend', itemHtml);
+                                });
+                                viewMoreBtn.href = `{{ route('landing.search') }}?q=${encodeURIComponent(query)}`;
+                                searchResults.style.display = 'block';
+                            } else {
+                                resultsList.innerHTML = '<div style="padding: 20px; text-align: center; color: #64748b;">No results found. Try a different keyword.</div>';
+                                viewMoreBtn.href = '#';
+                                searchResults.style.display = 'block';
+                            }
+                        });
+                }, 300);
+            });
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if(!searchForm.contains(e.target) && !searchResults.contains(e.target)) {
+                    searchResults.style.display = 'none';
+                }
+            });
+            
+            // Show dropdown when input is focused and has text
+            searchInput.addEventListener('focus', function() {
+                if(this.value.trim().length > 0) {
+                    searchResults.style.display = 'block';
+                }
+            });
         }
-        checkWidth();
-        window.addEventListener('resize', checkWidth);
-    })();
+    });
 </script>
 @endsection

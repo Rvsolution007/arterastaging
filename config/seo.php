@@ -72,7 +72,7 @@ return [
     |--------------------------------------------------------------------------
     */
     'app_links' => [
-        'android' => 'https://play.google.com/store/apps/details?id=com.arterapixel.app',
+        'android' => 'https://play.google.com/store/apps/details?id=com.arterapixel.pro&hl=en_IN',
         'ios' => '',
     ],
 

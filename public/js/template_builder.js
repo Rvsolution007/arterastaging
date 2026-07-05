@@ -1186,9 +1186,9 @@
         else if (val === 'address') displayStr = 'Your Business Address Here';
         else if (val === 'name') displayStr = 'Your Business Name';
 
-        const text = new fabric.IText(displayStr, {
+        const text = new fabric.Textbox(displayStr, {
             left: 100, top: 200, fontSize: 30, fill: '#000000', fontFamily: 'Arial',
-            textBaseline: 'alphabetic',
+            textBaseline: 'alphabetic', splitByGrapheme: false,
             customType: 'placeholder', placeholderKey: val, customName: val, ai_field: val, ai_semantic_role: 'body_text'
         });
         canvas.add(text);
@@ -1294,70 +1294,79 @@
     // --- ADD ICONS (Font Awesome as text objects) ---
     const iconsGrid = $('icons-grid');
     const iconSearch = $('icon-search');
-    if (iconsGrid) {
-        const iconItems = iconsGrid.querySelectorAll('.icon-item');
-        iconItems.forEach(item => {
-            item.addEventListener('click', function() {
-                const iconClass = this.getAttribute('data-icon') || '';
-                const isBrand = iconClass.includes('fa-brands');
-                const title = this.getAttribute('title') || 'Icon';
-                
-                // Dynamically fetch the unicode character from CSS
-                const iElement = this.querySelector('i');
-                let unicodeChar = '\uf005'; // default star
-                if (iElement) {
-                    const style = window.getComputedStyle(iElement, '::before');
-                    let content = style.getPropertyValue('content');
-                    if (content && content !== 'none' && content !== 'normal') {
-                        content = content.replace(/^["']|["']$/g, '');
-                        if (content.length === 1) {
-                            unicodeChar = content;
-                        } else if (content.startsWith('\\')) {
-                            let hex = content.substring(1);
-                            if (hex.startsWith('u')) hex = hex.substring(1);
-                            unicodeChar = String.fromCharCode(parseInt(hex, 16));
-                        } else if (content.length > 0) {
-                            unicodeChar = content;
-                        }
-                    }
-                }
-                
-                let fontFamilies = '"Font Awesome 6 Free", "FontAwesome", "Font Awesome 5 Free"';
-                if (isBrand) {
-                    fontFamilies = '"Font Awesome 6 Brands", "Font Awesome 5 Brands", "FontAwesome"';
-                }
-                
-                // Generate unique icon name to avoid conflicts when multiple icons are added
-                const existingIcons = canvas.getObjects().filter(o => o.customType === 'icon').length;
-                const iconName = 'Icon_' + (existingIcons + 1);
-                
-                const iconText = new fabric.IText(unicodeChar, {
-                    left: 150, top: 150, fontSize: 80, fill: '#333333',
-                    fontFamily: fontFamilies, fontWeight: 900,
-                    customType: 'icon', customName: iconName, textBaseline: 'alphabetic'
-                });
-                canvas.add(iconText);
-                canvas.setActiveObject(iconText);
-                updateLayersList();
-                saveHistory();
+    
+    if (iconsGrid && typeof FONT_AWESOME_ICONS !== 'undefined') {
+        const renderIcons = (query = '') => {
+            const lowerQuery = query.toLowerCase();
+            const filtered = FONT_AWESOME_ICONS.filter(icon => 
+                icon.title.toLowerCase().includes(lowerQuery) || 
+                icon.class.toLowerCase().includes(lowerQuery)
+            ).slice(0, 100); // Limit to 100 for performance
+            
+            let html = '';
+            filtered.forEach(icon => {
+                html += `<div class="icon-item" data-icon="${icon.class}" title="${icon.title}"><i class="${icon.class}"></i></div>`;
             });
-        });
-    }
+            iconsGrid.innerHTML = html;
+        };
 
-    if (iconSearch) {
-        iconSearch.addEventListener('input', function() {
-            const filter = this.value.toLowerCase();
-            if (iconsGrid) {
-                const iconItems = iconsGrid.querySelectorAll('.icon-item');
-                iconItems.forEach(item => {
-                    const title = (item.getAttribute('title') || '').toLowerCase();
-                    if (title.includes(filter)) {
-                        item.style.display = 'flex';
-                    } else {
-                        item.style.display = 'none';
+        // Initial render
+        renderIcons();
+
+        // Search listener
+        if (iconSearch) {
+            iconSearch.addEventListener('input', (e) => {
+                renderIcons(e.target.value);
+            });
+        }
+
+        // Event delegation for clicks
+        iconsGrid.addEventListener('click', function(e) {
+            const item = e.target.closest('.icon-item');
+            if (!item) return;
+            
+            const iconClass = item.getAttribute('data-icon') || '';
+            const isBrand = iconClass.includes('fa-brands');
+            const title = item.getAttribute('title') || 'Icon';
+            
+            // Dynamically fetch the unicode character from CSS
+            const iElement = item.querySelector('i');
+            let unicodeChar = '\uf005'; // default star
+            if (iElement) {
+                const style = window.getComputedStyle(iElement, '::before');
+                let content = style.getPropertyValue('content');
+                if (content && content !== 'none' && content !== 'normal') {
+                    content = content.replace(/^["']|["']$/g, '');
+                    if (content.length === 1) {
+                        unicodeChar = content;
+                    } else if (content.startsWith('\\')) {
+                        let hex = content.substring(1);
+                        if (hex.startsWith('u')) hex = hex.substring(1);
+                        unicodeChar = String.fromCharCode(parseInt(hex, 16));
+                    } else if (content.length > 0) {
+                        unicodeChar = content;
                     }
-                });
+                }
             }
+            
+            let fontFamilies = '"Font Awesome 6 Free", "FontAwesome", "Font Awesome 5 Free"';
+            if (isBrand) {
+                fontFamilies = '"Font Awesome 6 Brands", "Font Awesome 5 Brands", "FontAwesome"';
+            }
+            
+            // Generate unique icon name to avoid conflicts when multiple icons are added
+            const existingIcons = canvas.getObjects().filter(o => o.customType === 'icon').length;
+            const iconName = 'Icon_' + (existingIcons + 1);
+            
+            const iconText = new fabric.IText(unicodeChar, {
+                left: 150, top: 150, fontSize: 80, fill: '#333333',
+                fontFamily: fontFamilies, fontWeight: 900,
+                customType: 'icon', customName: iconName, textBaseline: 'alphabetic'
+            });
+            canvas.add(iconText);
+            canvas.setActiveObject(iconText);
+            updateLayersList();
+            saveHistory();
         });
     }
 
@@ -1735,83 +1744,12 @@
 
         // Copy (Ctrl+C)
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
-            const activeObject = canvas.getActiveObject();
-            if (activeObject) {
-                e.preventDefault();
-                activeObject.clone(function(cloned) {
-                    window._canvasClipboard = cloned;
-                    window._canvasClipboardTime = Date.now();
-                    try {
-                        const jsonObj = activeObject.toObject(customAttrs);
-                        localStorage.setItem('artera_clipboard', JSON.stringify(jsonObj));
-                        localStorage.setItem('artera_clipboard_time', window._canvasClipboardTime.toString());
-                    } catch(err) { console.warn('Cross-tab copy failed', err); }
-                    console.log('Copied to clipboard');
-                }, customAttrs);
-            }
+            doArteraCopy(e);
         }
         
         // Paste (Ctrl+V)
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
-            const localTimestamp = parseInt(localStorage.getItem('artera_clipboard_time') || '0');
-            const memoryTimestamp = window._canvasClipboardTime || 0;
-            
-            if (localTimestamp > memoryTimestamp) {
-                e.preventDefault();
-                try {
-                    const localClipStr = localStorage.getItem('artera_clipboard');
-                    if (localClipStr) {
-                        const parsed = JSON.parse(localClipStr);
-                        fabric.util.enlivenObjects([parsed], function(objects) {
-                            if (objects.length) {
-                                window._canvasClipboard = objects[0];
-                                window._canvasClipboardTime = localTimestamp;
-                                _doPaste();
-                            }
-                        });
-                    }
-                } catch(err) { console.warn('Cross-tab paste failed', err); }
-            } else if (window._canvasClipboard) {
-                e.preventDefault();
-                _doPaste();
-            }
-            
-            function _doPaste() {
-                if (!window._canvasClipboard) return;
-                window._canvasClipboard.clone(function(clonedObj) {
-                    canvas.discardActiveObject();
-                    clonedObj.set({
-                        left: clonedObj.left + 20,
-                        top: clonedObj.top + 20,
-                        evented: true,
-                    });
-                    if (clonedObj.type === 'activeSelection') {
-                        clonedObj.canvas = canvas;
-                        clonedObj.forEachObject(function(obj) { canvas.add(obj); });
-                        clonedObj.setCoords();
-                    } else {
-                        canvas.add(clonedObj);
-                    }
-                    window._canvasClipboard.top += 20;
-                    window._canvasClipboard.left += 20;
-                    
-                    // Also update localStorage offset so next paste in another tab is offset
-                    try {
-                        const localClipStr = localStorage.getItem('artera_clipboard');
-                        if (localClipStr) {
-                            const parsed = JSON.parse(localClipStr);
-                            parsed.top = (parsed.top || 0) + 20;
-                            parsed.left = (parsed.left || 0) + 20;
-                            localStorage.setItem('artera_clipboard', JSON.stringify(parsed));
-                        }
-                    } catch(e) {}
-                    
-                    canvas.setActiveObject(clonedObj);
-                    canvas.requestRenderAll();
-                    updateLayersList();
-                    saveHistory();
-                }, customAttrs);
-            }
+            doArteraPaste(e);
         }
 
         // Arrow keys: move selected object (1px default, 10px with Shift)
@@ -1831,90 +1769,80 @@
         }
     });
 
-    document.addEventListener('copy', function(e) {
+    let _lastCopyTime = 0;
+    function doArteraCopy(e) {
         if (!canvas) return;
+        const tag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+        if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+        
         const activeObject = canvas.getActiveObject();
-        // If editing text, let the browser copy text natively
+        if (!activeObject || activeObject.isEditing) return;
+        
+        if (Date.now() - _lastCopyTime < 100) return;
+        _lastCopyTime = Date.now();
+        if (e && e.preventDefault) e.preventDefault();
+        
+        try {
+            const jsonObj = activeObject.toObject(customAttrs);
+            localStorage.setItem('artera_clipboard', JSON.stringify(jsonObj));
+            localStorage.setItem('artera_clipboard_time', Date.now().toString());
+        } catch(err) { console.warn('Copy failed', err); }
+    }
+
+    let _lastPasteTime = 0;
+    function doArteraPaste(e) {
+        if (!canvas) return;
+        const tag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+        if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+        
+        const activeObject = canvas.getActiveObject();
         if (activeObject && activeObject.isEditing) return;
         
-        if (activeObject) {
-            activeObject.clone(function(cloned) {
-                window._canvasClipboard = cloned;
-                window._canvasClipboardTime = Date.now();
-                try {
-                    const jsonObj = activeObject.toObject(customAttrs);
-                    localStorage.setItem('artera_clipboard', JSON.stringify(jsonObj));
-                    localStorage.setItem('artera_clipboard_time', window._canvasClipboardTime.toString());
-                } catch(err) { console.warn('Cross-tab copy failed', err); }
-                console.log('Copied to clipboard via native copy event');
-            }, customAttrs);
-        }
-    });
-
-    document.addEventListener('paste', function(e) {
-        if (!canvas) return;
-        const activeObject = canvas.getActiveObject();
-        if (activeObject && activeObject.isEditing) return; // Let native text paste work
+        if (Date.now() - _lastPasteTime < 100) return;
+        _lastPasteTime = Date.now();
+        if (e && e.preventDefault) e.preventDefault();
         
-        const localTimestamp = parseInt(localStorage.getItem('artera_clipboard_time') || '0');
-        const memoryTimestamp = window._canvasClipboardTime || 0;
-        
-        if (localTimestamp > memoryTimestamp) {
-            e.preventDefault();
-            try {
-                const localClipStr = localStorage.getItem('artera_clipboard');
-                if (localClipStr) {
-                    const parsed = JSON.parse(localClipStr);
-                    fabric.util.enlivenObjects([parsed], function(objects) {
-                        if (objects.length) {
-                            window._canvasClipboard = objects[0];
-                            window._canvasClipboardTime = localTimestamp;
-                            _doPasteNative();
-                        }
+        try {
+            const localClipStr = localStorage.getItem('artera_clipboard');
+            if (!localClipStr) return;
+            const parsed = JSON.parse(localClipStr);
+            fabric.util.enlivenObjects([parsed], function(objects) {
+                if (objects.length) {
+                    const clonedObj = objects[0];
+                    customAttrs.forEach(function(attr) {
+                        if (parsed[attr] !== undefined) clonedObj.set(attr, parsed[attr]);
                     });
-                }
-            } catch(err) { console.warn('Cross-tab paste failed', err); }
-        } else if (window._canvasClipboard) {
-            e.preventDefault();
-            _doPasteNative();
-        }
-        
-        function _doPasteNative() {
-            if (!window._canvasClipboard) return;
-            window._canvasClipboard.clone(function(clonedObj) {
-                canvas.discardActiveObject();
-                clonedObj.set({
-                    left: clonedObj.left + 20,
-                    top: clonedObj.top + 20,
-                    evented: true,
-                });
-                if (clonedObj.type === 'activeSelection') {
-                    clonedObj.canvas = canvas;
-                    clonedObj.forEachObject(function(obj) { canvas.add(obj); });
-                    clonedObj.setCoords();
-                } else {
-                    canvas.add(clonedObj);
-                }
-                window._canvasClipboard.top += 20;
-                window._canvasClipboard.left += 20;
-                
-                try {
-                    const localClipStr = localStorage.getItem('artera_clipboard');
-                    if (localClipStr) {
-                        const parsed = JSON.parse(localClipStr);
-                        parsed.top = (parsed.top || 0) + 20;
-                        parsed.left = (parsed.left || 0) + 20;
-                        localStorage.setItem('artera_clipboard', JSON.stringify(parsed));
+                    
+                    canvas.discardActiveObject();
+                    clonedObj.set({
+                        left: clonedObj.left + 20,
+                        top: clonedObj.top + 20,
+                        evented: true,
+                    });
+                    
+                    if (clonedObj.type === 'activeSelection') {
+                        clonedObj.canvas = canvas;
+                        clonedObj.forEachObject(function(obj) { canvas.add(obj); });
+                        clonedObj.setCoords();
+                    } else {
+                        canvas.add(clonedObj);
                     }
-                } catch(err) {}
-                
-                canvas.setActiveObject(clonedObj);
-                canvas.requestRenderAll();
-                updateLayersList();
-                saveHistory();
-            }, customAttrs);
-        }
-    });
+                    
+                    parsed.top = clonedObj.top;
+                    parsed.left = clonedObj.left;
+                    localStorage.setItem('artera_clipboard', JSON.stringify(parsed));
+                    
+                    canvas.setActiveObject(clonedObj);
+                    canvas.requestRenderAll();
+                    updateLayersList();
+                    saveHistory();
+                }
+            });
+        } catch(err) { console.warn('Paste failed', err); }
+    }
+
+    document.addEventListener('copy', doArteraCopy);
+    document.addEventListener('paste', doArteraPaste);
 
     // Nudge buttons
     function nudgeObj(dir) {
@@ -2015,7 +1943,7 @@
                             }
                         }
 
-                        canvas.loadFromJSON(jsonObj, () => {
+                        if(jsonObj && jsonObj.objects){ jsonObj.objects.forEach(o => { if(o.type === 'text' || o.type === 'i-text'){ o.type = 'textbox'; o.splitByGrapheme = false; } }); } canvas.loadFromJSON(jsonObj, () => {
                             canvas.renderAll();
                             if (jsonObj.backgroundImage) {
                                 baseWidth = jsonObj.backgroundImage.width * jsonObj.backgroundImage.scaleX;
@@ -2182,7 +2110,7 @@
                             const fn = jsonObj.backgroundImage.src.split('/').pop();
                             if (imagesMap[fn]) jsonObj.backgroundImage.src = imagesMap[fn];
                         }
-                        canvas.loadFromJSON(jsonObj, () => {
+                        if(jsonObj && jsonObj.objects){ jsonObj.objects.forEach(o => { if(o.type === 'text' || o.type === 'i-text'){ o.type = 'textbox'; o.splitByGrapheme = false; } }); } canvas.loadFromJSON(jsonObj, () => {
                             canvas.renderAll();
                             if (jsonObj.backgroundImage) {
                                 baseWidth = jsonObj.backgroundImage.width * jsonObj.backgroundImage.scaleX;
@@ -2910,8 +2838,8 @@
 
                 let t;
                 if (isPointText) {
-                    // Point Text: fabric.Text — never wraps, glyph bounds match PS Transform panel
-                    t = new fabric.Text(rawText, commonTextProps);
+                    // Point Text: Changed to Textbox so users can resize width without scaling font
+                    t = new fabric.Textbox(rawText, commonTextProps);
                 } else {
                     // Paragraph Text: fabric.Textbox — wraps within the text frame.
                     // Use exact width from JSON (JSX exports the actual Photoshop text frame width).

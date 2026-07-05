@@ -1,0 +1,29 @@
+
+<html>
+<head>
+<script src=https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js></script>
+</head>
+<body>
+<canvas id=c width=400 height=400></canvas>
+<script>
+var canvas = new fabric.Canvas(c);
+var customAttrs = [customName];
+var t = new fabric.Textbox(+91 9876543210, { customName: phone_1 });
+canvas.add(t);
+t.clone(function(cloned) {
+    console.log(cloned.customName); // Should be undefined if not passed properly?
+    var jsonObj = t.toObject(customAttrs);
+    fabric.util.enlivenObjects([jsonObj], function(objects) {
+        var obj = objects[0];
+        console.log(Enlivened: , obj.customName);
+        obj.clone(function(c2) {
+            console.log(Cloned from enlivened: , c2.customName);
+            canvas.add(c2);
+            c2.set({top: 50});
+            canvas.renderAll();
+        }, customAttrs);
+    });
+}, customAttrs);
+</script>
+</body>
+</html>

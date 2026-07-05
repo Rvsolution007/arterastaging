@@ -643,7 +643,7 @@
                     <a href="#" class="nav-link {{$marketingActive}}" style="color: white;">
                       <i class="nav-icon fa fa-bullhorn text-warning"></i>
                       <p>
-                        Marketing
+                        Landing Page
                         <i class="right fa fa-angle-right"></i>
                       </p>
                     </a>
@@ -651,6 +651,11 @@
                       <li class="nav-item">
                         <a href="{{ url('admin/blogs') }}" class="nav-link @if(Request::is('admin/blogs*')) active @endif" style="color: white;">
                           <p><i class="fa fa-angle-right ml-3 mr-1"></i> AI Blogs</p>
+                        </a>
+                      </li>
+                      <li class="nav-item">
+                        <a href="{{ url('admin/home-banners') }}" class="nav-link @if(Request::is('admin/home-banners*')) active @endif" style="color: white;">
+                          <p><i class="fa fa-angle-right ml-3 mr-1"></i> Home Banners</p>
                         </a>
                       </li>
                     </ul>

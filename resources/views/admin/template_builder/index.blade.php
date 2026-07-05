@@ -179,43 +179,7 @@
                     <input type="text" class="aim-input mb-2" id="icon-search" placeholder="Search icons...">
                     <div class="icons-grid-wrap">
                         <div class="icons-grid" id="icons-grid">
-                            <div class="icon-item" data-icon="fa-solid fa-heart" title="Heart"><i class="fa-solid fa-heart"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-star" title="Star"><i class="fa-solid fa-star"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-house" title="Home"><i class="fa-solid fa-house"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-user" title="User"><i class="fa-solid fa-user"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-phone" title="Phone"><i class="fa-solid fa-phone"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-envelope" title="Envelope"><i class="fa-solid fa-envelope"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-map-marker-alt" title="Address Location Map Marker"><i class="fa-solid fa-map-marker-alt"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-location-dot" title="Address Pin Location"><i class="fa-solid fa-location-dot"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-address-book" title="Address Book Contact"><i class="fa-solid fa-address-book"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-address-card" title="Address Card Contact"><i class="fa-solid fa-address-card"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-globe" title="Website Globe Web Address"><i class="fa-solid fa-globe"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-building" title="Office Building Address"><i class="fa-solid fa-building"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-camera" title="Camera"><i class="fa-solid fa-camera"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-music" title="Music"><i class="fa-solid fa-music"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-bolt" title="Bolt"><i class="fa-solid fa-bolt"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-gift" title="Gift"><i class="fa-solid fa-gift"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-trophy" title="Trophy"><i class="fa-solid fa-trophy"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-crown" title="Crown"><i class="fa-solid fa-crown"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-gem" title="Diamond"><i class="fa-solid fa-gem"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-fire" title="Fire"><i class="fa-solid fa-fire"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-rocket" title="Rocket"><i class="fa-solid fa-rocket"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-flag" title="Flag"><i class="fa-solid fa-flag"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-bell" title="Bell"><i class="fa-solid fa-bell"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-bookmark" title="Bookmark"><i class="fa-solid fa-bookmark"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-thumbs-up" title="Thumbs Up"><i class="fa-solid fa-thumbs-up"></i></div>
-                            <!-- Social Icons -->
-                            <div class="icon-item" data-icon="fa-brands fa-facebook" title="Facebook"><i class="fa-brands fa-facebook"></i></div>
-                            <div class="icon-item" data-icon="fa-brands fa-instagram" title="Instagram"><i class="fa-brands fa-instagram"></i></div>
-                            <div class="icon-item" data-icon="fa-brands fa-twitter" title="Twitter"><i class="fa-brands fa-twitter"></i></div>
-                            <div class="icon-item" data-icon="fa-brands fa-x-twitter" title="X (Twitter)"><i class="fa-brands fa-x-twitter"></i></div>
-                            <div class="icon-item" data-icon="fa-brands fa-whatsapp" title="WhatsApp"><i class="fa-brands fa-whatsapp"></i></div>
-                            <div class="icon-item" data-icon="fa-brands fa-youtube" title="YouTube"><i class="fa-brands fa-youtube"></i></div>
-                            <div class="icon-item" data-icon="fa-brands fa-linkedin" title="LinkedIn"><i class="fa-brands fa-linkedin"></i></div>
-                            <div class="icon-item" data-icon="fa-brands fa-telegram" title="Telegram"><i class="fa-brands fa-telegram"></i></div>
-                            <div class="icon-item" data-icon="fa-brands fa-pinterest" title="Pinterest"><i class="fa-brands fa-pinterest"></i></div>
-                            <div class="icon-item" data-icon="fa-brands fa-tiktok" title="TikTok"><i class="fa-brands fa-tiktok"></i></div>
-                            <div class="icon-item" data-icon="fa-brands fa-snapchat" title="Snapchat"><i class="fa-brands fa-snapchat"></i></div>
+                            <!-- Icons will be dynamically populated here by JS -->
                         </div>
                     </div>
                 </div>
@@ -375,6 +339,10 @@
                         <div class="mb-2 custom-control custom-switch">
                             <input type="checkbox" class="custom-control-input" id="prop-is-placeholder">
                             <label class="custom-control-label small" for="prop-is-placeholder">Is Post Images</label>
+                        </div>
+                        <div class="mb-2 custom-control custom-switch">
+                            <input type="checkbox" class="custom-control-input" id="prop-is-colorizable-shape">
+                            <label class="custom-control-label small" for="prop-is-colorizable-shape">Treat as Shape (Colorizable)</label>
                         </div>
                         @if($mode === 'frame')
                         <div class="mb-2 custom-control custom-switch">
@@ -765,6 +733,7 @@
     const apiBaseUrl = "{{ url(env('API_KEY', 'api')) }}";
     const GLOBAL_FONTS = @json($globalFonts ?? []);
 </script>
+<script src="{{ asset('assets/js/font_awesome_library.js') }}?v={{ time() }}"></script>
 <script src="{{ asset('assets/js/template_builder.js') }}?v={{ time() }}"></script>
 <script>
 function filterFrames() {

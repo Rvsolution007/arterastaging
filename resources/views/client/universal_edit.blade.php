@@ -1394,6 +1394,62 @@ function initCanvas() {
     fCanvas.on('selection:cleared', () => onSelectionCleared());
     fCanvas.on('object:moving', () => updateImageActionPosition());
     fCanvas.on('object:scaling', () => updateImageActionPosition());
+    // ══ CANVA/PHOTOSHOP TEXT BEHAVIOR ══
+    // 1. lockUniScaling forces all handles to scale proportionally (no stretch)
+    // 2. Hide mt/mb (vertical stretch is nonsensical for text)
+    // 3. Override fabric.Text to fabric.IText so double-click editing works on point text (avoids Textbox call stack crash)
+    if (fabric.IText) {
+        fabric.IText.prototype.lockUniScaling = true;
+        fabric.IText.prototype.setControlsVisibility({ mt: false, mb: false });
+    }
+    if (fabric.Textbox) {
+        fabric.Textbox.prototype.lockUniScaling = true;
+        fabric.Textbox.prototype.setControlsVisibility({ mt: false, mb: false });
+    }
+    if (fabric.Text) {
+        fabric.Text.prototype.lockUniScaling = true;
+        fabric.Text.prototype.setControlsVisibility({ mt: false, mb: false });
+    }
+
+    (function() {
+        var _OrigText = fabric.Text;
+        fabric.Text = function(text, options) {
+            return new fabric.IText(text, options || {});
+        };
+        for (var key in _OrigText) {
+            if (_OrigText.hasOwnProperty(key)) fabric.Text[key] = _OrigText[key];
+        }
+        fabric.Text.prototype = fabric.IText.prototype;
+        fabric.Text.fromObject = function(object, callback) {
+            return fabric.IText.fromObject(object, callback);
+        };
+        fabric.Text.async = true;
+    })();
+
+    // ── Anti-stretch: convert scale → width + fontSize on text objects ──
+    fCanvas.on('object:modified', function(e) {
+        const obj = e.target;
+        if (!obj) return;
+        const isText = (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox');
+        if (!isText) return;
+        const sx = obj.scaleX || 1;
+        const sy = obj.scaleY || 1;
+        if (Math.abs(sx - 1) < 0.001 && Math.abs(sy - 1) < 0.001) return;
+        
+        // lockUniScaling makes sx and sy equal on corner drag
+        const uniformScale = Math.max(sx, sy);
+        const newWidth = obj.width * uniformScale;
+        const newFontSize = Math.round(obj.fontSize * uniformScale);
+        
+        obj.set({
+            width: newWidth,
+            fontSize: newFontSize > 1 ? newFontSize : 1,
+            scaleX: 1,
+            scaleY: 1
+        });
+        obj.setCoords();
+        fCanvas.renderAll();
+    });
 
     // ── SELECTION + DRAG WORKAROUND ──
     // Fabric.js findTarget can miss objects when canvas is zoomed.

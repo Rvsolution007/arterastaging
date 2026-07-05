@@ -218,6 +218,37 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.css">
 @endsection
 
+<!-- Import Frames Modal -->
+<div id="importFramesModal" class="modal fade" role="dialog" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content" style="border-radius: 12px; border: none; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+      <div class="modal-header" style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-radius: 12px 12px 0 0;">
+        <h4 class="modal-title" style="font-weight: 600; color: #1e293b;">Import Frames</h4>
+        <button type="button" class="close" data-dismiss="modal" style="color: #64748b;">&times;</button>
+      </div>
+      <form action="{{ route('admin.poster_maker.import') }}" method="POST" enctype="multipart/form-data">
+        @csrf
+        <div class="modal-body" style="padding: 1.5rem;">
+          <div class="form-group">
+            <label style="font-weight: 600; color: #475569;">Upload Exported ZIP File</label>
+            <div class="cf-file-upload" onclick="document.getElementById('import_file').click()" style="border: 2px dashed #cbd5e1; border-radius: 12px; padding: 2rem; text-align: center; cursor: pointer; transition: all 0.2s ease; background: #f8fafc;">
+              <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2.5rem; color: #94a3b8; margin-bottom: 1rem;"></i>
+              <p style="font-weight: 500; color: #475569; margin-bottom: 0.25rem;">Click to select the exported zip file</p>
+              <p style="font-size: 0.75rem; color: #94a3b8;">Must contain data.json and templates folder</p>
+              <input type="file" id="import_file" name="import_file" accept=".zip" required onchange="document.getElementById('import_file_name').innerText = this.files[0] ? this.files[0].name : '';" style="display: none;">
+            </div>
+            <p id="import_file_name" style="margin-top: 10px; font-weight: 600; text-align: center; color: #6366f1;"></p>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-top: 1px solid #e2e8f0;">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal" style="border-radius: 8px;">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="border-radius: 8px; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); border: none;" onclick="this.innerHTML='<i class=\'fa-solid fa-spinner fa-spin\'></i> Importing...'; this.style.opacity='0.8';"><i class="fa-solid fa-download"></i> Import</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 @section('content')
 <div class="analytics-container">
     <div class="row align-items-center mb-4">
@@ -228,6 +259,17 @@
             <button type="button" id="bulkDeleteBtn" class="btn-action-danger mr-2" style="display: none;">
                 <i class="fa-solid fa-trash mr-1"></i> Delete Selected (<span id="selectedCount">0</span>)
             </button>
+            
+            <div class="dropdown d-inline-block mr-2">
+                <button class="btn-action-primary dropdown-toggle" type="button" id="importExportDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="background: #fff; border: 1px solid #e2e8f0; color: #475569;">
+                    <i class="fa-solid fa-ellipsis-vertical mr-1"></i> Manage
+                </button>
+                <div class="dropdown-menu dropdown-menu-right" aria-labelledby="importExportDropdown" style="border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);">
+                    <a class="dropdown-item" href="#" id="exportSelectedBtn" style="padding: 10px 20px; font-weight: 500; color: #1e293b;"><i class="fa-solid fa-download" style="color: #6366f1; width: 20px;"></i> Export Selected</a>
+                    <a class="dropdown-item" href="{{ route('admin.poster_maker.export') }}" style="padding: 10px 20px; font-weight: 500; color: #1e293b;"><i class="fa-solid fa-download" style="color: #6366f1; width: 20px;"></i> Export All</a>
+                    <a class="dropdown-item" href="#" data-toggle="modal" data-target="#importFramesModal" style="padding: 10px 20px; font-weight: 500; color: #1e293b;"><i class="fa-solid fa-upload" style="color: #10b981; width: 20px;"></i> Import Frames</a>
+                </div>
+            </div>
             <a href="{{ route('template_builder.index', ['mode' => 'frame']) }}" class="btn-action-primary">
                 <i class="fa-solid fa-plus mr-1"></i> Add New Frame
             </a>
@@ -295,6 +337,9 @@
                                     <a href="{{ route('template_builder.index', ['mode' => 'frame', 'frame_id' => $frame->id]) }}" class="action-btn text-success" title="Edit in Web Editor">
                                         <i class="fa-solid fa-wand-magic-sparkles"></i>
                                     </a>
+                                    <button type="button" class="action-btn text-info duplicate-btn ml-1" data-id="{{ $frame->id }}" data-zip="{{ $frame->zip_name }}" title="Duplicate">
+                                        <i class="fa-solid fa-clone"></i>
+                                    </button>
                                     <button type="button" data-id="{{ $frame->id }}" class="action-btn delete ml-1 btn_delete_a" data-toggle="modal" data-target="#myModal" title="Delete">
                                         <i class="fa-solid fa-trash-can"></i>
                                     </button>
@@ -384,6 +429,17 @@
                 $('#bulkDeleteBtn').fadeOut(200);
             }
         }
+
+        // Handle Export Selected
+        $('#exportSelectedBtn').on('click', function(e) {
+            e.preventDefault();
+            if (selectedIds.length === 0) {
+                toastr.warning('Please select at least one frame to export.');
+                return;
+            }
+            let url = "{{ route('admin.poster_maker.export') }}?ids=" + selectedIds.join(',');
+            window.location.href = url;
+        });
 
         // Select All toggle
         $('#selectAll').on('change', function() {
@@ -477,6 +533,55 @@
                 },
             });
         });
+        // Duplicate Frame Action
+        $(document).on('click', '.duplicate-btn', function() {
+            var frameId = $(this).data('id');
+            var currentZip = $(this).data('zip');
+            
+            swal({
+                title: "Duplicate Frame",
+                text: "Enter a unique ZIP name for the duplicate:",
+                type: "input",
+                showCancelButton: true,
+                closeOnConfirm: false,
+                showLoaderOnConfirm: true,
+                inputPlaceholder: "e.g. " + currentZip + "_copy"
+            }, function (inputValue) {
+                if (inputValue === false) return false;
+                if (inputValue === "") {
+                    swal.showInputError("Zip Name is required!");
+                    return false;
+                }
+                
+                $.ajax({
+                    url: "{{ route('admin.poster_maker.duplicate') }}",
+                    type: "POST",
+                    data: {
+                        id: frameId,
+                        zip_name: inputValue,
+                        _token: '{{ csrf_token() }}'
+                    },
+                    success: function(response) {
+                        if(response.success) {
+                            swal("Success!", "Frame duplicated successfully.", "success");
+                            setTimeout(() => { location.reload(); }, 1500);
+                        } else {
+                            swal.showInputError(response.message);
+                        }
+                    },
+                    error: function(xhr) {
+                        if(xhr.responseJSON && xhr.responseJSON.errors && xhr.responseJSON.errors.zip_name) {
+                            swal.showInputError(xhr.responseJSON.errors.zip_name[0]);
+                        } else if(xhr.responseJSON && xhr.responseJSON.message) {
+                            swal.showInputError(xhr.responseJSON.message);
+                        } else {
+                            swal.showInputError("Something went wrong!");
+                        }
+                    }
+                });
+            });
+        });
+
     });
 </script>
 @endsection

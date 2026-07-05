@@ -559,7 +559,33 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
               max: maxSize,
               activeColor: const Color(0xFF5538EE),
               onChanged: (val) {
-                controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'fontSize', val);
+                final String layerName = (layer['name'] ?? layer['id']).toString();
+                final double oldSize = currentSize;
+                // For Point text: scale bounding-box width proportionally so text isn't clipped
+                final String textKind = (layer['kind'] ?? '').toString().toLowerCase();
+                final double oldW = (layer['w'] ?? layer['width'] ?? 0).toDouble();
+                final String lname = layerName.toLowerCase();
+                // Detect point/single-line text: explicit 'point' kind, or old templates with contact-style names
+                final bool isPointText = textKind == 'point' || 
+                    (textKind.isEmpty && (lname.contains('phone') || lname.contains('email') || 
+                     lname.contains('name') || lname.contains('web') || lname.contains('address') || 
+                     lname.contains('mobile')));
+                if (isPointText && oldSize > 0 && oldW > 0) {
+                  final double ratio = val / oldSize;
+                  controller.updateLayerProperties(layerName, {
+                    'fontSize': val,
+                    'font_size': val,
+                    'size': val,
+                    'w': oldW * ratio,
+                    'width': oldW * ratio,
+                  });
+                } else {
+                  controller.updateLayerProperties(layerName, {
+                    'fontSize': val,
+                    'font_size': val,
+                    'size': val,
+                  });
+                }
               },
             ),
           ),

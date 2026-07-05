@@ -167,6 +167,8 @@ Route::get('upload-all-image-digitalOcean', 'HomeController@upload_image_digital
 Route::get('/pre-register', 'PreRegistrationController@index')->name('landing.pre_register');
 Route::post('/pre-register', 'PreRegistrationController@store')->name('landing.pre_register.store');
 Route::get('/', 'LandingController@home')->name('landing.home');
+Route::get('/ajax-search', 'LandingController@ajaxSearch')->name('landing.ajax_search');
+Route::get('/search', 'LandingController@searchPage')->name('landing.search');
 Route::get('/auth-gate', 'LandingController@authGate')->name('landing.auth_gate');
 Route::get('/app-gateway', 'LandingController@appGateway')->name('landing.app_gateway');
 Route::get('/about', 'LandingController@about')->name('landing.about');

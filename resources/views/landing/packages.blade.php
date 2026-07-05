@@ -11,7 +11,7 @@
     /* ---- Hero Section ---- */
     .pkg-hero {
         position: relative;
-        background: var(--bg-dark);
+        background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
         color: #fff;
         padding: 120px 0 100px;
         overflow: hidden;
@@ -41,145 +41,135 @@
         background: var(--bg-white);
     }
 
+    /* ---- Pricing Grid (Modern) ---- */
     .pkg-grid {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 0;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 32px;
         margin-top: 64px;
+        max-width: 1200px;
+        margin-left: auto;
+        margin-right: auto;
     }
 
-    /* ---- Pricing Card ---- */
-    .pkg-card {
+    .pricing-card {
         background: #fff;
-        border: 1px solid rgba(26, 26, 26, 0.08);
-        padding: 48px 36px 40px;
-        position: relative;
-        transition: var(--transition);
+        border-radius: 24px;
+        padding: 40px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.04);
+        border: 1px solid rgba(0,0,0,0.05);
+        transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
         display: flex;
         flex-direction: column;
+        position: relative;
+        overflow: hidden;
     }
-    .pkg-card:hover {
-        border-color: rgba(26, 26, 26, 0.2);
+    .pricing-card:hover {
+        transform: translateY(-12px);
+        box-shadow: 0 20px 50px rgba(99, 102, 241, 0.15);
+        border-color: rgba(99, 102, 241, 0.3);
     }
-
-    /* Popular card */
-    .pkg-card--popular {
-        border-color: var(--blue);
-        border-width: 2px;
-        transform: scaleY(1.02);
-        z-index: 2;
+    .pricing-card.popular {
+        border: 2px solid #6366f1;
+        box-shadow: 0 20px 50px rgba(99, 102, 241, 0.2);
     }
-    .pkg-card--popular:hover {
-        border-color: var(--blue);
-    }
-
-    /* Popular badge */
-    .pkg-popular-badge {
+    .pricing-badge {
         position: absolute;
-        top: 0;
-        left: 36px;
-        background: var(--blue);
+        top: 16px;
+        right: 16px;
+        background: linear-gradient(135deg, #6366f1, #4f46e5);
         color: #fff;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 700;
+        padding: 6px 16px;
+        border-radius: 20px;
         text-transform: uppercase;
-        letter-spacing: 0.12em;
-        padding: 8px 20px;
-        line-height: 1;
+        letter-spacing: 0.05em;
     }
-
-    /* Plan name */
-    .pkg-plan-name {
-        font-size: 13px;
-        font-family: 'JetBrains Mono', monospace;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        color: var(--text-gray);
+    .plan-name {
+        font-size: 24px;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 12px;
+    }
+    .plan-price-wrap {
         margin-bottom: 24px;
-    }
-    .pkg-card--popular .pkg-plan-name {
-        margin-top: 28px;
-    }
-
-    /* Price */
-    .pkg-price-row {
-        margin-bottom: 8px;
         display: flex;
         align-items: baseline;
         gap: 8px;
     }
-    .pkg-price {
-        font-size: clamp(2.5rem, 5vw, 3.5rem);
+    .plan-price {
+        font-size: 48px;
         font-weight: 900;
-        color: var(--blue);
+        color: #0f172a;
         line-height: 1;
-        letter-spacing: -0.02em;
     }
-    .pkg-duration {
-        font-size: 15px;
-        color: var(--text-gray);
+    .plan-currency {
+        font-size: 24px;
+        font-weight: 700;
+        color: #64748b;
+    }
+    .plan-duration {
+        font-size: 16px;
+        color: #64748b;
         font-weight: 500;
     }
-    .pkg-original-price {
+    .plan-discount {
+        font-size: 16px;
+        color: #ef4444;
         text-decoration: line-through;
-        color: var(--text-muted);
-        font-size: 14px;
-        margin-bottom: 6px;
+        font-weight: 600;
+        margin-left: 8px;
     }
-
-    /* Divider */
-    .pkg-divider {
-        width: 100%;
-        height: 1px;
-        background: rgba(26, 26, 26, 0.08);
-        margin: 32px 0;
-    }
-
-    /* Feature list */
-    .pkg-features {
+    .plan-features {
         list-style: none;
-        margin: 0 0 auto 0;
         padding: 0;
+        margin: 0 0 32px 0;
+        flex-grow: 1;
     }
-    .pkg-features li {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        font-size: 15px;
-        color: var(--text-dark);
+    .plan-features li {
+        font-size: 16px;
+        color: #475569;
         margin-bottom: 16px;
-        line-height: 1.5;
+        display: flex;
+        align-items: center;
+        gap: 12px;
     }
-    .pkg-features li:last-child {
-        margin-bottom: 0;
+    .plan-features li i.fa-check-circle {
+        color: #10b981;
+        font-size: 18px;
     }
-    .pkg-feat-icon {
-        flex-shrink: 0;
-        width: 20px;
-        height: 20px;
-        margin-top: 2px;
+    .plan-features li i.fa-times-circle {
+        color: #cbd5e1;
+        font-size: 18px;
     }
-    .pkg-feat-icon--check {
-        color: var(--blue);
-    }
-    .pkg-feat-icon--x {
-        color: var(--text-muted);
-    }
-    .pkg-features li.pkg-feat-disabled {
-        color: var(--text-muted);
-    }
-
-    /* CTA */
-    .pkg-cta {
-        margin-top: 40px;
-    }
-    .pkg-cta .btn-sharp {
+    .plan-btn {
+        display: block;
         width: 100%;
-        justify-content: center;
-        padding: 18px 32px;
-        font-size: 14px;
+        text-align: center;
+        padding: 16px;
+        border-radius: 50px;
+        font-weight: 700;
+        font-size: 16px;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+    .pricing-card.popular .plan-btn {
+        background: linear-gradient(135deg, #6366f1, #4f46e5);
+        color: #fff;
+        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+    }
+    .pricing-card.popular .plan-btn:hover {
+        box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+        transform: scale(1.02);
+    }
+    .pricing-card:not(.popular) .plan-btn {
+        background: #f1f5f9;
+        color: #0f172a;
+    }
+    .pricing-card:not(.popular) .plan-btn:hover {
+        background: #e2e8f0;
+        transform: scale(1.02);
     }
 
     /* ---- Empty State ---- */
@@ -191,7 +181,7 @@
         grid-column: 1 / -1;
     }
 
-    /* ---- Bottom CTA ---- */
+    /* ---- Bottom Note ---- */
     .pkg-bottom-note {
         text-align: center;
         margin-top: 64px;
@@ -210,19 +200,72 @@
         color: #2563eb;
         border-color: #2563eb;
     }
-
-    /* ---- Responsive ---- */
-    @media (max-width: 1024px) {
-        .pkg-grid {
-            grid-template-columns: 1fr;
-            max-width: 480px;
-            margin-left: auto;
-            margin-right: auto;
-            gap: 24px;
-        }
-        .pkg-card--popular {
-            transform: none;
-        }
+    
+    /* Toggle Styles */
+    .pricing-toggle-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        margin-bottom: 40px;
+    }
+    .toggle-label {
+        font-size: 16px;
+        font-weight: 600;
+        color: #64748b;
+        transition: color 0.3s;
+        cursor: pointer;
+    }
+    .toggle-label.active {
+        color: #0f172a;
+    }
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 60px;
+        height: 34px;
+    }
+    .switch input { 
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: #cbd5e1;
+        transition: .4s;
+    }
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 26px;
+        width: 26px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    input:checked + .slider {
+        background-color: #6366f1;
+    }
+    input:checked + .slider:before {
+        transform: translateX(26px);
+    }
+    .slider.round {
+        border-radius: 34px;
+    }
+    .badge-save {
+        background-color: #10b981;
+        color: white;
+        font-size: 11px;
+        padding: 2px 8px;
+        border-radius: 12px;
+        margin-left: 8px;
+        vertical-align: middle;
     }
 </style>
 @endsection
@@ -253,74 +296,93 @@
 <section class="pkg-section">
     <div class="container-full" style="max-width: 1200px; margin: 0 auto;">
 
+        <div class="pricing-toggle-wrap reveal">
+            <span class="toggle-label" id="label-monthly" onclick="document.getElementById('billing-toggle').click()">Monthly</span>
+            <label class="switch">
+                <input type="checkbox" id="billing-toggle" checked>
+                <span class="slider round"></span>
+            </label>
+            <span class="toggle-label active" id="label-yearly" onclick="document.getElementById('billing-toggle').click()">Yearly <span class="badge-save">Save 20%</span></span>
+        </div>
+
         <div class="pkg-grid">
             @if(isset($packages) && count($packages) > 0)
                 @foreach($packages as $index => $plan)
-                <div class="pkg-card {{ $index == 1 ? 'pkg-card--popular' : '' }} reveal-scale reveal-delay-{{ ($index % 4) + 1 }}">
+                @php
+                    $isPopular = $plan->plan_name == 'Basic' || $plan->yearly_price > 0 && $plan->yearly_price < 2000;
+                    $monthlyFinal = $plan->monthly_discount_price > 0 ? $plan->monthly_discount_price : $plan->monthly_price;
+                    $yearlyFinal = $plan->yearly_discount_price > 0 ? $plan->yearly_discount_price : $plan->yearly_price;
+                    if ($yearlyFinal == 0 && $plan->plan_price > 0) {
+                        $yearlyFinal = $plan->discount_price > 0 ? $plan->discount_price : $plan->plan_price;
+                    }
+                    $isFree = $monthlyFinal == 0 && $yearlyFinal == 0 && $plan->plan_price == 0;
+                @endphp
+                <div class="pricing-card {{ $isPopular ? 'popular' : '' }} reveal-scale reveal-delay-{{ ($index % 4) + 1 }}" data-is-free="{{ $isFree ? 'true' : 'false' }}">
 
                     @if($index == 1)
-                        <div class="pkg-popular-badge">MOST POPULAR</div>
+                        <div class="pricing-badge">Most Popular</div>
                     @endif
 
-                    {{-- Plan Name --}}
-                    <div class="pkg-plan-name">{{ $plan->plan_name }}</div>
+                    <h3 class="plan-name">{{ $plan->plan_name }}</h3>
 
-                    {{-- Price --}}
-                    <div class="pkg-price-row">
-                        <span class="pkg-price">{{ App\Models\AppSetting::getAppSetting('currency') ?? '$' }}{{ $plan->discount_price > 0 ? $plan->discount_price : $plan->plan_price }}</span>
-                        <span class="pkg-duration">/ {{ $plan->duration }} {{ $plan->duration_type }}</span>
-                    </div>
-
-                    @if($plan->discount_price > 0 && $plan->discount_price < $plan->plan_price)
-                        <div class="pkg-original-price">
-                            {{ App\Models\AppSetting::getAppSetting('currency') ?? '$' }}{{ $plan->plan_price }}
+                    @if($isFree)
+                        <div class="plan-price-wrap">
+                            <span class="plan-currency">{{ App\Models\AppSetting::getAppSetting('currency') ?? '₹' }}</span>
+                            <span class="plan-price">0</span>
+                        </div>
+                    @else
+                        <!-- Monthly Price -->
+                        <div class="plan-price-wrap price-monthly" style="display: none;">
+                            <span class="plan-currency">{{ App\Models\AppSetting::getAppSetting('currency') ?? '₹' }}</span>
+                            <span class="plan-price">{{ round($monthlyFinal) }}</span>
+                            @if($plan->monthly_discount_price > 0 && $plan->monthly_price > $plan->monthly_discount_price)
+                                <span class="plan-discount">{{ App\Models\AppSetting::getAppSetting('currency') ?? '₹' }}{{ round($plan->monthly_price) }}</span>
+                            @endif
+                            @if($monthlyFinal > 0)
+                                <span class="plan-duration">/ month</span>
+                            @endif
+                        </div>
+                        <!-- Yearly Price -->
+                        <div class="plan-price-wrap price-yearly">
+                            <span class="plan-currency">{{ App\Models\AppSetting::getAppSetting('currency') ?? '₹' }}</span>
+                            <span class="plan-price">{{ round($yearlyFinal) }}</span>
+                            @if($plan->yearly_discount_price > 0 && $plan->yearly_price > $plan->yearly_discount_price)
+                                <span class="plan-discount">{{ App\Models\AppSetting::getAppSetting('currency') ?? '₹' }}{{ round($plan->yearly_price) }}</span>
+                            @endif
+                            @if($yearlyFinal > 0)
+                                <span class="plan-duration">/ year</span>
+                            @endif
                         </div>
                     @endif
 
-                    <div class="pkg-divider"></div>
-
-                    {{-- Features --}}
-                    <ul class="pkg-features stagger-list">
-                        <li class="stagger-item">
-                            <svg class="pkg-feat-icon pkg-feat-icon--check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                    <ul class="plan-features">
+                        <li>
+                            <i class="fas fa-check-circle"></i>
                             {{ $plan->business_limit }} Business Profiles
                         </li>
-                        <li class="stagger-item">
-                            <svg class="pkg-feat-icon pkg-feat-icon--check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                        <li>
+                            <i class="fas fa-check-circle"></i>
                             {{ $plan->festival_post_limit ?: 'Unlimited' }} Festival Posts
                         </li>
-                        <li class="stagger-item">
-                            <svg class="pkg-feat-icon pkg-feat-icon--check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                        <li>
+                            <i class="fas fa-check-circle"></i>
                             {{ $plan->custom_post_edit_limit ?: 'Unlimited' }} Custom Posts Edit
                         </li>
-                        <li class="stagger-item">
-                            <svg class="pkg-feat-icon pkg-feat-icon--check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                        <li>
+                            <i class="fas fa-check-circle"></i>
                             {{ $plan->daily_drip_limit ?: 'Unlimited' }} Daily Drip Posts
                         </li>
-                        <li class="stagger-item {{ $plan->daily_drip_can_choose ? '' : 'pkg-feat-disabled' }}">
-                            @if($plan->daily_drip_can_choose)
-                                <svg class="pkg-feat-icon pkg-feat-icon--check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                            @else
-                                <svg class="pkg-feat-icon pkg-feat-icon--x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                            @endif
+                        <li>
+                            <i class="{{ $plan->daily_drip_can_choose ? 'fas fa-check-circle' : 'fas fa-times-circle' }}"></i>
                             Select Daily Drip Content
                         </li>
                     </ul>
 
-                    {{-- CTA Button --}}
-                    <div class="pkg-cta">
-                        @if(Auth::check())
-                            <a href="{{ url('/app-gateway') }}" class="btn-sharp {{ $index == 1 ? 'btn-sharp-primary btn-glow' : 'btn-sharp-outline' }}">
-                                Open in App
-                                <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                            </a>
-                        @else
-                            <a href="{{ url('/auth-gate') }}" class="btn-sharp {{ $index == 1 ? 'btn-sharp-primary btn-glow' : 'btn-sharp-outline' }}">
-                                Subscribe Now
-                                <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                            </a>
-                        @endif
-                    </div>
+                    @if(Auth::check())
+                        <a href="{{ url('/app-gateway') }}" class="plan-btn">Open in App</a>
+                    @else
+                        <a href="{{ url('/auth-gate') }}" class="plan-btn">Subscribe Now</a>
+                    @endif
 
                 </div>
                 @endforeach
@@ -340,3 +402,34 @@
 </section>
 
 @endsection
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const toggle = document.getElementById('billing-toggle');
+        const cards = document.querySelectorAll('.pricing-card');
+        
+        function updatePricingDisplay() {
+            const isYearly = toggle.checked;
+            document.getElementById('label-yearly').classList.toggle('active', isYearly);
+            document.getElementById('label-monthly').classList.toggle('active', !isYearly);
+            
+            cards.forEach(card => {
+                const isFree = card.getAttribute('data-is-free') === 'true';
+                
+                if (!isFree) {
+                    const monthlyEl = card.querySelector('.price-monthly');
+                    const yearlyEl = card.querySelector('.price-yearly');
+                    if (monthlyEl && yearlyEl) {
+                        monthlyEl.style.display = isYearly ? 'none' : 'flex';
+                        yearlyEl.style.display = isYearly ? 'flex' : 'none';
+                    }
+                }
+            });
+        }
+        
+        if(toggle) {
+            toggle.addEventListener('change', updatePricingDisplay);
+            updatePricingDisplay();
+        }
+    });
+</script>

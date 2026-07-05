@@ -376,7 +376,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            height: 64px;
+            height: 80px;
         }
 
         /* Logo */
@@ -415,7 +415,8 @@
         /* Nav dropdown */
         .nav-dropdown { position: relative; }
         .nav-dropdown-content {
-            display: none;
+            opacity: 0;
+            visibility: hidden;
             position: absolute;
             top: calc(100% + 12px);
             left: -12px;
@@ -425,8 +426,24 @@
             min-width: 200px;
             padding: 8px 0;
             z-index: 1001;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateY(10px);
+            border-radius: 12px;
         }
-        .nav-dropdown:hover .nav-dropdown-content { display: block; }
+        /* Bridge the gap so hover doesn't break */
+        .nav-dropdown-content::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: 0;
+            right: 0;
+            height: 20px;
+        }
+        .nav-dropdown:hover .nav-dropdown-content {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
         .nav-dropdown-content a {
             display: block;
             padding: 10px 20px;
@@ -442,6 +459,12 @@
         }
 
         /* Nav CTA — fixed dimensions prevent CLS */
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
         .nav-cta {
             display: inline-flex;
             align-items: center;
@@ -473,26 +496,160 @@
         }
 
         @media (max-width: 1024px) {
-            .nav-menu, .nav-actions { display: none; }
-            .mobile-toggle { display: block; }
-            .nav-menu.open {
+            .nav-menu, .nav-actions { display: none !important; }
+            .mobile-toggle { display: block; z-index: 1001; position: relative; }
+
+            /* ===== MOBILE DRAWER (outside header, no stacking issues) ===== */
+            #mobileDrawer {
+                position: fixed;
+                top: 0; right: 0; bottom: 0;
+                width: 85%;
+                max-width: 320px;
+                background: #fff;
+                z-index: 10000;
+                transform: translateX(100%);
+                transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                box-shadow: -8px 0 30px rgba(0,0,0,0.12);
                 display: flex;
                 flex-direction: column;
-                position: fixed;
-                top: 64px; left: 0; right: 0;
-                background: #fff;
-                padding: 24px;
-                gap: 20px;
-                border-bottom: 1px solid rgba(0,0,0,0.08);
-                box-shadow: 0 20px 60px rgba(0,0,0,0.1);
             }
-            .nav-menu.open .nav-dropdown-content {
-                position: static;
-                box-shadow: none;
+            #mobileDrawer.open {
+                transform: translateX(0);
+            }
+
+            /* Drawer header */
+            .drawer-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 20px 24px;
+                border-bottom: 1px solid rgba(0,0,0,0.06);
+                flex-shrink: 0;
+            }
+            .drawer-header img {
+                height: 36px;
+                width: auto;
+            }
+            .drawer-close {
+                background: none;
                 border: none;
-                padding-left: 16px;
-                display: block;
+                font-size: 22px;
+                color: var(--text-dark);
+                cursor: pointer;
+                padding: 4px;
+                border-radius: 8px;
+                transition: background 0.2s;
             }
+            .drawer-close:hover {
+                background: rgba(0,0,0,0.05);
+            }
+
+            /* Drawer nav links */
+            .drawer-nav {
+                list-style: none;
+                padding: 16px;
+                margin: 0;
+                flex: 1;
+            }
+            .drawer-nav li {
+                margin-bottom: 2px;
+            }
+            .drawer-nav > li > a {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 14px 16px;
+                font-size: 15px;
+                font-weight: 600;
+                color: var(--text-dark);
+                text-decoration: none;
+                border-radius: 10px;
+                transition: all 0.2s ease;
+            }
+            .drawer-nav > li > a:hover,
+            .drawer-nav > li > a.active {
+                color: var(--blue);
+                background: rgba(37, 99, 235, 0.06);
+            }
+            .drawer-nav > li > a i.fa-chevron-down {
+                font-size: 10px;
+                margin-left: auto;
+                transition: transform 0.3s;
+            }
+
+            /* Drawer sub-menu */
+            .drawer-sub {
+                list-style: none;
+                padding: 4px 0 8px 28px;
+                margin: 0;
+                border-left: 2px solid rgba(37, 99, 235, 0.15);
+                margin-left: 28px;
+            }
+            .drawer-sub a {
+                display: block;
+                padding: 10px 14px;
+                font-size: 14px;
+                font-weight: 500;
+                color: var(--text-gray);
+                text-decoration: none;
+                border-radius: 8px;
+                transition: all 0.2s;
+            }
+            .drawer-sub a:hover {
+                color: var(--blue);
+                background: rgba(37, 99, 235, 0.04);
+            }
+
+            /* Drawer CTA */
+            .drawer-cta {
+                padding: 16px 20px 24px;
+                flex-shrink: 0;
+            }
+            .drawer-cta a {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 10px;
+                padding: 14px 20px;
+                background: linear-gradient(135deg, var(--blue) 0%, #6366f1 100%);
+                color: #fff;
+                font-size: 15px;
+                font-weight: 700;
+                text-decoration: none;
+                border-radius: 12px;
+                box-shadow: 0 4px 20px rgba(37, 99, 235, 0.3);
+                transition: transform 0.2s, box-shadow 0.2s;
+            }
+            .drawer-cta a:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 6px 25px rgba(37, 99, 235, 0.4);
+            }
+
+            /* Backdrop */
+            .mobile-backdrop {
+                display: block;
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0,0,0,0.4);
+                z-index: 9999;
+                opacity: 0;
+                visibility: hidden;
+                transition: all 0.35s ease;
+            }
+            .mobile-backdrop.active {
+                opacity: 1;
+                visibility: visible;
+            }
+
+            body.menu-open {
+                overflow: hidden;
+            }
+        }
+        @media (min-width: 1025px) {
+            #mobileDrawer { display: none !important; }
+            .mobile-backdrop { display: none !important; }
         }
 
         /* ============================================
@@ -500,36 +657,57 @@
            ============================================ */
         .site-footer {
             width: 100%;
-            background: #000;
+            background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
             color: #fff;
-            padding: 60px 0 0;
+            padding: 80px 0 0;
+            position: relative;
+            overflow: hidden;
+        }
+        .site-footer::before {
+            content: '';
+            position: absolute;
+            top: -150px; right: -150px;
+            width: 400px; height: 400px;
+            background: rgba(255, 255, 255, 0.04);
+            filter: blur(80px);
+            border-radius: 50%;
+            pointer-events: none;
         }
         .footer-grid {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 40px;
-            padding-bottom: 48px;
+            grid-template-columns: 2fr repeat(5, 1fr);
+            gap: 32px;
+            padding-bottom: 64px;
+            position: relative;
+            z-index: 1;
         }
         .footer-col-title {
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
+            color: #fff;
         }
-        .footer-links { list-style: none; }
-        .footer-links li { margin-bottom: 10px; }
+        .footer-links { list-style: none; padding: 0; margin: 0; }
+        .footer-links li { margin-bottom: 12px; }
         .footer-links a {
             color: rgba(255, 255, 255, 0.65);
             text-decoration: none;
             font-size: 14px;
-            transition: color 0.2s ease;
+            transition: all 0.2s ease;
+            display: inline-block;
         }
-        .footer-links a:hover { color: #fff; }
+        .footer-links a:hover { 
+            color: #fff;
+            transform: translateX(3px);
+        }
 
         .footer-bottom {
             padding: 24px 0;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            position: relative;
+            z-index: 1;
         }
         .footer-bottom-inner {
             display: flex;
@@ -538,27 +716,34 @@
             color: rgba(255, 255, 255, 0.6);
             font-size: 13px;
         }
-        .footer-socials { display: flex; gap: 16px; }
+        .footer-socials { display: flex; gap: 12px; }
         .footer-socials a {
-            color: rgba(255, 255, 255, 0.4);
-            font-size: 16px;
-            transition: color 0.2s ease;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.1);
+            width: 36px; height: 36px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            text-decoration: none;
         }
-        .footer-socials a:hover { color: #fff; }
+        .footer-socials a:hover { 
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-3px);
+        }
 
         @media (max-width: 1024px) {
             .footer-grid { grid-template-columns: repeat(3, 1fr); }
         }
         @media (max-width: 768px) {
             .footer-grid { grid-template-columns: repeat(2, 1fr); }
-            .footer-bottom-inner { flex-direction: column; gap: 12px; text-align: center; }
+            .footer-bottom-inner { flex-direction: column; gap: 16px; text-align: center; }
         }
         @media (max-width: 480px) {
             .footer-grid { grid-template-columns: 1fr; }
         }
 
         /* ---- Utility spacer ---- */
-        .header-spacer { height: 64px; }
+        .header-spacer { height: 80px; }
 
         /* ---- Hero LCP Fix: make hero heading visible instantly (no animation delay) ---- */
         .hero-section .split-text {
@@ -587,7 +772,7 @@
         <div class="container-full">
             <div class="header-inner">
                 <a href="{{ route('landing.home') }}" class="site-logo">
-                    <i class="fa-solid fa-layer-group"></i> Artera
+                    <img src="{{ asset('assets/images/logo.webp') }}" alt="Artera Logo" style="height: 48px; width: auto; object-fit: contain;">
                 </a>
 
                 <ul class="nav-menu" id="navMenu">
@@ -604,11 +789,11 @@
                     <li><a href="{{ route('landing.features') }}" class="{{ request()->routeIs('landing.features') ? 'active' : '' }}">Features</a></li>
                     <li><a href="{{ route('landing.packages') }}" class="{{ request()->routeIs('landing.packages') ? 'active' : '' }}">Packages</a></li>
                     <li><a href="{{ route('landing.blogs') }}" class="{{ request()->routeIs('landing.blogs', 'landing.blog_details') ? 'active' : '' }}">Blog</a></li>
-                    <li><a href="{{ route('landing.contact') }}" class="{{ request()->routeIs('landing.contact') ? 'active' : '' }}">Contact</a></li>
+                    <li><a href="{{ route('landing.contact') }}" class="{{ request()->routeIs('landing.contact') ? 'active' : '' }}">Contact Us</a></li>
                 </ul>
 
-                <div class="nav-actions" style="display:flex; align-items:center; gap:12px;">
-                    <a href="#" class="nav-cta">
+                <div class="nav-actions">
+                    <a href="{{ config('seo.app_links.android') }}" target="_blank" class="nav-cta">
                         <i class="fa-brands fa-google-play"></i> Download App
                     </a>
                 </div>
@@ -619,6 +804,38 @@
             </div>
         </div>
     </header>
+
+    <!-- Mobile Drawer (OUTSIDE header — no stacking context issues) -->
+    <nav id="mobileDrawer">
+        <div class="drawer-header">
+            <img src="{{ asset('assets/images/logo.webp') }}" alt="Artera">
+            <button class="drawer-close" id="drawerClose" aria-label="Close menu">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <ul class="drawer-nav">
+            <li><a href="{{ route('landing.home') }}" class="{{ request()->routeIs('landing.home') ? 'active' : '' }}"><i class="fa-solid fa-house" style="font-size:14px;width:20px;"></i> Home</a></li>
+            <li><a href="{{ route('landing.templates') }}" class="{{ request()->routeIs('landing.templates') ? 'active' : '' }}"><i class="fa-solid fa-grid-2" style="font-size:14px;width:20px;"></i> Templates</a></li>
+            <li>
+                <a href="#" id="drawerToolsToggle"><i class="fa-solid fa-wand-magic-sparkles" style="font-size:14px;width:20px;"></i> Tools <i class="fa-solid fa-chevron-down"></i></a>
+                <ul class="drawer-sub" id="drawerToolsSub">
+                    <li><a href="{{ route('landing.logo_maker') }}">Logo Maker</a></li>
+                    <li><a href="{{ route('landing.digital_business_cards') }}">Digital Business Cards</a></li>
+                    <li><a href="{{ route('landing.video_maker') }}">Video Maker</a></li>
+                </ul>
+            </li>
+            <li><a href="{{ route('landing.features') }}" class="{{ request()->routeIs('landing.features') ? 'active' : '' }}"><i class="fa-solid fa-sparkles" style="font-size:14px;width:20px;"></i> Features</a></li>
+            <li><a href="{{ route('landing.packages') }}" class="{{ request()->routeIs('landing.packages') ? 'active' : '' }}"><i class="fa-solid fa-tag" style="font-size:14px;width:20px;"></i> Packages</a></li>
+            <li><a href="{{ route('landing.blogs') }}" class="{{ request()->routeIs('landing.blogs', 'landing.blog_details') ? 'active' : '' }}"><i class="fa-solid fa-newspaper" style="font-size:14px;width:20px;"></i> Blog</a></li>
+            <li><a href="{{ route('landing.contact') }}" class="{{ request()->routeIs('landing.contact') ? 'active' : '' }}"><i class="fa-solid fa-envelope" style="font-size:14px;width:20px;"></i> Contact Us</a></li>
+        </ul>
+        <div class="drawer-cta">
+            <a href="{{ config('seo.app_links.android') }}" target="_blank">
+                <i class="fa-brands fa-google-play"></i> Download App
+            </a>
+        </div>
+    </nav>
+    <div class="mobile-backdrop" id="mobileBackdrop"></div>
 
     <div class="header-spacer"></div>
 
@@ -631,6 +848,14 @@
     <footer class="site-footer">
         <div class="container-full">
             <div class="footer-grid">
+                <div class="footer-brand">
+                    <a href="{{ route('landing.home') }}" style="display:inline-block; margin-bottom: 20px;">
+                        <img src="{{ asset('assets/images/logo.webp') }}" alt="Artera Logo" style="height: 40px; width: auto;">
+                    </a>
+                    <p style="color: rgba(255, 255, 255, 0.7); font-size: 14px; line-height: 1.6; max-width: 280px;">
+                        Artera uses advanced AI to instantly generate professional festival posters, business templates, and custom social media content for your brand.
+                    </p>
+                </div>
                 <div>
                     <h3 class="footer-col-title">Company</h3>
                     <ul class="footer-links">
@@ -673,7 +898,7 @@
                 <div>
                     <h3 class="footer-col-title">Download</h3>
                     <ul class="footer-links">
-                        <li><a href="#">Get the App</a></li>
+                        <li><a href="{{ config('seo.app_links.android') }}" target="_blank">Get the App</a></li>
                         <li><a href="{{ route('landing.packages') }}">View Plans</a></li>
                     </ul>
                 </div>
@@ -708,17 +933,6 @@
                     else { header.classList.remove('scrolled'); }
                 }, {passive:true});
             }
-            document.addEventListener('DOMContentLoaded', function(){
-                var mt = document.getElementById('mobileToggle');
-                var nm = document.getElementById('navMenu');
-                if(mt && nm){
-                    mt.addEventListener('click', function(){
-                        nm.classList.toggle('open');
-                        var icon = mt.querySelector('i');
-                        if(icon){ icon.classList.toggle('fa-bars'); icon.classList.toggle('fa-xmark'); }
-                    });
-                }
-            });
         })();
     </script>
     <script>
@@ -815,6 +1029,62 @@
         } else {
             window.addEventListener('load', function(){ setTimeout(_initAnimations, 0); });
         }
+        // Mobile Drawer Toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            var mobileToggle = document.getElementById('mobileToggle');
+            var drawer = document.getElementById('mobileDrawer');
+            var backdrop = document.getElementById('mobileBackdrop');
+            var drawerClose = document.getElementById('drawerClose');
+            var toolsToggle = document.getElementById('drawerToolsToggle');
+            var toolsSub = document.getElementById('drawerToolsSub');
+
+            function openDrawer() {
+                drawer.classList.add('open');
+                backdrop.classList.add('active');
+                document.body.classList.add('menu-open');
+                mobileToggle.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+            }
+
+            function closeDrawer() {
+                drawer.classList.remove('open');
+                backdrop.classList.remove('active');
+                document.body.classList.remove('menu-open');
+                mobileToggle.innerHTML = '<i class="fa-solid fa-bars"></i>';
+            }
+
+            if(mobileToggle && drawer && backdrop) {
+                mobileToggle.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    if (drawer.classList.contains('open')) {
+                        closeDrawer();
+                    } else {
+                        openDrawer();
+                    }
+                });
+
+                if(drawerClose) drawerClose.addEventListener('click', closeDrawer);
+                backdrop.addEventListener('click', closeDrawer);
+
+                // Tools dropdown toggle
+                if(toolsToggle && toolsSub) {
+                    toolsToggle.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        var isOpen = toolsSub.style.display !== 'none';
+                        toolsSub.style.display = isOpen ? 'none' : 'block';
+                        var chevron = this.querySelector('.fa-chevron-down');
+                        if(chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+                    });
+                }
+
+                // Close drawer when a real nav link is clicked
+                drawer.querySelectorAll('a').forEach(function(link) {
+                    link.addEventListener('click', function() {
+                        if (this.id === 'drawerToolsToggle') return;
+                        closeDrawer();
+                    });
+                });
+            }
+        });
     </script>
     @yield('extra_js')
 </body>

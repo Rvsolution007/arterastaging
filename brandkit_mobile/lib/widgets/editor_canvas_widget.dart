@@ -811,6 +811,15 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     } else if (type == 'icon') {
       content =
           _buildIconLayer(effectiveLayer, name, scale, nativeW, nativeH);
+    } else if (type == 'solid_rect') {
+      // Native solid rectangle (e.g., logo background plate)
+      String colorStr = effectiveLayer['color'] ?? '#FFFFFF';
+      Color fillColor = _parseColor(colorStr);
+      content = Container(
+        width: nativeW * scale,
+        height: nativeH * scale,
+        color: fillColor,
+      );
     }
 
     // Wrap the raw content in InteractiveLayer
@@ -1078,6 +1087,9 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       }
     }
 
+    // Inject single-line flag so InteractiveLayer knows not to constrain width
+    layer['_is_single_line'] = isSingleLine;
+
     // --- OVERFLOW PREVENTION (Fabric.js textbox word-wrap fix) ---
     // In Flutter, if a single word is wider than the container, it wraps mid-character.
     // In the Web Editor, it shrinks the font size until the longest word fits.
@@ -1114,7 +1126,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     );
 
     final double rawW = safeDouble(layer['w'] ?? layer['width'] ?? 0);
-    if (rawW > 0) {
+    if (rawW > 0 && !isSingleLine) {
       textWidget = Container(
         width: double.infinity,
         alignment: alignment,

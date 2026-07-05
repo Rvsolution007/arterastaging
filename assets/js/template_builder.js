@@ -1437,68 +1437,78 @@
         if (btn) btn.addEventListener('click', () => addShape(type));
     });
 
-    // --- ADD ICONS (Font Awesome as text objects) ---
+    // --- ADD ICONS (Dynamic via Iconify API) ---
     const iconsGrid = $('icons-grid');
     const iconSearch = $('icon-search');
-    const iconUnicodeMap = {
-        'fa-heart': '\uf004', 'fa-star': '\uf005', 'fa-house': '\uf015',
-        'fa-user': '\uf007', 'fa-phone': '\uf095', 'fa-envelope': '\uf0e0',
-        'fa-map-marker-alt': '\uf3c5', 'fa-location-dot': '\uf3c5',
-        'fa-address-book': '\uf2b9', 'fa-address-card': '\uf2bb', 'fa-globe': '\uf0ac', 'fa-building': '\uf1ad',
-        'fa-camera': '\uf030', 'fa-music': '\uf001',
-        'fa-bolt': '\uf0e7', 'fa-gift': '\uf06b', 'fa-trophy': '\uf091',
-        'fa-crown': '\uf521', 'fa-gem': '\uf3a5', 'fa-fire': '\uf06d',
-        'fa-rocket': '\uf135', 'fa-flag': '\uf024', 'fa-bell': '\uf0f3',
-        'fa-bookmark': '\uf02e', 'fa-thumbs-up': '\uf164',
-        // Brands
-        'fa-facebook': '\uf09a', 'fa-instagram': '\uf16d', 'fa-twitter': '\uf099', 
-        'fa-x-twitter': '\ue61b', 'fa-whatsapp': '\uf232', 'fa-youtube': '\uf167',
-        'fa-linkedin': '\uf08c', 'fa-telegram': '\uf2c6', 'fa-pinterest': '\uf0d2',
-        'fa-tiktok': '\ue07b', 'fa-snapchat': '\uf2ab'
-    };
 
     if (iconsGrid) {
-        const iconItems = iconsGrid.querySelectorAll('.icon-item');
-        iconItems.forEach(item => {
-            item.addEventListener('click', function() {
-                const iconClass = this.getAttribute('data-icon') || '';
-                const baseClass = iconClass.split(' ').pop(); // e.g., 'fa-heart'
-                const unicode = iconUnicodeMap[baseClass] || '\uf005'; // default star
-                const title = this.getAttribute('title') || 'Icon';
+        // Initial popular icons to show before search
+        const initialIcons = ['mdi-light:home', 'mdi-light:star', 'mdi-light:heart', 'mdi-light:account', 'mdi-light:phone', 'mdi-light:email', 'mdi-light:map-marker', 'mdi-light:camera', 'mdi-light:magnify', 'mdi-light:bell', 'mdi-light:cog'];
+        
+        function renderIcons(icons) {
+            iconsGrid.innerHTML = '';
+            icons.forEach(iconName => {
+                const item = document.createElement('div');
+                item.className = 'icon-item';
+                item.title = iconName;
+                item.style.display = 'flex';
+                // Fetch the SVG directly from Iconify API for rendering
+                const svgUrl = `https://api.iconify.design/${iconName.replace(':', '/')}.svg?color=%23475569`;
+                item.innerHTML = `<img src="${svgUrl}" style="width:24px; height:24px;" alt="${iconName}">`;
                 
-                const isBrand = iconClass.includes('fa-brands');
-                const fontFamily = isBrand 
-                    ? '"Font Awesome 6 Brands", "Font Awesome 5 Brands"' 
-                    : '"Font Awesome 6 Free", "FontAwesome", "Font Awesome 5 Free"';
-                const fontWeight = isBrand ? 400 : 900;
-                
-                const iconText = new fabric.IText(unicode, {
-                    left: 150, top: 150, fontSize: 80, fill: '#333333',
-                    fontFamily: fontFamily, fontWeight: fontWeight,
-                    customType: 'icon', customName: 'Icon', textBaseline: 'alphabetic'
+                item.addEventListener('click', function() {
+                    const addSvgUrl = `https://api.iconify.design/${iconName.replace(':', '/')}.svg?color=%23333333`;
+                    fabric.loadSVGFromURL(addSvgUrl, function(objects, options) {
+                        const obj = fabric.util.groupSVGElements(objects, options);
+                        obj.set({
+                            left: 150,
+                            top: 150,
+                            scaleX: 2,
+                            scaleY: 2,
+                            customType: 'icon',
+                            customName: 'Icon'
+                        });
+                        canvas.add(obj);
+                        canvas.setActiveObject(obj);
+                        updateLayersList();
+                        saveHistory();
+                    });
                 });
-                canvas.add(iconText);
-                canvas.setActiveObject(iconText);
-                updateLayersList();
-                saveHistory();
+                iconsGrid.appendChild(item);
             });
-        });
-    }
+        }
+        
+        // Render initial icons
+        renderIcons(initialIcons);
 
-    if (iconSearch) {
+        let debounceTimer;
         iconSearch.addEventListener('input', function() {
-            const filter = this.value.toLowerCase();
-            if (iconsGrid) {
-                const iconItems = iconsGrid.querySelectorAll('.icon-item');
-                iconItems.forEach(item => {
-                    const title = (item.getAttribute('title') || '').toLowerCase();
-                    if (title.includes(filter)) {
-                        item.style.display = 'flex';
-                    } else {
-                        item.style.display = 'none';
-                    }
-                });
+            clearTimeout(debounceTimer);
+            const query = this.value.trim();
+            if (query.length < 2) {
+                if (query.length === 0) {
+                    // Reset to initial
+                    const initialIcons = ['mdi-light:home', 'mdi-light:star', 'mdi-light:heart', 'mdi-light:account', 'mdi-light:phone', 'mdi-light:email', 'mdi-light:map-marker', 'mdi-light:camera', 'mdi-light:magnify', 'mdi-light:bell', 'mdi-light:cog'];
+                    if (typeof renderIcons === 'function') renderIcons(initialIcons);
+                }
+                return;
             }
+            
+            debounceTimer = setTimeout(() => {
+                iconsGrid.innerHTML = '<div style="width:100%; text-align:center; padding:10px;"><i class="fa fa-spinner fa-spin"></i></div>';
+                fetch(`https://api.iconify.design/search?query=${encodeURIComponent(query)}&limit=30`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data && data.icons && typeof renderIcons === 'function') {
+                            renderIcons(data.icons);
+                        } else {
+                            iconsGrid.innerHTML = '<div style="width:100%; text-align:center; font-size:12px; color:#888;">No icons found</div>';
+                        }
+                    }).catch(err => {
+                        console.error('Iconify API error', err);
+                        iconsGrid.innerHTML = '<div style="width:100%; text-align:center; font-size:12px; color:red;">Error fetching icons</div>';
+                    });
+            }, 500);
         });
     }
 

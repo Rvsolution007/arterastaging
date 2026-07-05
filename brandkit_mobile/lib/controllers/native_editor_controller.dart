@@ -350,6 +350,18 @@ class NativeEditorController extends GetxController {
         }
       }
       
+      // Also match by _businessKey (frame layers have arbitrary names but tagged _businessKey)
+      if (!matches && layer['_businessKey'] != null) {
+        final String bizKey = layer['_businessKey'].toString().toLowerCase().trim();
+        for (String target in targets) {
+          final t = target.replaceAll(RegExp(r'[\s\-_]'), '');
+          if (bizKey == t || t.contains(bizKey) || bizKey.contains(t)) {
+            matches = true;
+            break;
+          }
+        }
+      }
+      
       if (matches) {
         layer['opacity'] = isVisible ? 1.0 : 0.0;
       }
@@ -379,10 +391,27 @@ class NativeEditorController extends GetxController {
         }
       }
       
+      // Also match by _businessKey (frame layers have arbitrary names but tagged _businessKey)
+      if (!matches && layer['_businessKey'] != null) {
+        final String bizKey = layer['_businessKey'].toString().toLowerCase().trim();
+        for (String target in targets) {
+          final t = target.replaceAll(RegExp(r'[\s\-_]'), '');
+          if (bizKey == t || t.contains(bizKey) || bizKey.contains(t)) {
+            matches = true;
+            debugPrint('[VISIBLE_CHECK] "$rawName" MATCHED via bizKey="$bizKey" target="$t" opacity=${layer['opacity']}');
+            break;
+          }
+        }
+      }
+      
       if (matches) {
-        return (layer['opacity'] ?? 1.0) > 0.0;
+        final opacity = layer['opacity'];
+        final result = (opacity ?? 1.0) is num ? (opacity ?? 1.0 as num) > 0.0 : true;
+        debugPrint('[VISIBLE_CHECK] "$rawName" → opacity=$opacity result=$result (targets=$targets)');
+        return result;
       }
     }
+    debugPrint('[VISIBLE_CHECK] NO MATCH for targets=$targets');
     return false;
   }
 
@@ -741,6 +770,19 @@ class NativeEditorController extends GetxController {
           else if (bLow.contains('website') || bLow.contains('web') || bLow.contains('url')) newLayer['_businessKey'] = 'website';
           else if (bLow.contains('address') || bLow.contains('location')) newLayer['_businessKey'] = 'address';
           
+          // Fallback: infer _businessKey from text content for old frames with generic names
+          if (newLayer['_businessKey'] == null && newLayer['text'] != null) {
+            final String textLow = newLayer['text'].toString().toLowerCase().trim();
+            if (textLow.contains('@') && textLow.contains('.')) newLayer['_businessKey'] = 'email';
+            else if (RegExp(r'[\+]?\d[\d\s\-\(\)]{6,}').hasMatch(textLow) || textLow.contains('phone') || textLow.contains('mobile') || textLow.contains('call') || textLow.contains('+91')) newLayer['_businessKey'] = 'phone';
+            else if (textLow.contains('www.') || textLow.contains('http') || textLow.contains('.com') || textLow.contains('.in') || textLow.contains('website')) newLayer['_businessKey'] = 'website';
+            else if (textLow.contains('address') || textLow.contains('your business address') || textLow.contains('street') || textLow.contains('city') || textLow.contains('location')) newLayer['_businessKey'] = 'address';
+            else if (textLow.contains('your business name') || textLow.contains('business name') || textLow.contains('company name')) newLayer['_businessKey'] = 'name';
+            if (newLayer['_businessKey'] != null) {
+              debugPrint('[FRAME_BK] Inferred _businessKey="${newLayer['_businessKey']}" from text content for "$name"');
+            }
+          }
+          
           bool hasValidUserText = userTexts.containsKey(name) && userTexts[name] != null && userTexts[name]!.trim().isNotEmpty;
           
           if (hasValidUserText && (name.startsWith('_b_') || newLayer['_businessKey'] != null)) {
@@ -797,6 +839,18 @@ class NativeEditorController extends GetxController {
             }
           }
         }
+
+        // ══ FRAME LAYER DIAGNOSTICS ══
+        debugPrint('╔══ [FRAME_LOAD] ══════════════════════════════════════');
+        debugPrint('║ name="$name" type=${newLayer['type']}');
+        debugPrint('║ _is_frame_layer=${newLayer['_is_frame_layer']}');
+        debugPrint('║ _businessKey=${newLayer['_businessKey']}');
+        debugPrint('║ tint_color=${newLayer['tint_color']}');
+        debugPrint('║ fill=${newLayer['fill']}');
+        debugPrint('║ color=${newLayer['color']}');
+        debugPrint('║ is_shape=${newLayer['is_shape']}');
+        debugPrint('║ src=${newLayer['src']?.toString().substring(0, (newLayer['src']?.toString().length ?? 0) > 60 ? 60 : (newLayer['src']?.toString().length ?? 0))}...');
+        debugPrint('╚══════════════════════════════════════════════════════');
       }
 
       // 1. Find the maximum z_index from native/preserved layers
@@ -1075,6 +1129,9 @@ class NativeEditorController extends GetxController {
         );
         if (!isIcon) continue;
         
+        // Skip frame layers — admin set their colors intentionally
+        if (newLayer['_is_frame_layer'] == true || newLayer['_isFrameLayer'] == true) continue;
+        
         // Determine the business key for this icon to find matching text
         String? iconBizKey = newLayer['_businessKey']?.toString();
         if (iconBizKey == null || iconBizKey.isEmpty) {
@@ -1137,6 +1194,11 @@ class NativeEditorController extends GetxController {
     final tLow = type.toString().toLowerCase();
     if (tLow.contains('custom') || tLow == 'post' || tLow == 'business_custom_frame') {
       return false; // Skip auto-color for custom templates to preserve original ZIP colors
+    }
+
+    // DO NOT override colors for frame layers — admin set these colors intentionally
+    if (layer['_is_frame_layer'] == true || layer['_isFrameLayer'] == true) {
+      return false;
     }
 
     bool isText = layer['type'] == 'text';

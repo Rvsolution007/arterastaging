@@ -1132,6 +1132,14 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         alignment: alignment,
         child: textWidget,
       );
+    } else if (isSingleLine && just != 'left' && rawW > 0) {
+      // Point text (single-line) with right/center alignment needs a fixed-width
+      // container so TextAlign.right actually takes effect. Without it, the Text
+      // widget shrinks to content width and alignment has no visible effect.
+      textWidget = SizedBox(
+        width: rawW * scale,
+        child: textWidget,
+      );
     }
 
     if (gradientColors != null && gradientColors.length >= 2) {
@@ -1372,14 +1380,33 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       'facebook', 'instagram', 'twitter', 'youtube', 'linkedin', 'icon', 'social', 'mail', 'location'].any((k) => _lowName.contains(k));
     
     if (_isContactOrSocial) {
-      debugPrint('[TINT] "$lname" tint_color=${layer['tint_color']} _businessKey=${layer['_businessKey']}');
+      debugPrint('[TINT] "$lname" tint_color=${layer['tint_color']} _businessKey=${layer['_businessKey']} is_shape=${layer['is_shape']} pathType=$pathType');
     }
     
-    if (layer['tint_color'] != null) {
+    // For rasterized shapes/icons (is_shape=true, TEMPLATE_ASSET), the color is already
+    // baked into the PNG by the web editor's toDataURL(). Applying tint_color on top would
+    // OVERRIDE the baked-in color. Fabric.js default fill is rgb(0,0,0) which turns everything black.
+    // Only apply tint_color for non-shape icons (contact/social icons that need dynamic coloring).
+    final bool isRasterizedShape = (layer['is_shape'] == true || layer['is_shape'] == 1) && pathType == 'TEMPLATE_ASSET';
+    
+    if (layer['tint_color'] != null && !isRasterizedShape) {
       String tintStr = layer['tint_color'].toString();
       tintColor = _parseColor(tintStr, fallback: const Color(0xFFFFFFFF));
       gradientColors = _parseGradient(tintStr);
-      debugPrint('[TINT] "$lname" PARSED → $tintColor');
+      debugPrint('[TINT] "$lname" PARSED tint_color → $tintColor');
+    } else if (layer['fill'] != null && layer['type'] == 'shape' && !isRasterizedShape) {
+      // Native shapes (rect, circle, etc.) have their color in 'fill', not 'tint_color'
+      final fillVal = layer['fill'];
+      if (fillVal is String) {
+        tintColor = _parseColor(fillVal, fallback: const Color(0xFFFFFFFF));
+        gradientColors = _parseGradient(fillVal);
+        debugPrint('[TINT] "$lname" PARSED fill → $tintColor');
+      } else if (fillVal is Map) {
+        // Gradient fill from web editor
+        debugPrint('[TINT] "$lname" has gradient fill object');
+      }
+    } else if (isRasterizedShape) {
+      debugPrint('[TINT] "$lname" SKIPPED — rasterized shape, color baked in PNG');
     }
 
     String gradientDir = (layer['gradient_direction'] ?? 'vertical').toString();

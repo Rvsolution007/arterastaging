@@ -344,6 +344,7 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
           backgroundColor: AppColors.success,
           colorText: Colors.white,
           margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 1),
         );
       } else {
         setState(() => _isLoading = false);

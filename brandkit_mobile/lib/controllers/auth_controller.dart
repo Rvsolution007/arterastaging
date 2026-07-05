@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../screens/dashboard_screen.dart'; // We will create this next
 import '../screens/login_screen.dart';
+import '../screens/business_profile_screen.dart';
 import '../widgets/guest_login_prompt_sheet.dart';
 import '../controllers/ad_controller.dart';
 import '../controllers/home_controller.dart';
@@ -246,6 +247,27 @@ class AuthController extends GetxController {
         backgroundColor: Colors.transparent,
       );
     } else {
+      // Check if business profile is valid (has at least a name, and either phone or email)
+      bool hasValidBusiness = true;
+      if (Get.isRegistered<HomeController>()) {
+        final hc = Get.find<HomeController>();
+        if (hc.businessId.value.isEmpty || (hc.businessPhone.value.isEmpty && hc.businessEmail.value.isEmpty)) {
+          hasValidBusiness = false;
+        }
+      }
+
+      if (!hasValidBusiness) {
+        Get.snackbar(
+          'Profile Incomplete',
+          'Please complete your business profile (add mobile or email) to use the editor.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.orangeAccent,
+          colorText: Colors.white,
+        );
+        Get.to(() => const BusinessProfileScreen());
+        return;
+      }
+
       Get.toNamed(route, arguments: arguments);
     }
   }

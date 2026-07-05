@@ -3500,8 +3500,9 @@
                     x:x, y:y, w:w, h:h, rotation:obj.angle||0, opacity:obj.opacity??1, z_index:z, locked:!obj.selectable, visible:obj.visible!==false };
                 if (obj.type === 'image') { 
                     o.src=obj.getSrc(); o.is_background=obj.is_background||false; o.is_placeholder=obj.is_placeholder||false; o.is_slot=obj.is_slot||false; 
-                    if(obj.customType==='shape') o.is_shape=true; 
+                    if(obj.customType==='shape' || obj.customType==='icon') o.is_shape=true; 
                     if(obj.mask_layer_id) o.mask_layer_id = obj.mask_layer_id;
+                    if((obj.customType==='shape' || obj.customType==='icon') && obj.fill && typeof obj.fill === 'string') o.tint_color = obj.fill;
                 }
                 else if (obj.type==='text'||obj.type==='i-text'||obj.type==='textbox') {
                     o.text=obj.text; o.font={family:obj.fontFamily,size:fontSize,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,color:obj.fill,justification:obj.textAlign||'left',auto_scale:obj.auto_scale||false,charSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16};
@@ -3557,15 +3558,18 @@
             }
 
             if (obj.type==='image') {
-                let imgData = {name:obj.customName||'layer_'+z,type:'image',src:obj.getSrc(),x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,is_background:obj.is_background||false,is_placeholder:obj.is_placeholder||false,is_slot:obj.is_slot||false, image_type: obj.image_type||'', is_shape: obj.customType === 'shape'};
+                let imgData = {name:obj.customName||'layer_'+z,type:'image',src:obj.getSrc(),x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,is_background:obj.is_background||false,is_placeholder:obj.is_placeholder||false,is_slot:obj.is_slot||false, image_type: obj.image_type||'', is_shape: obj.customType === 'shape' || obj.customType === 'icon'};
                 if (obj.mask_layer_id) imgData.mask_layer_id = obj.mask_layer_id;
+                if ((obj.customType==='shape' || obj.customType==='icon') && obj.fill && typeof obj.fill === 'string') imgData.tint_color = obj.fill;
                 j.layers.push(imgData);
             }
             else if (obj.type==='i-text'||obj.type==='text'||obj.type==='textbox') j.layers.push({name:obj.customName||'text_'+z,type:'text',kind: (obj.type==='textbox'?'Paragraph':'Point'),text:obj.text,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,color:obj.fill,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,size:fontSize,font_size:fontSize,font:obj.fontFamily,font_name:obj.fontFamily,justification:obj.textAlign||'left',letterSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16,ai_role:obj.ai_role||null,ai_max_chars:obj.ai_max_chars||null});
-            else if (obj.customType==='shape' || ['rect','circle','triangle','path','polygon','line'].includes(obj.type)) {
+            else if (obj.customType==='shape' || obj.customType==='icon' || ['rect','circle','triangle','path','polygon','line'].includes(obj.type)) {
                 try {
                     const dataUrl = obj.toDataURL({format: 'png', multiplier: 2});
-                    j.layers.push({name:obj.customName||'shape_'+z, type:'image', src:dataUrl, x:x, y:y, w:w, h:h, width:w, height:h, z_index:z, is_background:false, is_slot:false, image_type: '', is_shape: true});
+                    let shapeData = {name:obj.customName||'shape_'+z, type:'image', src:dataUrl, x:x, y:y, w:w, h:h, width:w, height:h, z_index:z, is_background:false, is_slot:false, image_type: '', is_shape: true};
+                    if (obj.fill && typeof obj.fill === 'string') shapeData.tint_color = obj.fill;
+                    j.layers.push(shapeData);
                 } catch(e) { console.error('Failed to rasterize shape for legacy json:', e); }
             }
         });

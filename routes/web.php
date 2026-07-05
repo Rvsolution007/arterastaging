@@ -133,7 +133,7 @@ Route::get('/auth/google/callback', 'ClientAuthController@handleGoogleCallback')
 Route::get('/forgot-password', 'ClientAuthController@showForgotForm')->name('password.forgot');
 Route::post('/forgot-password/send-otp', 'ClientAuthController@sendOtp')->name('password.send-otp');
 Route::post('/forgot-password/verify-otp', 'ClientAuthController@verifyOtp')->name('password.verify-otp');
-Route::post('/forgot-password/update', 'ClientAuthController@updatePassword')->name('password.update');
+Route::post('/forgot-password/update', 'ClientAuthController@updatePassword')->name('client.password.update');
 
 
 Route::group(['middleware' => ['canInstall']], function () {

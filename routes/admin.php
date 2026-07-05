@@ -10,7 +10,7 @@ Route::post('login', 'Auth\LoginController@authenticate')->middleware(['IsInstal
 
 Route::
         namespace('Admin')->middleware(['auth', 'IsInstalled', 'IsUpdate'])->group(function () {
-            Route::post("logout", 'HomeController@logout')->name('logout');
+            Route::post("logout", 'HomeController@logout')->name('admin.logout');
             Route::get('/', 'HomeController@index')->name('admin');
 
             Route::get("clear-cache", function () {

@@ -6,7 +6,7 @@ Route::group(['middleware' => ['IsUpdate']], function () {
     Auth::routes(['register' => false]);
 });
 
-Route::post('login', 'Auth\LoginController@authenticate')->middleware(['IsInstalled', 'IsUpdate'])->name('login');
+Route::post('login', 'Auth\LoginController@authenticate')->middleware(['IsInstalled', 'IsUpdate'])->name('admin.login');
 
 Route::
         namespace('Admin')->middleware(['auth', 'IsInstalled', 'IsUpdate'])->group(function () {

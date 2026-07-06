@@ -339,6 +339,8 @@ Route::
             Route::post('churn/send-dunning-whatsapp/{id}', 'ChurnController@sendDunningWhatsapp');
             Route::post('churn/trigger-discovery/{featureName}', 'ChurnController@triggerDiscovery');
 
+            Route::get('app-language/export', 'AppLanguageController@export')->name('app-language.export');
+            Route::post('app-language/import', 'AppLanguageController@import')->name('app-language.import');
             Route::resource('app-language', 'AppLanguageController');
             Route::get('app-language', 'AppLanguageController@index')->name('app-language.index');
 

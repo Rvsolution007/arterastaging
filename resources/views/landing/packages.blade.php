@@ -140,8 +140,12 @@
         font-size: 18px;
     }
     .plan-features li i.fa-times-circle {
-        color: #cbd5e1;
+        color: #ef4444;
         font-size: 18px;
+    }
+    .plan-features li span.missing-feature {
+        color: #94a3b8;
+        text-decoration: line-through;
     }
     .plan-btn {
         display: block;
@@ -355,27 +359,52 @@
                         </div>
                     @endif
 
+                    @php
+                        $planDetails = $plan->plan_detail ? @unserialize($plan->plan_detail) : [];
+                        if (!is_array($planDetails)) $planDetails = [];
+                    @endphp
+
                     <ul class="plan-features">
-                        <li>
-                            <i class="fas fa-check-circle"></i>
-                            {{ $plan->business_limit }} Business Profiles
-                        </li>
-                        <li>
-                            <i class="fas fa-check-circle"></i>
-                            {{ $plan->festival_post_limit ?: 'Unlimited' }} Festival Posts
-                        </li>
-                        <li>
-                            <i class="fas fa-check-circle"></i>
-                            {{ $plan->custom_post_edit_limit ?: 'Unlimited' }} Custom Posts Edit
-                        </li>
-                        <li>
-                            <i class="fas fa-check-circle"></i>
-                            {{ $plan->daily_drip_limit ?: 'Unlimited' }} Daily Drip Posts
-                        </li>
-                        <li>
-                            <i class="{{ $plan->daily_drip_can_choose ? 'fas fa-check-circle' : 'fas fa-times-circle' }}"></i>
-                            Select Daily Drip Content
-                        </li>
+                        @if(count($planDetails) > 0)
+                            @foreach($planDetails as $detail)
+                                @if(trim($detail) != '')
+                                @php
+                                    $detailText = trim($detail);
+                                    $isMissing = false;
+                                    if (\Illuminate\Support\Str::startsWith(strtolower($detailText), ['x ', 'no: ', '- ', '! '])) {
+                                        $isMissing = true;
+                                        $detailText = trim(preg_replace('/^(x |no: |- |! )/i', '', $detailText));
+                                    }
+                                @endphp
+                                <li>
+                                    @if($isMissing)
+                                        <i class="fas fa-times-circle"></i>
+                                        <span class="missing-feature">{{ $detailText }}</span>
+                                    @else
+                                        <i class="fas fa-check-circle"></i>
+                                        {{ $detailText }}
+                                    @endif
+                                </li>
+                                @endif
+                            @endforeach
+                        @else
+                            <li>
+                                <i class="fas fa-check-circle"></i>
+                                {{ $plan->business_limit }} Business Profiles
+                            </li>
+                            <li>
+                                <i class="fas fa-check-circle"></i>
+                                {{ $plan->festival_post_limit ?: 'Unlimited' }} Festival Posts
+                            </li>
+                            <li>
+                                <i class="fas fa-check-circle"></i>
+                                {{ $plan->custom_post_edit_limit ?: 'Unlimited' }} Custom Posts Edit
+                            </li>
+                            <li>
+                                <i class="fas fa-check-circle"></i>
+                                {{ $plan->daily_drip_limit ?: 'Unlimited' }} Daily Drip Posts
+                            </li>
+                        @endif
                     </ul>
 
                     @if(Auth::check())

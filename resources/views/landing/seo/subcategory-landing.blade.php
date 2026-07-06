@@ -79,7 +79,7 @@
                         <a href="{{ url('/template/c' . $tmpl->id . '/' . \Illuminate\Support\Str::slug($entity->name . ' poster template')) }}"
                            style="display: block; overflow: hidden; border-radius: 8px; border: 1px solid rgba(0,0,0,0.06); transition: transform 0.3s;"
                            onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='translateY(0)'">
-                            <img src="{{ asset('uploads/' . $tmpl->frame_image) }}" alt="{{ $entity->name }} Poster Template"
+                            <img src="{{ $tmpl->seo_image }}" alt="{{ $entity->name }} Poster Template"
                                  style="width: 100%; height: auto; display: block;" loading="lazy"
                                  width="{{ $tmpl->width ?? 400 }}" height="{{ $tmpl->height ?? 400 }}">
                         </a>

@@ -23,8 +23,6 @@
     .template-card:hover .btn-customize { transform: translateY(0); }
     .btn-customize:hover { background: linear-gradient(135deg, #1e40af 0%, var(--primary) 100%); color: white; box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4); transform: translateY(-2px) !important; }
 
-    .template-info { padding: 20px 15px; text-align: center; border-top: 1px solid rgba(0,0,0,0.03); }
-    .template-info h4 { font-size: 17px; margin: 0; color: #1e293b; font-weight: 700; }
 
     .empty-state { text-align: center; padding: 80px 0; color: #64748b; background: white; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); margin-top: 20px; }
 
@@ -34,8 +32,7 @@
         .category-header { padding: 50px 0 30px; }
         .category-header h1 { font-size: 28px; }
         .template-card { border-radius: 12px; }
-        .template-info { padding: 12px 8px; }
-        .template-info h4 { font-size: 13px; }
+
         .btn-customize { padding: 8px 12px; font-size: 11px; flex-direction: column; gap: 4px; border-radius: 12px; text-align: center; }
         .btn-customize i { font-size: 16px; }
     }
@@ -57,16 +54,14 @@
             @foreach($posts as $post)
             <div class="template-card">
                 <div class="template-img-wrapper">
-                    <img src="{{ $post->frame_image ? asset('uploads/'.$post->frame_image) : asset('assets/images/placeholder.png') }}" class="template-img" alt="{{ $category->name }} Template">
+                    <img src="{{ $post->seo_image ?? asset('assets/images/placeholder.png') }}" class="template-img" alt="{{ $category->name }} Template">
                     <div class="template-overlay">
                         <a href="{{ config('seo.app_links.android') }}" target="_blank" class="btn-customize">
                             <i class="fa-brands fa-google-play"></i> Download App to Customize
                         </a>
                     </div>
                 </div>
-                <div class="template-info">
-                    <h4>{{ $category->name }} Template</h4>
-                </div>
+
             </div>
             @endforeach
         </div>

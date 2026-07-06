@@ -1357,7 +1357,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       // Shaped backgrounds (circle/ellipse) that were dynamically replaced by API
       final bool isShapeBg = isBg && isShape;
 
-      if (layer['_businessKey'] == 'logo' || lname.contains('logo')) {
+      if (layer['_businessKey'] == 'logo' || lname.contains('logo') || lname.contains('sticker') || layer['isUserAdded'] == true) {
         fit = BoxFit.contain;
       } else if (isFrameSlot) {
         fit = BoxFit.cover; // Photo slots use cover scaling

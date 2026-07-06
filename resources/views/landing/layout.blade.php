@@ -46,12 +46,20 @@
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+        html { 
+            scroll-behavior: smooth; 
+            -webkit-font-smoothing: antialiased; 
+            -moz-osx-font-smoothing: grayscale; 
+            overflow-x: hidden;
+            width: 100%;
+        }
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             color: var(--text-dark);
             overflow-x: hidden;
+            width: 100%;
+            position: relative;
             background-color: var(--bg-white);
             line-height: 1.5;
         }
@@ -912,7 +920,6 @@
                             <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
                             <a href="#" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
                             <a href="#" aria-label="LinkedIn"><i class="fa-brands fa-linkedin-in"></i></a>
-                            <a href="#" aria-label="Twitter"><i class="fa-brands fa-x-twitter"></i></a>
                         </div>
                     </div>
                 </div>

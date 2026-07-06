@@ -109,7 +109,7 @@ class LandingController extends Controller
                     $results[] = (object)[
                         'type' => 'festival',
                         'title' => $fest->title,
-                        'image' => $f->frame_image ? ($isDigitalOcean ? Storage::disk('spaces')->url('uploads/'.$f->frame_image) : asset('uploads/'.$f->frame_image)) : '',
+                        'image' => $f->seo_image ?? '',
                         'url' => route('seo.template', ['id' => 'f_'.$f->id, 'slug' => Str::slug($fest->title)])
                     ];
                 }
@@ -125,7 +125,7 @@ class LandingController extends Controller
                     $results[] = (object)[
                         'type' => 'category',
                         'title' => $cat->name,
-                        'image' => $c->frame_image ? ($isDigitalOcean ? Storage::disk('spaces')->url('uploads/'.$c->frame_image) : asset('uploads/'.$c->frame_image)) : '',
+                        'image' => $c->seo_image ?? '',
                         'url' => route('seo.template', ['id' => 'c_'.$c->id, 'slug' => Str::slug($cat->name)])
                     ];
                 }
@@ -199,9 +199,13 @@ class LandingController extends Controller
     public function templates()
     {
         $festivals = \App\Models\FestivalsPost::with('festivals')->where('status', '1')->where('show_on_landing', 1)->latest()->take(12)->get();
-        $categories = \App\Models\Category::where('status', '1')->latest()->take(12)->get();
+        $categories = \App\Models\CategoryPost::with('category')->where('status', '1')->where('show_on_landing', 1)->latest()->take(12)->get();
         $customPosts = \App\Models\CustomPostFrame::with('custom_post')->where('status', '1')->where('show_on_landing', 1)->latest()->take(12)->get();
-        return view('landing.templates', compact('festivals', 'categories', 'customPosts'));
+        
+        $totalFestivals = \App\Models\FestivalsPost::where('status', '1')->count();
+        $totalCategories = \App\Models\CategoryPost::where('status', '1')->count();
+
+        return view('landing.templates', compact('festivals', 'categories', 'customPosts', 'totalFestivals', 'totalCategories'));
     }
 
     public function category($slug)

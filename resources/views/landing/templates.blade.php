@@ -214,22 +214,16 @@
             Browse thousands of ready-made templates crafted for festivals, business branding, and custom social media content.
         </p>
         <div class="tpl-hero-count reveal reveal-delay-3">
-            @if(isset($festivals))
+            @if(isset($totalFestivals))
             <div class="tpl-hero-stat">
-                <div class="tpl-hero-stat-num">{{ count($festivals) }}</div>
+                <div class="tpl-hero-stat-num">{{ $totalFestivals }}</div>
                 <div class="tpl-hero-stat-label">Festival</div>
             </div>
             @endif
-            @if(isset($businessPosts))
+            @if(isset($totalCategories))
             <div class="tpl-hero-stat">
-                <div class="tpl-hero-stat-num">{{ count($businessPosts) }}</div>
-                <div class="tpl-hero-stat-label">Business</div>
-            </div>
-            @endif
-            @if(isset($customPosts))
-            <div class="tpl-hero-stat">
-                <div class="tpl-hero-stat-num">{{ count($customPosts) }}</div>
-                <div class="tpl-hero-stat-label">Custom</div>
+                <div class="tpl-hero-stat-num">{{ $totalCategories }}</div>
+                <div class="tpl-hero-stat-label">Category</div>
             </div>
             @endif
         </div>
@@ -279,19 +273,19 @@
         </div>
         <div class="tpl-grid">
             @foreach($categories as $category)
-            <a href="{{ route('landing.category', $category->id) }}" class="tpl-card reveal-scale" style="text-decoration: none; color: inherit; display: block;">
-                <div class="tpl-card-img-wrap" style="background: #f8fafc; display: flex; align-items: center; justify-content: center; height: 200px;">
-                    <img src="{{ $category->icon ? asset('uploads/'.$category->icon) : asset('assets/images/placeholder.png') }}" class="tpl-card-img" alt="{{ $category->name }}" loading="lazy" style="max-height: 100%; object-fit: contain;">
+            <div class="tpl-card reveal-scale">
+                <div class="tpl-card-img-wrap">
+                    <img src="{{ $category->seo_image ?? ($category->frame_image ? asset('uploads/'.$category->frame_image) : asset('assets/images/placeholder.png')) }}" class="tpl-card-img" alt="{{ $category->category->name ?? 'Category' }}" loading="lazy">
                     <div class="tpl-card-overlay">
-                        <span class="tpl-overlay-btn" style="pointer-events: none;">
-                            <i class="fa-solid fa-eye"></i> View Templates
-                        </span>
+                        <a href="{{ config('seo.app_links.android') }}" target="_blank" class="tpl-overlay-btn">
+                            <i class="fab fa-google-play"></i> Download App for Customization
+                        </a>
                     </div>
                 </div>
-                <div class="tpl-card-info" style="text-align: center;">
-                    <h4 class="tpl-card-title">{{ $category->name }}</h4>
+                <div class="tpl-card-info">
+                    <h4 class="tpl-card-title">{{ $category->category->name ?? 'Category Post' }}</h4>
                 </div>
-            </a>
+            </div>
             @endforeach
         </div>
     </div>

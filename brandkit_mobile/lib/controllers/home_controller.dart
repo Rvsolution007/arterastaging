@@ -201,17 +201,34 @@ class HomeController extends GetxController {
       isLoading(true);
       selectedDateIndex.value = -1; // Reset selection on refresh
 
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('userId') ?? '';
+
+      // ── PERF: Fire ALL API calls in parallel instead of sequential ──
+      // Previously these were 9 sequential awaits (~4-5s total).
+      // Now they all start at the same time and we await all together.
+      final customUrl = userId.isNotEmpty ? '/custom-post-category?userId=$userId' : '/custom-post-category';
       
-      // 1. Fetch main home data
-      final response = await ApiService.get('/get-home-data');
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+      final results = await Future.wait([
+        ApiService.get('/get-home-data'),                  // [0] Main home data
+        ApiService.get(customUrl),                         // [1] Custom posts
+        ApiService.get('/get_greeting_categories'),        // [2] Greetings
+        ApiService.get('/story'),                           // [3] Stories
+        ApiService.get('/news'),                            // [4] News
+        ApiService.get('/get-video'),                       // [5] Videos
+        ApiService.get('/notifications'),                   // [6] Notifications
+        ApiService.get('/language'),                        // [7] Languages
+      ], eagerError: false);
+
+      // ── Parse [0] Main home data ──
+      if (results[0].statusCode == 200) {
+        final data = jsonDecode(results[0].body);
         categories.value = data['Category'] ?? [];
         upcomingFestivals.value = data['Festival'] ?? [];
         customCategories.value = data['BusinessCategory'] ?? [];
         profileCategories.value = data['ProfileBusinessCategory'] ?? [];
       }
-      
+
       // Also refresh subscription and limits silently
       try {
         if (Get.isRegistered<SubscriptionController>()) {
@@ -220,8 +237,8 @@ class HomeController extends GetxController {
       } catch (e) {
         debugPrint('[HomeCtrl] Failed to refresh subscription: $e');
       }
-      
-      // 2. If festivals are empty from home data, try dedicated /festival endpoint
+
+      // Fallback: If festivals are empty, try dedicated endpoint
       if (upcomingFestivals.isEmpty) {
         try {
           final festivalResponse = await ApiService.get('/festival');
@@ -231,12 +248,10 @@ class HomeController extends GetxController {
               upcomingFestivals.value = festivalData;
             }
           }
-        } catch (e) {
-          // Festival fetch failed
-        }
+        } catch (e) { /* Festival fetch failed */ }
       }
-      
-      // 3. If categories are empty, try dedicated /category endpoint
+
+      // Fallback: If categories are empty, try dedicated endpoint
       if (categories.isEmpty) {
         try {
           final catResponse = await ApiService.get('/category');
@@ -246,115 +261,89 @@ class HomeController extends GetxController {
               categories.value = catData;
             }
           }
-        } catch (e) {
-          // Category fetch failed
-        }
+        } catch (e) { /* Category fetch failed */ }
       }
-      
-      // 4. Fetch custom posts (now we'll fetch greetings concurrently as well)
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final userId = prefs.getString('userId') ?? '';
-        final url = userId.isNotEmpty ? '/custom-post-category?userId=$userId' : '/custom-post-category';
-        
-        final responses = await Future.wait([
-          ApiService.get(url),
-          ApiService.get('/get_greeting_categories')
-        ]);
-        
-        final customResponse = responses[0];
-        final greetingResponse = responses[1];
 
-        if (customResponse.statusCode == 200) {
-          final customData = jsonDecode(customResponse.body);
+      // ── Parse [1] Custom posts ──
+      try {
+        if (results[1].statusCode == 200) {
+          final customData = jsonDecode(results[1].body);
           final List<dynamic> posts = customData['data'] ?? [];
           debugPrint('[HomeCtrl] Received ${posts.length} custom post categories');
           customPosts.value = posts;
           recentCustomPosts.value = customData['recent_posts'] ?? [];
-        } else {
-          debugPrint('[HomeCtrl] Failed to fetch custom posts: ${customResponse.body}');
         }
+      } catch (e) {
+        debugPrint('[HomeCtrl] Custom posts parse error: $e');
+      }
 
-        if (greetingResponse.statusCode == 200) {
-          final greetingData = jsonDecode(greetingResponse.body);
+      // ── Parse [2] Greetings ──
+      try {
+        if (results[2].statusCode == 200) {
+          final greetingData = jsonDecode(results[2].body);
           final List<dynamic> posts = greetingData['data'] ?? [];
           debugPrint('[HomeCtrl] Received ${posts.length} greeting categories');
           greetingCategories.value = posts;
-        } else {
-          debugPrint('[HomeCtrl] Failed to fetch greeting categories: ${greetingResponse.body}');
         }
       } catch (e) {
-        debugPrint('[HomeCtrl] Custom/Greeting posts fetch error: $e');
+        debugPrint('[HomeCtrl] Greeting categories parse error: $e');
       }
 
-      // 5. Fetch stories
+      // ── Parse [3] Stories ──
       try {
-        final storyResponse = await ApiService.get('/story');
-        if (storyResponse.statusCode == 200) {
-          final storyData = jsonDecode(storyResponse.body);
+        if (results[3].statusCode == 200) {
+          final storyData = jsonDecode(results[3].body);
           if (storyData is List) {
             stories.value = storyData;
           } else if (storyData['data'] is List) {
             stories.value = storyData['data'];
           }
         }
-      } catch (e) {
-        // Stories fetch failed
-      }
+      } catch (e) { /* Stories fetch failed */ }
 
-      // 6. Fetch news
+      // ── Parse [4] News ──
       try {
-        final newsResponse = await ApiService.get('/news');
-        if (newsResponse.statusCode == 200) {
-          final newsData = jsonDecode(newsResponse.body);
+        if (results[4].statusCode == 200) {
+          final newsData = jsonDecode(results[4].body);
           if (newsData is List) {
             news.value = newsData;
           } else if (newsData['data'] is List) {
             news.value = newsData['data'];
           }
         }
-      } catch (e) {
-        // News fetch failed
-      }
+      } catch (e) { /* News fetch failed */ }
 
-      // 7. Fetch videos
+      // ── Parse [5] Videos ──
       try {
-        final videoResponse = await ApiService.get('/get-video');
-        if (videoResponse.statusCode == 200) {
-          final videoData = jsonDecode(videoResponse.body);
+        if (results[5].statusCode == 200) {
+          final videoData = jsonDecode(results[5].body);
           if (videoData is List) {
             videos.value = videoData;
           } else if (videoData['data'] is List) {
             videos.value = videoData['data'];
           }
         }
-      } catch (e) {
-        // Videos fetch failed
-      }
-      // 8. Fetch notifications
+      } catch (e) { /* Videos fetch failed */ }
+
+      // ── Parse [6] Notifications ──
       try {
-        final notifResponse = await ApiService.get('/notifications');
-        if (notifResponse.statusCode == 200) {
-          final notifData = jsonDecode(notifResponse.body);
+        if (results[6].statusCode == 200) {
+          final notifData = jsonDecode(results[6].body);
           if (notifData is List) {
             notifications.value = notifData;
           }
         }
-      } catch (e) {
-        // Notifications fetch failed
-      }
-      // 9. Fetch languages
+      } catch (e) { /* Notifications fetch failed */ }
+
+      // ── Parse [7] Languages ──
       try {
-        final langResponse = await ApiService.get('/language');
-        if (langResponse.statusCode == 200) {
-          final langData = jsonDecode(langResponse.body);
+        if (results[7].statusCode == 200) {
+          final langData = jsonDecode(results[7].body);
           if (langData is List) {
             languages.value = langData;
           }
         }
-      } catch (e) {
-        // Languages fetch failed
-      }
+      } catch (e) { /* Languages fetch failed */ }
     } catch (e) {
       Get.snackbar('Error', 'An error occurred while fetching data');
     } finally {

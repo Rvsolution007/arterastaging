@@ -540,9 +540,27 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
     final layer = _getActiveLayer();
     if (layer == null) return const SizedBox.shrink();
     
-    double currentSize = (layer['fontSize'] ?? layer['font_size'] ?? layer['size'] ?? 48.0).toDouble();
-    double minSize = 8.0;
-    double maxSize = 400.0;
+    final bool isText = layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null;
+    
+    double toD(dynamic val, [double fallback = 1.0]) {
+      if (val == null) return fallback;
+      if (val is num) return val.toDouble();
+      return double.tryParse(val.toString()) ?? fallback;
+    }
+    
+    double currentSize;
+    double minSize;
+    double maxSize;
+    
+    if (!isText) {
+      currentSize = (toD(layer['scaleX'], 1.0) * 100).toDouble();
+      minSize = 10.0;
+      maxSize = 500.0;
+    } else {
+      currentSize = toD(layer['fontSize'] ?? layer['font_size'] ?? layer['size'], 48.0);
+      minSize = 8.0;
+      maxSize = 400.0;
+    }
     
     if (currentSize < minSize) currentSize = minSize;
     if (currentSize > maxSize) currentSize = maxSize;
@@ -551,7 +569,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          const Icon(Icons.text_fields, size: 16),
+          Icon(!isText ? Icons.photo_size_select_small : Icons.text_fields, size: 16),
           Expanded(
             child: Slider(
               value: currentSize,
@@ -560,36 +578,48 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
               activeColor: const Color(0xFF5538EE),
               onChanged: (val) {
                 final String layerName = (layer['name'] ?? layer['id']).toString();
-                final double oldSize = currentSize;
-                // For Point text: scale bounding-box width proportionally so text isn't clipped
-                final String textKind = (layer['kind'] ?? '').toString().toLowerCase();
-                final double oldW = (layer['w'] ?? layer['width'] ?? 0).toDouble();
-                final String lname = layerName.toLowerCase();
-                // Detect point/single-line text: explicit 'point' kind, or old templates with contact-style names
-                final bool isPointText = textKind == 'point' || 
-                    (textKind.isEmpty && (lname.contains('phone') || lname.contains('email') || 
-                     lname.contains('name') || lname.contains('web') || lname.contains('address') || 
-                     lname.contains('mobile')));
-                if (isPointText && oldSize > 0 && oldW > 0) {
-                  final double ratio = val / oldSize;
+                if (!isText) {
+                  final double oldScaleX = toD(layer['scaleX'], 1.0);
+                  final double oldScaleY = toD(layer['scaleY'], 1.0);
+                  final double aspect = oldScaleX > 0 ? (oldScaleY / oldScaleX) : 1.0;
+                  final double newScaleX = val / 100.0;
+                  final double newScaleY = newScaleX * aspect;
                   controller.updateLayerProperties(layerName, {
-                    'fontSize': val,
-                    'font_size': val,
-                    'size': val,
-                    'w': oldW * ratio,
-                    'width': oldW * ratio,
+                    'scaleX': newScaleX,
+                    'scaleY': newScaleY,
                   });
                 } else {
-                  controller.updateLayerProperties(layerName, {
-                    'fontSize': val,
-                    'font_size': val,
-                    'size': val,
-                  });
+                  final double oldSize = currentSize;
+                  // For Point text: scale bounding-box width proportionally so text isn't clipped
+                  final String textKind = (layer['kind'] ?? '').toString().toLowerCase();
+                  final double oldW = (layer['w'] ?? layer['width'] ?? 0).toDouble();
+                  final String lname = layerName.toLowerCase();
+                  // Detect point/single-line text: explicit 'point' kind, or old templates with contact-style names
+                  final bool isPointText = textKind == 'point' || 
+                      (textKind.isEmpty && (lname.contains('phone') || lname.contains('email') || 
+                       lname.contains('name') || lname.contains('web') || lname.contains('address') || 
+                       lname.contains('mobile')));
+                  if (isPointText && oldSize > 0 && oldW > 0) {
+                    final double ratio = val / oldSize;
+                    controller.updateLayerProperties(layerName, {
+                      'fontSize': val,
+                      'font_size': val,
+                      'size': val,
+                      'w': oldW * ratio,
+                      'width': oldW * ratio,
+                    });
+                  } else {
+                    controller.updateLayerProperties(layerName, {
+                      'fontSize': val,
+                      'font_size': val,
+                      'size': val,
+                    });
+                  }
                 }
               },
             ),
           ),
-          const Icon(Icons.text_fields, size: 24),
+          Icon(!isText ? Icons.photo_size_select_large : Icons.text_fields, size: 24),
         ],
       ),
     );
@@ -693,7 +723,8 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
   Widget _buildContextualToolbar() {
     final activeLayer = _getActiveLayer();
     final bool isText = activeLayer != null && (activeLayer['type'] == 'text' || activeLayer['type'] == 'i-text' || activeLayer['text'] != null);
-    final bool isImage = activeLayer != null && (activeLayer['type'] == 'image' || activeLayer['type'] == 'icon' || activeLayer['src'] != null);
+    final bool isShape = activeLayer != null && !isText && (activeLayer['is_shape'] == true || activeLayer['is_shape'] == 'true' || activeLayer['is_shape'] == 1 || activeLayer['type'] == 'shape' || activeLayer['type'] == 'icon');
+    final bool isImage = activeLayer != null && !isText && !isShape && (activeLayer['type'] == 'image' || activeLayer['src'] != null);
 
     return Container(
       decoration: BoxDecoration(
@@ -751,17 +782,23 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                       controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'style', isItalic ? 'normal' : 'italic');
                     }
                   }, isSelected: _getActiveLayer()?['style'] == 'italic'),
-                  if (isText) _buildToolBtn(Icons.palette_outlined, 'Color', () {
+                  if (isText || isShape) _buildToolBtn(Icons.palette_outlined, 'Color', () {
                     final layer = _getActiveLayer();
-                    if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
+                    if (layer != null) {
                       controller.activeTool.value = controller.activeTool.value == 'Color' ? '' : 'Color';
+                    }
+                  }),
+                  if (isShape || isImage) _buildToolBtn(Icons.format_size, 'Size', () {
+                    final layer = _getActiveLayer();
+                    if (layer != null) {
+                      controller.activeTool.value = controller.activeTool.value == 'Size' ? '' : 'Size';
                     }
                   }),
                   
                   if (isImage) _buildToolBtn(Icons.change_circle_outlined, 'Replace', () {
                     _showReplaceOptions();
                   }),
-                  if (isImage) _buildToolBtn(Icons.flip, 'Mirror', () {
+                  if (isImage || isShape) _buildToolBtn(Icons.flip, 'Mirror', () {
                     final layer = _getActiveLayer();
                     if (layer != null) {
                       bool currentFlipX = layer['flipX'] == true || layer['flipX'] == 'true';

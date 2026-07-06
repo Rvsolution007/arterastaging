@@ -742,16 +742,88 @@
         }
     }
 
+    // Helper to ensure text objects are fabric.Textbox with scaleX=1 so container width & textAlign work
+    function ensureTextbox(obj, actionName = 'unknown') {
+        if (!obj || (obj.type !== 'textbox' && obj.type !== 'i-text' && obj.type !== 'text')) return obj;
+        
+        console.log(`=== [DIAGNOSIS: ${actionName}] Before ===`, {
+            type: obj.type, width: obj.width, scaleX: obj.scaleX, height: obj.height, scaleY: obj.scaleY, textAlign: obj.textAlign, text: obj.text
+        });
+
+        // If it's already a textbox, we MUST still normalize scaleX to 1!
+        if (obj.type === 'textbox') {
+            if (obj.scaleX && obj.scaleX !== 1) {
+                const actualW = Math.round(obj.width * obj.scaleX);
+                obj.set({ width: actualW, scaleX: 1 });
+                obj.setCoords();
+            }
+            console.log(`=== [DIAGNOSIS: ${actionName}] After (Normalized Textbox) ===`, {
+                type: obj.type, width: obj.width, scaleX: obj.scaleX, textAlign: obj.textAlign
+            });
+            return obj;
+        }
+
+        // Convert Point Text (fabric.Text / fabric.IText) to Paragraph Text (fabric.Textbox)
+        const props = obj.toObject();
+        props.type = 'textbox';
+        props.width = Math.round(obj.width * (obj.scaleX || 1));
+        props.scaleX = 1;
+        props.scaleY = obj.scaleY || 1;
+        const tb = new fabric.Textbox(obj.text, props);
+        tb.set({
+            customName: obj.customName,
+            customType: obj.customType || 'text',
+            placeholderKey: obj.placeholderKey,
+            ai_field: obj.ai_field,
+            ai_role: obj.ai_role,
+            ai_max_chars: obj.ai_max_chars,
+            is_placeholder: obj.is_placeholder,
+            _psdData: obj._psdData,
+            _originalYOffset: obj._originalYOffset
+        });
+        const idx = canvas.getObjects().indexOf(obj);
+        canvas.remove(obj);
+        canvas.add(tb);
+        if (idx >= 0 && typeof canvas.moveTo === 'function') canvas.moveTo(tb, idx);
+        canvas.setActiveObject(tb);
+        if (typeof updateLayersList === 'function') updateLayersList();
+
+        console.log(`=== [DIAGNOSIS: ${actionName}] After (Converted to Textbox) ===`, {
+            type: tb.type, width: tb.width, scaleX: tb.scaleX, textAlign: tb.textAlign
+        });
+        return tb;
+    }
+
     // --- Property Input Handlers ---
     [inputX, inputY, inputW, inputH].forEach(input => {
         if (!input) return;
         input.addEventListener('change', function() {
-            const obj = canvas.getActiveObject();
+            let obj = canvas.getActiveObject();
             if(!obj) return;
             if(this.id === 'prop-x') obj.set('left', parseInt(this.value));
             if(this.id === 'prop-y') obj.set('top', parseInt(this.value));
-            if(this.id === 'prop-w') obj.set({ scaleX: parseInt(this.value) / obj.width });
-            if(this.id === 'prop-h') obj.set({ scaleY: parseInt(this.value) / obj.height });
+            if(this.id === 'prop-w') {
+                const newW = parseInt(this.value, 10);
+                if (!isNaN(newW) && newW > 0) {
+                    if (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text') {
+                        obj = ensureTextbox(obj, 'prop_w_change');
+                        obj.set({ width: newW, scaleX: 1 });
+                    } else {
+                        obj.set({ scaleX: newW / obj.width });
+                    }
+                }
+            }
+            if(this.id === 'prop-h') {
+                const newH = parseInt(this.value, 10);
+                if (!isNaN(newH) && newH > 0) {
+                    if (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text') {
+                        obj = ensureTextbox(obj, 'prop_h_change');
+                        obj.set({ height: newH, scaleY: 1 });
+                    } else {
+                        obj.set({ scaleY: newH / obj.height });
+                    }
+                }
+            }
             canvas.renderAll();
             saveHistory();
         });
@@ -1033,8 +1105,9 @@
 
     btnTextAlign.forEach(btn => {
         btn.addEventListener('click', function() {
-            const obj = canvas.getActiveObject();
+            let obj = canvas.getActiveObject();
             if(obj && (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox')) {
+                obj = ensureTextbox(obj, 'align_' + this.dataset.align);
                 obj.set('textAlign', this.dataset.align);
                 btnTextAlign.forEach(b => b.classList.replace('btn-secondary', 'btn-outline-secondary'));
                 this.classList.replace('btn-outline-secondary', 'btn-secondary');
@@ -3112,10 +3185,10 @@
                 // Fallback heuristic for old JSONs without textKind:
                 //   single-line AND height < 2× fontSize → treat as point text
                 const hasHardBreak = rawText.includes('\n');
-                const isPointText = (layer.textKind === 'point')
-                    || (!layer.textKind && !hasHardBreak && (layer.h < fontSize * 2.2));
-                const isParagraphText = (layer.textKind === 'paragraph')
-                    || (!layer.textKind && (hasHardBreak || (layer.h >= fontSize * 2.2)));
+                const isPointText = (layer.textKind === 'point' || layer.kind === 'Point' || layer.kind === 'point')
+                    || (!layer.textKind && !layer.kind && !hasHardBreak && (layer.h < fontSize * 2.2));
+                const isParagraphText = (layer.textKind === 'paragraph' || layer.kind === 'Paragraph' || layer.kind === 'paragraph')
+                    || (!layer.textKind && !layer.kind && (hasHardBreak || (layer.h >= fontSize * 2.2)));
 
                 // Common text properties
                 // Y-OFFSET FIX: Photoshop boundsNoEffects.y = top of VISUAL (tight) bounds (cap height).
@@ -3484,15 +3557,15 @@
                 let fontSize = obj.fontSize;
 
                 if (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
-                    if (obj._psdData && obj.scaleX === 1 && obj.scaleY === 1 && obj.text === obj._psdData.text && obj.fontFamily === obj._psdData.fontFamily) {
+                    if (obj.type !== 'textbox' && obj._psdData && obj.scaleX === 1 && obj.scaleY === 1 && obj.text === obj._psdData.text && obj.fontFamily === obj._psdData.fontFamily) {
                         if (Math.abs(w - obj._psdData.w) < 10) w = Math.round(obj._psdData.w);
                         if (Math.abs(h - obj._psdData.h) < 10) h = Math.round(obj._psdData.h);
                     } else {
                         // User scaled it. Bake the scale into the font size!
                         fontSize = Math.round(obj.fontSize * Math.abs(obj.scaleY));
                     }
-                    let isPointText = (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox');
-                    let yOffset = isPointText ? Math.round(fontSize * 0.12) : 0;
+                    let isPointText = (obj.type !== 'textbox');
+                    let yOffset = obj._originalYOffset !== undefined ? obj._originalYOffset : (isPointText ? Math.round(fontSize * 0.12) : 0);
                     y = Math.round(obj.top + yOffset);
                 }
 
@@ -3508,6 +3581,7 @@
                     o.text=obj.text; o.font={family:obj.fontFamily,size:fontSize,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,color:obj.fill,justification:obj.textAlign||'left',auto_scale:obj.auto_scale||false,charSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16};
                     o.placeholder=obj.customType==='placeholder'?{field_type:obj.placeholderKey,required:true}:null;
                     o.kind = (obj.type === 'textbox') ? 'Paragraph' : 'Point';
+                    o.textKind = (obj.type === 'textbox') ? 'paragraph' : 'point';
                 } else if (obj.customType==='shape' || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type)) {
                     o.type = 'shape';
                     o.shapeType = obj.type; // e.g. 'rect', 'ellipse'
@@ -3546,14 +3620,14 @@
             let fontSize = obj.fontSize;
 
             if (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
-                if (obj._psdData && obj.scaleX === 1 && obj.scaleY === 1 && obj.text === obj._psdData.text && obj.fontFamily === obj._psdData.fontFamily) {
+                if (obj.type !== 'textbox' && obj._psdData && obj.scaleX === 1 && obj.scaleY === 1 && obj.text === obj._psdData.text && obj.fontFamily === obj._psdData.fontFamily) {
                     if (Math.abs(w - obj._psdData.w) < 10) w = Math.round(obj._psdData.w);
                     if (Math.abs(h - obj._psdData.h) < 10) h = Math.round(obj._psdData.h);
                 } else {
                     fontSize = Math.round(obj.fontSize * Math.abs(obj.scaleY));
                 }
-                let isPointText = (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox');
-                let yOffset = isPointText ? Math.round(fontSize * 0.12) : 0;
+                let isPointText = (obj.type !== 'textbox');
+                let yOffset = obj._originalYOffset !== undefined ? obj._originalYOffset : (isPointText ? Math.round(fontSize * 0.12) : 0);
                 y = Math.round(obj.top + yOffset);
             }
 
@@ -3563,7 +3637,7 @@
                 if ((obj.customType==='shape' || obj.customType==='icon') && obj.fill && typeof obj.fill === 'string') imgData.tint_color = obj.fill;
                 j.layers.push(imgData);
             }
-            else if (obj.type==='i-text'||obj.type==='text'||obj.type==='textbox') j.layers.push({name:obj.customName||'text_'+z,type:'text',kind: (obj.type==='textbox'?'Paragraph':'Point'),text:obj.text,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,color:obj.fill,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,size:fontSize,font_size:fontSize,font:obj.fontFamily,font_name:obj.fontFamily,justification:obj.textAlign||'left',letterSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16,ai_role:obj.ai_role||null,ai_max_chars:obj.ai_max_chars||null});
+            else if (obj.type==='i-text'||obj.type==='text'||obj.type==='textbox') j.layers.push({name:obj.customName||'text_'+z,type:'text',kind: (obj.type==='textbox'?'Paragraph':'Point'),textKind: (obj.type==='textbox'?'paragraph':'point'),text:obj.text,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,color:obj.fill,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,size:fontSize,font_size:fontSize,font:obj.fontFamily,font_name:obj.fontFamily,justification:obj.textAlign||'left',letterSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16,ai_role:obj.ai_role||null,ai_max_chars:obj.ai_max_chars||null});
             else if (obj.customType==='shape' || obj.customType==='icon' || ['rect','circle','triangle','path','polygon','line'].includes(obj.type)) {
                 try {
                     const dataUrl = obj.toDataURL({format: 'png', multiplier: 2});

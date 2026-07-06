@@ -56,7 +56,7 @@ class AuthController extends GetxController {
           Get.find<HomeController>().fetchHomeData();
         }
         
-        await _registerFcmToken(data['userId'].toString());
+        _registerFcmToken(data['userId'].toString());
         
         Get.snackbar('Success', 'Login Successful!', backgroundColor: Colors.green, colorText: Colors.white);
         
@@ -156,7 +156,7 @@ class AuthController extends GetxController {
           Get.find<HomeController>().fetchHomeData();
         }
 
-        await _registerFcmToken(data['userId'].toString());
+        _registerFcmToken(data['userId'].toString());
 
         Get.snackbar('Success', 'Registration successful! Welcome aboard.', backgroundColor: Colors.green, colorText: Colors.white);
         

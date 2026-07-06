@@ -719,12 +719,24 @@
             } else {
                 const rawFill = obj.fill || '#6366f1';
                 const hexFill = (typeof rawFill === 'string' && rawFill.startsWith('#') && rawFill.length >= 7) ? rawFill.substring(0,7) : '#6366f1';
-                if (inputFillColor) inputFillColor.value = hexFill;
+                if (inputFillColor) {
+                    if (inputFillColor.jscolor) {
+                        inputFillColor.jscolor.fromString(hexFill);
+                    } else {
+                        inputFillColor.value = hexFill;
+                    }
+                }
             }
 
             const rawStroke = obj.stroke || '#000000';
             const hexStroke = (typeof rawStroke === 'string' && rawStroke.startsWith('#') && rawStroke.length >= 7) ? rawStroke.substring(0,7) : '#000000';
-            if (inputStrokeColor) inputStrokeColor.value = hexStroke;
+            if (inputStrokeColor) {
+                if (inputStrokeColor.jscolor) {
+                    inputStrokeColor.jscolor.fromString(hexStroke);
+                } else {
+                    inputStrokeColor.value = hexStroke;
+                }
+            }
             if (inputStrokeWidth) inputStrokeWidth.value = obj.strokeWidth || 0;
             if (inputBorderRadius) inputBorderRadius.value = obj.rx || 0;
             const tl = obj.rx_tl !== undefined ? obj.rx_tl : (obj.rx || 0);
@@ -742,16 +754,90 @@
         }
     }
 
+    // Helper to ensure text objects are fabric.Textbox with scaleX=1 so container width & textAlign work
+    function ensureTextbox(obj, actionName = 'unknown') {
+        if (!obj || (obj.type !== 'textbox' && obj.type !== 'i-text' && obj.type !== 'text')) return obj;
+        
+        console.log(`=== [DIAGNOSIS: ${actionName}] Before ===`, {
+            type: obj.type, width: obj.width, scaleX: obj.scaleX, height: obj.height, scaleY: obj.scaleY, textAlign: obj.textAlign, text: obj.text
+        });
+
+        // If it's already a textbox, we MUST still normalize scaleX to 1!
+        // In Fabric.js, if scaleX != 1, textAlign ('right'/'center') calculates alignment across unscaled width (which tightly wraps text)
+        // rather than visual width, leaving text stuck on the left!
+        if (obj.type === 'textbox') {
+            if (obj.scaleX && obj.scaleX !== 1) {
+                const actualW = Math.round(obj.width * obj.scaleX);
+                obj.set({ width: actualW, scaleX: 1 });
+                obj.setCoords();
+            }
+            console.log(`=== [DIAGNOSIS: ${actionName}] After (Normalized Textbox) ===`, {
+                type: obj.type, width: obj.width, scaleX: obj.scaleX, textAlign: obj.textAlign
+            });
+            return obj;
+        }
+
+        // Convert Point Text (fabric.Text / fabric.IText) to Paragraph Text (fabric.Textbox)
+        const props = obj.toObject();
+        props.type = 'textbox';
+        props.width = Math.round(obj.width * (obj.scaleX || 1));
+        props.scaleX = 1;
+        props.scaleY = obj.scaleY || 1;
+        const tb = new fabric.Textbox(obj.text, props);
+        tb.set({
+            customName: obj.customName,
+            customType: obj.customType || 'text',
+            placeholderKey: obj.placeholderKey,
+            ai_field: obj.ai_field,
+            ai_role: obj.ai_role,
+            ai_max_chars: obj.ai_max_chars,
+            is_placeholder: obj.is_placeholder,
+            _psdData: obj._psdData,
+            _originalYOffset: obj._originalYOffset
+        });
+        const idx = canvas.getObjects().indexOf(obj);
+        canvas.remove(obj);
+        canvas.add(tb);
+        if (idx >= 0 && typeof canvas.moveTo === 'function') canvas.moveTo(tb, idx);
+        canvas.setActiveObject(tb);
+        if (typeof updateLayersList === 'function') updateLayersList();
+
+        console.log(`=== [DIAGNOSIS: ${actionName}] After (Converted to Textbox) ===`, {
+            type: tb.type, width: tb.width, scaleX: tb.scaleX, textAlign: tb.textAlign
+        });
+        return tb;
+    }
+
     // --- Property Input Handlers ---
     [inputX, inputY, inputW, inputH].forEach(input => {
         if (!input) return;
         input.addEventListener('change', function() {
-            const obj = canvas.getActiveObject();
+            let obj = canvas.getActiveObject();
             if(!obj) return;
             if(this.id === 'prop-x') obj.set('left', parseInt(this.value));
             if(this.id === 'prop-y') obj.set('top', parseInt(this.value));
-            if(this.id === 'prop-w') obj.set({ scaleX: parseInt(this.value) / obj.width });
-            if(this.id === 'prop-h') obj.set({ scaleY: parseInt(this.value) / obj.height });
+            if(this.id === 'prop-w') {
+                const newW = parseInt(this.value, 10);
+                if (!isNaN(newW) && newW > 0) {
+                    if (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text') {
+                        obj = ensureTextbox(obj, 'prop_w_change');
+                        obj.set({ width: newW, scaleX: 1 });
+                    } else {
+                        obj.set({ scaleX: newW / obj.width });
+                    }
+                }
+            }
+            if(this.id === 'prop-h') {
+                const newH = parseInt(this.value, 10);
+                if (!isNaN(newH) && newH > 0) {
+                    if (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text') {
+                        obj = ensureTextbox(obj, 'prop_h_change');
+                        obj.set({ height: newH, scaleY: 1 });
+                    } else {
+                        obj.set({ scaleY: newH / obj.height });
+                    }
+                }
+            }
             canvas.renderAll();
             saveHistory();
         });
@@ -1033,8 +1119,9 @@
 
     btnTextAlign.forEach(btn => {
         btn.addEventListener('click', function() {
-            const obj = canvas.getActiveObject();
+            let obj = canvas.getActiveObject();
             if(obj && (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox')) {
+                obj = ensureTextbox(obj, 'align_' + this.dataset.align);
                 obj.set('textAlign', this.dataset.align);
                 btnTextAlign.forEach(b => b.classList.replace('btn-secondary', 'btn-outline-secondary'));
                 this.classList.replace('btn-outline-secondary', 'btn-secondary');
@@ -1145,6 +1232,7 @@
         if (objs.length) {
             objs.forEach(obj => {
                 if (obj.customType === 'shape' || obj.is_shape || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type)) { 
+                    if (obj.fill === this.value) return; // Prevent infinite loop
                     obj.set('fill', this.value); 
                     if (obj.type === 'image' && typeof fabric.Image.filters.BlendColor !== 'undefined') {
                         obj.filters = [new fabric.Image.filters.BlendColor({
@@ -1159,16 +1247,21 @@
             canvas.renderAll(); 
         }
     });
-    if (inputFillColor) inputFillColor.addEventListener('change', saveHistory);
+
     if (inputStrokeColor) inputStrokeColor.addEventListener('input', function() {
         const objs = canvas.getActiveObjects();
         if (objs.length) {
             objs.forEach(obj => {
-                if (obj.customType === 'shape' || obj.is_shape || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type)) { obj.set('stroke', this.value); }
+                if (obj.customType === 'shape' || obj.is_shape || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type)) {
+                    if (obj.stroke === this.value) return; // Prevent infinite loop
+                    obj.set('stroke', this.value); 
+                }
             });
-            canvas.renderAll(); 
+            canvas.renderAll();
         }
     });
+    if (inputFillColor) inputFillColor.addEventListener('change', saveHistory);
+
     if (inputStrokeWidth) inputStrokeWidth.addEventListener('change', function() {
         const obj = canvas.getActiveObject();
         if (obj && obj.customType === 'shape') { obj.set('strokeWidth', parseInt(this.value) || 0); canvas.renderAll(); saveHistory(); }
@@ -2188,6 +2281,14 @@
                 if (data.success && data.config) {
                     console.log('[DEBUG] Server returned template config');
                     window.editing_frame_id = data.frame_id || null;
+                    if (window.editing_frame_id) {
+                        try {
+                            const newUrl = new URL(window.location.href);
+                            newUrl.searchParams.set('mode', 'template');
+                            newUrl.searchParams.set('frame_id', window.editing_frame_id);
+                            window.history.replaceState({ path: newUrl.href }, '', newUrl.href);
+                        } catch(e) {}
+                    }
                     
                     const titleInput = document.getElementById('template-title');
                     if (titleInput && data.title) {
@@ -2379,6 +2480,14 @@
                 if (data.success && data.config) {
                     console.log('[DEBUG] Server returned frame config');
                     window.editing_frame_id = data.frame_id || null;
+                    if (window.editing_frame_id) {
+                        try {
+                            const newUrl = new URL(window.location.href);
+                            newUrl.searchParams.set('mode', 'frame');
+                            newUrl.searchParams.set('frame_id', window.editing_frame_id);
+                            window.history.replaceState({ path: newUrl.href }, '', newUrl.href);
+                        } catch(e) {}
+                    }
                     
                     const titleInput = document.getElementById('template-title');
                     if (titleInput && data.title) {
@@ -3015,6 +3124,16 @@
                                 z_index: layer.z_index || idx
                             });
                             img.set({ scaleX: layer.w / img.width, scaleY: layer.h / img.height });
+                            // Restore is_shape flag for image-converted shapes
+                            if (layer.is_shape) {
+                                img.is_shape = true;
+                            }
+                            // Restore tint_color (saved fill color) for image-converted shapes
+                            if (layer.tint_color && typeof fabric.Image.filters.BlendColor !== 'undefined') {
+                                img.set('fill', layer.tint_color);
+                                img.filters = [new fabric.Image.filters.BlendColor({ color: layer.tint_color, mode: 'tint', alpha: 1 })];
+                                img.applyFilters();
+                            }
                             canvas.add(img);
                             if (typeof sortCanvasLayers === 'function') {
                                 try { sortCanvasLayers(); } catch(e) { console.error('[SORT ERROR]', e); }
@@ -3112,18 +3231,17 @@
                 // Fallback heuristic for old JSONs without textKind:
                 //   single-line AND height < 2× fontSize → treat as point text
                 const hasHardBreak = rawText.includes('\n');
-                const isPointText = (layer.textKind === 'point')
-                    || (!layer.textKind && !hasHardBreak && (layer.h < fontSize * 2.2));
-                const isParagraphText = (layer.textKind === 'paragraph')
-                    || (!layer.textKind && (hasHardBreak || (layer.h >= fontSize * 2.2)));
+                const isPointText = (layer.textKind === 'point' || layer.kind === 'Point' || layer.kind === 'point')
+                    || (!layer.textKind && !layer.kind && !hasHardBreak && (layer.h < fontSize * 2.2));
+                const isParagraphText = (layer.textKind === 'paragraph' || layer.kind === 'Paragraph' || layer.kind === 'paragraph')
+                    || (!layer.textKind && !layer.kind && (hasHardBreak || (layer.h >= fontSize * 2.2)));
 
                 // Common text properties
                 // Y-OFFSET FIX: Photoshop boundsNoEffects.y = top of VISUAL (tight) bounds (cap height).
                 // Fabric.js top = top of em-box, which includes internal leading ABOVE cap height.
                 // This internal leading ≈ fontSize * 0.12 in most fonts.
-                // Without adjustment, Fabric renders text ~12% of fontSize lower than Photoshop.
-                // For Paragraph Text with exact frame, NO y-offset needed (position IS top of frame).
-                const fabricYOffset = isPointText ? Math.round(fontSize * 0.12) : 0;
+                // Apply this offset to ALL text to perfectly sync Web Editor, Native App, and Photoshop.
+                const fabricYOffset = Math.round(fontSize * 0.12);
                 const commonTextProps = {
                     left:        layer.x,
                     top:         layer.y - fabricYOffset,
@@ -3484,15 +3602,15 @@
                 let fontSize = obj.fontSize;
 
                 if (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
-                    if (obj._psdData && obj.scaleX === 1 && obj.scaleY === 1 && obj.text === obj._psdData.text && obj.fontFamily === obj._psdData.fontFamily) {
+                    if (obj.type !== 'textbox' && obj._psdData && obj.scaleX === 1 && obj.scaleY === 1 && obj.text === obj._psdData.text && obj.fontFamily === obj._psdData.fontFamily) {
                         if (Math.abs(w - obj._psdData.w) < 10) w = Math.round(obj._psdData.w);
                         if (Math.abs(h - obj._psdData.h) < 10) h = Math.round(obj._psdData.h);
                     } else {
                         // User scaled it. Bake the scale into the font size!
                         fontSize = Math.round(obj.fontSize * Math.abs(obj.scaleY));
                     }
-                    let isPointText = (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox');
-                    let yOffset = isPointText ? Math.round(fontSize * 0.12) : 0;
+                    let isPointText = (obj.type !== 'textbox');
+                    let yOffset = obj._originalYOffset !== undefined ? obj._originalYOffset : Math.round(fontSize * 0.12);
                     y = Math.round(obj.top + yOffset);
                 }
 
@@ -3508,6 +3626,7 @@
                     o.text=obj.text; o.font={family:obj.fontFamily,size:fontSize,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,color:obj.fill,justification:obj.textAlign||'left',auto_scale:obj.auto_scale||false,charSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16};
                     o.placeholder=obj.customType==='placeholder'?{field_type:obj.placeholderKey,required:true}:null;
                     o.kind = (obj.type === 'textbox') ? 'Paragraph' : 'Point';
+                    o.textKind = (obj.type === 'textbox') ? 'paragraph' : 'point';
                 } else if (obj.customType==='shape' || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type)) {
                     o.type = 'shape';
                     o.shapeType = obj.type; // e.g. 'rect', 'ellipse'
@@ -3546,14 +3665,14 @@
             let fontSize = obj.fontSize;
 
             if (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
-                if (obj._psdData && obj.scaleX === 1 && obj.scaleY === 1 && obj.text === obj._psdData.text && obj.fontFamily === obj._psdData.fontFamily) {
+                if (obj.type !== 'textbox' && obj._psdData && obj.scaleX === 1 && obj.scaleY === 1 && obj.text === obj._psdData.text && obj.fontFamily === obj._psdData.fontFamily) {
                     if (Math.abs(w - obj._psdData.w) < 10) w = Math.round(obj._psdData.w);
                     if (Math.abs(h - obj._psdData.h) < 10) h = Math.round(obj._psdData.h);
                 } else {
                     fontSize = Math.round(obj.fontSize * Math.abs(obj.scaleY));
                 }
-                let isPointText = (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox');
-                let yOffset = isPointText ? Math.round(fontSize * 0.12) : 0;
+                let isPointText = (obj.type !== 'textbox');
+                let yOffset = obj._originalYOffset !== undefined ? obj._originalYOffset : (isPointText ? Math.round(fontSize * 0.12) : 0);
                 y = Math.round(obj.top + yOffset);
             }
 
@@ -3563,7 +3682,7 @@
                 if ((obj.customType==='shape' || obj.customType==='icon') && obj.fill && typeof obj.fill === 'string') imgData.tint_color = obj.fill;
                 j.layers.push(imgData);
             }
-            else if (obj.type==='i-text'||obj.type==='text'||obj.type==='textbox') j.layers.push({name:obj.customName||'text_'+z,type:'text',kind: (obj.type==='textbox'?'Paragraph':'Point'),text:obj.text,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,color:obj.fill,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,size:fontSize,font_size:fontSize,font:obj.fontFamily,font_name:obj.fontFamily,justification:obj.textAlign||'left',letterSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16,ai_role:obj.ai_role||null,ai_max_chars:obj.ai_max_chars||null});
+            else if (obj.type==='i-text'||obj.type==='text'||obj.type==='textbox') j.layers.push({name:obj.customName||'text_'+z,type:'text',kind: (obj.type==='textbox'?'Paragraph':'Point'),textKind: (obj.type==='textbox'?'paragraph':'point'),text:obj.text,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,color:obj.fill,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,size:fontSize,font_size:fontSize,font:obj.fontFamily,font_name:obj.fontFamily,justification:obj.textAlign||'left',letterSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16,ai_role:obj.ai_role||null,ai_max_chars:obj.ai_max_chars||null});
             else if (obj.customType==='shape' || obj.customType==='icon' || ['rect','circle','triangle','path','polygon','line'].includes(obj.type)) {
                 try {
                     const dataUrl = obj.toDataURL({format: 'png', multiplier: 2});
@@ -3641,6 +3760,15 @@
         }).then(data => {
             btnSave.disabled = false;
             btnSave.innerHTML = `<i class="fa fa-save"></i> Publish ${mode === 'frame' ? 'Frame' : 'Template'}`;
+            if (data.success && (data.frame_id || data.template_id)) {
+                window.editing_frame_id = data.frame_id || data.template_id;
+                try {
+                    const newUrl = new URL(window.location.href);
+                    newUrl.searchParams.set('mode', mode);
+                    newUrl.searchParams.set('frame_id', window.editing_frame_id);
+                    window.history.replaceState({ path: newUrl.href }, '', newUrl.href);
+                } catch(e) {}
+            }
             alert(data.success ? `✅ ${mode === 'frame' ? 'Frame' : 'Template'} Published!` : '❌ ' + (data.message||'Publishing failed'));
         }).catch(err => {
             btnSave.disabled = false;

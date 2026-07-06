@@ -976,16 +976,21 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
 
     // Justification — web legacy JSON doesn't export this at top level,
     // Artera Schema puts it in font.justification. Also check textAlign. (RC-7)
-    final String just = (layer['justification'] ?? layer['textAlign'] ?? 'left').toString().toLowerCase().trim();
+    final dynamic fontObj = layer['font'];
+    final String just = (layer['justification'] ?? 
+                        (fontObj is Map ? fontObj['justification'] : null) ?? 
+                        layer['textAlign'] ?? 'left').toString().toLowerCase().trim();
     TextAlign textAlign = TextAlign.left;
     Alignment alignment = Alignment.centerLeft;
     if (just == 'center') {
       textAlign = TextAlign.center;
       alignment = Alignment.center;
-    }
-    if (just == 'right') {
+    } else if (just == 'right') {
       textAlign = TextAlign.right;
       alignment = Alignment.centerRight;
+    } else if (just == 'justify' || just == 'full') {
+      textAlign = TextAlign.justify;
+      alignment = Alignment.centerLeft;
     }
     
     debugPrint('[TEXT_LAYER] name="${layer['name']}" text="$textValue" font="$fontName" color="$colorStr" fontSize=$fontSize fontWeight=$fontWeight fontStyle=$fontStyle');
@@ -1065,26 +1070,36 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     final double ratio = layerH > 0 && rawSize > 0 ? (layerH / rawSize) : 2.0;
     final bool hasExplicitNewlines = textValue.contains('\n') || textValue.contains('\r');
     
+    final String aiRole = (layer['ai_role'] ?? layer['ai_field'] ?? layer['_businessKey'] ?? '').toString().toLowerCase();
+    final bool isFrameLayer = layer['_is_frame_layer'] == true || layer['_isFrameLayer'] == true;
+    final bool isKnownSingleLineField = lname.contains('name') || 
+                                        lname.contains('email') || 
+                                        lname.contains('phone') || 
+                                        lname.contains('mobile') || 
+                                        lname.contains('web') ||
+                                        lname.contains('address') ||
+                                        aiRole.contains('name') ||
+                                        aiRole.contains('email') ||
+                                        aiRole.contains('phone') ||
+                                        aiRole.contains('mobile') ||
+                                        aiRole.contains('web') ||
+                                        aiRole.contains('address') ||
+                                        (isFrameLayer && !hasExplicitNewlines) ||
+                                        noSpaces;
+
     bool isSingleLine;
     if (textKind == 'point') {
       // Explicitly marked as Point Text by web editor — never wraps, scales down
+      isSingleLine = true;
+    } else if (isKnownSingleLineField || (!hasExplicitNewlines && ratio <= 2.2)) {
+      // Even if marked as 'paragraph' (Textbox for alignment), fields like email/phone/web/name,
+      // frame layers, or boxes without explicit newlines must NEVER wrap to multiple lines; they must scale down via FittedBox!
       isSingleLine = true;
     } else if (textKind == 'paragraph') {
       // Explicitly marked as Paragraph Text by web editor — wraps within layer width
       isSingleLine = false;
     } else {
-      // Fallback heuristic for old templates without kind field
-      isSingleLine = lname.contains('name') || 
-                      lname.contains('email') || 
-                      lname.contains('phone') || 
-                      lname.contains('mobile') || 
-                      lname.contains('web') ||
-                      lname.contains('address') ||
-                      noSpaces;
-                      
-      if (!hasExplicitNewlines && ratio <= 1.6) {
-        isSingleLine = true;
-      }
+      isSingleLine = false;
     }
 
     // Inject single-line flag so InteractiveLayer knows not to constrain width
@@ -1132,13 +1147,16 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         alignment: alignment,
         child: textWidget,
       );
-    } else if (isSingleLine && just != 'left' && rawW > 0) {
-      // Point text (single-line) with right/center alignment needs a fixed-width
-      // container so TextAlign.right actually takes effect. Without it, the Text
-      // widget shrinks to content width and alignment has no visible effect.
+    } else if (isSingleLine && rawW > 0) {
+      // Point text (single-line) needs a fixed-width container so alignment (right/center/left)
+      // takes effect, and FittedBox(scaleDown) ensures long text (like email) shrinks without overlapping.
       textWidget = SizedBox(
         width: rawW * scale,
-        child: textWidget,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: alignment,
+          child: textWidget,
+        ),
       );
     }
 
@@ -1389,7 +1407,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     // Only apply tint_color for non-shape icons (contact/social icons that need dynamic coloring).
     final bool isRasterizedShape = (layer['is_shape'] == true || layer['is_shape'] == 1) && pathType == 'TEMPLATE_ASSET';
     
-    if (layer['tint_color'] != null && !isRasterizedShape) {
+    if (layer['tint_color'] != null) {
       String tintStr = layer['tint_color'].toString();
       tintColor = _parseColor(tintStr, fallback: const Color(0xFFFFFFFF));
       gradientColors = _parseGradient(tintStr);

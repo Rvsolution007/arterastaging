@@ -52,15 +52,7 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
       final double x = safeDouble(widget.layerConfig['x'] ?? 0) * widget.scale;
       double y = safeDouble(widget.layerConfig['y'] ?? 0) * widget.scale;
 
-      // RC-6: Point Text Y-offset correction
-      if (widget.layerConfig['type'] == 'text' && widget.layerConfig['kind']?.toString().toLowerCase() == 'point') {
-        final double rawSize = safeDouble(widget.layerConfig['fontSize'] ?? widget.layerConfig['font_size'] ?? widget.layerConfig['size'] ?? 16);
-        final double docPPI = safeDouble(controller.templateConfig['info']?['ppi'] ?? 72);
-        final double ppiScale = docPPI / 72.0;
-        final double layerScaleYForFont = safeDouble(widget.layerConfig['scaleY'] ?? widget.layerConfig['scaleX'] ?? 1.0);
-        final double effectiveFontSize = rawSize * ppiScale * layerScaleYForFont * widget.scale;
-        y -= (effectiveFontSize * 0.12);
-      }
+      // The Y-offset correction is now handled universally at the JSON exporter level.
       double rawW = safeDouble(widget.layerConfig['w'] ?? widget.layerConfig['width'] ?? 0);
       double rawH = safeDouble(widget.layerConfig['h'] ?? widget.layerConfig['height'] ?? 0);
 
@@ -82,7 +74,7 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
 
       final bool isText = widget.layerConfig['type'] == 'text';
       final bool isSingleLine = isText && widget.layerConfig['_is_single_line'] == true;
-      final double? posW = (w > 0 && !isSingleLine) ? w : null;
+      final double? posW = w > 0 ? w : null;
       final double? posH = (h > 0 && !isText) ? h : null;
 
       final bool isFrameLayer = widget.layerConfig['_is_frame_layer'] == true || widget.layerConfig['_isFrameLayer'] == true;
@@ -217,7 +209,10 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
         ) : widget.child,
       );
 
-      final String just = (widget.layerConfig['justification']?.toString().toLowerCase().trim()) ?? 'left';
+      final dynamic fontObj = widget.layerConfig['font'];
+      final String just = (widget.layerConfig['justification'] ?? 
+                          (fontObj is Map ? fontObj['justification'] : null) ?? 
+                          widget.layerConfig['textAlign'] ?? 'left').toString().toLowerCase().trim();
       double? finalLeft;
       double? finalRight;
 

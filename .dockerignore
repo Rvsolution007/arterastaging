@@ -15,7 +15,8 @@ npm-debug.log
 yarn-error.log
 *.apk
 *.aab
-*.sql
+backup_before_dedup.sql
+database_schema.sql
 *.zip
 uploads_old
 temp_zip

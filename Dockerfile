@@ -19,12 +19,12 @@ RUN sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/Allo
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Copy application code
-COPY . /var/www/html/
-
 WORKDIR /var/www/html
 
-# Create required storage directories
+# Copy only composer files first to leverage Docker cache
+COPY composer.json composer.lock /var/www/html/
+
+# Create required storage directories (needed for composer install scripts)
 RUN mkdir -p storage/framework/cache/data \
     storage/framework/sessions \
     storage/framework/views \
@@ -32,8 +32,14 @@ RUN mkdir -p storage/framework/cache/data \
     bootstrap/cache \
     public/uploads
 
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+# Install PHP dependencies (this layer will be cached unless composer files change)
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
+
+# Copy the rest of the application code
+COPY . /var/www/html/
+
+# Run composer post-install scripts (like package:discover) now that code is present
+RUN composer run-script post-autoload-dump
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html \

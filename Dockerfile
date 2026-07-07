@@ -24,9 +24,6 @@ COPY . /var/www/html/
 
 WORKDIR /var/www/html
 
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
-
 # Create required storage directories
 RUN mkdir -p storage/framework/cache/data \
     storage/framework/sessions \
@@ -34,6 +31,9 @@ RUN mkdir -p storage/framework/cache/data \
     storage/logs \
     bootstrap/cache \
     public/uploads
+
+# Install PHP dependencies
+RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html \

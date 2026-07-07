@@ -25,6 +25,11 @@ class HomeController extends GetxController {
   var videos = [].obs;
   var notifications = [].obs;
   var languages = [].obs;
+  
+  // Policies HTML
+  var privacyPolicyHtml = ''.obs;
+  var termsConditionHtml = ''.obs;
+  var refundPolicyHtml = ''.obs;
 
   
   // Business info
@@ -227,6 +232,11 @@ class HomeController extends GetxController {
         upcomingFestivals.value = data['Festival'] ?? [];
         customCategories.value = data['BusinessCategory'] ?? [];
         profileCategories.value = data['ProfileBusinessCategory'] ?? [];
+
+        // Parse policies
+        privacyPolicyHtml.value = data['privacyPolicyHtml'] ?? '';
+        termsConditionHtml.value = data['termsConditionHtml'] ?? '';
+        refundPolicyHtml.value = data['refundPolicyHtml'] ?? '';
       }
 
       // Also refresh subscription and limits silently

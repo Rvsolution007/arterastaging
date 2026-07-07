@@ -908,21 +908,17 @@ class AuthApi extends Controller
             $this->validateEmail($request);
             $email = $request->email;
             $name = $user[0]['name'];
-            //$newPassword = Str::random(10);
-            $newPassword = mt_rand(100000, 999999);
+            $code = mt_rand(100000, 999999);
 
-            $user = User::find($user[0]['id']);
-            $user->password =  bcrypt($newPassword);
-            $user->save();
-
-            $token = Str::random(60);
             PasswordReset::where('email', $email)->delete();
-            PasswordReset::create(['email' => $email, 'token' => Hash::make($token), 'created_at' => date('Y-m-d H:i:s')]);
-            SendForgotPasswordEmailJob::dispatch($email, $token, $name, $newPassword);
+            PasswordReset::create(['email' => $email, 'token' => Hash::make($code), 'created_at' => date('Y-m-d H:i:s')]);
+            
+            // Send OTP email
+            \App\Jobs\SendPasswordResetOtpJob::dispatch($email, $name, $code);
 
             return response()->json([
                 'status' => "Success",
-                'message' => "Email Send Your Email Address.",
+                'message' => "OTP sent to your email address.",
             ], 200);
         } 
         else 
@@ -932,6 +928,74 @@ class AuthApi extends Controller
                 'message' => "Please Enter Valid Email Address...",
             ], 404);
         }
+    }
+
+    public function verify_forgot_password_otp(Request $request)
+    {
+        $this->validate($request, [
+            'email' => 'required|email',
+            'otp' => 'required'
+        ]);
+
+        $reset = PasswordReset::where('email', $request->email)->first();
+
+        if (!$reset || !Hash::check($request->otp, $reset->token)) {
+            return response()->json([
+                'status' => "Error",
+                'message' => "Wrong Code",
+            ], 400);
+        }
+
+        // Check if OTP expired (10 minutes)
+        if (now()->diffInMinutes($reset->created_at) > 10) {
+            $reset->delete();
+            return response()->json([
+                'status' => "Error",
+                'message' => "OTP Expired. Please request a new one.",
+            ], 400);
+        }
+
+        return response()->json([
+            'status' => "Success",
+            'message' => "OTP Verified",
+        ], 200);
+    }
+
+    public function update_forgot_password(Request $request)
+    {
+        $this->validate($request, [
+            'email' => 'required|email',
+            'otp' => 'required',
+            'new_password' => 'required|min:6'
+        ]);
+
+        $reset = PasswordReset::where('email', $request->email)->first();
+
+        if (!$reset || !Hash::check($request->otp, $reset->token)) {
+            return response()->json([
+                'status' => "Error",
+                'message' => "Invalid OTP",
+            ], 400);
+        }
+
+        $user = User::where('email', $request->email)->first();
+        if ($user) {
+            $user->password = bcrypt($request->new_password);
+            $user->save();
+            
+            // Delete the used reset token
+            $reset->delete();
+
+            return response()->json([
+                'status' => "Success",
+                'message' => "Password updated successfully",
+            ], 200);
+        }
+
+        return response()->json([
+            'status' => "Error",
+            'message' => "User not found",
+        ], 404);
     }
 
     protected function validateEmail(Request $request)

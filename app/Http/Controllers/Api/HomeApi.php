@@ -338,6 +338,20 @@ class HomeApi extends Controller
                 "video" => (count($video) == 0)?false:true,
             );
         }
+        $otherSetting = \App\Models\OtherSetting::whereIn('key_name', ['privacy_policy', 'terms_condition', 'refund_policy'])->get();
+        $privacyPolicyHtml = '';
+        $termsConditionHtml = '';
+        $refundPolicyHtml = '';
+
+        foreach ($otherSetting as $s) {
+            if ($s->key_name == "privacy_policy") {
+                $privacyPolicyHtml = $s->key_value;
+            } else if ($s->key_name == "terms_condition") {
+                $termsConditionHtml = $s->key_value;
+            } else if ($s->key_name == "refund_policy") {
+                $refundPolicyHtml = $s->key_value;
+            }
+        }
         
         return response()->json([
             "Story" => $story_data,
@@ -346,6 +360,9 @@ class HomeApi extends Controller
             "BusinessCategory" => $business_category_data,
             "Category" => $category_data,
             "ProfileBusinessCategory" => $profile_business_category_data,
+            "privacyPolicyHtml" => $privacyPolicyHtml,
+            "termsConditionHtml" => $termsConditionHtml,
+            "refundPolicyHtml" => $refundPolicyHtml,
         ], 200);
     }
 
@@ -3047,14 +3064,17 @@ class HomeApi extends Controller
             if($s->key_name == "privacy_policy")
             {
                 $data[$this->from_camel_case($s->key_name)] = url('/privacy-policy');
+                $data['privacyPolicyHtml'] = $s->key_value;
             }
             else if($s->key_name == "refund_policy")
             {
                 $data[$this->from_camel_case($s->key_name)] = url('/refund-policy');
+                $data['refundPolicyHtml'] = $s->key_value;
             }
             else if($s->key_name == "terms_condition")
             {
                 $data[$this->from_camel_case($s->key_name)] = url('/terms-condition');
+                $data['termsConditionHtml'] = $s->key_value;
             }
             else
             {

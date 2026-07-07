@@ -17,9 +17,9 @@ import '../controllers/home_controller.dart';
 import '../controllers/subscription_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'partner_dashboard_screen.dart';
-import '../widgets/error_submission_dialog.dart';
 import 'referral_screen.dart';
 import '../services/translation_service.dart';
+import 'policy_screen.dart';
 import 'achievements_screen.dart';
 import 'mini_website_dashboard_screen.dart';
 
@@ -261,20 +261,6 @@ class _MoreScreenState extends State<MoreScreen> {
           children: [
             SettingsItem(icon: Icons.help_outline, title: 'help_support'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen()))),
             SettingsItem(icon: Icons.chat_bubble_outline, title: 'faqs'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FaqsScreen()))),
-            SettingsItem(
-              icon: Icons.bug_report_outlined,
-              title: 'report_problem'.trFormat,
-              iconColor: AppColors.gray500,
-              iconBgColor: Colors.transparent,
-              onTap: () {
-                Get.dialog(
-                  const ErrorSubmissionDialog(
-                    errorCode: 'MANUAL_REPORT',
-                    errorMessage: 'User reporting a problem manually from Settings.',
-                  ),
-                );
-              },
-            ),
           ],
         ),
       ],
@@ -288,10 +274,18 @@ class _MoreScreenState extends State<MoreScreen> {
         _buildSectionTitle('about_app'.trFormat),
         _buildSectionContainer(
           children: [
-            SettingsItem(icon: Icons.rss_feed, title: 'blog'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
-            SettingsItem(icon: Icons.lock_outline, title: 'privacy_policy'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
-            SettingsItem(icon: Icons.description_outlined, title: 'terms_conditions'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
-            SettingsItem(icon: Icons.credit_card_outlined, title: 'refund_policy'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
+            SettingsItem(icon: Icons.lock_outline, title: 'privacy_policy'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {
+              final hc = Get.find<HomeController>();
+              Get.to(() => PolicyScreen(title: 'privacy_policy'.trFormat, htmlContent: hc.privacyPolicyHtml.value));
+            }),
+            SettingsItem(icon: Icons.description_outlined, title: 'terms_conditions'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {
+              final hc = Get.find<HomeController>();
+              Get.to(() => PolicyScreen(title: 'terms_conditions'.trFormat, htmlContent: hc.termsConditionHtml.value));
+            }),
+            SettingsItem(icon: Icons.credit_card_outlined, title: 'refund_policy'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {
+              final hc = Get.find<HomeController>();
+              Get.to(() => PolicyScreen(title: 'refund_policy'.trFormat, htmlContent: hc.refundPolicyHtml.value));
+            }),
           ],
         ),
       ],
@@ -312,30 +306,6 @@ class _MoreScreenState extends State<MoreScreen> {
               iconColor: AppColors.success,
               iconBgColor: Colors.transparent,
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReferralScreen())),
-            ),
-            SettingsItem(
-              icon: Icons.person_add_outlined,
-              title: 'follow_us'.trFormat,
-              iconColor: AppColors.gray500,
-              iconBgColor: Colors.transparent,
-              trailing: Row(
-                children: [
-                  _buildSocialIcon(Icons.facebook),
-                  AppSpacing.gapH8,
-                  _buildSocialIcon(Icons.camera_alt_outlined),
-                  AppSpacing.gapH8,
-                  _buildSocialIcon(null, label: 'X'),
-                  AppSpacing.gapH8,
-                  _buildSocialIcon(Icons.play_arrow_rounded),
-                ],
-              ),
-            ),
-            SettingsItem(
-              icon: Icons.person_remove_outlined,
-              title: 'delete_your_account'.trFormat,
-              iconColor: AppColors.gray500,
-              iconBgColor: Colors.transparent,
-              onTap: () {},
             ),
             SettingsItem(
               icon: Icons.logout,

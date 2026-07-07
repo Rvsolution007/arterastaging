@@ -64,6 +64,8 @@ Route::
             Route::post('/google-registration', 'AuthApi@google_registration');
             Route::post('/phone-login', 'AuthApi@phone_login');
             Route::post('/forgot-password', 'AuthApi@forgot_password');
+            Route::post('/forgot-password/verify-otp', 'AuthApi@verify_forgot_password_otp');
+            Route::post('/forgot-password/update', 'AuthApi@update_forgot_password');
         });
 
 Route::

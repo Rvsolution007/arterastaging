@@ -1,3 +1,4 @@
+import 'package:brandkit_mobile/utils/string_extensions.dart';
 import 'package:flutter/material.dart';
 import '../widgets/coming_soon_widget.dart';
 import '../config/app_config.dart';
@@ -73,7 +74,7 @@ class _CustomPostsScreenState extends State<CustomPostsScreen> {
           _pagingController.appendPage(newItems, nextPageKey);
         }
       } else {
-        _pagingController.error = 'Failed to load custom posts';
+        _pagingController.error = 'failed_to_load_custom_posts'.trFormat;
       }
     } catch (error) {
       _pagingController.error = error;
@@ -122,12 +123,12 @@ class _CustomPostsScreenState extends State<CustomPostsScreen> {
       return Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
-          title: const Text('Custom Posts', style: TextStyle(color: Colors.black)),
+          title: Text('custom_posts'.trFormat, style: const TextStyle(color: Colors.black)),
           backgroundColor: Colors.white,
           elevation: 0,
           iconTheme: const IconThemeData(color: Colors.black),
         ),
-        body: const ComingSoonWidget(title: 'Custom Posts'),
+        body: ComingSoonWidget(title: 'custom_posts'.trFormat),
       );
     }
 
@@ -137,8 +138,8 @@ class _CustomPostsScreenState extends State<CustomPostsScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Custom Posts', style: AppTextStyles.heading4),
-            Text('AI Generated Content', style: AppTextStyles.cardSubtitle),
+            Text('custom_posts'.trFormat, style: AppTextStyles.heading4),
+            Text('ai_generated_content'.trFormat, style: AppTextStyles.cardSubtitle),
           ],
         ),
         leading: IconButton(
@@ -152,7 +153,7 @@ class _CustomPostsScreenState extends State<CustomPostsScreen> {
         backgroundColor: const Color(0xFF6366F1),
         icon: const Icon(Icons.swap_horiz, color: Colors.white, size: 20),
         label: Text(
-          _currentProductName ?? 'Change Product',
+          _currentProductName ?? 'change_product'.trFormat,
           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -160,7 +161,7 @@ class _CustomPostsScreenState extends State<CustomPostsScreen> {
       body: Obx(() {
         if (hc.customPosts.isEmpty) {
           return Center(
-            child: Text('No custom posts available', style: AppTextStyles.bodyMedium),
+            child: Text('no_custom_posts_available'.trFormat, style: AppTextStyles.bodyMedium),
           );
         }
 
@@ -197,7 +198,7 @@ class _CustomPostsScreenState extends State<CustomPostsScreen> {
                       ),
                       child: Center(
                         child: Text(
-                          cat['customCategoryName'] ?? 'Category',
+                          cat['customCategoryName'] ?? 'category'.trFormat,
                           style: TextStyle(
                             color: isSelected ? Colors.white : AppColors.gray500,
                             fontWeight: FontWeight.w700,
@@ -243,7 +244,7 @@ class _CustomPostsScreenState extends State<CustomPostsScreen> {
                         ),
                         child: Center(
                           child: Text(
-                            isAll ? 'All' : tag,
+                            isAll ? 'all'.trFormat : tag,
                             style: TextStyle(
                               color: isSelected ? Colors.white : AppColors.gray700,
                               fontWeight: FontWeight.w600,
@@ -411,7 +412,7 @@ class _CustomPostsScreenState extends State<CustomPostsScreen> {
             child: Icon(Icons.image_not_supported_outlined, color: AppColors.slate300, size: 32),
           ),
           AppSpacing.gapV16,
-          Text('No posts found for this category', style: TextStyle(color: AppColors.gray400, fontWeight: FontWeight.w600)),
+          Text('no_posts_found_for_category'.trFormat, style: TextStyle(color: AppColors.gray400, fontWeight: FontWeight.w600)),
         ],
       ),
     );

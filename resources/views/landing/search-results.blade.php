@@ -177,9 +177,6 @@
                                 </a>
                             </div>
                         </div>
-                        <div class="tpl-card-info">
-                            <h4 class="tpl-card-title" style="margin-bottom: 4px;">{{ $item->title }}</h4>
-                        </div>
                     </div>
                 @endforeach
             </div>

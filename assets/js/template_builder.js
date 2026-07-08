@@ -2557,8 +2557,7 @@
                             layers: jsonObj.elements.map((el, idx) => {
                                 let l = {
                                     id: 'Layer_' + idx, name: el.name, type: 'unknown',
-                                    x: el.x, y: el.y, w: el.width || el.w, h: el.height || el.h,
-                                    scaleX: el.scaleX || 1, scaleY: el.scaleY || 1,
+                                    x: el.x, y: el.y, w: el.w, h: el.h,
                                     opacity: el.opacity, rotation: el.rotation,
                                     visible: el.visible,
                                     blendMode: el.blendMode,
@@ -3314,8 +3313,6 @@
                 const baseProps = {
                     left:        layer.x,
                     top:         layer.y,
-                    scaleX:      layer.scaleX || 1,
-                    scaleY:      layer.scaleY || 1,
                     fill:        shapeColor,
                     stroke:      strokeColor,
                     strokeWidth: strokeWidth,
@@ -3416,7 +3413,19 @@
                         const svgPath = pathDataToSVG(layer.pathData, layer.x, layer.y);
                         if (svgPath) {
                             obj = new fabric.Path(svgPath, {
-                                ...baseProps
+                                left: layer.x,
+                                top: layer.y,
+                                fill: shapeColor,
+                                stroke: strokeColor,
+                                strokeWidth: strokeWidth,
+                                originX: 'left',
+                                originY: 'top',
+                                angle: rotation,
+                                opacity: opacity,
+                                shadow: shadow,
+                                visible: visible,
+                                customType: 'shape',
+                                customName: layer.name
                             });
                         }
                     }
@@ -3622,11 +3631,20 @@
                     o.type = 'shape';
                     o.shapeType = obj.type; // e.g. 'rect', 'ellipse'
                     
-                    o.fill = obj.fill;
+                    if (obj.fill && typeof obj.fill === 'object' && obj.fill.type === 'linear') {
+                        o.fill = JSON.parse(JSON.stringify(obj.fill));
+                        if (o.fill.coords) {
+                            if (o.fill.coords.x1) o.fill.coords.x1 *= Math.abs(obj.scaleX);
+                            if (o.fill.coords.x2) o.fill.coords.x2 *= Math.abs(obj.scaleX);
+                            if (o.fill.coords.y1) o.fill.coords.y1 *= Math.abs(obj.scaleY);
+                            if (o.fill.coords.y2) o.fill.coords.y2 *= Math.abs(obj.scaleY);
+                        }
+                    } else {
+                        o.fill = obj.fill;
+                    }
                     
                     o.stroke=obj.stroke; o.strokeWidth=obj.strokeWidth;
-                    o.width=obj.width; o.height=obj.height;
-                    o.scaleX=obj.scaleX; o.scaleY=obj.scaleY;
+                    o.width=w; o.height=h;
                     if (obj.rx) o.rx = obj.rx;
                     if (obj.ry) o.ry = obj.ry;
                 }

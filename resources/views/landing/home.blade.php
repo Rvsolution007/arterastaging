@@ -468,12 +468,6 @@
         .btn-sharp { padding: 16px 28px; font-size: 14px; justify-content: center; width: 100%; }
         .why-section, .howit-section, .categories-section, .compare-section, .cta-section { padding: 80px 0; }
         .why-header, .categories-header, .compare-header { margin-bottom: 48px; }
-        
-        /* Mobile Search Form */
-        .search-form { padding: 4px 4px 4px 15px !important; border-radius: 40px !important; }
-        .search-form i { font-size: 1rem !important; }
-        .search-form input { padding: 10px 8px !important; font-size: 0.95rem !important; }
-        .search-form button { padding: 10px 16px !important; font-size: 0.9rem !important; width: auto; }
     }
 </style>
 @endsection
@@ -1280,7 +1274,7 @@ input:checked + .slider:before {
         <div class="cta-inner reveal">
             <h2 class="heading-xl">Ready to grow<br>your business?</h2>
             <p class="cta-desc">Join thousands of businesses using Artera to create professional marketing content — automatically, every day.</p>
-            <a href="{{ config('seo.app_links.android') }}" target="_blank" class="btn-sharp btn-sharp-primary btn-glow">
+            <a href="#" class="btn-sharp btn-sharp-primary btn-glow">
                 <i class="fa-brands fa-google-play"></i>
                 Download the App
                 <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff;"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>

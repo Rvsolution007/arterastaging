@@ -174,7 +174,7 @@
                     </div>
 
                     <div class="row">
-                        <div class="col-12 mb-4 d-none">
+                        <div class="col-12 mb-4">
                             <label class="form-label-premium" for="is_ai">Is AI Template?</label>
                             <div class="d-flex align-items-center" style="margin-top: 5px;">
                                 <div class="custom-control custom-checkbox">

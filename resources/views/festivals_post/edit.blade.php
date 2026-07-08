@@ -61,7 +61,7 @@
 
     <div class="row">
         <div class="col-12">
-            <div class="form-group row d-none">
+            <div class="form-group row">
                 <label class="col-sm-3 col-form-label" for="is_ai">Is AI Template?</label>
                 <div class="col-sm-4 d-flex align-items-center" style="margin-top: 7px;">
                     <div class="custom-control custom-checkbox">

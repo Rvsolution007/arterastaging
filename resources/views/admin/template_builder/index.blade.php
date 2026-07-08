@@ -302,7 +302,7 @@
                             </div>
                             <div class="col-6 mb-3">
                                 <label class="aim-label">Color</label>
-                                <input type="text" class="aim-input w-100" id="prop-color" data-jscolor="{}" placeholder="#000000" style="height: 38px; padding-left: 10px;">
+                                <input type="color" class="aim-input p-0 w-100" id="prop-color" style="height: 38px;">
                             </div>
                         </div>
                         
@@ -367,12 +367,12 @@
                         <div class="panel-section-title" style="color: #6366f1;"><i class="fa-solid fa-shapes"></i> Shape Settings</div>
                         <div class="row">
                             <div class="col-6 mb-3">
-                                <label class="aim-label d-block mb-1">Fill Color</label>
-                                <input type="text" class="aim-input w-100" id="prop-fill-color" data-jscolor="{}" placeholder="#6366f1" style="height: 38px; padding-left: 10px;">
+                                <label class="aim-label">Fill Color</label>
+                                <input type="color" class="aim-input p-0 w-100" id="prop-fill-color" value="#6366f1" style="height: 38px;">
                             </div>
                             <div class="col-6 mb-3">
-                                <label class="aim-label d-block mb-1">Stroke Color</label>
-                                <input type="text" class="aim-input w-100" id="prop-stroke-color" data-jscolor="{}" placeholder="#000000" style="height: 38px; padding-left: 10px;">
+                                <label class="aim-label">Stroke Color</label>
+                                <input type="color" class="aim-input p-0 w-100" id="prop-stroke-color" value="#000000" style="height: 38px;">
                             </div>
                         </div>
                         <div class="mb-3 custom-control custom-switch">
@@ -383,15 +383,15 @@
                             <div class="row">
                                 <div class="col-4 mb-2">
                                     <label class="aim-label">Start Color</label>
-                                    <input type="text" class="aim-input w-100" id="prop-grad-color1" data-jscolor="{}" value="#6366f1" placeholder="#6366f1" style="height:30px; padding-left: 10px;">
+                                    <input type="color" class="aim-input p-0 w-100" id="prop-grad-color1" value="#6366f1" style="height:30px;">
                                 </div>
                                 <div class="col-4 mb-2">
                                     <label class="aim-label">Mid Color</label>
-                                    <input type="text" class="aim-input w-100" id="prop-grad-color-mid" data-jscolor="{}" value="#a855f7" placeholder="#a855f7" style="height:30px; padding-left: 10px;">
+                                    <input type="color" class="aim-input p-0 w-100" id="prop-grad-color-mid" value="#a855f7" style="height:30px;">
                                 </div>
                                 <div class="col-4 mb-2">
                                     <label class="aim-label">End Color</label>
-                                    <input type="text" class="aim-input w-100" id="prop-grad-color2" data-jscolor="{}" value="#ffffff" placeholder="#ffffff" style="height:30px; padding-left: 10px;">
+                                    <input type="color" class="aim-input p-0 w-100" id="prop-grad-color2" value="#ffffff" style="height:30px;">
                                 </div>
                             </div>
                             <div class="mb-2">
@@ -460,7 +460,7 @@
                                 </div>
                                 <div class="col-6 mb-2">
                                     <label class="aim-label">Color</label>
-                                    <input type="text" class="aim-input w-100" id="prop-shadow-color" data-jscolor="{}" value="#000000" placeholder="#000000" style="height: 38px; padding-left: 10px;">
+                                    <input type="color" class="aim-input p-0 w-100" id="prop-shadow-color" value="#000000" style="height: 38px;">
                                 </div>
                                 <div class="col-6 mb-2">
                                     <label class="aim-label">Offset X</label>
@@ -535,6 +535,29 @@
                     </div>
                 </div>
                 @endif
+
+                <hr class="my-3">
+
+                <!-- Canvas Background -->
+                <div class="panel-section-title"><i class="fa-solid fa-fill-drip"></i> Canvas Background</div>
+                <div class="mb-3 mt-2">
+                    <label class="aim-label">Background Color</label>
+                    <input type="color" class="aim-input p-0 w-100" id="canvas-bg-color" value="#ffffff" style="height: 38px;">
+                </div>
+                <div class="mb-3 custom-control custom-switch">
+                    <input type="checkbox" class="custom-control-input" id="canvas-gradient-toggle">
+                    <label class="custom-control-label small" for="canvas-gradient-toggle">Use Gradient Background</label>
+                </div>
+                <div class="gradient-colors" id="gradient-color-fields" style="display:none;">
+                    <div class="color-field">
+                        <label class="aim-label">Start Color</label>
+                        <input type="color" class="aim-input p-0 w-100" id="canvas-gradient-start" value="#6366f1">
+                    </div>
+                    <div class="color-field">
+                        <label class="aim-label">End Color</label>
+                        <input type="color" class="aim-input p-0 w-100" id="canvas-gradient-end" value="#8b5cf6">
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -700,21 +723,7 @@
 @section('script')
 <script src="{{ asset('assets/js/fabric.min.js') }}"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jscolor/2.5.2/jscolor.min.js"></script>
 <script>
-    function triggerNativeInput(picker) {
-        if (picker && picker.targetElement) {
-            if (picker.targetElement.dataset.isTriggering) return;
-            picker.targetElement.dataset.isTriggering = true;
-            picker.targetElement.dispatchEvent(new Event('input', { bubbles: true }));
-            picker.targetElement.dataset.isTriggering = '';
-        }
-    }
-    jscolor.presets.default = {
-        format: 'hex',
-        hash: true,
-        onInput: 'triggerNativeInput(this)'
-    };
     const parseUrl = "{{ route('template_builder.parse_zip') }}";
     const saveUrl = "{{ route('template_builder.save') }}";
     const saveFrameUrl = "{{ route('template_builder.save_frame') }}";

@@ -408,7 +408,7 @@
                                 <span class="switch-label">Premium</span>
                                 <input class="form-check-input checkbox2" type="checkbox" data-id="{{$frame->id}}" value="1" @if($frame->paid==1) checked @endif>
                             </div>
-                            <div class="text-center d-none">
+                            <div class="text-center">
                                 <span class="switch-label">AI</span>
                                 <input class="form-check-input ai-switch-ajax" type="checkbox" data-id="{{$frame->id}}" value="1" @if($frame->is_ai==1) checked @endif>
                             </div>

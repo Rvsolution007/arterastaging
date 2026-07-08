@@ -19,6 +19,8 @@
         <meta name="twitter:card" content="summary_large_image">
     @endif
 
+    <link rel="icon" href="@if(App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean'){{\Storage::disk('spaces')->url('uploads/' . App\Models\AppSetting::getAppSetting('admin_favicon'))}} @else {{asset('uploads/' . App\Models\AppSetting::getAppSetting('admin_favicon'))}} @endif">
+
     <!-- Preconnect to FontAwesome CDN (loads early via preload) -->
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <!-- Font Awesome — deferred with font-display fix -->

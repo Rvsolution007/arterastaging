@@ -230,76 +230,31 @@ class SettingController extends Controller
             }
         }
 
-        if (!env('MAIL_HOST')) {
+        $envFile = base_path('.env');
+        if (file_exists($envFile)) {
+            $content = file_get_contents($envFile);
+            $envUpdates = [
+                'MAIL_HOST' => $request->name['smtp_host'],
+                'MAIL_USERNAME' => $request->name['username'],
+                'MAIL_FROM_ADDRESS' => $request->name['username'],
+                'MAIL_PASSWORD' => $request->name['password'],
+                'MAIL_ENCRYPTION' => $request->name['encryption'],
+                'MAIL_PORT' => $request->name['port'],
+                'MAIL_MAILER' => 'smtp',
+            ];
 
-            file_put_contents(base_path('.env'), "MAIL_HOST=" . $request->name['smtp_host'] . PHP_EOL, FILE_APPEND);
-        }
-        if (env('MAIL_HOST')) {
-
-            file_put_contents(base_path('.env'), str_replace(
-                'MAIL_HOST=' . env('MAIL_HOST'),
-                'MAIL_HOST=' . $request->name['smtp_host'],
-                file_get_contents(base_path('.env'))
-            ));
-        }
-
-        if (!env('MAIL_USERNAME')) {
-
-            file_put_contents(base_path('.env'), "MAIL_USERNAME=" . $request->name['username'] . PHP_EOL, FILE_APPEND);
-        }
-        if (env('MAIL_USERNAME')) {
-
-            file_put_contents(base_path('.env'), str_replace(
-                'MAIL_USERNAME=' . env('MAIL_USERNAME'),
-                'MAIL_USERNAME=' . $request->name['username'],
-                file_get_contents(base_path('.env'))
-            ));
-            file_put_contents(base_path('.env'), str_replace(
-                'MAIL_FROM_ADDRESS=' . env('MAIL_FROM_ADDRESS'),
-                'MAIL_FROM_ADDRESS=' . $request->name['username'],
-                file_get_contents(base_path('.env'))
-            ));
-        }
-
-        if (!env('MAIL_PASSWORD')) {
-
-            file_put_contents(base_path('.env'), "MAIL_PASSWORD=" . $request->name['password'] . PHP_EOL, FILE_APPEND);
-        }
-        if (env('MAIL_PASSWORD')) {
-
-            if ($request->name['password'] != "") {
-                file_put_contents(base_path('.env'), str_replace(
-                    'MAIL_PASSWORD=' . env('MAIL_PASSWORD'),
-                    'MAIL_PASSWORD=' . $request->name['password'],
-                    file_get_contents(base_path('.env'))
-                ));
+            foreach ($envUpdates as $key => $value) {
+                // Remove spaces around value and wrap in quotes if there are spaces
+                $value = preg_replace('/\s+/', '', $value);
+                
+                $pattern = "/^{$key}=.*/m";
+                if (preg_match($pattern, $content)) {
+                    $content = preg_replace($pattern, "{$key}={$value}", $content);
+                } else {
+                    $content .= PHP_EOL . "{$key}={$value}";
+                }
             }
-        }
-
-        if (!env('MAIL_ENCRYPTION')) {
-
-            file_put_contents(base_path('.env'), "MAIL_ENCRYPTION=" . $request->name['encryption'] . PHP_EOL, FILE_APPEND);
-        }
-        if (env('MAIL_ENCRYPTION')) {
-
-            file_put_contents(base_path('.env'), str_replace(
-                'MAIL_ENCRYPTION=' . env('MAIL_ENCRYPTION'),
-                'MAIL_ENCRYPTION=' . $request->name['encryption'],
-                file_get_contents(base_path('.env'))
-            ));
-        }
-
-        if (!env('MAIL_PORT')) {
-
-            file_put_contents(base_path('.env'), "MAIL_PORT=" . $request->name['port'] . PHP_EOL, FILE_APPEND);
-        }
-        if (env('MAIL_PORT')) {
-
-            file_put_contents(base_path('.env'), str_replace(
-                'MAIL_PORT=' . env('MAIL_PORT'),
-                'MAIL_PORT=' . $request->name['port'],
-                file_get_contents(base_path('.env'))
-            ));
+            file_put_contents($envFile, $content);
         }
 
         Cache::flush();

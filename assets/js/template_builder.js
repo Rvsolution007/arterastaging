@@ -3416,19 +3416,7 @@
                         const svgPath = pathDataToSVG(layer.pathData, layer.x, layer.y);
                         if (svgPath) {
                             obj = new fabric.Path(svgPath, {
-                                left: layer.x,
-                                top: layer.y,
-                                fill: shapeColor,
-                                stroke: strokeColor,
-                                strokeWidth: strokeWidth,
-                                originX: 'left',
-                                originY: 'top',
-                                angle: rotation,
-                                opacity: opacity,
-                                shadow: shadow,
-                                visible: visible,
-                                customType: 'shape',
-                                customName: layer.name
+                                ...baseProps
                             });
                         }
                     }

@@ -247,6 +247,9 @@
                     <div class="tpl-card-img-wrap">
                         <img src="{{ $festival->image ? asset('uploads/'.$festival->image) : asset('assets/images/placeholder.png') }}" class="tpl-card-img" alt="{{ $festival->title }}" loading="lazy" style="object-fit: contain;">
                     </div>
+                    <div class="tpl-card-info">
+                        <h3 class="tpl-card-title">{{ $festival->title }}</h3>
+                    </div>
 
                 </a>
             </div>
@@ -272,6 +275,9 @@
                 <a href="{{ route('landing.category', $category->id) }}" style="text-decoration:none; color:inherit; display:block;">
                     <div class="tpl-card-img-wrap">
                         <img src="{{ $category->icon ? asset('uploads/'.$category->icon) : asset('assets/images/placeholder.png') }}" class="tpl-card-img" alt="{{ $category->name }}" loading="lazy" style="object-fit: contain;">
+                    </div>
+                    <div class="tpl-card-info">
+                        <h3 class="tpl-card-title">{{ $category->name }}</h3>
                     </div>
 
                 </a>

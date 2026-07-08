@@ -179,7 +179,6 @@
                         </div>
                         <div class="tpl-card-info">
                             <h4 class="tpl-card-title" style="margin-bottom: 4px;">{{ $item->title }}</h4>
-                            <p style="font-size: 12px; color: #888; text-transform: capitalize; margin: 0;">{{ $item->type }}</p>
                         </div>
                     </div>
                 @endforeach

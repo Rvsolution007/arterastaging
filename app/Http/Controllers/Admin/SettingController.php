@@ -234,18 +234,21 @@ class SettingController extends Controller
         if (file_exists($envFile)) {
             $content = file_get_contents($envFile);
             $envUpdates = [
-                'MAIL_HOST' => $request->name['smtp_host'],
-                'MAIL_USERNAME' => $request->name['username'],
-                'MAIL_FROM_ADDRESS' => $request->name['username'],
-                'MAIL_PASSWORD' => $request->name['password'],
-                'MAIL_ENCRYPTION' => $request->name['encryption'],
-                'MAIL_PORT' => $request->name['port'],
+                'MAIL_HOST' => $request->name['smtp_host'] ?? '',
+                'MAIL_USERNAME' => $request->name['username'] ?? '',
+                'MAIL_FROM_ADDRESS' => $request->name['username'] ?? '',
+                'MAIL_ENCRYPTION' => $request->name['encryption'] ?? '',
+                'MAIL_PORT' => $request->name['port'] ?? '',
                 'MAIL_MAILER' => 'smtp',
             ];
+            
+            if (!empty($request->name['password'])) {
+                $envUpdates['MAIL_PASSWORD'] = $request->name['password'];
+            }
 
             foreach ($envUpdates as $key => $value) {
                 // Remove spaces around value and wrap in quotes if there are spaces
-                $value = preg_replace('/\s+/', '', $value);
+                $value = preg_replace('/\s+/', '', (string)($value ?? ''));
                 
                 $pattern = "/^{$key}=.*/m";
                 if (preg_match($pattern, $content)) {

@@ -230,34 +230,40 @@ class SettingController extends Controller
             }
         }
 
-        $envFile = base_path('.env');
-        if (file_exists($envFile)) {
-            $content = file_get_contents($envFile);
-            $envUpdates = [
-                'MAIL_HOST' => $request->name['smtp_host'] ?? '',
-                'MAIL_USERNAME' => $request->name['username'] ?? '',
-                'MAIL_FROM_ADDRESS' => $request->name['username'] ?? '',
-                'MAIL_ENCRYPTION' => $request->name['encryption'] ?? '',
-                'MAIL_PORT' => $request->name['port'] ?? '',
-                'MAIL_MAILER' => 'smtp',
-            ];
-            
-            if (!empty($request->name['password'])) {
-                $envUpdates['MAIL_PASSWORD'] = $request->name['password'];
-            }
-
-            foreach ($envUpdates as $key => $value) {
-                // Remove spaces around value and wrap in quotes if there are spaces
-                $value = preg_replace('/\s+/', '', (string)($value ?? ''));
+        // Try to update .env file, but don't crash if it fails
+        try {
+            $envFile = base_path('.env');
+            if (file_exists($envFile) && is_writable($envFile)) {
+                $content = file_get_contents($envFile);
+                $envUpdates = [
+                    'MAIL_HOST' => $request->name['smtp_host'] ?? '',
+                    'MAIL_USERNAME' => $request->name['username'] ?? '',
+                    'MAIL_FROM_ADDRESS' => $request->name['username'] ?? '',
+                    'MAIL_ENCRYPTION' => $request->name['encryption'] ?? 'tls',
+                    'MAIL_PORT' => $request->name['port'] ?? '587',
+                    'MAIL_MAILER' => 'smtp',
+                ];
                 
-                $pattern = "/^{$key}=.*/m";
-                if (preg_match($pattern, $content)) {
-                    $content = preg_replace($pattern, "{$key}={$value}", $content);
-                } else {
-                    $content .= PHP_EOL . "{$key}={$value}";
+                if (!empty($request->name['password'])) {
+                    $envUpdates['MAIL_PASSWORD'] = $request->name['password'];
                 }
+
+                foreach ($envUpdates as $key => $value) {
+                    $value = trim((string)($value ?? ''));
+                    // Quote the value if it contains special chars
+                    $quotedValue = '"' . str_replace('"', '\\"', $value) . '"';
+                    
+                    $pattern = "/^{$key}=.*/m";
+                    if (preg_match($pattern, $content)) {
+                        $content = preg_replace($pattern, "{$key}={$quotedValue}", $content);
+                    } else {
+                        $content .= PHP_EOL . "{$key}={$quotedValue}";
+                    }
+                }
+                file_put_contents($envFile, $content);
             }
-            file_put_contents($envFile, $content);
+        } catch (\Exception $e) {
+            \Log::warning('Could not update .env for email settings: ' . $e->getMessage());
         }
 
         Cache::flush();

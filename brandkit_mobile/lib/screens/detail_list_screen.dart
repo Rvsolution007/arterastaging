@@ -753,32 +753,7 @@ class _DetailListScreenState extends State<DetailListScreen> {
                         ),
                       ),
 
-                      // AI Filter (Only for Images)
-                      if (activeTab == 'images' && widget.type != 'greeting')
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            border: Border(bottom: BorderSide(color: const Color(0xFFF8FAFC))),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          child: Row(
-                            children: [
-                              _buildFilterChip('Normal', imageFilter == 'Normal', () {
-                                setState(() {
-                                  imageFilter = 'Normal';
-                                  selectedIndex = 0;
-                                });
-                              }),
-                              // const SizedBox(width: 8),
-                              // _buildFilterChip('AI', imageFilter == 'AI', () {
-                              //   setState(() {
-                              //     imageFilter = 'AI';
-                              //     selectedIndex = 0;
-                              //   });
-                              // }),
-                            ],
-                          ),
-                        ),
+                      // AI Filter (Only for Images) - Removed as per request
 
                       // Frames Grid (with Native Ad injected)
                       Expanded(

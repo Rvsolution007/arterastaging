@@ -73,7 +73,7 @@ class _SearchScreenState extends State<SearchScreen> {
         final data = jsonDecode(response.body);
         if (mounted) {
           setState(() {
-            _searchResults = data['data'] ?? [];
+            _searchResults = (data is List) ? data : (data['data'] ?? []);
             _isLoading = false;
           });
         }

@@ -57,7 +57,6 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
   final GlobalKey _canvasKey = GlobalKey();
 
   // --- Layer interaction state for deselect-on-background-tap ---
-  Offset? _lastPointerDown;
   String _selectedBeforeTap = '';
 
   Future<void> _exportAndSave() async {
@@ -319,30 +318,10 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
             ),
           ),
           Expanded(
-            child: Listener(
-              behavior: HitTestBehavior.translucent,
-              onPointerDown: (event) {
-                debugPrint('[CANVAS_LISTENER] onPointerDown at ${event.localPosition}');
-                _lastPointerDown = event.localPosition;
-                controller.layerWasTapped = false;
-              },
-              onPointerUp: (event) {
-                debugPrint('[CANVAS_LISTENER] onPointerUp at ${event.localPosition}');
-                final downPos = _lastPointerDown;
-                if (downPos != null) {
-                  final distance = (event.localPosition - downPos).distance;
-                  if (distance < 10) {
-                    // It was a tap (not a drag). Use post-frame callback so child 
-                    // GestureDetector.onTap fires first and updates the flag.
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (!controller.layerWasTapped) {
-                        debugPrint('[CANVAS_LISTENER] No layer tapped → deselecting');
-                        controller.selectedLayerId.value = '';
-                      }
-                      controller.layerWasTapped = false;
-                    });
-                  }
-                }
+            child: GestureDetector(
+              onTap: () {
+                debugPrint('[CANVAS_TAP] Background tapped → deselecting');
+                controller.selectedLayerId.value = '';
               },
               child: Container(
                 color: const Color(0xFFE2E8F0),

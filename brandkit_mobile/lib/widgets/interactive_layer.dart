@@ -109,7 +109,15 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
 
       Widget gestureChild = Stack(
         clipBehavior: Clip.none,
+        alignment: Alignment.center,
         children: [
+          // Expand hit area for very thin or narrow layers (like lines)
+          if ((posW != null && posW < 40) || (posH != null && posH < 40))
+            Container(
+              width: posW != null ? math.max(posW, 40.0) : 40.0,
+              height: posH != null ? math.max(posH, 40.0) : 40.0,
+              color: Colors.transparent,
+            ),
           SizedBox(
             width: posW,
             height: posH,
@@ -148,12 +156,10 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
           behavior: HitTestBehavior.opaque,
           onTap: () {
             debugPrint('[LAYER_TAP] ✅ onTap FIRED for "${widget.layerName}"');
-            controller.layerWasTapped = true;
             controller.selectLayer(widget.layerName);
           },
           onPanStart: (details) {
             debugPrint('[LAYER_PAN] ✅ onPanStart for "${widget.layerName}"');
-            controller.layerWasTapped = true;
             if (controller.selectedLayerId.value != widget.layerName) {
               controller.selectLayer(widget.layerName);
             }
@@ -267,7 +273,6 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
         behavior: HitTestBehavior.opaque,
         onPanStart: (details) {
           final controller = Get.find<NativeEditorController>();
-          controller.layerWasTapped = true;
           if (controller.selectedLayerId.value != widget.layerName) {
             controller.selectLayer(widget.layerName);
           }

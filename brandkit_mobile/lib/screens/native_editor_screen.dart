@@ -2209,7 +2209,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
           if (isCustom) _buildToolBtn(Icons.image, 'logo'.trFormat, _pickAndAddImage),
           _buildToolBtn(Icons.text_fields, 'text'.trFormat, _showAddTextModal),
           if (isCustom) _buildToolBtn(Icons.shopping_bag_outlined, 'Products', _showProductsModal),
-          if (isCustom) _buildToolBtn(Icons.auto_awesome, 'ai_text'.trFormat, () => _showAiTextModal(context)),
+          // if (isCustom) _buildToolBtn(Icons.auto_awesome, 'ai_text'.trFormat, () => _showAiTextModal(context)),
           _buildToolBtn(Icons.emoji_emotions_outlined, 'sticker'.trFormat, _showStickerModal),
           if (isCustom) _buildToolBtn(Icons.layers, 'layers'.trFormat, () => _showLayersModal(context)),
         ],

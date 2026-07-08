@@ -769,13 +769,13 @@ class _DetailListScreenState extends State<DetailListScreen> {
                                   selectedIndex = 0;
                                 });
                               }),
-                              const SizedBox(width: 8),
-                              _buildFilterChip('AI', imageFilter == 'AI', () {
-                                setState(() {
-                                  imageFilter = 'AI';
-                                  selectedIndex = 0;
-                                });
-                              }),
+                              // const SizedBox(width: 8),
+                              // _buildFilterChip('AI', imageFilter == 'AI', () {
+                              //   setState(() {
+                              //     imageFilter = 'AI';
+                              //     selectedIndex = 0;
+                              //   });
+                              // }),
                             ],
                           ),
                         ),

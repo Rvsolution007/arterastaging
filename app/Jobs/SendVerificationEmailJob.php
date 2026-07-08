@@ -33,7 +33,11 @@ class SendVerificationEmailJob implements ShouldQueue
 
     public function handle(): void
     {
-        Mail::to($this->email)->send(new EmailVerify($this->email, $this->token, $this->name, $this->code));
+        try {
+            Mail::to($this->email)->send(new EmailVerify($this->email, $this->token, $this->name, $this->code));
+        } catch (\Throwable $exception) {
+            Log::error("SendVerificationEmailJob (handle) failed for {$this->email}: " . $exception->getMessage());
+        }
     }
 
     public function failed(\Throwable $exception): void

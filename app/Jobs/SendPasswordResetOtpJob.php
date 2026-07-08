@@ -26,7 +26,11 @@ class SendPasswordResetOtpJob implements ShouldQueue
 
     public function handle(): void
     {
-        Mail::to($this->email)->send(new PasswordResetOtp($this->email, $this->name, $this->otp));
+        try {
+            Mail::to($this->email)->send(new PasswordResetOtp($this->email, $this->name, $this->otp));
+        } catch (\Throwable $exception) {
+            Log::error("SendPasswordResetOtpJob (handle) failed for {$this->email}: " . $exception->getMessage());
+        }
     }
 
     public function failed(\Throwable $exception): void

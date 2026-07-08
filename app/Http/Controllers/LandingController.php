@@ -198,8 +198,8 @@ class LandingController extends Controller
 
     public function templates()
     {
-        $festivals = \App\Models\FestivalsPost::with('festivals')->where('status', '1')->where('show_on_landing', 1)->latest()->take(12)->get();
-        $categories = \App\Models\CategoryPost::with('category')->where('status', '1')->where('show_on_landing', 1)->latest()->take(12)->get();
+        $festivals = \App\Models\Festivals::where('status', '1')->latest()->take(12)->get();
+        $categories = \App\Models\Category::where('status', '1')->latest()->take(12)->get();
         $customPosts = \App\Models\CustomPostFrame::with('custom_post')->where('status', '1')->where('show_on_landing', 1)->latest()->take(12)->get();
         
         $totalFestivals = \App\Models\FestivalsPost::where('status', '1')->count();
@@ -211,7 +211,7 @@ class LandingController extends Controller
     public function category($slug)
     {
         $category = \App\Models\Category::where('id', $slug)->orWhere('name', 'like', '%' . str_replace('-', ' ', $slug) . '%')->firstOrFail();
-        $posts = \App\Models\CategoryPost::where('category_id', $category->id)->latest()->paginate(12);
+        $posts = \App\Models\CategoryPost::where('category_id', $category->id)->where('status', '1')->where('show_on_landing', 1)->latest()->paginate(12);
         return view('landing.category', compact('category', 'posts'));
     }
 

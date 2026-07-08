@@ -255,6 +255,7 @@ class ProgrammaticSeoController extends Controller
 
         $templates = FestivalsPost::where('festivals_id', $festival->id)
             ->where('status', '1')
+            ->where('show_on_landing', 1)
             ->latest()
             ->take(48)
             ->get();

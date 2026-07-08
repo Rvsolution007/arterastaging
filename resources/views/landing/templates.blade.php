@@ -241,19 +241,16 @@
             <a href="{{ url('/festival-poster') }}" style="display: inline-block; margin-top: 15px; font-weight: 600; color: var(--blue); text-decoration: none;">Explore All Festivals &rarr;</a>
         </div>
         <div class="tpl-grid">
-            @foreach($festivals as $post)
+            @foreach($festivals as $festival)
             <div class="tpl-card reveal-scale">
-                <div class="tpl-card-img-wrap">
-                    <img src="{{ $post->seo_image ?? ($post->frame_image ? asset('uploads/'.$post->frame_image) : asset('assets/images/placeholder.png')) }}" class="tpl-card-img" alt="{{ $post->festivals->title ?? 'Festival' }}" loading="lazy">
-                    <div class="tpl-card-overlay">
-                        <a href="{{ config('seo.app_links.android') }}" target="_blank" class="tpl-overlay-btn">
-                            <i class="fab fa-google-play"></i> Download App for Customization
-                        </a>
+                <a href="{{ route('seo.festival', ['festivalSlug' => Str::slug($festival->title)]) }}" style="text-decoration:none; color:inherit; display:block;">
+                    <div class="tpl-card-img-wrap">
+                        <img src="{{ $festival->image ? asset('uploads/'.$festival->image) : asset('assets/images/placeholder.png') }}" class="tpl-card-img" alt="{{ $festival->title }}" loading="lazy" style="object-fit: contain;">
                     </div>
-                </div>
-                <div class="tpl-card-info">
-                    <h4 class="tpl-card-title">{{ $post->festivals->title ?? 'Festival Post' }}</h4>
-                </div>
+                    <div class="tpl-card-info">
+                        <h4 class="tpl-card-title">{{ $festival->title }}</h4>
+                    </div>
+                </a>
             </div>
             @endforeach
         </div>
@@ -274,17 +271,14 @@
         <div class="tpl-grid">
             @foreach($categories as $category)
             <div class="tpl-card reveal-scale">
-                <div class="tpl-card-img-wrap">
-                    <img src="{{ $category->seo_image ?? ($category->frame_image ? asset('uploads/'.$category->frame_image) : asset('assets/images/placeholder.png')) }}" class="tpl-card-img" alt="{{ $category->category->name ?? 'Category' }}" loading="lazy">
-                    <div class="tpl-card-overlay">
-                        <a href="{{ config('seo.app_links.android') }}" target="_blank" class="tpl-overlay-btn">
-                            <i class="fab fa-google-play"></i> Download App for Customization
-                        </a>
+                <a href="{{ route('landing.category', $category->id) }}" style="text-decoration:none; color:inherit; display:block;">
+                    <div class="tpl-card-img-wrap">
+                        <img src="{{ $category->icon ? asset('uploads/'.$category->icon) : asset('assets/images/placeholder.png') }}" class="tpl-card-img" alt="{{ $category->name }}" loading="lazy" style="object-fit: contain;">
                     </div>
-                </div>
-                <div class="tpl-card-info">
-                    <h4 class="tpl-card-title">{{ $category->category->name ?? 'Category Post' }}</h4>
-                </div>
+                    <div class="tpl-card-info">
+                        <h4 class="tpl-card-title">{{ $category->name }}</h4>
+                    </div>
+                </a>
             </div>
             @endforeach
         </div>

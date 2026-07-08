@@ -984,7 +984,7 @@ class AuthApi extends Controller
             $user->save();
             
             // Delete the used reset token
-            $reset->delete();
+            PasswordReset::where('email', $request->email)->delete();
 
             return response()->json([
                 'status' => "Success",

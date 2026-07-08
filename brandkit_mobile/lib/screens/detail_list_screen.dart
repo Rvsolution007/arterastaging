@@ -348,14 +348,14 @@ class _DetailListScreenState extends State<DetailListScreen> {
                     top: 6,
                     right: 6,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: item['isPaid'] == true ? Colors.black45 : Colors.green.withOpacity(0.8),
-                        borderRadius: BorderRadius.circular(6),
+                        color: Colors.black.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         item['isPaid'] == true ? 'PREMIUM' : 'FREE',
-                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.5),
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
                     ),
                   ),
@@ -412,14 +412,14 @@ class _DetailListScreenState extends State<DetailListScreen> {
                     top: 4,
                     right: 4,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: item['isPaid'] == true ? Colors.black45 : Colors.green.withOpacity(0.8),
-                        borderRadius: BorderRadius.circular(6),
+                        color: Colors.black.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         item['isPaid'] == true ? 'PREMIUM' : 'FREE',
-                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.5),
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
                     ),
                   ),

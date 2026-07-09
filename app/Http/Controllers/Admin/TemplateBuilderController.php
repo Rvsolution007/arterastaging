@@ -295,6 +295,9 @@ class TemplateBuilderController extends Controller
         } else {
             return response()->json(['success' => false, 'message' => 'ZIP file or template directory not found']);
         }
+        if (!$jsonConfig && is_dir($extractedPath . '/skins')) {
+            $jsonConfig = ['schema_version' => 1, 'layers' => []];
+        }
 
         if ($jsonConfig) {
                 // Return frame settings alongside zip content

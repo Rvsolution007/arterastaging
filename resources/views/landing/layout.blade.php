@@ -19,6 +19,8 @@
         <meta name="twitter:card" content="summary_large_image">
     @endif
 
+    <link rel="icon" href="{{ asset('assets/images/favicon.png') }}">
+
     <!-- Preconnect to FontAwesome CDN (loads early via preload) -->
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <!-- Font Awesome — deferred with font-display fix -->

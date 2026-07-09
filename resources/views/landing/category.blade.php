@@ -22,8 +22,15 @@
     .btn-customize { background: linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%); color: white; padding: 12px 24px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 14px; letter-spacing: 0.5px; box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3); transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 8px; transform: translateY(10px); }
     .template-card:hover .btn-customize { transform: translateY(0); }
     .btn-customize:hover { background: linear-gradient(135deg, #1e40af 0%, var(--primary) 100%); color: white; box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4); transform: translateY(-2px) !important; }
+    .btn-customize:hover { background: linear-gradient(135deg, #1e40af 0%, var(--primary) 100%); color: white; box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4); transform: translateY(-2px) !important; }
 
-
+    /* ---- Pagination UI ---- */
+    .pagination { display: flex; justify-content: center; list-style: none; padding: 0; margin-top: 40px; gap: 8px; }
+    .pagination li { display: inline-block; }
+    .pagination li a, .pagination li span { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 8px; font-weight: 600; font-size: 14px; text-decoration: none; color: #475569; background: #fff; border: 1px solid #e2e8f0; transition: all 0.3s ease; }
+    .pagination li a:hover { background: #f1f5f9; color: var(--primary); border-color: #cbd5e1; }
+    .pagination li.active span { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: 0 4px 10px rgba(37,99,235,0.2); }
+    .pagination li.disabled span { opacity: 0.5; cursor: not-allowed; }
     .empty-state { text-align: center; padding: 80px 0; color: #64748b; background: white; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); margin-top: 20px; }
 
     @media (max-width: 768px) {

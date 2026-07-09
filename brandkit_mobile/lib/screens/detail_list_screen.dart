@@ -408,19 +408,21 @@ class _DetailListScreenState extends State<DetailListScreen> {
                         )
                       : const Center(child: Icon(Icons.image, color: Colors.grey, size: 30)),
                   // Paid badge
-                  if (item['isPaid'] == true)
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.amber,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text('PRO', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Colors.white)),
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: item['isPaid'] == true ? Colors.black45 : Colors.green.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        item['isPaid'] == true ? 'PREMIUM' : 'FREE',
+                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.5),
                       ),
                     ),
+                  ),
                   // Selected checkmark
                   if (isSelected)
                     Positioned(

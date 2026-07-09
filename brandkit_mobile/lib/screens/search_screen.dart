@@ -249,6 +249,22 @@ class _SearchScreenState extends State<SearchScreen> {
                   )
                 else
                   Positioned.fill(child: _buildPlaceholder()),
+
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: post['is_paid'] == true || post['is_paid'] == '1' || post['is_paid'] == 1 ? Colors.black45 : Colors.green.withOpacity(0.8),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      post['is_paid'] == true || post['is_paid'] == '1' || post['is_paid'] == 1 ? 'PREMIUM' : 'FREE',
+                      style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.5),
+                    ),
+                  ),
+                ),
                 
                 Positioned(
                   bottom: 8,

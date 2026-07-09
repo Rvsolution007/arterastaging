@@ -200,11 +200,12 @@ class LandingController extends Controller
     {
         $festivals = \App\Models\Festivals::where('status', '1')->latest()->take(12)->get();
         $categories = \App\Models\Category::where('status', '1')->latest()->take(12)->get();
+        $customPosts = \App\Models\CustomPostFrame::with('custom_post')->where('status', '1')->where('show_on_landing', 1)->latest()->take(12)->get();
         
         $totalFestivals = \App\Models\FestivalsPost::where('status', '1')->count();
         $totalCategories = \App\Models\CategoryPost::where('status', '1')->count();
 
-        return view('landing.templates', compact('festivals', 'categories', 'totalFestivals', 'totalCategories'));
+        return view('landing.templates', compact('festivals', 'categories', 'customPosts', 'totalFestivals', 'totalCategories'));
     }
 
     public function category($slug)

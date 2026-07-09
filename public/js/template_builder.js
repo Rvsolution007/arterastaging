@@ -115,6 +115,9 @@
     }
 
     // Initialize Canvas
+    if (fabric.Canvas2dFilterBackend) {
+        fabric.filterBackend = new fabric.Canvas2dFilterBackend();
+    }
     const canvas = new fabric.Canvas('template-canvas', {
         width: 1080,
         height: 1080,
@@ -691,9 +694,16 @@
             if (imageProps) imageProps.style.display = 'none';
             if (shapeProps) shapeProps.style.display = 'block';
             
+            // Hide vector-only controls if shape is rasterized (image)
+            const isRaster = obj.type === 'image';
+            const vecGrad = document.getElementById('shape-vector-gradient-wrapper');
+            const vecCtrls = document.getElementById('shape-vector-controls-wrapper');
+            if (vecGrad) vecGrad.style.display = isRaster ? 'none' : 'block';
+            if (vecCtrls) vecCtrls.style.display = isRaster ? 'none' : 'flex';
+            
             const isGradient = obj.fill && obj.fill.type === 'linear';
             if (inputShapeGradient) inputShapeGradient.checked = isGradient;
-            if (shapeGradientProps) shapeGradientProps.style.display = isGradient ? 'block' : 'none';
+            if (shapeGradientProps) shapeGradientProps.style.display = (isGradient && !isRaster) ? 'block' : 'none';
 
             if (isGradient) {
                 const stops = obj.fill.colorStops || [];
@@ -719,12 +729,24 @@
             } else {
                 const rawFill = obj.fill || '#6366f1';
                 const hexFill = (typeof rawFill === 'string' && rawFill.startsWith('#') && rawFill.length >= 7) ? rawFill.substring(0,7) : '#6366f1';
-                if (inputFillColor) inputFillColor.value = hexFill;
+                if (inputFillColor) {
+                    if (inputFillColor.jscolor) {
+                        inputFillColor.jscolor.fromString(hexFill);
+                    } else {
+                        inputFillColor.value = hexFill;
+                    }
+                }
             }
 
             const rawStroke = obj.stroke || '#000000';
             const hexStroke = (typeof rawStroke === 'string' && rawStroke.startsWith('#') && rawStroke.length >= 7) ? rawStroke.substring(0,7) : '#000000';
-            if (inputStrokeColor) inputStrokeColor.value = hexStroke;
+            if (inputStrokeColor) {
+                if (inputStrokeColor.jscolor) {
+                    inputStrokeColor.jscolor.fromString(hexStroke);
+                } else {
+                    inputStrokeColor.value = hexStroke;
+                }
+            }
             if (inputStrokeWidth) inputStrokeWidth.value = obj.strokeWidth || 0;
             if (inputBorderRadius) inputBorderRadius.value = obj.rx || 0;
             const tl = obj.rx_tl !== undefined ? obj.rx_tl : (obj.rx || 0);
@@ -751,6 +773,8 @@
         });
 
         // If it's already a textbox, we MUST still normalize scaleX to 1!
+        // In Fabric.js, if scaleX != 1, textAlign ('right'/'center') calculates alignment across unscaled width (which tightly wraps text)
+        // rather than visual width, leaving text stuck on the left!
         if (obj.type === 'textbox') {
             if (obj.scaleX && obj.scaleX !== 1) {
                 const actualW = Math.round(obj.width * obj.scaleX);
@@ -1218,6 +1242,7 @@
         if (objs.length) {
             objs.forEach(obj => {
                 if (obj.customType === 'shape' || obj.is_shape || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type)) { 
+                    if (obj.fill === this.value) return; // Prevent infinite loop
                     obj.set('fill', this.value); 
                     if (obj.type === 'image' && typeof fabric.Image.filters.BlendColor !== 'undefined') {
                         obj.filters = [new fabric.Image.filters.BlendColor({
@@ -1232,16 +1257,21 @@
             canvas.renderAll(); 
         }
     });
-    if (inputFillColor) inputFillColor.addEventListener('change', saveHistory);
+
     if (inputStrokeColor) inputStrokeColor.addEventListener('input', function() {
         const objs = canvas.getActiveObjects();
         if (objs.length) {
             objs.forEach(obj => {
-                if (obj.customType === 'shape' || obj.is_shape || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type)) { obj.set('stroke', this.value); }
+                if (obj.customType === 'shape' || obj.is_shape || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type)) {
+                    if (obj.stroke === this.value) return; // Prevent infinite loop
+                    obj.set('stroke', this.value); 
+                }
             });
-            canvas.renderAll(); 
+            canvas.renderAll();
         }
     });
+    if (inputFillColor) inputFillColor.addEventListener('change', saveHistory);
+
     if (inputStrokeWidth) inputStrokeWidth.addEventListener('change', function() {
         const obj = canvas.getActiveObject();
         if (obj && obj.customType === 'shape') { obj.set('strokeWidth', parseInt(this.value) || 0); canvas.renderAll(); saveHistory(); }
@@ -2261,6 +2291,14 @@
                 if (data.success && data.config) {
                     console.log('[DEBUG] Server returned template config');
                     window.editing_frame_id = data.frame_id || null;
+                    if (window.editing_frame_id) {
+                        try {
+                            const newUrl = new URL(window.location.href);
+                            newUrl.searchParams.set('mode', 'template');
+                            newUrl.searchParams.set('frame_id', window.editing_frame_id);
+                            window.history.replaceState({ path: newUrl.href }, '', newUrl.href);
+                        } catch(e) {}
+                    }
                     
                     const titleInput = document.getElementById('template-title');
                     if (titleInput && data.title) {
@@ -2429,7 +2467,7 @@
             .catch(err => {
                 if (canvasWrapper) canvasWrapper.style.opacity = '1';
                 console.error('[DEBUG] Fetch error:', err);
-                alert('Error fetching ZIP data');
+                alert('Error fetching ZIP data: ' + (err.message || err));
             });
     };
 
@@ -2452,6 +2490,14 @@
                 if (data.success && data.config) {
                     console.log('[DEBUG] Server returned frame config');
                     window.editing_frame_id = data.frame_id || null;
+                    if (window.editing_frame_id) {
+                        try {
+                            const newUrl = new URL(window.location.href);
+                            newUrl.searchParams.set('mode', 'frame');
+                            newUrl.searchParams.set('frame_id', window.editing_frame_id);
+                            window.history.replaceState({ path: newUrl.href }, '', newUrl.href);
+                        } catch(e) {}
+                    }
                     
                     const titleInput = document.getElementById('template-title');
                     if (titleInput && data.title) {
@@ -2560,7 +2606,7 @@
             .catch(err => {
                 if (canvasWrapper) canvasWrapper.style.opacity = '1';
                 console.error('[DEBUG] Fetch error:', err);
-                alert('Error fetching ZIP data');
+                alert('Error fetching ZIP data: ' + (err.message || err));
             });
     };
 
@@ -3088,6 +3134,16 @@
                                 z_index: layer.z_index || idx
                             });
                             img.set({ scaleX: layer.w / img.width, scaleY: layer.h / img.height });
+                            // Restore is_shape flag so color picker works
+                            if (layer.is_shape) {
+                                img.is_shape = true;
+                            }
+                            // Restore tint_color (saved fill color) for image-converted shapes
+                            if (layer.tint_color && typeof fabric.Image.filters.BlendColor !== 'undefined') {
+                                img.set('fill', layer.tint_color);
+                                img.filters = [new fabric.Image.filters.BlendColor({ color: layer.tint_color, mode: 'tint', alpha: 1 })];
+                                img.applyFilters();
+                            }
                             canvas.add(img);
                             if (typeof sortCanvasLayers === 'function') {
                                 try { sortCanvasLayers(); } catch(e) { console.error('[SORT ERROR]', e); }
@@ -3194,9 +3250,8 @@
                 // Y-OFFSET FIX: Photoshop boundsNoEffects.y = top of VISUAL (tight) bounds (cap height).
                 // Fabric.js top = top of em-box, which includes internal leading ABOVE cap height.
                 // This internal leading ≈ fontSize * 0.12 in most fonts.
-                // Without adjustment, Fabric renders text ~12% of fontSize lower than Photoshop.
-                // For Paragraph Text with exact frame, NO y-offset needed (position IS top of frame).
-                const fabricYOffset = isPointText ? Math.round(fontSize * 0.12) : 0;
+                // Apply this offset to ALL text to perfectly sync Web Editor, Native App, and Photoshop.
+                const fabricYOffset = Math.round(fontSize * 0.12);
                 const commonTextProps = {
                     left:        layer.x,
                     top:         layer.y - fabricYOffset,
@@ -3565,7 +3620,7 @@
                         fontSize = Math.round(obj.fontSize * Math.abs(obj.scaleY));
                     }
                     let isPointText = (obj.type !== 'textbox');
-                    let yOffset = obj._originalYOffset !== undefined ? obj._originalYOffset : (isPointText ? Math.round(fontSize * 0.12) : 0);
+                    let yOffset = obj._originalYOffset !== undefined ? obj._originalYOffset : Math.round(fontSize * 0.12);
                     y = Math.round(obj.top + yOffset);
                 }
 
@@ -3715,6 +3770,15 @@
         }).then(data => {
             btnSave.disabled = false;
             btnSave.innerHTML = `<i class="fa fa-save"></i> Publish ${mode === 'frame' ? 'Frame' : 'Template'}`;
+            if (data.success && (data.frame_id || data.template_id)) {
+                window.editing_frame_id = data.frame_id || data.template_id;
+                try {
+                    const newUrl = new URL(window.location.href);
+                    newUrl.searchParams.set('mode', mode);
+                    newUrl.searchParams.set('frame_id', window.editing_frame_id);
+                    window.history.replaceState({ path: newUrl.href }, '', newUrl.href);
+                } catch(e) {}
+            }
             alert(data.success ? `✅ ${mode === 'frame' ? 'Frame' : 'Template'} Published!` : '❌ ' + (data.message||'Publishing failed'));
         }).catch(err => {
             btnSave.disabled = false;

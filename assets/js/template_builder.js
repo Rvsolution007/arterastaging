@@ -115,6 +115,9 @@
     }
 
     // Initialize Canvas
+    if (fabric.Canvas2dFilterBackend) {
+        fabric.filterBackend = new fabric.Canvas2dFilterBackend();
+    }
     const canvas = new fabric.Canvas('template-canvas', {
         width: 1080,
         height: 1080,
@@ -691,9 +694,16 @@
             if (imageProps) imageProps.style.display = 'none';
             if (shapeProps) shapeProps.style.display = 'block';
             
+            // Hide vector-only controls if shape is rasterized (image)
+            const isRaster = obj.type === 'image';
+            const vecGrad = document.getElementById('shape-vector-gradient-wrapper');
+            const vecCtrls = document.getElementById('shape-vector-controls-wrapper');
+            if (vecGrad) vecGrad.style.display = isRaster ? 'none' : 'block';
+            if (vecCtrls) vecCtrls.style.display = isRaster ? 'none' : 'flex';
+            
             const isGradient = obj.fill && obj.fill.type === 'linear';
             if (inputShapeGradient) inputShapeGradient.checked = isGradient;
-            if (shapeGradientProps) shapeGradientProps.style.display = isGradient ? 'block' : 'none';
+            if (shapeGradientProps) shapeGradientProps.style.display = (isGradient && !isRaster) ? 'block' : 'none';
 
             if (isGradient) {
                 const stops = obj.fill.colorStops || [];
@@ -2457,7 +2467,7 @@
             .catch(err => {
                 if (canvasWrapper) canvasWrapper.style.opacity = '1';
                 console.error('[DEBUG] Fetch error:', err);
-                alert('Error fetching ZIP data');
+                alert('Error fetching ZIP data: ' + (err.message || err));
             });
     };
 
@@ -2596,7 +2606,7 @@
             .catch(err => {
                 if (canvasWrapper) canvasWrapper.style.opacity = '1';
                 console.error('[DEBUG] Fetch error:', err);
-                alert('Error fetching ZIP data');
+                alert('Error fetching ZIP data: ' + (err.message || err));
             });
     };
 
@@ -3124,7 +3134,7 @@
                                 z_index: layer.z_index || idx
                             });
                             img.set({ scaleX: layer.w / img.width, scaleY: layer.h / img.height });
-                            // Restore is_shape flag for image-converted shapes
+                            // Restore is_shape flag so color picker works
                             if (layer.is_shape) {
                                 img.is_shape = true;
                             }

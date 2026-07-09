@@ -375,7 +375,7 @@
                                 <input type="text" class="aim-input w-100" id="prop-stroke-color" data-jscolor="{}" placeholder="#000000" style="height: 38px; padding-left: 10px;">
                             </div>
                         </div>
-                        <div class="mb-3 custom-control custom-switch">
+                        <div class="mb-3 custom-control custom-switch" id="shape-vector-gradient-wrapper">
                             <input type="checkbox" class="custom-control-input" id="prop-shape-gradient">
                             <label class="custom-control-label small" for="prop-shape-gradient">Use Gradient Fill</label>
                         </div>
@@ -416,7 +416,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="row">
+                        <div class="row" id="shape-vector-controls-wrapper">
                             <div class="col-6 mb-3">
                                 <label class="aim-label">Stroke Width</label>
                                 <input type="number" class="aim-input" id="prop-stroke-width" value="0" min="0">

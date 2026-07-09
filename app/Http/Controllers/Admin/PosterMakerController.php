@@ -534,28 +534,6 @@ class PosterMakerController extends Controller
                     $localPath = public_path('uploads/custom_frames_zips/' . $templateZipName);
                     if (file_exists($localPath)) {
                         $zip->addFile($localPath, 'templates/' . $templateZipName);
-                    } else {
-                        // Fallback for legacy frames: if zip doesn't exist, check template folder
-                        $templateDirPath = public_path('uploads/template/' . $frame->zip_name);
-                        if (is_dir($templateDirPath)) {
-                            // Create a temporary zip for the folder to include in export
-                            $tempZipPath = public_path('uploads/temp_export_' . $templateZipName);
-                            $tempZip = new \ZipArchive();
-                            if ($tempZip->open($tempZipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === TRUE) {
-                                $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($templateDirPath), \RecursiveIteratorIterator::LEAVES_ONLY);
-                                foreach ($files as $name => $file) {
-                                    if (!$file->isDir()) {
-                                        $filePath = $file->getRealPath();
-                                        $relativePath = substr($filePath, strlen($templateDirPath) + 1);
-                                        $tempZip->addFile($filePath, $relativePath);
-                                    }
-                                }
-                                $tempZip->close();
-                                $zip->addFile($tempZipPath, 'templates/' . $templateZipName);
-                                // Note: we can't delete tempZipPath immediately because $zip->addFile needs it until $zip->close().
-                                // We will clean it up later if needed, or leave it to standard tmp cleanup.
-                            }
-                        }
                     }
                 }
             }

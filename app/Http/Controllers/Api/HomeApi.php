@@ -3398,7 +3398,7 @@ class HomeApi extends Controller
 
     public function getBusinessCategory()
     {
-        $category = \App\Models\BusinessCategory::where('status',1)->get();
+        $category = \App\Models\CustomFramePurpose::where('status',1)->get();
         if(!$category->isEmpty())
         {
             foreach ($category as $cat) {

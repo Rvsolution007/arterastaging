@@ -248,9 +248,8 @@
                         <img src="{{ $festival->image ? asset('uploads/'.$festival->image) : asset('assets/images/placeholder.png') }}" class="tpl-card-img" alt="{{ $festival->title }}" loading="lazy" style="object-fit: contain;">
                     </div>
                     <div class="tpl-card-info">
-                        <h3 class="tpl-card-title">{{ $festival->title }}</h3>
+                        <h4 class="tpl-card-title">{{ $festival->title }}</h4>
                     </div>
-
                 </a>
             </div>
             @endforeach
@@ -277,9 +276,8 @@
                         <img src="{{ $category->icon ? asset('uploads/'.$category->icon) : asset('assets/images/placeholder.png') }}" class="tpl-card-img" alt="{{ $category->name }}" loading="lazy" style="object-fit: contain;">
                     </div>
                     <div class="tpl-card-info">
-                        <h3 class="tpl-card-title">{{ $category->name }}</h3>
+                        <h4 class="tpl-card-title">{{ $category->name }}</h4>
                     </div>
-
                 </a>
             </div>
             @endforeach
@@ -288,6 +286,34 @@
 </section>
 @endif
 
-
+{{-- ========== CUSTOM TEMPLATES ========== --}}
+@if(isset($customPosts) && count($customPosts) > 0)
+<section class="tpl-section">
+    <div class="container-full">
+        <div class="tpl-section-header reveal">
+            <span class="eyebrow-plain reveal-left">COLLECTION 03</span>
+            <h2 class="tpl-section-title draw-underline">Custom Templates</h2>
+            <div class="tpl-divider"></div>
+        </div>
+        <div class="tpl-grid">
+            @foreach($customPosts as $post)
+            <div class="tpl-card reveal-scale">
+                <div class="tpl-card-img-wrap">
+                    <img src="{{ $post->seo_image ?? ($post->frame_image ? asset('uploads/'.$post->frame_image) : asset('assets/images/placeholder.png')) }}" class="tpl-card-img" alt="{{ $post->custom_post->name ?? 'Custom' }}" loading="lazy">
+                    <div class="tpl-card-overlay">
+                        <a href="{{ config('seo.app_links.android') }}" target="_blank" class="tpl-overlay-btn">
+                            <i class="fab fa-google-play"></i> Download App for Customization
+                        </a>
+                    </div>
+                </div>
+                <div class="tpl-card-info">
+                    <h4 class="tpl-card-title">{{ $post->custom_post->name ?? 'Custom Post' }}</h4>
+                </div>
+            </div>
+            @endforeach
+        </div>
+    </div>
+</section>
+@endif
 
 @endsection

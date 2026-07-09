@@ -1259,21 +1259,12 @@ class MainController extends Controller
             $req_address = (int)($is_array ? ($f['req_address'] ?? 0) : ($f->req_address ?? 0));
             $req_website = (int)($is_array ? ($f['req_website'] ?? 0) : ($f->req_website ?? 0));
             
-            // Exact presence match: if user has a field, frame MUST require it. If user doesn't have it, frame MUST NOT require it.
-            $hasPhone = $visiblePhones > 0;
-            $hasEmail = $visibleEmails > 0;
-            $hasAddress = $visibleAddresses > 0;
-            $hasWebsite = $visibleWebsites > 0;
-
-            $reqHasPhone = $req_phone > 0;
-            $reqHasEmail = $req_email > 0;
-            $reqHasAddress = $req_address > 0;
-            $reqHasWebsite = $req_website > 0;
-
-            return ($hasPhone == $reqHasPhone) &&
-                   ($hasEmail == $reqHasEmail) &&
-                   ($hasAddress == $reqHasAddress) &&
-                   ($hasWebsite == $reqHasWebsite);
+            // User must have AT LEAST as many visible fields as frame requires
+            // Also: if frame requires 0, user can have any amount (no restriction)
+            return ($visiblePhones >= $req_phone) &&
+                   ($visibleEmails >= $req_email) &&
+                   ($visibleAddresses >= $req_address) &&
+                   ($visibleWebsites >= $req_website);
         };
 
         if ($frames_list instanceof \Illuminate\Support\Collection) {

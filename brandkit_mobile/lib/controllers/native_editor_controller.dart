@@ -88,6 +88,7 @@ class NativeEditorController extends GetxController {
     templateBaseUrl = tplBaseUrl;
     uploadsBaseUrl = upBaseUrl;
     baseImgUrl = baseImg;
+    templateConfig['type'] = editorType;
 
     if (editorType == 'business_custom_frame') {
       _injectDynamicBusinessFrame();
@@ -698,6 +699,11 @@ class NativeEditorController extends GetxController {
       }
       double ppiScale = docPPI / 72.0;
 
+      // Counters for multi-value business fields
+      Map<String, int> bizKeyCounter = {
+        'phone': 0, 'email': 0, 'website': 0, 'address': 0,
+      };
+
       for (var newLayer in newLayers) {
         double rawW = safeDouble((newLayer['w'] ?? newLayer['width'] ?? 0) as num);
         double rawH = safeDouble((newLayer['h'] ?? newLayer['height'] ?? 0) as num);
@@ -788,11 +794,41 @@ class NativeEditorController extends GetxController {
             newLayer['text'] = userTexts[name]; 
           } else if (Get.isRegistered<HomeController>() && newLayer['_businessKey'] != null) {
             final homeCtrl = Get.find<HomeController>();
-            if (newLayer['_businessKey'] == 'name') newLayer['text'] = homeCtrl.businessName.value;
-            else if (newLayer['_businessKey'] == 'phone') newLayer['text'] = homeCtrl.businessPhone.value.replaceAll(' ', '\u00A0');
-            else if (newLayer['_businessKey'] == 'email') newLayer['text'] = homeCtrl.businessEmail.value;
-            else if (newLayer['_businessKey'] == 'website') newLayer['text'] = homeCtrl.businessWebsite.value;
-            else if (newLayer['_businessKey'] == 'address') newLayer['text'] = homeCtrl.businessAddress.value;
+            if (newLayer['_businessKey'] == 'name') {
+              newLayer['text'] = homeCtrl.businessName.value;
+            } else if (newLayer['_businessKey'] == 'phone') {
+              int idx = bizKeyCounter['phone']!;
+              if (idx == 0) {
+                newLayer['text'] = homeCtrl.businessPhone.value.replaceAll(' ', '\u00A0');
+              } else if (idx - 1 < homeCtrl.extraPhones.length) {
+                newLayer['text'] = homeCtrl.extraPhones[idx - 1].replaceAll(' ', '\u00A0');
+              }
+              bizKeyCounter['phone'] = idx + 1;
+            } else if (newLayer['_businessKey'] == 'email') {
+              int idx = bizKeyCounter['email']!;
+              if (idx == 0) {
+                newLayer['text'] = homeCtrl.businessEmail.value;
+              } else if (idx - 1 < homeCtrl.extraEmails.length) {
+                newLayer['text'] = homeCtrl.extraEmails[idx - 1];
+              }
+              bizKeyCounter['email'] = idx + 1;
+            } else if (newLayer['_businessKey'] == 'website') {
+              int idx = bizKeyCounter['website']!;
+              if (idx == 0) {
+                newLayer['text'] = homeCtrl.businessWebsite.value;
+              } else if (idx - 1 < homeCtrl.extraWebsites.length) {
+                newLayer['text'] = homeCtrl.extraWebsites[idx - 1];
+              }
+              bizKeyCounter['website'] = idx + 1;
+            } else if (newLayer['_businessKey'] == 'address') {
+              int idx = bizKeyCounter['address']!;
+              if (idx == 0) {
+                newLayer['text'] = homeCtrl.businessAddress.value;
+              } else if (idx - 1 < homeCtrl.extraAddresses.length) {
+                newLayer['text'] = homeCtrl.extraAddresses[idx - 1];
+              }
+              bizKeyCounter['address'] = idx + 1;
+            }
           }
         } else if (newLayer['type'] == 'image') {
           if (bLow.contains('phone') || bLow.contains('call') || bLow.contains('mobile') || bLow.contains('contact') || bLow.contains('whatsapp') || bLow.contains('tel') || bLow.contains('ph')) newLayer['_businessKey'] = 'phone';
@@ -1063,13 +1099,15 @@ class NativeEditorController extends GetxController {
           double logoY = safeDouble(logoLayer['y'] ?? 0);
           double logoW = safeDouble(logoLayer['w'] ?? logoLayer['width'] ?? 0);
           double logoH = safeDouble(logoLayer['h'] ?? logoLayer['height'] ?? 0);
-          double paddingX = 40.0;
-          double paddingBottom = 20.0;
           
-          double plateX = logoX - paddingX;          // 40px left gap
-          double plateY = 0;                         // Touch top edge
-          double plateW = logoW + (paddingX * 2);    // 40px left + 40px right
-          double plateH = logoY + logoH + paddingBottom;   // From top to 20px below logo
+          double paddingX = 10.0;
+          double paddingBottom = 10.0;
+          double paddingTop = 20.0;
+          
+          double plateX = logoX - paddingX;          // 10px left gap
+          double plateY = logoY - paddingTop;        // 20px top gap
+          double plateW = logoW + (paddingX * 2);    // 10px left + 10px right
+          double plateH = logoH + paddingTop + paddingBottom;   // 20px top + logo + 10px bottom
           
           // Create the plate layer
           Map<String, dynamic> plateLayer = {
@@ -1128,9 +1166,6 @@ class NativeEditorController extends GetxController {
         );
         if (!isIcon) continue;
         
-        // Skip frame layers — admin set their colors intentionally
-        if (newLayer['_is_frame_layer'] == true || newLayer['_isFrameLayer'] == true) continue;
-        
         // Determine the business key for this icon to find matching text
         String? iconBizKey = newLayer['_businessKey']?.toString();
         if (iconBizKey == null || iconBizKey.isEmpty) {
@@ -1162,15 +1197,8 @@ class NativeEditorController extends GetxController {
         }
         
         String layerName = (newLayer['name'] ?? '').toString();
-        if (matchedTextColor != null) {
-          debugPrint('[COLOR] ICON "$layerName" → matched text color=$matchedTextColor (bizKey=$iconBizKey)');
-          if (newLayer['tint_color'] != matchedTextColor) needsRefresh = true;
-          newLayer['tint_color'] = matchedTextColor;
-        } else {
-          // No matching text - use brightness-based color (for social icons etc.)
-          if (_applyDynamicTextColor(newLayer, templateIsDark, shapeLayers)) {
-            needsRefresh = true;
-          }
+        if (_applyDynamicTextColor(newLayer, templateIsDark, shapeLayers, matchedColor: matchedTextColor)) {
+          needsRefresh = true;
         }
       }
       
@@ -1187,17 +1215,18 @@ class NativeEditorController extends GetxController {
     Map<String, dynamic> layer,
     bool templateIsDark,
     List<Map<String, dynamic>> shapeLayers,
+    {String? matchedColor}
   ) {
+    final String diagName = (layer['name'] ?? layer['id'] ?? '').toString();
+    debugPrint('[COLOR_DIAG] Starting _applyDynamicTextColor for layer: "$diagName" (type: ${layer['type']})');
+    
     // DO NOT override user colors for Custom templates / frames!
     final type = Get.parameters['type'] ?? templateConfig['type'] ?? 'business_custom_frame';
     final tLow = type.toString().toLowerCase();
+    debugPrint('[COLOR_DIAG] Editor Type: $type ($tLow)');
     if (tLow.contains('custom') || tLow == 'post' || tLow == 'business_custom_frame') {
+      debugPrint('[COLOR_DIAG] ❌ SKIPPED: Template type is custom or business_custom_frame');
       return false; // Skip auto-color for custom templates to preserve original ZIP colors
-    }
-
-    // DO NOT override colors for frame layers — admin set these colors intentionally
-    if (layer['_is_frame_layer'] == true || layer['_isFrameLayer'] == true) {
-      return false;
     }
 
     bool isText = layer['type'] == 'text';
@@ -1209,9 +1238,25 @@ class NativeEditorController extends GetxController {
                    'social', 'linkedin'].any((key) => lname.contains(key))
                   );
 
-    if (!isText && !isIcon) return false;
+    // DO NOT override colors for frame layers — admin set these colors intentionally
+    // EXCEPT for business data text/icons (_businessKey != null) or placeholders like _b_phone
+    if (layer['_is_frame_layer'] == true || layer['_isFrameLayer'] == true) {
+      if (layer['_businessKey'] != null || diagName.startsWith('_b_') || isIcon) {
+        debugPrint('[COLOR_DIAG] 🔓 ALLOWED: Frame layer but contains business data or is a contact icon');
+      } else {
+        debugPrint('[COLOR_DIAG] ❌ SKIPPED: Layer is a regular frame layer');
+        return false;
+      }
+    }
+
+    if (!isText && !isIcon) {
+      debugPrint('[COLOR_DIAG] ❌ SKIPPED: Not text or contact icon');
+      return false;
+    }
 
     final String layerName = (layer['name'] ?? layer['id'] ?? '').toString();
+    debugPrint('[COLOR_DIAG] ✅ PROCEEDING for "$layerName" (isText=$isText, isIcon=$isIcon)');
+    
     final double textX = safeDouble(layer['x'] ?? 0);
     final double textY = safeDouble(layer['y'] ?? 0);
     final double textW = safeDouble(layer['w'] ?? layer['width'] ?? 0);
@@ -1236,7 +1281,7 @@ class NativeEditorController extends GetxController {
 
     bool changed = false;
     if (!overlapsShape) {
-      String newColor = templateIsDark ? '0xFFFFFFFF' : '0xFF000000';
+      String newColor = matchedColor ?? (templateIsDark ? '0xFFFFFFFF' : '0xFF000000');
       if (isText) {
         debugPrint('[COLOR] TEXT "$layerName" → templateIsDark=$templateIsDark → color=$newColor (was: ${layer['color']})');
         if (layer['color'] != newColor) changed = true;
@@ -1248,7 +1293,7 @@ class NativeEditorController extends GetxController {
         layer['tint_color'] = newColor;
       }
     } else {
-      String originalColor = layer['original_color'] ?? layer['color'] ?? '0xFFFFFFFF';
+      String originalColor = layer['original_color'] ?? layer['color'] ?? layer['tint_color'] ?? '0xFFFFFFFF';
       if (isText) {
         if (layer['color'] != originalColor) changed = true;
         layer['color'] = originalColor;

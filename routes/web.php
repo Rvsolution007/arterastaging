@@ -112,6 +112,18 @@ Route::get('/bg-remover', function () {
     return view('bg_remove');
 })->name('bg.remover');
 
+// Business Registration (Web Landing Page)
+Route::get('/business-registration', 'BusinessRegistrationController@showForm')->name('business.registration');
+Route::post('/business-registration', 'BusinessRegistrationController@register')->name('business.registration.post');
+Route::get('/business-registration/success', 'BusinessRegistrationController@success')->name('business.registration.success');
+
+// AJAX routes for business form
+Route::get('/api/web/get-business-category', 'BusinessRegistrationController@getCategories')->name('web.api.get_categories');
+Route::get('/api/web/get-business-sub-category', 'BusinessRegistrationController@getSubCategories')->name('web.api.get_sub_categories');
+Route::get('/api/web/get-business-type', 'BusinessRegistrationController@getBusinessTypes')->name('web.api.get_business_types');
+Route::get('/api/web/get-products', 'BusinessRegistrationController@getProducts')->name('web.api.get_products');
+
+
 // Shared UI routes
 Route::get('/client/get-sub-categories/{category_id}', 'MainController@getSubCategories')->name('client.get_sub_categories');
 Route::get('/webview-login', 'ClientAuthController@webviewLogin')->name('webview.login');

@@ -25,9 +25,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   List<Widget> get _pages => [
     const HomeScreen(),
-    const TemplateGridScreen(),
+    Scaffold(
+      appBar: AppBar(title: Text('custom'.trFormat, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)), backgroundColor: AppColors.primary, centerTitle: true, elevation: 0),
+      body: const ComingSoonWidget(title: 'Custom Posts'),
+    ),
     const MyBusinessScreen(),
-    const AiTrendsScreen(),
+    Scaffold(
+      appBar: AppBar(title: Text('greetings'.trFormat, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)), backgroundColor: AppColors.primary, centerTitle: true, elevation: 0),
+      body: const ComingSoonWidget(title: 'Greetings'),
+    ),
     const MoreScreen(),
   ];
 

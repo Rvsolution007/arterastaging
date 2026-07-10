@@ -19,7 +19,7 @@
         <meta name="twitter:card" content="summary_large_image">
     @endif
 
-    <link rel="icon" href="{{ asset('assets/images/favicon.png') }}">
+    <link rel="icon" href="@if(App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean'){{\Storage::disk('spaces')->url('uploads/' . App\Models\AppSetting::getAppSetting('admin_favicon'))}} @else {{asset('uploads/' . App\Models\AppSetting::getAppSetting('admin_favicon'))}} @endif">
 
     <!-- Preconnect to FontAwesome CDN (loads early via preload) -->
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
@@ -774,6 +774,26 @@
         }
     </style>
     @yield('extra_css')
+
+    {{-- Google Analytics --}}
+    @if(config('seo.google_analytics_id'))
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ config('seo.google_analytics_id') }}"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', '{{ config('seo.google_analytics_id') }}');
+    </script>
+    @endif
+
+    {{-- Google Tag Manager --}}
+    @if(config('seo.google_tag_manager_id'))
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','{{ config('seo.google_tag_manager_id') }}');</script>
+    @endif
 </head>
 <body>
 
@@ -876,15 +896,7 @@
                     </ul>
                 </div>
 
-                <div>
-                    <h3 class="footer-col-title">Templates</h3>
-                    <ul class="footer-links">
-                        <li><a href="{{ route('landing.category', 'real-estate') }}">Real Estate</a></li>
-                        <li><a href="{{ route('landing.category', 'doctors') }}">Doctors</a></li>
-                        <li><a href="{{ route('landing.category', 'politicians') }}">Politicians</a></li>
-                        <li><a href="{{ route('landing.category', 'education') }}">Education</a></li>
-                    </ul>
-                </div>
+
 
                 <div>
                     <h3 class="footer-col-title">Tools</h3>

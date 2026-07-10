@@ -94,10 +94,35 @@ class NativeEditorController extends GetxController {
       _injectDynamicBusinessFrame();
     }
 
+    if (templateConfig['layers'] != null) {
+      _deduplicateLayerNames(templateConfig['layers']);
+    }
+
     _pushHistory();
     
     // Run brightness detection on initial load too (not just on frame switch)
     _applyInitialBrightness();
+  }
+
+  void _deduplicateLayerNames(List<dynamic> layers) {
+    Map<String, int> nameCounts = {};
+    for (var layer in layers) {
+      if (layer is Map<String, dynamic>) {
+        String baseName = (layer['name'] ?? layer['id'] ?? 'layer').toString();
+        if (nameCounts.containsKey(baseName)) {
+          int count = nameCounts[baseName]! + 1;
+          nameCounts[baseName] = count;
+          layer['name'] = '${baseName}_$count';
+          layer['id'] = layer['name'];
+        } else {
+          nameCounts[baseName] = 1;
+          if (layer['name'] == null) {
+            layer['name'] = baseName;
+          }
+          layer['id'] = layer['name'];
+        }
+      }
+    }
   }
 
   void _injectDynamicBusinessFrame() {
@@ -770,24 +795,10 @@ class NativeEditorController extends GetxController {
         String bLow = layerName;
         if (newLayer['type'] == 'text') {
           if (bLow.contains('name') || bLow.contains('business_name')) newLayer['_businessKey'] = 'name';
-          else if (bLow.contains('phone') || bLow.contains('mobile') || bLow.contains('contact') || bLow.contains('call') || bLow.contains('whatsapp') || bLow.contains('number') || bLow.contains('tel') || bLow.contains('ph')) newLayer['_businessKey'] = 'phone';
+          else if (bLow.contains('phone') || bLow.contains('mobile') || bLow.contains('whatsapp') || bLow.contains('number') || bLow.contains('tel')) newLayer['_businessKey'] = 'phone';
           else if (bLow.contains('email') || bLow.contains('mail')) newLayer['_businessKey'] = 'email';
           else if (bLow.contains('website') || bLow.contains('web') || bLow.contains('url')) newLayer['_businessKey'] = 'website';
           else if (bLow.contains('address') || bLow.contains('location')) newLayer['_businessKey'] = 'address';
-          
-          // Fallback: infer _businessKey from text content for old frames with generic names
-          if (newLayer['_businessKey'] == null && newLayer['text'] != null) {
-            final String textLow = newLayer['text'].toString().toLowerCase().trim();
-            if (textLow.contains('@') && textLow.contains('.')) newLayer['_businessKey'] = 'email';
-            else if (RegExp(r'[\+]?\d[\d\s\-\(\)]{6,}').hasMatch(textLow) || textLow.contains('phone') || textLow.contains('mobile') || textLow.contains('call') || textLow.contains('+91')) newLayer['_businessKey'] = 'phone';
-            else if (textLow.contains('www.') || textLow.contains('http') || textLow.contains('.com') || textLow.contains('.in') || textLow.contains('website')) newLayer['_businessKey'] = 'website';
-            else if (textLow.contains('address') || textLow.contains('your business address') || textLow.contains('street') || textLow.contains('city') || textLow.contains('location')) newLayer['_businessKey'] = 'address';
-            else if (textLow.contains('your business name') || textLow.contains('business name') || textLow.contains('company name')) newLayer['_businessKey'] = 'name';
-            if (newLayer['_businessKey'] != null) {
-              debugPrint('[FRAME_BK] Inferred _businessKey="${newLayer['_businessKey']}" from text content for "$name"');
-            }
-          }
-          
           bool hasValidUserText = userTexts.containsKey(name) && userTexts[name] != null && userTexts[name]!.trim().isNotEmpty;
           
           if (hasValidUserText && (name.startsWith('_b_') || newLayer['_businessKey'] != null)) {
@@ -950,7 +961,9 @@ class NativeEditorController extends GetxController {
         }
       }
       
-      templateConfig['layers'] = uniqueLayers.reversed.toList();
+      var finalLayersList = uniqueLayers.reversed.toList();
+      _deduplicateLayerNames(finalLayersList);
+      templateConfig['layers'] = finalLayersList;
       templateConfig.refresh();
       _pushHistory();
 

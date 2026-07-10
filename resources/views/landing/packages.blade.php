@@ -424,7 +424,7 @@
 
         {{-- Bottom Note --}}
         <div class="pkg-bottom-note reveal-blur">
-            <p>Ready to get started? <a href="{{ url('/register') }}">Register your business</a> on the web, then download the app to begin.</p>
+            <p>Ready to get started? <a href="{{ route('business.registration') }}">Register your business</a> on the web, then download the app to begin.</p>
         </div>
 
     </div>

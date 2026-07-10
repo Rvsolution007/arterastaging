@@ -24,6 +24,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
+  final TextEditingController websiteController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController referralController = TextEditingController();
   
@@ -89,6 +90,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       password: passwordController.text,
       referralCode: referralController.text,
       businessName: bizNameController.text,
+      businessWebsite: websiteController.text,
       businessCategoryId: _selectedCategoryId,
       businessSubCategoryIds: _selectedSubCategoryIds,
       businessTypeIds: _selectedBusinessTypeIds,
@@ -156,6 +158,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: websiteController,
+                decoration: InputDecoration(
+                  labelText: 'Website (Optional)',
+                  prefixIcon: const Icon(Icons.language),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                keyboardType: TextInputType.url,
               ),
               const SizedBox(height: 16),
               TextField(

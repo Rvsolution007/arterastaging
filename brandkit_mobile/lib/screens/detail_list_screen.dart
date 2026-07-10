@@ -117,6 +117,10 @@ class _DetailListScreenState extends State<DetailListScreen> {
 
   /// Load a Native Ad to inject into the template grid
   void _loadNativeAd() {
+    if (Get.find<SubscriptionController>().isSubscribe.value) {
+      return;
+    }
+    
     _nativeAd = NativeAd(
       adUnitId: AdService.nativeAdUnitId,
       request: const AdRequest(),

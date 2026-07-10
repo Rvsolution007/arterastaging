@@ -58,35 +58,42 @@ class MyBusinessScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Obx(() {
-                final logo = hc.businessLogo.value;
-                return Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.slate200),
-                    color: logo.isEmpty ? AppColors.slate100 : Colors.white,
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: logo.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: '${hc.uploadsBaseUrl}/$logo',
-                          fit: BoxFit.cover,
-                          errorWidget: (_, __, ___) => _buildPlaceholderIcon(),
-                        )
-                      : _buildPlaceholderIcon(),
-                );
-              }),
-              AppSpacing.gapH20,
-              Obx(() => Text(
-                hc.businessName.value.isNotEmpty ? hc.businessName.value : 'business'.trFormat,
-                style: AppTextStyles.heading2,
-              )),
-            ],
+          Expanded(
+            child: Row(
+              children: [
+                Obx(() {
+                  final logo = hc.businessLogo.value;
+                  return Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.slate200),
+                      color: logo.isEmpty ? AppColors.slate100 : Colors.white,
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: logo.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: '${hc.uploadsBaseUrl}/$logo',
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => _buildPlaceholderIcon(),
+                          )
+                        : _buildPlaceholderIcon(),
+                  );
+                }),
+                AppSpacing.gapH20,
+                Expanded(
+                  child: Obx(() => Text(
+                    hc.businessName.value.isNotEmpty ? hc.businessName.value : 'business'.trFormat,
+                    style: AppTextStyles.heading2,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  )),
+                ),
+              ],
+            ),
           ),
+          const SizedBox(width: 12),
           GestureDetector(
             onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BusinessProfileScreen())),
             child: Text(

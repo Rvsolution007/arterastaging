@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import '../config/app_config.dart';
 import 'subscription_controller.dart';
 import '../services/notification_service.dart';
+import 'app_update_controller.dart';
 
 class HomeController extends GetxController {
   var isLoading = true.obs;
@@ -31,6 +32,7 @@ class HomeController extends GetxController {
   var termsConditionHtml = ''.obs;
   var refundPolicyHtml = ''.obs;
 
+  Map<String, dynamic>? appUpdate;
   
   // Business info
   var businessName = ''.obs;
@@ -145,6 +147,14 @@ class HomeController extends GetxController {
   Future<void> loadBusinessInfo() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      
+      // Load from cache instantly so Hot Restart doesn't cause "Profile Incomplete"
+      if (businessId.value.isEmpty) {
+        businessId.value = prefs.getString('cached_biz_id') ?? '';
+        businessPhone.value = prefs.getString('cached_biz_phone') ?? '';
+        businessEmail.value = prefs.getString('cached_biz_email') ?? '';
+      }
+
       final userId = prefs.getString('userId') ?? '';
       final response = await ApiService.get('/business?userId=$userId');
       debugPrint('[HomeCtrl] Business API status: ${response.statusCode}');
@@ -171,6 +181,11 @@ class HomeController extends GetxController {
         businessWebsite.value = biz['website']?.toString() ?? '';
         businessAddress.value = biz['address']?.toString() ?? '';
         businessId.value = biz['id']?.toString() ?? '';
+        
+        // Save to cache for hot restarts
+        prefs.setString('cached_biz_id', businessId.value);
+        prefs.setString('cached_biz_phone', businessPhone.value);
+        prefs.setString('cached_biz_email', businessEmail.value);
         
         // businessCategoryId comes from nested businessCategory object OR top-level
         if (biz['businessCategory'] != null && biz['businessCategory']['businessCategoryId'] != null) {
@@ -237,6 +252,12 @@ class HomeController extends GetxController {
         privacyPolicyHtml.value = data['privacyPolicyHtml'] ?? '';
         termsConditionHtml.value = data['termsConditionHtml'] ?? '';
         refundPolicyHtml.value = data['refundPolicyHtml'] ?? '';
+        
+        // App update check
+        if (data['appUpdate'] != null) {
+          appUpdate = Map<String, dynamic>.from(data['appUpdate']);
+          AppUpdateController.showUpdateDialogIfNeeded(appUpdate!);
+        }
       }
 
       // Also refresh subscription and limits silently

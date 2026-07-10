@@ -68,6 +68,28 @@ class HomeApi extends Controller
     {
         $limit = 20;
 
+        $appUpdateSetting = AppUpdateSetting::all();
+        $update = [];
+        foreach ($appUpdateSetting as $s) 
+        {
+            $update[$this->from_camel_case($s->key_name)] = $s->key_value;
+        }
+
+        // --- Force Update Delay Logic ---
+        if (isset($update['appPublishDate']) && isset($update['forceUpdateDelayDays'])) {
+            try {
+                $publishDate = \Carbon\Carbon::parse($update['appPublishDate']);
+                $delayDays = (int) $update['forceUpdateDelayDays'];
+                $forceDate = $publishDate->addDays($delayDays);
+
+                if (\Carbon\Carbon::now()->greaterThanOrEqualTo($forceDate)) {
+                    $update['cancelOption'] = "0"; // Force update!
+                }
+            } catch (\Exception $e) {
+                // Ignore parsing errors
+            }
+        }
+
         // === OPTIMIZATION: Cache storage setting once (was called 20+ times) ===
         $isDigitalOcean = StorageSetting::getStorageSetting('storage') == 'DigitalOcean';
 
@@ -363,6 +385,7 @@ class HomeApi extends Controller
             "privacyPolicyHtml" => $privacyPolicyHtml,
             "termsConditionHtml" => $termsConditionHtml,
             "refundPolicyHtml" => $refundPolicyHtml,
+            "appUpdate" => $update,
         ], 200);
     }
 
@@ -2995,7 +3018,6 @@ class HomeApi extends Controller
     {
         $appSetting = AppSetting::all();
         $emailSetting = EmailSetting::all();
-        $appUpdateSetting = AppUpdateSetting::all();
         $notificationSetting = NotificationSetting::all();
         $paymentSetting = PaymentSetting::all();
         $storageSetting = StorageSetting::all();
@@ -3046,13 +3068,6 @@ class HomeApi extends Controller
                 $data[$this->from_camel_case($storage->key_name)] = $storage->key_value;
             }
         }
-
-        foreach ($appUpdateSetting as $s) 
-        {
-            $update[$this->from_camel_case($s->key_name)] = $s->key_value;
-        }
-
-        $data['appUpdate'] = $update;
 
         // foreach ($notificationSetting as $s) 
         // {

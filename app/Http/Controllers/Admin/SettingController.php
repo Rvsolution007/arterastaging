@@ -24,6 +24,7 @@ use App\Models\NotificationSetting;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\URL;
 
 class SettingController extends Controller
 {

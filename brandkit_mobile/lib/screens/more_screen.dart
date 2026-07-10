@@ -22,6 +22,7 @@ import '../services/translation_service.dart';
 import 'policy_screen.dart';
 import 'achievements_screen.dart';
 import 'mini_website_dashboard_screen.dart';
+import '../controllers/app_update_controller.dart';
 
 
 class MoreScreen extends StatefulWidget {
@@ -306,6 +307,20 @@ class _MoreScreenState extends State<MoreScreen> {
               iconColor: AppColors.success,
               iconBgColor: Colors.transparent,
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReferralScreen())),
+            ),
+            SettingsItem(
+              icon: Icons.system_update,
+              title: 'Check for Updates',
+              iconColor: AppColors.primary,
+              iconBgColor: Colors.transparent,
+              onTap: () {
+                final hc = Get.find<HomeController>();
+                if (hc.appUpdate != null) {
+                  AppUpdateController.showUpdateDialogIfNeeded(hc.appUpdate!, isManualCheck: true);
+                } else {
+                  Get.snackbar('Check for Updates', 'Unable to check for updates at this time.');
+                }
+              },
             ),
             SettingsItem(
               icon: Icons.logout,

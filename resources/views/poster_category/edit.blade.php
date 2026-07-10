@@ -24,7 +24,7 @@
             </div>
         @endif
 
-        {!! Form::open(['route' =>['poster-category.update',$category->id],'method'=>'PATCH','files'=>true]) !!}
+        {!! Form::open(['route' =>['Frame-category.update',$category->id],'method'=>'PATCH','files'=>true]) !!}
         {!! Form::hidden('user_id',optional(Auth::user())->id)!!}
         {!! Form::hidden('id',$category->id)!!}
         <div class="row">

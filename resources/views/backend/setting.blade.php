@@ -2823,6 +2823,30 @@
                                                             </div>
                                                         </div>
                                                     </div>
+                                                    
+                                                    <div class="row mt-3">
+                                                        <div class="col-12">
+                                                            <div class="form-group row">
+                                                                {!! Form::label('app_publish_date', 'App Publish Date (YYYY-MM-DD)', ['class' => 'col-xl-3 col-md-4 col-4 col-form-label']) !!}
+                                                                <div class="col-xl-5 col-md-8 col-8">
+                                                                    {!! Form::date('name[app_publish_date]', App\Models\AppUpdateSetting::getAppUpdateSetting('app_publish_date'), ['class' => 'form-control']) !!}
+                                                                    <small class="text-muted">The date this version was published to the Play Store.</small>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="row mt-3">
+                                                        <div class="col-12">
+                                                            <div class="form-group row">
+                                                                {!! Form::label('force_update_delay_days', 'Grace Period (Days)', ['class' => 'col-xl-3 col-md-4 col-4 col-form-label']) !!}
+                                                                <div class="col-xl-5 col-md-8 col-8">
+                                                                    {!! Form::number('name[force_update_delay_days]', App\Models\AppUpdateSetting::getAppUpdateSetting('force_update_delay_days'), ['class' => 'form-control', 'min' => '0']) !!}
+                                                                    <small class="text-muted">After these many days from Publish Date, the update becomes Forceful (no cancel button).</small>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
 
                                                     <div class="row mt-3">
                                                         <div class="col-12">

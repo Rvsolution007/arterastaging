@@ -205,6 +205,12 @@
             <h4 class="page-title mb-1"><i class="fa-solid fa-rocket mr-2 text-primary" style="color: #6366f1;"></i> AI Growth OS</h4>
             <p class="page-subtitle mb-0">The unified decision engine for ArtEra Growth</p>
         </div>
+        <div class="col-md-4 text-right">
+            <div class="d-inline-flex align-items-center bg-white px-3 py-2 rounded shadow-sm border" style="border-color: #e2e8f0;">
+                <img src="{{ asset('assets/images/ai-brain.gif') }}" alt="AI Active" width="24" class="mr-2 rounded-circle shadow-sm">
+                <span style="font-size: 0.85rem; font-weight: 700; color: #475569; letter-spacing: 0.5px;">AI ENGINE ACTIVE</span>
+            </div>
+        </div>
     </div>
 
     <!-- Navigation Tabs -->
@@ -224,16 +230,8 @@
                 <i class="fas fa-users"></i> Engagement
             </a>
         </li>
-        <li class="nav-item">
-            <a class="nav-link" id="tab-content" data-toggle="pill" href="#content-content" role="tab" onclick="loadTab('content')">
-                <i class="fas fa-images"></i> Templates
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" id="tab-ai" data-toggle="pill" href="#content-ai" role="tab" onclick="loadTab('ai')">
-                <i class="fas fa-robot"></i> AI Engine
-            </a>
-        </li>
+
+
         <li class="nav-item">
             <a class="nav-link" id="tab-planner" data-toggle="pill" href="#content-planner" role="tab" onclick="loadTab('planner')">
                 <i class="fas fa-calendar-alt"></i> Smart Planner
@@ -364,24 +362,9 @@
             </div>
         </div>
 
-        <!-- 4. Content -->
-        <div class="tab-pane fade" id="content-content" role="tabpanel">
-            <h4 class="page-title mb-4">Top Downloaded Templates</h4>
-            <div class="row" id="content_metrics">
-                <!-- Loaded via JS -->
-            </div>
-        </div>
 
-        <!-- 5. AI -->
-        <div class="tab-pane fade" id="content-ai" role="tabpanel">
-            <div class="row">
-                <div class="col-12 text-center py-5">
-                    <i class="fas fa-robot fa-3x mb-3 text-primary"></i>
-                    <h3 class="page-title">AI Decision Engine is running...</h3>
-                    <p class="page-subtitle mt-2">Analyzing millions of data points to generate tomorrow's growth plan.</p>
-                </div>
-            </div>
-        </div>
+
+
 
         <!-- Smart Content Planner (Phase 2) -->
         <div class="tab-pane fade" id="content-planner" role="tabpanel">
@@ -606,6 +589,18 @@
                                 <div class="kpi-value font-math text-primary">${data.installs.last_30_days}</div>
                             </div>
                         </div>
+                        <div class="col-md-3 mb-4">
+                            <div class="kpi-card">
+                                <div class="kpi-title"><i class="fas fa-store text-info"></i> Organic Sources</div>
+                                <div class="kpi-value font-math text-info">${data.sources.organic}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-4">
+                            <div class="kpi-card">
+                                <div class="kpi-title"><i class="fas fa-star text-warning"></i> Positive Reviews</div>
+                                <div class="kpi-value font-math text-warning">${data.reviews.positive}</div>
+                            </div>
+                        </div>
                     `);
                 }
             });
@@ -614,16 +609,28 @@
             $.get("{{ route('admin.growth_os.engagement') }}", function(data) {
                 if(data.status === 'success') {
                     $('#eng_metrics').html(`
-                        <div class="col-md-4 mb-4">
+                        <div class="col-md-3 mb-4">
                             <div class="kpi-card">
                                 <div class="kpi-title"><i class="fas fa-user-clock text-info"></i> DAU (Daily Active)</div>
                                 <div class="kpi-value font-math text-info">${data.engagement.dau}</div>
                             </div>
                         </div>
-                        <div class="col-md-4 mb-4">
+                        <div class="col-md-3 mb-4">
                             <div class="kpi-card">
                                 <div class="kpi-title"><i class="fas fa-users text-primary"></i> MAU (Monthly Active)</div>
                                 <div class="kpi-value font-math text-primary">${data.engagement.mau}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-4">
+                            <div class="kpi-card">
+                                <div class="kpi-title"><i class="fas fa-hourglass-half text-success"></i> Avg Session Time</div>
+                                <div class="kpi-value font-math text-success" style="font-size:1.5rem;">${data.engagement.avg_session_time}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-4">
+                            <div class="kpi-card">
+                                <div class="kpi-title"><i class="fas fa-retweet text-warning"></i> D7 Retention</div>
+                                <div class="kpi-value font-math text-warning">${data.retention.day_7}</div>
                             </div>
                         </div>
                     `);
@@ -696,6 +703,33 @@
                                     <td>${oppBadge}</td>
                                     <td>${plan.suggested_templates}</td>
                                     <td>${statusBadge}</td>
+                                </tr>
+                            `);
+                        });
+                    }
+                }
+            });
+        }
+        else if (tabName === 'marketing') {
+            $.get("{{ route('admin.growth_os.marketing') }}", function(data) {
+                if(data.status === 'success') {
+                    $('#marketing_tbody').empty();
+                    if(data.notifications.length === 0) {
+                        $('#marketing_tbody').append('<tr><td colspan="7" class="text-center">No AI drafts found.</td></tr>');
+                    } else {
+                        data.notifications.forEach(notif => {
+                            let statusBadge = notif.status === 'sent' ? '<span class="badge badge-success">Sent</span>' : (notif.status === 'scheduled' ? '<span class="badge badge-warning">Scheduled</span>' : '<span class="badge badge-secondary">Draft</span>');
+                            let targetBadge = '<span class="badge-soft" style="background:#e0e7ff; color:#4338ca;">' + (notif.target_type || 'All Users') + '</span>';
+                            
+                            $('#marketing_tbody').append(`
+                                <tr>
+                                    <td>${targetBadge}</td>
+                                    <td class="font-weight-bold">${notif.title}</td>
+                                    <td>${notif.body}</td>
+                                    <td class="font-math text-success">${notif.predicted_ctr}%</td>
+                                    <td>${notif.scheduled_for}</td>
+                                    <td>${statusBadge}</td>
+                                    <td><button class="btn btn-sm" style="background:#6366f1; color:white;">Review</button></td>
                                 </tr>
                             `);
                         });

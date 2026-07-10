@@ -24,7 +24,7 @@
             </div>
         @endif
 
-        {!! Form::open(['route' => 'poster-category.store','method'=>'post','files'=>true]) !!}
+        {!! Form::open(['route' => 'Frame-category.store','method'=>'post','files'=>true]) !!}
         {!! Form::hidden('user_id',optional(Auth::user())->id)!!}
         <div class="row">
             <div class="col-12">

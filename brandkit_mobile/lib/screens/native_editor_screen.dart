@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:brandkit_mobile/utils/string_extensions.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'dart:convert';
@@ -19,6 +20,7 @@ import 'package:gal/gal.dart';
 import '../services/download_service.dart';
 import '../controllers/ad_controller.dart';
 import '../controllers/subscription_controller.dart';
+import '../utils/string_extensions.dart';
 
 class NativeEditorScreen extends StatefulWidget {
   final String type;
@@ -55,7 +57,6 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
   final GlobalKey _canvasKey = GlobalKey();
 
   // --- Layer interaction state for deselect-on-background-tap ---
-  Offset? _lastPointerDown;
   String _selectedBeforeTap = '';
 
   Future<void> _exportAndSave() async {
@@ -100,7 +101,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
       );
       try { await Get.find<SubscriptionController>().refreshFromApi(); } catch (_) {}
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Design saved to gallery successfully!'), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('design_saved_to_gallery'.trFormat), backgroundColor: Colors.green));
       }
     } catch (e) {
       if (mounted) {
@@ -246,9 +247,9 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
             }
           },
         ),
-        title: const Text(
-          'Edit Design',
-          style: TextStyle(color: Colors.black87, fontSize: 18, fontWeight: FontWeight.bold),
+        title: Text(
+          'edit_design'.trFormat,
+          style: const TextStyle(color: Colors.black87, fontSize: 18, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
         actions: [
@@ -311,36 +312,16 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                     minimumSize: const Size(0, 32),
                   ),
                   onPressed: _exportAndSave,
-                  child: const Text('Download', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                  child: Text('download'.trFormat, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                 ),
               ],
             ),
           ),
           Expanded(
-            child: Listener(
-              behavior: HitTestBehavior.translucent,
-              onPointerDown: (event) {
-                debugPrint('[CANVAS_LISTENER] onPointerDown at ${event.localPosition}');
-                _lastPointerDown = event.localPosition;
-                controller.layerWasTapped = false;
-              },
-              onPointerUp: (event) {
-                debugPrint('[CANVAS_LISTENER] onPointerUp at ${event.localPosition}');
-                final downPos = _lastPointerDown;
-                if (downPos != null) {
-                  final distance = (event.localPosition - downPos).distance;
-                  if (distance < 10) {
-                    // It was a tap (not a drag). Use post-frame callback so child 
-                    // GestureDetector.onTap fires first and updates the flag.
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (!controller.layerWasTapped) {
-                        debugPrint('[CANVAS_LISTENER] No layer tapped → deselecting');
-                        controller.selectedLayerId.value = '';
-                      }
-                      controller.layerWasTapped = false;
-                    });
-                  }
-                }
+            child: GestureDetector(
+              onTap: () {
+                debugPrint('[CANVAS_TAP] Background tapped → deselecting');
+                controller.selectedLayerId.value = '';
               },
               child: Container(
                 color: const Color(0xFFE2E8F0),
@@ -350,7 +331,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                     builder: (context, constraints) {
                       return Obx(() {
                         if (controller.templateConfig.isEmpty) {
-                          return const Center(child: Text('No template data found.'));
+                          return Center(child: Text('no_template_data_found'.trFormat));
                         }
                         
                         // Calculate best fit dimensions to ensure 100% visibility
@@ -415,16 +396,16 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
   String _getTypeTitle() {
     switch (widget.type) {
       case 'custom':
-        return 'Custom Post';
+        return 'custom_post'.trFormat;
       case 'festival':
-        return 'Festival Post';
+        return 'festival_post'.trFormat;
       case 'category':
-        return 'Category Post';
+        return 'category_post'.trFormat;
       case 'business_custom_frame':
       case 'business_custom':
-        return 'Business Template';
+        return 'business_template'.trFormat;
       default:
-        return 'Edit Design';
+        return 'edit_design'.trFormat;
     }
   }
 
@@ -455,7 +436,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                 controller.updateLayerProperty(layer['name'] ?? layer['id'], 'text', val);
               },
               decoration: InputDecoration(
-                hintText: 'Enter text',
+                hintText: 'enter_text'.trFormat,
                 isDense: true,
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
@@ -540,9 +521,27 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
     final layer = _getActiveLayer();
     if (layer == null) return const SizedBox.shrink();
     
-    double currentSize = (layer['fontSize'] ?? layer['font_size'] ?? layer['size'] ?? 48.0).toDouble();
-    double minSize = 8.0;
-    double maxSize = 400.0;
+    final bool isText = layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null;
+    
+    double toD(dynamic val, [double fallback = 1.0]) {
+      if (val == null) return fallback;
+      if (val is num) return val.toDouble();
+      return double.tryParse(val.toString()) ?? fallback;
+    }
+    
+    double currentSize;
+    double minSize;
+    double maxSize;
+    
+    if (!isText) {
+      currentSize = (toD(layer['scaleX'], 1.0) * 100).toDouble();
+      minSize = 10.0;
+      maxSize = 500.0;
+    } else {
+      currentSize = toD(layer['fontSize'] ?? layer['font_size'] ?? layer['size'], 48.0);
+      minSize = 8.0;
+      maxSize = 400.0;
+    }
     
     if (currentSize < minSize) currentSize = minSize;
     if (currentSize > maxSize) currentSize = maxSize;
@@ -551,7 +550,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          const Icon(Icons.text_fields, size: 16),
+          Icon(!isText ? Icons.photo_size_select_small : Icons.text_fields, size: 16),
           Expanded(
             child: Slider(
               value: currentSize,
@@ -559,11 +558,49 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
               max: maxSize,
               activeColor: const Color(0xFF5538EE),
               onChanged: (val) {
-                controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'fontSize', val);
+                final String layerName = (layer['name'] ?? layer['id']).toString();
+                if (!isText) {
+                  final double oldScaleX = toD(layer['scaleX'], 1.0);
+                  final double oldScaleY = toD(layer['scaleY'], 1.0);
+                  final double aspect = oldScaleX > 0 ? (oldScaleY / oldScaleX) : 1.0;
+                  final double newScaleX = val / 100.0;
+                  final double newScaleY = newScaleX * aspect;
+                  controller.updateLayerProperties(layerName, {
+                    'scaleX': newScaleX,
+                    'scaleY': newScaleY,
+                  });
+                } else {
+                  final double oldSize = currentSize;
+                  // For Point text: scale bounding-box width proportionally so text isn't clipped
+                  final String textKind = (layer['kind'] ?? '').toString().toLowerCase();
+                  final double oldW = (layer['w'] ?? layer['width'] ?? 0).toDouble();
+                  final String lname = layerName.toLowerCase();
+                  // Detect point/single-line text: explicit 'point' kind, or old templates with contact-style names
+                  final bool isPointText = textKind == 'point' || 
+                      (textKind.isEmpty && (lname.contains('phone') || lname.contains('email') || 
+                       lname.contains('name') || lname.contains('web') || lname.contains('address') || 
+                       lname.contains('mobile')));
+                  if (isPointText && oldSize > 0 && oldW > 0) {
+                    final double ratio = val / oldSize;
+                    controller.updateLayerProperties(layerName, {
+                      'fontSize': val,
+                      'font_size': val,
+                      'size': val,
+                      'w': oldW * ratio,
+                      'width': oldW * ratio,
+                    });
+                  } else {
+                    controller.updateLayerProperties(layerName, {
+                      'fontSize': val,
+                      'font_size': val,
+                      'size': val,
+                    });
+                  }
+                }
               },
             ),
           ),
-          const Icon(Icons.text_fields, size: 24),
+          Icon(!isText ? Icons.photo_size_select_large : Icons.text_fields, size: 24),
         ],
       ),
     );
@@ -577,7 +614,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
       builder: (context) {
         Color pickerColor = currentColor;
         return AlertDialog(
-          title: const Text('Colour picker'),
+          title: Text('colour_picker'.trFormat),
           content: SingleChildScrollView(
             child: ColorPicker(
               pickerColor: pickerColor,
@@ -592,11 +629,11 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
           ),
           actions: <Widget>[
             TextButton(
-              child: const Text('Cancel'),
+              child: Text('cancel'.trFormat),
               onPressed: () => Navigator.of(context).pop(),
             ),
             TextButton(
-              child: const Text('Apply'),
+              child: Text('apply'.trFormat),
               onPressed: () {
                 final hex = '#${pickerColor.value.toRadixString(16).padLeft(8, '0').substring(2)}';
                 controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'color', hex);
@@ -667,7 +704,8 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
   Widget _buildContextualToolbar() {
     final activeLayer = _getActiveLayer();
     final bool isText = activeLayer != null && (activeLayer['type'] == 'text' || activeLayer['type'] == 'i-text' || activeLayer['text'] != null);
-    final bool isImage = activeLayer != null && (activeLayer['type'] == 'image' || activeLayer['type'] == 'icon' || activeLayer['src'] != null);
+    final bool isShape = activeLayer != null && !isText && (activeLayer['is_shape'] == true || activeLayer['is_shape'] == 'true' || activeLayer['is_shape'] == 1 || activeLayer['type'] == 'shape' || activeLayer['type'] == 'icon');
+    final bool isImage = activeLayer != null && !isText && !isShape && (activeLayer['type'] == 'image' || activeLayer['src'] != null);
 
     return Container(
       decoration: BoxDecoration(
@@ -693,49 +731,55 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                       controller.activeTool.value = controller.activeTool.value == 'Edit' ? '' : 'Edit';
                     }
                   }),
-                  _buildToolBtn(Icons.open_with, 'Nudge', () {
+                  _buildToolBtn(Icons.open_with, 'nudge'.trFormat, () {
                     final layer = _getActiveLayer();
                     if (layer != null) {
                       controller.activeTool.value = controller.activeTool.value == 'Nudge' ? '' : 'Nudge';
                     }
                   }),
-                  if (isText) _buildToolBtn(Icons.text_fields, 'Font', () {
+                  if (isText) _buildToolBtn(Icons.text_fields, 'font'.trFormat, () {
                     final layer = _getActiveLayer();
                     if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
                       controller.activeTool.value = controller.activeTool.value == 'Font' ? '' : 'Font';
                     }
                   }),
-                  if (isText) _buildToolBtn(Icons.format_size, 'Size', () {
+                  if (isText) _buildToolBtn(Icons.format_size, 'size'.trFormat, () {
                     final layer = _getActiveLayer();
                     if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
                       controller.activeTool.value = controller.activeTool.value == 'Size' ? '' : 'Size';
                     }
                   }),
-                  if (isText) _buildToolBtn(Icons.format_bold, 'Bold', () {
+                  if (isText) _buildToolBtn(Icons.format_bold, 'bold'.trFormat, () {
                     final layer = _getActiveLayer();
                     if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
                       final isBold = layer['weight'] == 'bold';
                       controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'weight', isBold ? 'normal' : 'bold');
                     }
                   }, isSelected: _getActiveLayer()?['weight'] == 'bold'),
-                  if (isText) _buildToolBtn(Icons.format_italic, 'Italic', () {
+                  if (isText) _buildToolBtn(Icons.format_italic, 'italic'.trFormat, () {
                     final layer = _getActiveLayer();
                     if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
                       final isItalic = layer['style'] == 'italic';
                       controller.updateLayerProperty((layer['name'] ?? layer['id']).toString(), 'style', isItalic ? 'normal' : 'italic');
                     }
                   }, isSelected: _getActiveLayer()?['style'] == 'italic'),
-                  if (isText) _buildToolBtn(Icons.palette_outlined, 'Color', () {
+                  if (isText || isShape) _buildToolBtn(Icons.palette_outlined, 'color'.trFormat, () {
                     final layer = _getActiveLayer();
-                    if (layer != null && (layer['type'] == 'text' || layer['type'] == 'i-text' || layer['text'] != null)) {
+                    if (layer != null) {
                       controller.activeTool.value = controller.activeTool.value == 'Color' ? '' : 'Color';
                     }
                   }),
+                  if (isShape || isImage) _buildToolBtn(Icons.format_size, 'size'.trFormat, () {
+                    final layer = _getActiveLayer();
+                    if (layer != null) {
+                      controller.activeTool.value = controller.activeTool.value == 'Size' ? '' : 'Size';
+                    }
+                  }),
                   
-                  if (isImage) _buildToolBtn(Icons.change_circle_outlined, 'Replace', () {
+                  if (isImage) _buildToolBtn(Icons.change_circle_outlined, 'replace'.trFormat, () {
                     _showReplaceOptions();
                   }),
-                  if (isImage) _buildToolBtn(Icons.flip, 'Mirror', () {
+                  if (isImage || isShape) _buildToolBtn(Icons.flip, 'mirror'.trFormat, () {
                     final layer = _getActiveLayer();
                     if (layer != null) {
                       bool currentFlipX = layer['flipX'] == true || layer['flipX'] == 'true';
@@ -745,7 +789,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                     }
                   }),
 
-                  _buildToolBtn(Icons.delete_outline, 'Delete', () {
+                  _buildToolBtn(Icons.delete_outline, 'delete'.trFormat, () {
                     controller.deleteLayer(controller.selectedLayerId.value);
                   }, iconColor: Colors.redAccent),
                 ],
@@ -786,24 +830,24 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    _buildFieldBadge('NAME', '_b_name,name,business_name'),
-                    _buildFieldBadge('LOGO', '_b_logo,logo'),
+                    _buildFieldBadge('name_label'.trFormat, '_b_name,name,business_name'),
+                    _buildFieldBadge('logo_label'.trFormat, '_b_logo,logo'),
                     _buildIconBadge(Icons.phone_android, '_b_phone,phone_icon,mobile_icon,call_icon'),
-                    _buildFieldBadge('MOBILE', 'mobile,phone,phone_text,mobile_text'),
+                    _buildFieldBadge('mobile_label'.trFormat, 'mobile,phone,phone_text,mobile_text'),
                     _buildIconBadge(Icons.mail_outline, '_b_email,email_icon'),
-                    _buildFieldBadge('EMAIL', 'email,email_text'),
+                    _buildFieldBadge('email_label'.trFormat, 'email,email_text'),
                     _buildIconBadge(Icons.location_on_outlined, '_b_address,address_icon,location_icon'),
-                    _buildFieldBadge('ADDRESS', 'address,location,address_text,location_text'),
+                    _buildFieldBadge('address_label'.trFormat, 'address,location,address_text,location_text'),
                     _buildIconBadge(Icons.language, '_b_website,web_icon,website_icon'),
-                    _buildFieldBadge('WEBSITE', 'web,website,web_text,website_text'),
-                    _buildFieldBadge('FRAME', '_frame_bg,_frame,frame,Frame_Bg,bg_frame'),
+                    _buildFieldBadge('website_label'.trFormat, 'web,website,web_text,website_text'),
+                    _buildFieldBadge('frame_label'.trFormat, '_frame_bg,_frame,frame,Frame_Bg,bg_frame'),
                   ],
                 ),
               ),
               // 2. Select Frame section — always show
-                const Padding(
-                  padding: EdgeInsets.only(left: 16, right: 16, top: 4),
-                  child: Text('Select Frame', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                Padding(
+                  padding: const EdgeInsets.only(left: 16, right: 16, top: 4),
+                  child: Text('select_frame'.trFormat, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 ),
                 const SizedBox(height: 12),
                 
@@ -815,10 +859,10 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                       child: Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))),
                     );
                   }
-                  if (controller.frames.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.all(8),
-                      child: Center(child: Text('No frames found', style: TextStyle(color: Colors.grey, fontSize: 12))),
+                  if (controller.filteredFrames.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Center(child: Text('no_frames_found'.trFormat, style: const TextStyle(color: Colors.grey, fontSize: 12))),
                     );
                   }
                   return SizedBox(
@@ -826,9 +870,9 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: controller.frames.length,
+                      itemCount: controller.filteredFrames.length,
                       itemBuilder: (context, index) {
-                        final frame = controller.frames[index];
+                        final frame = controller.filteredFrames[index];
                         final thumbUrl = frame['thumbnail'] ?? frame['thumbnail_url'] ?? frame['full_url'] ?? '';
                         return GestureDetector(
                           onTap: () {
@@ -922,7 +966,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Layers', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text('layers'.trFormat, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
                   ],
                 ),
@@ -1075,12 +1119,12 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                                 Navigator.pop(context);
                                 controller.selectLayer((layer['name'] ?? layer['id']).toString());
                               },
-                              tooltip: 'Edit Layer',
+                              tooltip: 'edit_layer'.trFormat,
                             ),
                             IconButton(
                               icon: Icon(isVisible ? Icons.visibility : Icons.visibility_off, color: isVisible ? Colors.black54 : Colors.grey.shade400, size: 22),
                               onPressed: () => controller.toggleVisibility((layer['name'] ?? layer['id']).toString(), !isVisible),
-                              tooltip: isVisible ? 'Hide' : 'Show',
+                              tooltip: isVisible ? 'hide'.trFormat : 'show'.trFormat,
                             ),
                             const SizedBox(width: 4),
                             const Icon(Icons.drag_handle, color: Colors.grey, size: 24),
@@ -1173,12 +1217,12 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Review AI Text', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text('review_ai_text'.trFormat, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                         IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    const Text('Edit the generated text before applying:', style: TextStyle(color: Colors.black54)),
+                    Text('edit_generated_text'.trFormat, style: const TextStyle(color: Colors.black54)),
                     const SizedBox(height: 16),
                     Expanded(
                       child: ListView(
@@ -1196,18 +1240,18 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      const Text('Social Media Caption', 
-                                          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87, fontSize: 13)),
+                                      Text('social_media_caption'.trFormat, 
+                                          style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87, fontSize: 13)),
                                       InkWell(
                                         onTap: () {
                                           Clipboard.setData(ClipboardData(text: e.value.text));
-                                          Get.snackbar('Copied', 'Caption copied to clipboard!', 
+                                          Get.snackbar('copied'.trFormat, 'caption_copied_to_clipboard'.trFormat, 
                                               snackPosition: SnackPosition.BOTTOM, backgroundColor: Colors.black87, colorText: Colors.white);
                                         },
-                                        child: const Row(children: [
-                                          Icon(Icons.copy, size: 14, color: Color(0xFF5538EE)),
-                                          SizedBox(width: 4),
-                                          Text('Copy', style: TextStyle(color: Color(0xFF5538EE), fontSize: 12, fontWeight: FontWeight.bold)),
+                                        child: Row(children: [
+                                          const Icon(Icons.copy, size: 14, color: Color(0xFF5538EE)),
+                                          const SizedBox(width: 4),
+                                          Text('copy'.trFormat, style: const TextStyle(color: Color(0xFF5538EE), fontSize: 12, fontWeight: FontWeight.bold)),
                                         ]),
                                       ),
                                     ],
@@ -1258,7 +1302,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             onPressed: () => _aiCurrentStep.value = isHiring ? 'hiring_questionnaire' : 'menu',
-                            child: const Text('Back'),
+                            child: Text('back'.trFormat),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -1272,7 +1316,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                               if (isGenerating.value) return;
                               _aiCurrentStep.value = isHiring ? 'hiring_questionnaire' : 'customPrompt';
                             },
-                            child: const Text('\u{1F504} Retry'),
+                            child: Text('\u{1F504} ${'retry'.trFormat}'),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -1292,9 +1336,9 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                               });
                               controller.templateConfig.refresh();
                               Navigator.pop(ctx);
-                              Get.snackbar('Success', 'AI text applied successfully', backgroundColor: Colors.green, colorText: Colors.white);
+                              Get.snackbar('success'.trFormat, 'ai_text_applied'.trFormat, backgroundColor: Colors.green, colorText: Colors.white);
                             },
-                            child: const Text('Apply to Design', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            child: Text('apply_to_design'.trFormat, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                           ),
                         ),
                       ],
@@ -1313,7 +1357,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('AI Content Generator', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          Text('ai_content_generator'.trFormat, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                           IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
                         ],
                       ),
@@ -1377,8 +1421,8 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                                       child: const Icon(Icons.add_shopping_cart, color: Colors.black54),
                                     ),
                                     const SizedBox(width: 12),
-                                    const Expanded(
-                                      child: Text('Select a Product (Optional)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                                    Expanded(
+                                      child: Text('select_a_product'.trFormat, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
                                     ),
                                     const Icon(Icons.arrow_drop_down),
                                   ],
@@ -1390,12 +1434,12 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                       // Tier 2: Enhance with AI
                       _buildAiOptionTile(
                         icon: Icons.auto_awesome,
-                        title: 'Enhance with AI',
-                        subtitle: 'Make text more professional (1 credit)',
+                        title: 'enhance_with_ai'.trFormat,
+                        subtitle: 'enhance_with_ai_subtitle'.trFormat,
                         color: const Color(0xFF5538EE),
                         onTap: () {
                           if (_aiSelectedProduct == null) {
-                            Get.snackbar('Product Required', 'Please select a product first.');
+                            Get.snackbar('product_required'.trFormat, 'please_select_product_first'.trFormat);
                             return;
                           }
                           _performTier2Generation(isGenerating);
@@ -1405,8 +1449,8 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                       // Tier 3: Custom Prompt
                       _buildAiOptionTile(
                         icon: Icons.edit_note,
-                        title: 'Custom Prompt',
-                        subtitle: 'Write your own instructions (1 credit)',
+                        title: 'custom_prompt'.trFormat,
+                        subtitle: 'custom_prompt_subtitle'.trFormat,
                         color: Colors.orange,
                         onTap: () => _aiCurrentStep.value = 'customPrompt',
                       ),
@@ -1430,7 +1474,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('AI Hiring Post Generator', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          Text('ai_hiring_post_generator'.trFormat, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                           IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
                         ],
                       ),
@@ -1459,7 +1503,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                         ),
                       ],
                       const SizedBox(height: 16),
-                      const Text('Language:', style: TextStyle(fontSize: 13, color: Colors.black54)),
+                      Text('language_label'.trFormat, style: const TextStyle(fontSize: 13, color: Colors.black54)),
                       const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1489,7 +1533,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                           ),
                           onPressed: isGenerating.value ? null : () async {
                             if (_aiHiringRoleController.text.trim().isEmpty) {
-                              Get.snackbar('Error', 'Please enter a role/post.');
+                              Get.snackbar('error'.trFormat, 'please_enter_role_post'.trFormat);
                               return;
                             }
                             
@@ -1523,13 +1567,13 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                               });
                               _aiCurrentStep.value = 'review';
                             } else {
-                              Get.snackbar('Notice', 'Could not generate text. Ensure template has text layers.', 
+                               Get.snackbar('notice'.trFormat, 'could_not_generate_text'.trFormat, 
                                   backgroundColor: Colors.orange, colorText: Colors.white);
                             }
                           },
                           child: isGenerating.value 
                               ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                              : const Text('Generate with AI', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                              : Text('generate_with_ai'.trFormat, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
                         ),
                       ),
                     ],
@@ -1551,12 +1595,12 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                           alignment: Alignment.centerLeft,
                           onPressed: () => _aiCurrentStep.value = isHiring ? 'hiring_questionnaire' : 'menu',
                         ),
-                        const Expanded(child: Text('Custom Prompt', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+                        Expanded(child: Text('custom_prompt'.trFormat, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
                         IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    const Text('Describe what you want the AI to write:', style: TextStyle(fontSize: 13, color: Colors.black54)),
+                    Text('describe_ai_instructions'.trFormat, style: const TextStyle(fontSize: 13, color: Colors.black54)),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _aiPromptController,
@@ -1568,7 +1612,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text('Output Language:', style: TextStyle(fontSize: 13, color: Colors.black54)),
+                    Text('output_language'.trFormat, style: const TextStyle(fontSize: 13, color: Colors.black54)),
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1599,7 +1643,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                         ),
                         onPressed: isGenerating.value ? null : () async {
                           if (_aiPromptController.text.trim().isEmpty) {
-                            Get.snackbar('Error', 'Please enter a prompt first.');
+                            Get.snackbar('error'.trFormat, 'please_enter_prompt_first'.trFormat);
                             return;
                           }
                           isGenerating.value = true;
@@ -1616,13 +1660,13 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                             });
                             _aiCurrentStep.value = 'review';
                           } else {
-                            Get.snackbar('Notice', 'Could not generate text. Ensure template has text layers.', 
+                            Get.snackbar('notice'.trFormat, 'could_not_generate_text'.trFormat, 
                                 backgroundColor: Colors.orange, colorText: Colors.white);
                           }
                         },
                         child: isGenerating.value 
                             ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                            : const Text('Generate Content', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                            : Text('generate_content'.trFormat, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
                       ),
                     ),
                   ],
@@ -1702,7 +1746,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
       }
     }
     controller.templateConfig.refresh();
-    Get.snackbar('Smart Generate', 'Product details applied instantly!', backgroundColor: Colors.green, colorText: Colors.white);
+    Get.snackbar('smart_generate'.trFormat, 'product_details_applied'.trFormat, backgroundColor: Colors.green, colorText: Colors.white);
   }
 
   Future<void> _performTier2Generation(RxBool isGenerating) async {
@@ -1722,7 +1766,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
       });
       _aiCurrentStep.value = 'review';
     } else {
-      Get.snackbar('Notice', 'Could not generate enhanced text.', backgroundColor: Colors.orange, colorText: Colors.white);
+      Get.snackbar('notice'.trFormat, 'could_not_generate_enhanced_text'.trFormat, backgroundColor: Colors.orange, colorText: Colors.white);
     }
   }
 
@@ -1761,12 +1805,12 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                       child: const Icon(Icons.inventory_2, color: Colors.white, size: 22),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Select Product', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1E293B))),
-                          Text('Choose a product for AI content', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                          Text('select_product'.trFormat, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1E293B))),
+                          Text('choose_product_for_ai'.trFormat, style: const TextStyle(fontSize: 12, color: Colors.grey)),
                         ],
                       ),
                     ),
@@ -1781,16 +1825,16 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                   future: ApiService.getUserProducts(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: Column(
+                      return Center(child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          CircularProgressIndicator(color: Color(0xFF6366F1)),
-                          SizedBox(height: 16),
-                          Text('Loading your products...', style: TextStyle(color: Colors.grey)),
+                          const CircularProgressIndicator(color: Color(0xFF6366F1)),
+                          const SizedBox(height: 16),
+                          Text('loading_your_products'.trFormat, style: const TextStyle(color: Colors.grey)),
                         ],
                       ));
                     }
-                    if (!snapshot.hasData) return const Center(child: Text('Failed to load products'));
+                    if (!snapshot.hasData) return Center(child: Text('failed_to_load_products'.trFormat));
                     try {
                       final body = jsonDecode(snapshot.data!.body);
                       // Debug: print actual API response keys
@@ -1818,9 +1862,9 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                           children: [
                             Icon(Icons.inventory_2_outlined, size: 56, color: Colors.grey.shade300),
                             const SizedBox(height: 12),
-                            const Text('No products found', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
+                             Text('no_products_found'.trFormat, style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
                             const SizedBox(height: 4),
-                            const Text('Add products from My Business section', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                             Text('add_products_from_business'.trFormat, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                           ],
                         ));
                       }
@@ -1953,11 +1997,11 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                   future: ApiService.getUserProducts(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                    if (!snapshot.hasData) return const Center(child: Text('Failed'));
+                    if (!snapshot.hasData) return Center(child: Text('failed'.trFormat));
                     try {
                       final body = jsonDecode(snapshot.data!.body);
                       final List products = body['data'] ?? body['products']?['data'] ?? [];
-                      if (products.isEmpty) return const Center(child: Text('No products found'));
+                      if (products.isEmpty) return Center(child: Text('no_products_found'.trFormat));
                       return ListView.builder(
                         itemCount: products.length,
                         itemBuilder: (context, index) {
@@ -2076,7 +2120,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('Add Text'),
+          title: Text('add_text'.trFormat),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2084,7 +2128,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
               TextField(
                 controller: textController,
                 autofocus: true,
-                decoration: const InputDecoration(hintText: 'Enter text here'),
+                decoration: InputDecoration(hintText: 'enter_text_here'.trFormat),
               ),
               const SizedBox(height: 20),
               Text('Font Size: ${selectedSize.toInt()}'),
@@ -2103,7 +2147,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(context), child: Text('cancel'.trFormat)),
             TextButton(
               onPressed: () {
                 if (textController.text.trim().isNotEmpty) {
@@ -2123,7 +2167,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                 }
                 Navigator.pop(context);
               },
-              child: const Text('Add'),
+              child: Text('add'.trFormat),
             ),
           ],
         ),
@@ -2141,12 +2185,12 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          if (isCustom) _buildToolBtn(Icons.image, 'Logo', _pickAndAddImage),
-          _buildToolBtn(Icons.text_fields, 'Text', _showAddTextModal),
+          if (isCustom) _buildToolBtn(Icons.image, 'logo'.trFormat, _pickAndAddImage),
+          _buildToolBtn(Icons.text_fields, 'text'.trFormat, _showAddTextModal),
           if (isCustom) _buildToolBtn(Icons.shopping_bag_outlined, 'Products', _showProductsModal),
-          if (isCustom) _buildToolBtn(Icons.auto_awesome, 'AI Text', () => _showAiTextModal(context)),
-          _buildToolBtn(Icons.emoji_emotions_outlined, 'Sticker', _showStickerModal),
-          if (isCustom) _buildToolBtn(Icons.layers, 'Layers', () => _showLayersModal(context)),
+          // if (isCustom) _buildToolBtn(Icons.auto_awesome, 'ai_text'.trFormat, () => _showAiTextModal(context)),
+          _buildToolBtn(Icons.emoji_emotions_outlined, 'sticker'.trFormat, _showStickerModal),
+          if (isCustom) _buildToolBtn(Icons.layers, 'layers'.trFormat, () => _showLayersModal(context)),
         ],
       ),
     );
@@ -2208,13 +2252,13 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Text('Replace Image', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text('replace_image'.trFormat, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library),
-              title: const Text('Choose from Gallery'),
+              title: Text('choose_from_gallery'.trFormat),
               onTap: () async {
                 Navigator.pop(context);
                 final picker = ImagePicker();
@@ -2229,7 +2273,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.auto_awesome_mosaic),
-              title: const Text('Choose from Stickers'),
+              title: Text('choose_from_stickers'.trFormat),
               onTap: () {
                 Navigator.pop(context);
                 _showStickerModal(replaceLayerId: layerId);
@@ -2267,7 +2311,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('My Products', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text('my_products'.trFormat, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               Expanded(
                 child: FutureBuilder<http.Response>(
@@ -2277,13 +2321,13 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                       return const Center(child: CircularProgressIndicator());
                     }
                     if (snapshot.hasError || !snapshot.hasData) {
-                      return const Center(child: Text('Failed to load products'));
+                      return Center(child: Text('failed_to_load_products'.trFormat));
                     }
                     try {
                       final body = jsonDecode(snapshot.data!.body);
                       final List products = body['data'] ?? [];
                       if (products.isEmpty) {
-                        return const Center(child: Text('No products found'));
+                        return Center(child: Text('no_products_found'.trFormat));
                       }
                       return GridView.builder(
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -2320,7 +2364,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                         },
                       );
                     } catch (e) {
-                      return const Center(child: Text('Error loading products'));
+                      return Center(child: Text('error_loading_products'.trFormat));
                     }
                   },
                 ),
@@ -2353,11 +2397,11 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(replaceLayerId != null ? 'Choose Placeholder' : 'Stickers', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(replaceLayerId != null ? 'choose_placeholder'.trFormat : 'stickers'.trFormat, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
                   TextField(
                     decoration: InputDecoration(
-                      hintText: 'Search...',
+                      hintText: 'search'.trFormat,
                       prefixIcon: const Icon(Icons.search),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -2379,7 +2423,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                           return const Center(child: CircularProgressIndicator());
                         }
                         if (snapshot.hasError || !snapshot.hasData) {
-                          return const Center(child: Text('Failed to load stickers'));
+                          return Center(child: Text('failed_to_load_stickers'.trFormat));
                         }
                         try {
                           final body = jsonDecode(snapshot.data!.body);
@@ -2410,7 +2454,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                           }
 
                           if (stickers.isEmpty) {
-                            return const Center(child: Text('No stickers found'));
+                            return Center(child: Text('no_stickers_found'.trFormat));
                           }
                           return GridView.builder(
                             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -2470,7 +2514,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                             },
                           );
                         } catch (e) {
-                          return const Center(child: Text('Error parsing stickers'));
+                          return Center(child: Text('error_parsing_stickers'.trFormat));
                         }
                       },
                     ),

@@ -811,6 +811,15 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     } else if (type == 'icon') {
       content =
           _buildIconLayer(effectiveLayer, name, scale, nativeW, nativeH);
+    } else if (type == 'solid_rect') {
+      // Native solid rectangle (e.g., logo background plate)
+      String colorStr = effectiveLayer['color'] ?? '#FFFFFF';
+      Color fillColor = _parseColor(colorStr);
+      content = Container(
+        width: nativeW * scale,
+        height: nativeH * scale,
+        color: fillColor,
+      );
     }
 
     // Wrap the raw content in InteractiveLayer
@@ -967,16 +976,21 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
 
     // Justification — web legacy JSON doesn't export this at top level,
     // Artera Schema puts it in font.justification. Also check textAlign. (RC-7)
-    final String just = (layer['justification'] ?? layer['textAlign'] ?? 'left').toString().toLowerCase().trim();
+    final dynamic fontObj = layer['font'];
+    final String just = (layer['justification'] ?? 
+                        (fontObj is Map ? fontObj['justification'] : null) ?? 
+                        layer['textAlign'] ?? 'left').toString().toLowerCase().trim();
     TextAlign textAlign = TextAlign.left;
     Alignment alignment = Alignment.centerLeft;
     if (just == 'center') {
       textAlign = TextAlign.center;
       alignment = Alignment.center;
-    }
-    if (just == 'right') {
+    } else if (just == 'right') {
       textAlign = TextAlign.right;
       alignment = Alignment.centerRight;
+    } else if (just == 'justify' || just == 'full') {
+      textAlign = TextAlign.justify;
+      alignment = Alignment.centerLeft;
     }
     
     debugPrint('[TEXT_LAYER] name="${layer['name']}" text="$textValue" font="$fontName" color="$colorStr" fontSize=$fontSize fontWeight=$fontWeight fontStyle=$fontStyle');
@@ -1056,27 +1070,40 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     final double ratio = layerH > 0 && rawSize > 0 ? (layerH / rawSize) : 2.0;
     final bool hasExplicitNewlines = textValue.contains('\n') || textValue.contains('\r');
     
+    final String aiRole = (layer['ai_role'] ?? layer['ai_field'] ?? layer['_businessKey'] ?? '').toString().toLowerCase();
+    final bool isFrameLayer = layer['_is_frame_layer'] == true || layer['_isFrameLayer'] == true;
+    final bool isKnownSingleLineField = lname.contains('name') || 
+                                        lname.contains('email') || 
+                                        lname.contains('phone') || 
+                                        lname.contains('mobile') || 
+                                        lname.contains('web') ||
+                                        lname.contains('address') ||
+                                        aiRole.contains('name') ||
+                                        aiRole.contains('email') ||
+                                        aiRole.contains('phone') ||
+                                        aiRole.contains('mobile') ||
+                                        aiRole.contains('web') ||
+                                        aiRole.contains('address') ||
+                                        (isFrameLayer && !hasExplicitNewlines) ||
+                                        noSpaces;
+
     bool isSingleLine;
     if (textKind == 'point') {
       // Explicitly marked as Point Text by web editor — never wraps, scales down
+      isSingleLine = true;
+    } else if (isKnownSingleLineField || (!hasExplicitNewlines && ratio <= 2.2)) {
+      // Even if marked as 'paragraph' (Textbox for alignment), fields like email/phone/web/name,
+      // frame layers, or boxes without explicit newlines must NEVER wrap to multiple lines; they must scale down via FittedBox!
       isSingleLine = true;
     } else if (textKind == 'paragraph') {
       // Explicitly marked as Paragraph Text by web editor — wraps within layer width
       isSingleLine = false;
     } else {
-      // Fallback heuristic for old templates without kind field
-      isSingleLine = lname.contains('name') || 
-                      lname.contains('email') || 
-                      lname.contains('phone') || 
-                      lname.contains('mobile') || 
-                      lname.contains('web') ||
-                      lname.contains('address') ||
-                      noSpaces;
-                      
-      if (!hasExplicitNewlines && ratio <= 1.6) {
-        isSingleLine = true;
-      }
+      isSingleLine = false;
     }
+
+    // Inject single-line flag so InteractiveLayer knows not to constrain width
+    layer['_is_single_line'] = isSingleLine;
 
     // --- OVERFLOW PREVENTION (Fabric.js textbox word-wrap fix) ---
     // In Flutter, if a single word is wider than the container, it wraps mid-character.
@@ -1114,11 +1141,22 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     );
 
     final double rawW = safeDouble(layer['w'] ?? layer['width'] ?? 0);
-    if (rawW > 0) {
+    if (rawW > 0 && !isSingleLine) {
       textWidget = Container(
         width: double.infinity,
         alignment: alignment,
         child: textWidget,
+      );
+    } else if (isSingleLine && rawW > 0) {
+      // Point text (single-line) needs a fixed-width container so alignment (right/center/left)
+      // takes effect, and FittedBox(scaleDown) ensures long text (like email) shrinks without overlapping.
+      textWidget = SizedBox(
+        width: rawW * scale,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: alignment,
+          child: textWidget,
+        ),
       );
     }
 
@@ -1319,7 +1357,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       // Shaped backgrounds (circle/ellipse) that were dynamically replaced by API
       final bool isShapeBg = isBg && isShape;
 
-      if (layer['_businessKey'] == 'logo' || lname.contains('logo')) {
+      if (layer['_businessKey'] == 'logo' || lname.contains('logo') || lname.contains('sticker') || layer['isUserAdded'] == true) {
         fit = BoxFit.contain;
       } else if (isFrameSlot) {
         fit = BoxFit.cover; // Photo slots use cover scaling
@@ -1360,14 +1398,33 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       'facebook', 'instagram', 'twitter', 'youtube', 'linkedin', 'icon', 'social', 'mail', 'location'].any((k) => _lowName.contains(k));
     
     if (_isContactOrSocial) {
-      debugPrint('[TINT] "$lname" tint_color=${layer['tint_color']} _businessKey=${layer['_businessKey']}');
+      debugPrint('[TINT] "$lname" tint_color=${layer['tint_color']} _businessKey=${layer['_businessKey']} is_shape=${layer['is_shape']} pathType=$pathType');
     }
+    
+    // For rasterized shapes/icons (is_shape=true, TEMPLATE_ASSET), the color is already
+    // baked into the PNG by the web editor's toDataURL(). Applying tint_color on top would
+    // OVERRIDE the baked-in color. Fabric.js default fill is rgb(0,0,0) which turns everything black.
+    // Only apply tint_color for non-shape icons (contact/social icons that need dynamic coloring).
+    final bool isRasterizedShape = (layer['is_shape'] == true || layer['is_shape'] == 1) && pathType == 'TEMPLATE_ASSET';
     
     if (layer['tint_color'] != null) {
       String tintStr = layer['tint_color'].toString();
       tintColor = _parseColor(tintStr, fallback: const Color(0xFFFFFFFF));
       gradientColors = _parseGradient(tintStr);
-      debugPrint('[TINT] "$lname" PARSED → $tintColor');
+      debugPrint('[TINT] "$lname" PARSED tint_color → $tintColor');
+    } else if (layer['fill'] != null && layer['type'] == 'shape' && !isRasterizedShape) {
+      // Native shapes (rect, circle, etc.) have their color in 'fill', not 'tint_color'
+      final fillVal = layer['fill'];
+      if (fillVal is String) {
+        tintColor = _parseColor(fillVal, fallback: const Color(0xFFFFFFFF));
+        gradientColors = _parseGradient(fillVal);
+        debugPrint('[TINT] "$lname" PARSED fill → $tintColor');
+      } else if (fillVal is Map) {
+        // Gradient fill from web editor
+        debugPrint('[TINT] "$lname" has gradient fill object');
+      }
+    } else if (isRasterizedShape) {
+      debugPrint('[TINT] "$lname" SKIPPED — rasterized shape, color baked in PNG');
     }
 
     String gradientDir = (layer['gradient_direction'] ?? 'vertical').toString();

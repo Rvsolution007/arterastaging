@@ -6,13 +6,24 @@
     
     <div class="card mt-4">
         <div class="card-body">
-            <form action="{{ route('blogs.update', $blog->id) }}" method="POST">
+            <form action="{{ route('admin.blogs.update', $blog->id) }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 @method('PUT')
                 
                 <div class="form-group mb-3">
                     <label>Title</label>
                     <input type="text" name="title" class="form-control" value="{{ $blog->title }}" required>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label>Blog Image</label>
+                    <input type="file" name="og_image" class="form-control-file" accept="image/*">
+                    <small class="text-muted d-block mt-1">Recommended size: 1200x630 px. (Leave blank to keep existing image)</small>
+                    @if($blog->og_image)
+                        <div class="mt-2">
+                            <img src="{{ asset($blog->og_image) }}" alt="Current Image" style="max-height: 100px; border-radius: 8px;">
+                        </div>
+                    @endif
                 </div>
                 
                 <div class="form-group mb-3">
@@ -34,7 +45,7 @@
                 </div>
                 
                 <button type="submit" class="btn btn-success">Save Changes</button>
-                <a href="{{ route('blogs.index') }}" class="btn btn-secondary">Cancel</a>
+                <a href="{{ route('admin.blogs') }}" class="btn btn-secondary">Cancel</a>
             </form>
         </div>
     </div>

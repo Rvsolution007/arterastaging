@@ -10,6 +10,38 @@
         fabric.Text.prototype.textBaseline = 'alphabetic';
         if (fabric.Textbox) fabric.Textbox.prototype.textBaseline = 'alphabetic';
         if (fabric.IText) fabric.IText.prototype.textBaseline = 'alphabetic';
+
+        // ══ CANVA/PHOTOSHOP TEXT BEHAVIOR ══
+        // 1. lockUniScaling forces all handles to scale proportionally (no stretch)
+        // 2. Hide mt/mb (vertical stretch is nonsensical for text)
+        // 3. Override fabric.Text to fabric.IText so double-click editing works on point text (avoids Textbox call stack crash)
+        if (fabric.IText) {
+            fabric.IText.prototype.lockUniScaling = true;
+            fabric.IText.prototype.setControlsVisibility({ mt: false, mb: false });
+        }
+        if (fabric.Textbox) {
+            fabric.Textbox.prototype.lockUniScaling = true;
+            fabric.Textbox.prototype.setControlsVisibility({ mt: false, mb: false });
+        }
+        if (fabric.Text) {
+            fabric.Text.prototype.lockUniScaling = true;
+            fabric.Text.prototype.setControlsVisibility({ mt: false, mb: false });
+        }
+
+        (function() {
+            var _OrigText = fabric.Text;
+            fabric.Text = function(text, options) {
+                return new fabric.IText(text, options || {});
+            };
+            for (var key in _OrigText) {
+                if (_OrigText.hasOwnProperty(key)) fabric.Text[key] = _OrigText[key];
+            }
+            fabric.Text.prototype = fabric.IText.prototype;
+            fabric.Text.fromObject = function(object, callback) {
+                return fabric.IText.fromObject(object, callback);
+            };
+            fabric.Text.async = true;
+        })();
         if (fabric.Rect) {
             if (fabric.Rect.prototype.cacheProperties) {
                 fabric.Rect.prototype.cacheProperties = fabric.Rect.prototype.cacheProperties.concat(['rx_tl', 'rx_tr', 'rx_br', 'rx_bl']);
@@ -68,9 +100,24 @@
     }
 
     // Global tracking for editing an existing custom frame
-    window.editing_frame_id = null;
+    if (typeof window.editing_frame_id === 'undefined' || window.editing_frame_id === '') {
+        window.editing_frame_id = null;
+    }
+    const isFrameMode = (document.getElementById('btn-save') && document.getElementById('btn-save').getAttribute('data-mode') === 'frame');
+    
+    // Auto-load if frame_id is present
+    if (window.editing_frame_id) {
+        if (isFrameMode) {
+            setTimeout(() => { if(window.loadExistingFrame) window.loadExistingFrame(window.editing_frame_id); }, 500);
+        } else {
+            setTimeout(() => { if(window.loadExistingTemplate) window.loadExistingTemplate(window.editing_frame_id); }, 500);
+        }
+    }
 
     // Initialize Canvas
+    if (fabric.Canvas2dFilterBackend) {
+        fabric.filterBackend = new fabric.Canvas2dFilterBackend();
+    }
     const canvas = new fabric.Canvas('template-canvas', {
         width: 1080,
         height: 1080,
@@ -341,6 +388,8 @@
 
     const inputIsBackground = $('prop-is-background');
     const inputIsPlaceholder = $('prop-is-placeholder');
+    const inputIsColorizableShape = $('prop-is-colorizable-shape');
+    const inputIsLogo = $('prop-is-logo');
     const inputMaskLayer = $('prop-mask-layer');
     const btnPickMask = $('btn-pick-mask');
 
@@ -386,7 +435,34 @@
         if (noSelect) noSelect.style.display = 'block';
     });
     canvas.on('object:modified', updateProps);
-    
+
+    // ── Anti-stretch: convert scale → width + fontSize on text objects ──
+    canvas.on('object:modified', function(e) {
+        const obj = e.target;
+        if (!obj) return;
+        const isText = (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox');
+        if (!isText) return;
+        const sx = obj.scaleX || 1;
+        const sy = obj.scaleY || 1;
+        if (Math.abs(sx - 1) < 0.001 && Math.abs(sy - 1) < 0.001) return;
+        
+        // lockUniScaling makes sx and sy equal on corner drag
+        const uniformScale = Math.max(sx, sy);
+        const newWidth = obj.width * uniformScale;
+        const newFontSize = Math.round(obj.fontSize * uniformScale);
+        
+        obj.set({
+            width: newWidth,
+            fontSize: newFontSize > 1 ? newFontSize : 1,
+            scaleX: 1,
+            scaleY: 1
+        });
+        obj.setCoords();
+        canvas.renderAll();
+        if (inputFontSize) inputFontSize.value = newFontSize > 1 ? newFontSize : 1;
+    });
+
+
     function updateCoords() {
         const obj = canvas.getActiveObject();
         if (!obj) return;
@@ -394,6 +470,9 @@
         if (inputY) inputY.value = Math.round(obj.top);
         if (inputW) inputW.value = Math.round(obj.width * obj.scaleX);
         if (inputH) inputH.value = Math.round(obj.height * obj.scaleY);
+        if (inputFontSize && (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox')) {
+            inputFontSize.value = Math.round(obj.fontSize * Math.abs(obj.scaleY || 1));
+        }
     }
     
     canvas.on('object:scaling', updateCoords);
@@ -508,18 +587,34 @@
     canvas.on('object:modified', clearGuidelines);
 
     function updateProps() {
-        const obj = canvas.getActiveObject();
+        let obj = canvas.getActiveObject();
         if (!obj) return;
 
         updateCoords();
 
-        const isGroup = obj.type === 'activeSelection' || obj.type === 'group';
-        if (isGroup) {
+        if (obj.type === 'group') {
             if (textProps) textProps.style.display = 'none';
             if (imageProps) imageProps.style.display = 'none';
             if (shapeProps) shapeProps.style.display = 'none';
             if (sharedProps) sharedProps.style.display = 'none';
             return;
+        }
+
+        if (obj.type === 'activeSelection') {
+            let firstText = obj._objects.find(o => o.type === 'text' || o.type === 'i-text' || o.type === 'textbox');
+            let firstShape = obj._objects.find(o => o.customType === 'shape' || o.is_shape || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(o.type));
+            let firstImage = obj._objects.find(o => o.type === 'image');
+            
+            if (firstText) obj = firstText;
+            else if (firstShape) obj = firstShape;
+            else if (firstImage) obj = firstImage;
+            else {
+                if (textProps) textProps.style.display = 'none';
+                if (imageProps) imageProps.style.display = 'none';
+                if (shapeProps) shapeProps.style.display = 'none';
+                if (sharedProps) sharedProps.style.display = 'none';
+                return;
+            }
         }
 
         if (propForm) propForm.style.display = 'block';
@@ -549,7 +644,7 @@
             if (imageProps) imageProps.style.display = 'none';
             if (shapeProps) shapeProps.style.display = 'none';
             if (inputText) inputText.value = obj.text;
-            if (inputFontSize) inputFontSize.value = obj.fontSize;
+            if (inputFontSize) inputFontSize.value = Math.round(obj.fontSize * Math.abs(obj.scaleY || 1));
             if (inputColor) inputColor.value = obj.fill || '#000000';
             if (inputFontFamily) inputFontFamily.value = obj.fontFamily || 'Arial';
             
@@ -572,12 +667,14 @@
             if (inputWordSpacing) inputWordSpacing.value = (obj.wordSpacing || 0);
             if (inputLineHeight) inputLineHeight.value = (obj.lineHeight || 1.16);
             if (inputAiAutoscale) inputAiAutoscale.checked = obj.auto_scale || false;
-        } else if (obj.type === 'image') {
+        } else if (obj.type === 'image' && !(obj.customType === 'shape' || obj.is_shape)) {
             if (textProps) textProps.style.display = 'none';
             if (imageProps) imageProps.style.display = 'block';
             if (shapeProps) shapeProps.style.display = 'none';
             if (inputIsBackground) inputIsBackground.checked = obj.is_background || false;
             if (inputIsPlaceholder) inputIsPlaceholder.checked = obj.is_placeholder || false;
+            if (inputIsColorizableShape) inputIsColorizableShape.checked = false;
+            if (inputIsLogo) inputIsLogo.checked = obj.is_logo || (obj.customName || '').toLowerCase().includes('logo');
             
             if (inputMaskLayer) {
                 inputMaskLayer.innerHTML = '<option value="">-- None --</option>';
@@ -592,14 +689,21 @@
                 });
             }
 
-        } else if (obj.customType === 'shape') {
+        } else if (obj.customType === 'shape' || obj.is_shape || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type)) {
             if (textProps) textProps.style.display = 'none';
             if (imageProps) imageProps.style.display = 'none';
             if (shapeProps) shapeProps.style.display = 'block';
             
+            // Hide vector-only controls if shape is rasterized (image)
+            const isRaster = obj.type === 'image';
+            const vecGrad = document.getElementById('shape-vector-gradient-wrapper');
+            const vecCtrls = document.getElementById('shape-vector-controls-wrapper');
+            if (vecGrad) vecGrad.style.display = isRaster ? 'none' : 'block';
+            if (vecCtrls) vecCtrls.style.display = isRaster ? 'none' : 'flex';
+            
             const isGradient = obj.fill && obj.fill.type === 'linear';
             if (inputShapeGradient) inputShapeGradient.checked = isGradient;
-            if (shapeGradientProps) shapeGradientProps.style.display = isGradient ? 'block' : 'none';
+            if (shapeGradientProps) shapeGradientProps.style.display = (isGradient && !isRaster) ? 'block' : 'none';
 
             if (isGradient) {
                 const stops = obj.fill.colorStops || [];
@@ -625,12 +729,24 @@
             } else {
                 const rawFill = obj.fill || '#6366f1';
                 const hexFill = (typeof rawFill === 'string' && rawFill.startsWith('#') && rawFill.length >= 7) ? rawFill.substring(0,7) : '#6366f1';
-                if (inputFillColor) inputFillColor.value = hexFill;
+                if (inputFillColor) {
+                    if (inputFillColor.jscolor) {
+                        inputFillColor.jscolor.fromString(hexFill);
+                    } else {
+                        inputFillColor.value = hexFill;
+                    }
+                }
             }
 
             const rawStroke = obj.stroke || '#000000';
             const hexStroke = (typeof rawStroke === 'string' && rawStroke.startsWith('#') && rawStroke.length >= 7) ? rawStroke.substring(0,7) : '#000000';
-            if (inputStrokeColor) inputStrokeColor.value = hexStroke;
+            if (inputStrokeColor) {
+                if (inputStrokeColor.jscolor) {
+                    inputStrokeColor.jscolor.fromString(hexStroke);
+                } else {
+                    inputStrokeColor.value = hexStroke;
+                }
+            }
             if (inputStrokeWidth) inputStrokeWidth.value = obj.strokeWidth || 0;
             if (inputBorderRadius) inputBorderRadius.value = obj.rx || 0;
             const tl = obj.rx_tl !== undefined ? obj.rx_tl : (obj.rx || 0);
@@ -648,16 +764,90 @@
         }
     }
 
+    // Helper to ensure text objects are fabric.Textbox with scaleX=1 so container width & textAlign work
+    function ensureTextbox(obj, actionName = 'unknown') {
+        if (!obj || (obj.type !== 'textbox' && obj.type !== 'i-text' && obj.type !== 'text')) return obj;
+        
+        console.log(`=== [DIAGNOSIS: ${actionName}] Before ===`, {
+            type: obj.type, width: obj.width, scaleX: obj.scaleX, height: obj.height, scaleY: obj.scaleY, textAlign: obj.textAlign, text: obj.text
+        });
+
+        // If it's already a textbox, we MUST still normalize scaleX to 1!
+        // In Fabric.js, if scaleX != 1, textAlign ('right'/'center') calculates alignment across unscaled width (which tightly wraps text)
+        // rather than visual width, leaving text stuck on the left!
+        if (obj.type === 'textbox') {
+            if (obj.scaleX && obj.scaleX !== 1) {
+                const actualW = Math.round(obj.width * obj.scaleX);
+                obj.set({ width: actualW, scaleX: 1 });
+                obj.setCoords();
+            }
+            console.log(`=== [DIAGNOSIS: ${actionName}] After (Normalized Textbox) ===`, {
+                type: obj.type, width: obj.width, scaleX: obj.scaleX, textAlign: obj.textAlign
+            });
+            return obj;
+        }
+
+        // Convert Point Text (fabric.Text / fabric.IText) to Paragraph Text (fabric.Textbox)
+        const props = obj.toObject();
+        props.type = 'textbox';
+        props.width = Math.round(obj.width * (obj.scaleX || 1));
+        props.scaleX = 1;
+        props.scaleY = obj.scaleY || 1;
+        const tb = new fabric.Textbox(obj.text, props);
+        tb.set({
+            customName: obj.customName,
+            customType: obj.customType || 'text',
+            placeholderKey: obj.placeholderKey,
+            ai_field: obj.ai_field,
+            ai_role: obj.ai_role,
+            ai_max_chars: obj.ai_max_chars,
+            is_placeholder: obj.is_placeholder,
+            _psdData: obj._psdData,
+            _originalYOffset: obj._originalYOffset
+        });
+        const idx = canvas.getObjects().indexOf(obj);
+        canvas.remove(obj);
+        canvas.add(tb);
+        if (idx >= 0 && typeof canvas.moveTo === 'function') canvas.moveTo(tb, idx);
+        canvas.setActiveObject(tb);
+        if (typeof updateLayersList === 'function') updateLayersList();
+
+        console.log(`=== [DIAGNOSIS: ${actionName}] After (Converted to Textbox) ===`, {
+            type: tb.type, width: tb.width, scaleX: tb.scaleX, textAlign: tb.textAlign
+        });
+        return tb;
+    }
+
     // --- Property Input Handlers ---
     [inputX, inputY, inputW, inputH].forEach(input => {
         if (!input) return;
         input.addEventListener('change', function() {
-            const obj = canvas.getActiveObject();
+            let obj = canvas.getActiveObject();
             if(!obj) return;
             if(this.id === 'prop-x') obj.set('left', parseInt(this.value));
             if(this.id === 'prop-y') obj.set('top', parseInt(this.value));
-            if(this.id === 'prop-w') obj.set({ scaleX: parseInt(this.value) / obj.width });
-            if(this.id === 'prop-h') obj.set({ scaleY: parseInt(this.value) / obj.height });
+            if(this.id === 'prop-w') {
+                const newW = parseInt(this.value, 10);
+                if (!isNaN(newW) && newW > 0) {
+                    if (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text') {
+                        obj = ensureTextbox(obj, 'prop_w_change');
+                        obj.set({ width: newW, scaleX: 1 });
+                    } else {
+                        obj.set({ scaleX: newW / obj.width });
+                    }
+                }
+            }
+            if(this.id === 'prop-h') {
+                const newH = parseInt(this.value, 10);
+                if (!isNaN(newH) && newH > 0) {
+                    if (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text') {
+                        obj = ensureTextbox(obj, 'prop_h_change');
+                        obj.set({ height: newH, scaleY: 1 });
+                    } else {
+                        obj.set({ scaleY: newH / obj.height });
+                    }
+                }
+            }
             canvas.renderAll();
             saveHistory();
         });
@@ -811,18 +1001,26 @@
     });
 
     if (inputFontSize) inputFontSize.addEventListener('change', function() {
-        const obj = canvas.getActiveObject();
-        if(obj && (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox')) {
-            obj.set('fontSize', parseInt(this.value));
+        const objs = canvas.getActiveObjects();
+        if(objs.length) {
+            objs.forEach(obj => {
+                if(obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
+                    obj.set('fontSize', parseInt(this.value));
+                }
+            });
             canvas.renderAll();
             saveHistory();
         }
     });
 
     if (inputColor) inputColor.addEventListener('input', function() {
-        const obj = canvas.getActiveObject();
-        if(obj && (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox')) {
-            obj.set('fill', this.value);
+        const objs = canvas.getActiveObjects();
+        if(objs.length) {
+            objs.forEach(obj => {
+                if(obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
+                    obj.set('fill', this.value);
+                }
+            });
             canvas.renderAll();
         }
     });
@@ -862,15 +1060,22 @@
     }
 
     if (inputFontFamily) inputFontFamily.addEventListener('change', function() {
-        const obj = canvas.getActiveObject();
-        if(obj && (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox')) {
+        const objs = canvas.getActiveObjects();
+        if(objs.length) {
             const fontVal = this.value;
-            obj.set('fontFamily', fontVal);
+            let fontsToLoad = [];
             
-            if (document.fonts && document.fonts.load) {
-                let weight = obj.fontWeight || 'normal';
-                let style = obj.fontStyle || 'normal';
-                document.fonts.load(`${style} ${weight} 1em "${fontVal}"`).then(function() {
+            objs.forEach(obj => {
+                if(obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
+                    obj.set('fontFamily', fontVal);
+                    let weight = obj.fontWeight || 'normal';
+                    let style = obj.fontStyle || 'normal';
+                    fontsToLoad.push(`${style} ${weight} 1em "${fontVal}"`);
+                }
+            });
+            
+            if (document.fonts && document.fonts.load && fontsToLoad.length > 0) {
+                Promise.all(fontsToLoad.map(f => document.fonts.load(f))).then(function() {
                     canvas.renderAll();
                 });
             }
@@ -924,8 +1129,9 @@
 
     btnTextAlign.forEach(btn => {
         btn.addEventListener('click', function() {
-            const obj = canvas.getActiveObject();
+            let obj = canvas.getActiveObject();
             if(obj && (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox')) {
+                obj = ensureTextbox(obj, 'align_' + this.dataset.align);
                 obj.set('textAlign', this.dataset.align);
                 btnTextAlign.forEach(b => b.classList.replace('btn-secondary', 'btn-outline-secondary'));
                 this.classList.replace('btn-outline-secondary', 'btn-secondary');
@@ -1032,25 +1238,40 @@
 
     if (inputFillColor) inputFillColor.addEventListener('input', function() {
         if (inputShapeGradient && inputShapeGradient.checked) return; // Don't apply solid color if gradient is on
-        const obj = canvas.getActiveObject();
-        if (obj && obj.customType === 'shape') { 
-            obj.set('fill', this.value); 
-            if (obj.type === 'image' && typeof fabric.Image.filters.BlendColor !== 'undefined') {
-                obj.filters = [new fabric.Image.filters.BlendColor({
-                    color: this.value,
-                    mode: 'tint',
-                    alpha: 1
-                })];
-                obj.applyFilters();
-            }
+        const objs = canvas.getActiveObjects();
+        if (objs.length) {
+            objs.forEach(obj => {
+                if (obj.customType === 'shape' || obj.is_shape || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type)) { 
+                    if (obj.fill === this.value) return; // Prevent infinite loop
+                    obj.set('fill', this.value); 
+                    if (obj.type === 'image' && typeof fabric.Image.filters.BlendColor !== 'undefined') {
+                        obj.filters = [new fabric.Image.filters.BlendColor({
+                            color: this.value,
+                            mode: 'tint',
+                            alpha: 1
+                        })];
+                        obj.applyFilters();
+                    }
+                }
+            });
             canvas.renderAll(); 
         }
     });
-    if (inputFillColor) inputFillColor.addEventListener('change', saveHistory);
+
     if (inputStrokeColor) inputStrokeColor.addEventListener('input', function() {
-        const obj = canvas.getActiveObject();
-        if (obj && obj.customType === 'shape') { obj.set('stroke', this.value); canvas.renderAll(); }
+        const objs = canvas.getActiveObjects();
+        if (objs.length) {
+            objs.forEach(obj => {
+                if (obj.customType === 'shape' || obj.is_shape || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type)) {
+                    if (obj.stroke === this.value) return; // Prevent infinite loop
+                    obj.set('stroke', this.value); 
+                }
+            });
+            canvas.renderAll();
+        }
     });
+    if (inputFillColor) inputFillColor.addEventListener('change', saveHistory);
+
     if (inputStrokeWidth) inputStrokeWidth.addEventListener('change', function() {
         const obj = canvas.getActiveObject();
         if (obj && obj.customType === 'shape') { obj.set('strokeWidth', parseInt(this.value) || 0); canvas.renderAll(); saveHistory(); }
@@ -1117,6 +1338,34 @@
         if (obj && obj.type === 'image') {
             obj.set('is_placeholder', this.checked);
             canvas.renderAll();
+        }
+    });
+
+    if (inputIsColorizableShape) inputIsColorizableShape.addEventListener('change', function() {
+        const objs = canvas.getActiveObjects();
+        if (objs.length) {
+            objs.forEach(obj => {
+                if (obj.type === 'image') {
+                    obj.is_shape = this.checked;
+                    obj.customType = this.checked ? 'shape' : 'image';
+                }
+            });
+            updateProps();
+            saveHistory();
+        }
+    });
+
+    if (inputIsLogo) inputIsLogo.addEventListener('change', function() {
+        const obj = canvas.getActiveObject();
+        if (obj && obj.type === 'image') {
+            obj.set('is_logo', this.checked);
+            if (this.checked) {
+                obj.set('customName', 'logo');
+            } else if (obj.customName === 'logo') {
+                obj.set('customName', 'layer_' + Date.now().toString().substr(-4));
+            }
+            canvas.renderAll();
+            updateLayersList();
         }
     });
 
@@ -1291,73 +1540,78 @@
         if (btn) btn.addEventListener('click', () => addShape(type));
     });
 
-    // --- ADD ICONS (Font Awesome as text objects) ---
+    // --- ADD ICONS (Dynamic via Iconify API) ---
     const iconsGrid = $('icons-grid');
     const iconSearch = $('icon-search');
-    if (iconsGrid) {
-        const iconItems = iconsGrid.querySelectorAll('.icon-item');
-        iconItems.forEach(item => {
-            item.addEventListener('click', function() {
-                const iconClass = this.getAttribute('data-icon') || '';
-                const isBrand = iconClass.includes('fa-brands');
-                const title = this.getAttribute('title') || 'Icon';
-                
-                // Dynamically fetch the unicode character from CSS
-                const iElement = this.querySelector('i');
-                let unicodeChar = '\uf005'; // default star
-                if (iElement) {
-                    const style = window.getComputedStyle(iElement, '::before');
-                    let content = style.getPropertyValue('content');
-                    if (content && content !== 'none' && content !== 'normal') {
-                        content = content.replace(/^["']|["']$/g, '');
-                        if (content.length === 1) {
-                            unicodeChar = content;
-                        } else if (content.startsWith('\\')) {
-                            let hex = content.substring(1);
-                            if (hex.startsWith('u')) hex = hex.substring(1);
-                            unicodeChar = String.fromCharCode(parseInt(hex, 16));
-                        } else if (content.length > 0) {
-                            unicodeChar = content;
-                        }
-                    }
-                }
-                
-                let fontFamilies = '"Font Awesome 6 Free", "FontAwesome", "Font Awesome 5 Free"';
-                if (isBrand) {
-                    fontFamilies = '"Font Awesome 6 Brands", "Font Awesome 5 Brands", "FontAwesome"';
-                }
-                
-                // Generate unique icon name to avoid conflicts when multiple icons are added
-                const existingIcons = canvas.getObjects().filter(o => o.customType === 'icon').length;
-                const iconName = 'Icon_' + (existingIcons + 1);
-                
-                const iconText = new fabric.IText(unicodeChar, {
-                    left: 150, top: 150, fontSize: 80, fill: '#333333',
-                    fontFamily: fontFamilies, fontWeight: 900,
-                    customType: 'icon', customName: iconName, textBaseline: 'alphabetic'
-                });
-                canvas.add(iconText);
-                canvas.setActiveObject(iconText);
-                updateLayersList();
-                saveHistory();
-            });
-        });
-    }
 
-    if (iconSearch) {
-        iconSearch.addEventListener('input', function() {
-            const filter = this.value.toLowerCase();
-            if (iconsGrid) {
-                const iconItems = iconsGrid.querySelectorAll('.icon-item');
-                iconItems.forEach(item => {
-                    const title = (item.getAttribute('title') || '').toLowerCase();
-                    if (title.includes(filter)) {
-                        item.style.display = 'flex';
-                    } else {
-                        item.style.display = 'none';
-                    }
+    if (iconsGrid) {
+        // Initial popular icons to show before search
+        const initialIcons = ['mdi-light:home', 'mdi-light:star', 'mdi-light:heart', 'mdi-light:account', 'mdi-light:phone', 'mdi-light:email', 'mdi-light:map-marker', 'mdi-light:camera', 'mdi-light:magnify', 'mdi-light:bell', 'mdi-light:cog'];
+        
+        function renderIcons(icons) {
+            iconsGrid.innerHTML = '';
+            icons.forEach(iconName => {
+                const item = document.createElement('div');
+                item.className = 'icon-item';
+                item.title = iconName;
+                item.style.display = 'flex';
+                // Fetch the SVG directly from Iconify API for rendering
+                const svgUrl = `https://api.iconify.design/${iconName.replace(':', '/')}.svg?color=%23475569`;
+                item.innerHTML = `<img src="${svgUrl}" style="width:24px; height:24px;" alt="${iconName}">`;
+                
+                item.addEventListener('click', function() {
+                    const addSvgUrl = `https://api.iconify.design/${iconName.replace(':', '/')}.svg?color=%23333333`;
+                    fabric.loadSVGFromURL(addSvgUrl, function(objects, options) {
+                        const obj = fabric.util.groupSVGElements(objects, options);
+                        obj.set({
+                            left: 150,
+                            top: 150,
+                            scaleX: 2,
+                            scaleY: 2,
+                            customType: 'icon',
+                            customName: 'Icon'
+                        });
+                        canvas.add(obj);
+                        canvas.setActiveObject(obj);
+                        updateLayersList();
+                        saveHistory();
+                    });
                 });
+                iconsGrid.appendChild(item);
+            });
+        }
+        
+        // Render initial icons
+        renderIcons(initialIcons);
+
+        let debounceTimer;
+        iconSearch.addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            const query = this.value.trim();
+            if (query.length < 2) {
+                if (query.length === 0) {
+                    // Reset to initial
+                    const initialIcons = ['mdi-light:home', 'mdi-light:star', 'mdi-light:heart', 'mdi-light:account', 'mdi-light:phone', 'mdi-light:email', 'mdi-light:map-marker', 'mdi-light:camera', 'mdi-light:magnify', 'mdi-light:bell', 'mdi-light:cog'];
+                    if (typeof renderIcons === 'function') renderIcons(initialIcons);
+                }
+                return;
             }
+            
+            debounceTimer = setTimeout(() => {
+                iconsGrid.innerHTML = '<div style="width:100%; text-align:center; padding:10px;"><i class="fa fa-spinner fa-spin"></i></div>';
+                fetch(`https://api.iconify.design/search?query=${encodeURIComponent(query)}&limit=30`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data && data.icons && typeof renderIcons === 'function') {
+                            renderIcons(data.icons);
+                        } else {
+                            iconsGrid.innerHTML = '<div style="width:100%; text-align:center; font-size:12px; color:#888;">No icons found</div>';
+                        }
+                    }).catch(err => {
+                        console.error('Iconify API error', err);
+                        iconsGrid.innerHTML = '<div style="width:100%; text-align:center; font-size:12px; color:red;">Error fetching icons</div>';
+                    });
+            }, 500);
         });
     }
 
@@ -1624,8 +1878,7 @@
     function loadAssets(searchQuery = '') {
         const baseUrl = typeof saveUrl !== 'undefined' ? saveUrl.split('/admin/')[0] : '';
         const searchParam = searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : '';
-        const apiBase = (typeof apiBaseUrl !== 'undefined') ? apiBaseUrl : (baseUrl + '/api');
-        const assetsApiUrl = apiBase + '/editor/stickers?t=' + Date.now() + searchParam;
+        const assetsApiUrl = baseUrl + '/admin/template-builder/stickers?t=' + Date.now() + searchParam;
         
         const c = $('asset-library-container');
         if (!c) return;
@@ -1716,7 +1969,22 @@
     if (btnRedo) btnRedo.addEventListener('click', redo);
 
     canvas.on('object:added', () => { updateLayersList(); saveHistory(); });
-    canvas.on('object:modified', () => { updateProps(); saveHistory(); });
+    canvas.on('object:modified', (e) => { 
+        const obj = e.target;
+        if (obj && (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox')) {
+            if (obj.scaleX !== 1 || obj.scaleY !== 1) {
+                obj.fontSize = Math.round(obj.fontSize * Math.abs(obj.scaleY || 1));
+                if (obj.type === 'textbox') {
+                    obj.width = Math.round(obj.width * Math.abs(obj.scaleX || 1));
+                }
+                obj.scaleX = 1;
+                obj.scaleY = 1;
+                obj.setCoords();
+            }
+        }
+        updateProps(); 
+        saveHistory(); 
+    });
     canvas.on('object:removed', () => { updateLayersList(); });
 
     setTimeout(saveHistory, 100);
@@ -1732,86 +2000,70 @@
             const objs = canvas.getActiveObjects();
             if (objs.length) { e.preventDefault(); canvas.discardActiveObject(); objs.forEach(o => canvas.remove(o)); updateLayersList(); saveHistory(); }
         }
-
+        
         // Copy (Ctrl+C)
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
             const activeObject = canvas.getActiveObject();
-            if (activeObject) {
+            if (activeObject && !activeObject.isEditing) {
                 e.preventDefault();
-                activeObject.clone(function(cloned) {
-                    window._canvasClipboard = cloned;
-                    window._canvasClipboardTime = Date.now();
-                    try {
-                        const jsonObj = activeObject.toObject(customAttrs);
-                        localStorage.setItem('artera_clipboard', JSON.stringify(jsonObj));
-                        localStorage.setItem('artera_clipboard_time', window._canvasClipboardTime.toString());
-                    } catch(err) { console.warn('Cross-tab copy failed', err); }
-                    console.log('Copied to clipboard');
-                }, customAttrs);
+                try {
+                    const jsonObj = activeObject.toObject(customAttrs);
+                    localStorage.setItem('artera_clipboard', JSON.stringify(jsonObj));
+                    localStorage.setItem('artera_clipboard_time', Date.now().toString());
+                    // Also keep in-memory for same-tab fast paste
+                    window._canvasClipboard = jsonObj;
+                    console.log('[Artera] Copied to clipboard (localStorage + memory)');
+                } catch(err) { console.warn('[Artera] Copy failed:', err); }
             }
         }
         
         // Paste (Ctrl+V)
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
-            const localTimestamp = parseInt(localStorage.getItem('artera_clipboard_time') || '0');
-            const memoryTimestamp = window._canvasClipboardTime || 0;
+            const activeObj = canvas.getActiveObject();
+            if (activeObj && activeObj.isEditing) return; // don't paste when editing text
             
-            if (localTimestamp > memoryTimestamp) {
-                e.preventDefault();
-                try {
-                    const localClipStr = localStorage.getItem('artera_clipboard');
-                    if (localClipStr) {
-                        const parsed = JSON.parse(localClipStr);
-                        fabric.util.enlivenObjects([parsed], function(objects) {
-                            if (objects.length) {
-                                window._canvasClipboard = objects[0];
-                                window._canvasClipboardTime = localTimestamp;
-                                _doPaste();
-                            }
+            e.preventDefault();
+            try {
+                // Read from localStorage (works cross-tab)
+                const clipStr = localStorage.getItem('artera_clipboard');
+                if (!clipStr) { console.log('[Artera] No clipboard data'); return; }
+                const parsed = JSON.parse(clipStr);
+                
+                fabric.util.enlivenObjects([parsed], function(objects) {
+                    if (objects.length) {
+                        const clonedObj = objects[0];
+                        // Restore custom attributes that enlivenObjects may not preserve
+                        customAttrs.forEach(function(attr) {
+                            if (parsed[attr] !== undefined) clonedObj.set(attr, parsed[attr]);
                         });
-                    }
-                } catch(err) { console.warn('Cross-tab paste failed', err); }
-            } else if (window._canvasClipboard) {
-                e.preventDefault();
-                _doPaste();
-            }
-            
-            function _doPaste() {
-                if (!window._canvasClipboard) return;
-                window._canvasClipboard.clone(function(clonedObj) {
-                    canvas.discardActiveObject();
-                    clonedObj.set({
-                        left: clonedObj.left + 20,
-                        top: clonedObj.top + 20,
-                        evented: true,
-                    });
-                    if (clonedObj.type === 'activeSelection') {
-                        clonedObj.canvas = canvas;
-                        clonedObj.forEachObject(function(obj) { canvas.add(obj); });
-                        clonedObj.setCoords();
-                    } else {
-                        canvas.add(clonedObj);
-                    }
-                    window._canvasClipboard.top += 20;
-                    window._canvasClipboard.left += 20;
-                    
-                    // Also update localStorage offset so next paste in another tab is offset
-                    try {
-                        const localClipStr = localStorage.getItem('artera_clipboard');
-                        if (localClipStr) {
-                            const parsed = JSON.parse(localClipStr);
-                            parsed.top = (parsed.top || 0) + 20;
-                            parsed.left = (parsed.left || 0) + 20;
-                            localStorage.setItem('artera_clipboard', JSON.stringify(parsed));
+                        
+                        canvas.discardActiveObject();
+                        clonedObj.set({
+                            left: clonedObj.left + 20,
+                            top: clonedObj.top + 20,
+                            evented: true,
+                        });
+                        if (clonedObj.type === 'activeSelection') {
+                            clonedObj.canvas = canvas;
+                            clonedObj.forEachObject(function(obj) { canvas.add(obj); });
+                            clonedObj.setCoords();
+                        } else {
+                            canvas.add(clonedObj);
                         }
-                    } catch(e) {}
-                    
-                    canvas.setActiveObject(clonedObj);
-                    canvas.requestRenderAll();
-                    updateLayersList();
-                    saveHistory();
-                }, customAttrs);
-            }
+                        
+                        // Update clipboard position so next paste offsets further
+                        parsed.top = clonedObj.top;
+                        parsed.left = clonedObj.left;
+                        localStorage.setItem('artera_clipboard', JSON.stringify(parsed));
+                        
+                        canvas.setActiveObject(clonedObj);
+                        canvas.requestRenderAll();
+                        updateLayersList();
+                        saveHistory();
+                        console.log('[Artera] Pasted from clipboard');
+                    }
+                });
+            } catch(err) { console.warn('[Artera] Paste failed:', err); }
         }
 
         // Arrow keys: move selected object (1px default, 10px with Shift)
@@ -1828,91 +2080,6 @@
                 canvas.renderAll();
                 updateProps();
             }
-        }
-    });
-
-    document.addEventListener('copy', function(e) {
-        if (!canvas) return;
-        const activeObject = canvas.getActiveObject();
-        // If editing text, let the browser copy text natively
-        if (activeObject && activeObject.isEditing) return;
-        
-        if (activeObject) {
-            activeObject.clone(function(cloned) {
-                window._canvasClipboard = cloned;
-                window._canvasClipboardTime = Date.now();
-                try {
-                    const jsonObj = activeObject.toObject(customAttrs);
-                    localStorage.setItem('artera_clipboard', JSON.stringify(jsonObj));
-                    localStorage.setItem('artera_clipboard_time', window._canvasClipboardTime.toString());
-                } catch(err) { console.warn('Cross-tab copy failed', err); }
-                console.log('Copied to clipboard via native copy event');
-            }, customAttrs);
-        }
-    });
-
-    document.addEventListener('paste', function(e) {
-        if (!canvas) return;
-        const activeObject = canvas.getActiveObject();
-        if (activeObject && activeObject.isEditing) return; // Let native text paste work
-        
-        const localTimestamp = parseInt(localStorage.getItem('artera_clipboard_time') || '0');
-        const memoryTimestamp = window._canvasClipboardTime || 0;
-        
-        if (localTimestamp > memoryTimestamp) {
-            e.preventDefault();
-            try {
-                const localClipStr = localStorage.getItem('artera_clipboard');
-                if (localClipStr) {
-                    const parsed = JSON.parse(localClipStr);
-                    fabric.util.enlivenObjects([parsed], function(objects) {
-                        if (objects.length) {
-                            window._canvasClipboard = objects[0];
-                            window._canvasClipboardTime = localTimestamp;
-                            _doPasteNative();
-                        }
-                    });
-                }
-            } catch(err) { console.warn('Cross-tab paste failed', err); }
-        } else if (window._canvasClipboard) {
-            e.preventDefault();
-            _doPasteNative();
-        }
-        
-        function _doPasteNative() {
-            if (!window._canvasClipboard) return;
-            window._canvasClipboard.clone(function(clonedObj) {
-                canvas.discardActiveObject();
-                clonedObj.set({
-                    left: clonedObj.left + 20,
-                    top: clonedObj.top + 20,
-                    evented: true,
-                });
-                if (clonedObj.type === 'activeSelection') {
-                    clonedObj.canvas = canvas;
-                    clonedObj.forEachObject(function(obj) { canvas.add(obj); });
-                    clonedObj.setCoords();
-                } else {
-                    canvas.add(clonedObj);
-                }
-                window._canvasClipboard.top += 20;
-                window._canvasClipboard.left += 20;
-                
-                try {
-                    const localClipStr = localStorage.getItem('artera_clipboard');
-                    if (localClipStr) {
-                        const parsed = JSON.parse(localClipStr);
-                        parsed.top = (parsed.top || 0) + 20;
-                        parsed.left = (parsed.left || 0) + 20;
-                        localStorage.setItem('artera_clipboard', JSON.stringify(parsed));
-                    }
-                } catch(err) {}
-                
-                canvas.setActiveObject(clonedObj);
-                canvas.requestRenderAll();
-                updateLayersList();
-                saveHistory();
-            }, customAttrs);
         }
     });
 
@@ -2124,6 +2291,14 @@
                 if (data.success && data.config) {
                     console.log('[DEBUG] Server returned template config');
                     window.editing_frame_id = data.frame_id || null;
+                    if (window.editing_frame_id) {
+                        try {
+                            const newUrl = new URL(window.location.href);
+                            newUrl.searchParams.set('mode', 'template');
+                            newUrl.searchParams.set('frame_id', window.editing_frame_id);
+                            window.history.replaceState({ path: newUrl.href }, '', newUrl.href);
+                        } catch(e) {}
+                    }
                     
                     const titleInput = document.getElementById('template-title');
                     if (titleInput && data.title) {
@@ -2148,7 +2323,7 @@
                             document.fonts.add(loaded);
                             console.log('[FONTS] Loaded custom font:', fontName, 'as', fontInfo.family, 'weight=' + fontInfo.weight, 'style=' + fontInfo.style);
                         }).catch(err => {
-                            console.debug('[FONTS] Custom font not available (Google Fonts fallback will be used):', fontName, err.message || err);
+                            console.warn('[FONTS] Failed to load custom font:', fontName, err);
                         });
                         // Collect family names for Google Fonts fallback
                         if (fontInfo.family && fontInfo.family !== 'Arial') zipFontFamilies.add(fontInfo.family);
@@ -2174,13 +2349,25 @@
                             jsonObj.objects.forEach(obj => {
                                 if (obj.type === 'image' && obj.src) {
                                     const fn = obj.src.split('/').pop();
-                                    if (imagesMap[fn]) obj.src = imagesMap[fn];
+                                    if (imagesMap[fn]) {
+                                        obj.src = imagesMap[fn];
+                                    } else {
+                                        const normFn = fn.toLowerCase().replace(/[ \-_]/g, '');
+                                        const match = Object.keys(imagesMap).find(k => k.toLowerCase().replace(/[ \-_]/g, '') === normFn);
+                                        if (match) obj.src = imagesMap[match];
+                                    }
                                 }
                             });
                         }
                         if (jsonObj.backgroundImage && jsonObj.backgroundImage.src) {
                             const fn = jsonObj.backgroundImage.src.split('/').pop();
-                            if (imagesMap[fn]) jsonObj.backgroundImage.src = imagesMap[fn];
+                            if (imagesMap[fn]) {
+                                jsonObj.backgroundImage.src = imagesMap[fn];
+                            } else {
+                                const normFn = fn.toLowerCase().replace(/[ \-_]/g, '');
+                                const match = Object.keys(imagesMap).find(k => k.toLowerCase().replace(/[ \-_]/g, '') === normFn);
+                                if (match) jsonObj.backgroundImage.src = imagesMap[match];
+                            }
                         }
                         canvas.loadFromJSON(jsonObj, () => {
                             canvas.renderAll();
@@ -2221,8 +2408,8 @@
                                 };
                                 if (el.type === 'image') {
                                     l.src = el.src;
-                                    if (el.is_shape) l.is_shape = true;
-                                    console.log('[LOAD] Layer ' + idx + ' "' + el.name + '" → image' + (el.is_shape ? ' (rasterized shape)' : '') + ', src=' + (el.src||'').substring(0,60));
+                                    if (el.is_shape || /shape|rect|circle|triangle|polygon|ellipse|path/i.test(el.name)) l.is_shape = true;
+                                    console.log('[LOAD] Layer ' + idx + ' "' + el.name + '" → image' + (l.is_shape ? ' (rasterized shape)' : '') + ', src=' + (el.src||'').substring(0,60));
                                 } else if (el.type === 'text' || el.type === 'i-text' || el.type === 'textbox') {
                                     l.type = 'text';
                                     l.text = el.text;
@@ -2280,7 +2467,146 @@
             .catch(err => {
                 if (canvasWrapper) canvasWrapper.style.opacity = '1';
                 console.error('[DEBUG] Fetch error:', err);
-                alert('Error fetching ZIP data');
+                alert('Error fetching ZIP data: ' + (err.message || err));
+            });
+    };
+
+    // --- Load Existing Frame ZIP ---
+    window.loadExistingFrame = function(frameId) {
+        if (!frameId) return;
+        console.log('[DEBUG] Loading existing frame ZIP ID:', frameId);
+        
+        const zipApiUrl = loadFrameZipUrl + '/' + frameId;
+        console.log('[DEBUG] Fetching Frame ZIP from:', zipApiUrl);
+
+        const canvasWrapper = document.getElementById('canvas-wrapper');
+        if (canvasWrapper) canvasWrapper.style.opacity = '0.5';
+        
+        fetch(zipApiUrl)
+            .then(response => response.json())
+            .then(data => {
+                if (canvasWrapper) canvasWrapper.style.opacity = '1';
+
+                if (data.success && data.config) {
+                    console.log('[DEBUG] Server returned frame config');
+                    window.editing_frame_id = data.frame_id || null;
+                    if (window.editing_frame_id) {
+                        try {
+                            const newUrl = new URL(window.location.href);
+                            newUrl.searchParams.set('mode', 'frame');
+                            newUrl.searchParams.set('frame_id', window.editing_frame_id);
+                            window.history.replaceState({ path: newUrl.href }, '', newUrl.href);
+                        } catch(e) {}
+                    }
+                    
+                    const titleInput = document.getElementById('template-title');
+                    if (titleInput && data.title) {
+                        titleInput.value = (data.title || '').replace('.zip', '');
+                    }
+
+                    if (data.frameData) {
+                        if ($('frame-category')) $('frame-category').value = data.frameData.poster_category_id;
+                        if ($('frame-template-type')) $('frame-template-type').value = data.frameData.template_type;
+                        if ($('req_address')) $('req_address').value = data.frameData.req_address || 0;
+                        if ($('req_email')) $('req_email').value = data.frameData.req_email || 0;
+                        if ($('req_phone')) $('req_phone').value = data.frameData.req_phone || 0;
+                        if ($('req_website')) $('req_website').value = data.frameData.req_website || 0;
+                    }
+                    
+                    canvas.clear();
+                    
+                    const jsonObj = data.config;
+                    const imagesMap = data.images || {};
+                    const fontsMap = data.fonts || {};
+
+                    var zipFontFamilies = new Set();
+                    Object.keys(fontsMap).forEach(fontName => {
+                        const fontInfo = normalizePSFont(fontName);
+                        const fontFace = new FontFace(fontInfo.family, 'url(' + fontsMap[fontName] + ')', {
+                            weight: fontInfo.weight,
+                            style: fontInfo.style
+                        });
+                        fontFace.load().then(loaded => {
+                            document.fonts.add(loaded);
+                            console.log('[FONTS] Loaded custom font:', fontName, 'as', fontInfo.family, 'weight=' + fontInfo.weight, 'style=' + fontInfo.style);
+                        }).catch(err => {
+                            console.warn('[FONTS] Failed to load custom font:', fontName, err);
+                        });
+                        if (fontInfo.family && fontInfo.family !== 'Arial') zipFontFamilies.add(fontInfo.family);
+                    });
+                    
+                    if (zipFontFamilies.size > 0) {
+                        var gfParts = Array.from(zipFontFamilies).map(function(f) {
+                            return 'family=' + encodeURIComponent(f) + ':ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700';
+                        });
+                        var gfUrl = 'https://fonts.googleapis.com/css2?' + gfParts.join('&') + '&display=swap';
+                        var existingLink = document.querySelector('link[data-gfonts]');
+                        if (existingLink) existingLink.remove();
+                        var link = document.createElement('link');
+                        link.rel = 'stylesheet'; link.href = gfUrl; link.setAttribute('data-gfonts', '1');
+                        document.head.appendChild(link);
+                    }
+                    
+                    if (jsonObj.objects || jsonObj.version) {
+                        if (jsonObj.objects) {
+                            jsonObj.objects.forEach(obj => {
+                                if (obj.type === 'image' && obj.src) {
+                                    const fn = obj.src.split('/').pop();
+                                    if (imagesMap[fn]) obj.src = imagesMap[fn];
+                                }
+                            });
+                        }
+                        canvas.loadFromJSON(jsonObj, function() {
+                            canvas.renderAll();
+                            saveState();
+                        });
+                    } else if (jsonObj.elements) {
+                        const legacyConfig = {
+                            width: jsonObj.canvas.width || 1080,
+                            height: jsonObj.canvas.height || 1080,
+                            layers: jsonObj.elements.map((el, idx) => {
+                                let l = {
+                                    id: 'Layer_' + idx, name: el.name, type: 'unknown',
+                                    x: el.x, y: el.y, w: el.w, h: el.h,
+                                    opacity: el.opacity, rotation: el.rotation,
+                                    visible: el.visible,
+                                    blendMode: el.blendMode,
+                                    mask_layer_id: el.mask_layer_id,
+                                    is_used_as_mask: el.is_used_as_mask
+                                };
+                                if (el.type === 'image' || el.type === 'frame') {
+                                    l.type = 'image'; l.src = el.src;
+                                    const fn = (el.src || '').split('/').pop();
+                                    if (imagesMap[fn]) l.src = imagesMap[fn];
+                                } else if (el.type === 'text') {
+                                    l.type = 'text'; l.text = el.text; l.color = el.color;
+                                    l.font = el.font; l.fontSize = el.fontSize; l.textAlign = el.textAlign;
+                                    l.lineHeight = el.lineHeight; l.charSpacing = el.letterSpacing;
+                                    if (el.shadow) {
+                                        l.shadow = { color: el.shadow.color, blur: el.shadow.blur, x: el.shadow.offsetX, y: el.shadow.offsetY };
+                                    }
+                                } else if (['rect','circle','triangle','path','polygon','line','ellipse'].includes(el.type) || el.type === 'shape') {
+                                    l.type = 'shape'; l.shapeType = el.type === 'shape' ? 'rect' : el.type;
+                                    l.fill = el.fill || '#000000'; l.stroke = el.stroke;
+                                    l.strokeWidth = el.strokeWidth || 0;
+                                }
+                                return l;
+                            })
+                        };
+                        renderJsonToCanvas(legacyConfig, imagesMap);
+                    } else if (jsonObj.layers) {
+                        renderJsonToCanvas(jsonObj, imagesMap);
+                    } else {
+                        alert('Unrecognized JSON format in ZIP!');
+                    }
+                } else {
+                    alert('Error loading frame: ' + (data.message || 'Unknown error'));
+                }
+            })
+            .catch(err => {
+                if (canvasWrapper) canvasWrapper.style.opacity = '1';
+                console.error('[DEBUG] Fetch error:', err);
+                alert('Error fetching ZIP data: ' + (err.message || err));
             });
     };
 
@@ -2383,7 +2709,7 @@
                                     document.fonts.add(loaded);
                                     console.log('[FONTS] Loaded custom font:', variant.name, 'as', fontInfo.family, 'weight=' + fontInfo.weight, 'style=' + fontInfo.style);
                                 }).catch(function(err) {
-                                    console.debug('[FONTS] Custom font not available (Google Fonts fallback will be used):', variant.name, err.message || err);
+                                    console.warn('[FONTS] Failed to load custom font:', variant.name, err);
                                 });
                                 customFontsLoaded.push(p);
                             });
@@ -2567,7 +2893,7 @@
                     // Group with no children — skip it (empty group)
                     console.log('[DEBUG] Flatten: empty group "' + l.name + '" skipped');
                 } else {
-                    console.log('[DEBUG] Flatten: leaf "' + l.name + '" type=' + l.type + ' at depth ' + depth);
+                    console.log('[DEBUG] Flatten: leaf "' + (l.name || l.id) + '" type=' + l.type + ' at depth ' + depth);
                     result.push(l);
                 }
             });
@@ -2650,6 +2976,14 @@
             // Base64 from images map
             const fn = src.split('/').pop();
             if (images && images[fn]) return images[fn];
+            
+            // Try normalized matching (handle spaces replaced by dashes/underscores on server)
+            if (images) {
+                const normalizedFn = fn.toLowerCase().replace(/[ \-_]/g, '');
+                const matchKey = Object.keys(images).find(k => k.toLowerCase().replace(/[ \-_]/g, '') === normalizedFn);
+                if (matchKey) return images[matchKey];
+            }
+
             // Relative path like "../skins/Hiring_103/filename.png"
             if (src.includes('../skins/')) {
                 const parts = src.split('../skins/')[1].split('/');
@@ -2759,9 +3093,8 @@
                     const ph = new fabric.Rect({
                         left: layer.x, top: layer.y,
                         width: layer.w, height: layer.h,
-                        fill: 'rgba(150,150,150,0.15)',
-                        stroke: '#9ca3af', strokeWidth: 1,
-                        strokeDashArray: [6, 4],
+                        fill: 'rgba(255,255,255,0.01)',
+                        stroke: 'transparent', strokeWidth: 0,
                         opacity: opacity, angle: rotation,
                         customType: 'image', customName: layer.name,
                         is_background: layer.is_background,
@@ -2801,6 +3134,16 @@
                                 z_index: layer.z_index || idx
                             });
                             img.set({ scaleX: layer.w / img.width, scaleY: layer.h / img.height });
+                            // Restore is_shape flag so color picker works
+                            if (layer.is_shape) {
+                                img.is_shape = true;
+                            }
+                            // Restore tint_color (saved fill color) for image-converted shapes
+                            if (layer.tint_color && typeof fabric.Image.filters.BlendColor !== 'undefined') {
+                                img.set('fill', layer.tint_color);
+                                img.filters = [new fabric.Image.filters.BlendColor({ color: layer.tint_color, mode: 'tint', alpha: 1 })];
+                                img.applyFilters();
+                            }
                             canvas.add(img);
                             if (typeof sortCanvasLayers === 'function') {
                                 try { sortCanvasLayers(); } catch(e) { console.error('[SORT ERROR]', e); }
@@ -2836,20 +3179,39 @@
                 // Font size: PSD stores in points, Fabric uses px. 1pt = 1.333px @ 96dpi.
                 // But our JSX already outputs size in px from the descriptor (getDouble returns px).
                 // Use size directly. Fallback: derive from layer height.
-                const fontSize = layer.size
-                    ? parseFloat(layer.size)
-                    : (layer.h ? Math.round(layer.h * 0.72) : 20);
+                let parsedFontSize = 24;
+                if (layer.size) {
+                    parsedFontSize = parseFloat(layer.size);
+                } else if (layer.font_size) {
+                    parsedFontSize = parseFloat(layer.font_size);
+                    // Native app uses AutoSizeText to fit bounds. If legacy PSD font_size is abnormally small (e.g., 6px for 35px height), override it to match the visual height.
+                    if (layer.h && parsedFontSize < (layer.h * 0.4)) {
+                        parsedFontSize = Math.round(layer.h * 0.72);
+                    }
+                } else if (layer.h) {
+                    parsedFontSize = Math.round(layer.h * 0.72);
+                }
+                const fontSize = parsedFontSize;
 
                 // charSpacing: Fabric uses 1/1000 em units. PSD letterSpacing is in thousandths.
                 const charSpacing = layer.letterSpacing !== undefined ? parseFloat(layer.letterSpacing) : 0;
 
                 // lineHeight: PSD leading / fontSize gives fabric lineHeight multiplier
+                // Guard: values < 0.5 are corrupted (from legacy export bug: multiplier / fontSize).
                 let lineHeight = 1.16;
                 if (layer.lineHeight && layer.lineHeight !== 'auto' && fontSize > 0) {
-                    lineHeight = parseFloat(layer.lineHeight) / fontSize;
+                    let parsedLineHeight = parseFloat(layer.lineHeight);
+                    if (parsedLineHeight < 0.5) {
+                        // Corrupted value (e.g. 0.0387 = 1.16/30) — use default
+                        lineHeight = 1.16;
+                    } else if (parsedLineHeight < 10) {
+                        lineHeight = parsedLineHeight; // It's already a multiplier
+                    } else {
+                        lineHeight = parsedLineHeight / fontSize; // Convert from pixels to multiplier
+                    }
                 }
 
-                const fontInfo   = normalizePSFont(layer.font);
+                const fontInfo   = normalizePSFont(layer.font || layer.font_name);
                 const fontFamily = fontInfo.family;
                 // layer.weight may be a PS keyword like "medium", "bold", "regular", or a CSS weight like "700"
                 // Map it through FONT_WEIGHT_MAP to get a valid CSS weight ("500", "700" etc.)
@@ -2859,8 +3221,18 @@
                     : fontInfo.weight;
                 const fontStyle  = layer.style || fontInfo.style || 'normal';
 
+                // Intelligent placeholder for legacy frames that didn't supply text
+                let defaultText = '';
+                if (layer.text === undefined || layer.text === null || layer.text === '') {
+                    const lName = (layer.name || layer.id || '').toLowerCase();
+                    if (lName.includes('number') || lName.includes('phone') || lName.includes('call')) defaultText = '+91 9876543210';
+                    else if (lName.includes('email') || lName.includes('mail')) defaultText = 'example@email.com';
+                    else if (lName.includes('web') || lName.includes('site')) defaultText = 'www.yourwebsite.com';
+                    else if (lName.includes('address') || lName.includes('location')) defaultText = 'Your Business Address Here';
+                    else defaultText = 'Your Text Here';
+                }
                 // Normalize line breaks (\r → \n) from Photoshop
-                const rawText = (layer.text || 'Text').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+                const rawText = (layer.text !== undefined && layer.text !== null && layer.text !== '' ? String(layer.text) : defaultText).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
                 
                 // Detect Point Text vs Paragraph Text (area text):
                 // textKind is exported by PhotoshopExtractorV3.jsx (new).
@@ -2869,18 +3241,17 @@
                 // Fallback heuristic for old JSONs without textKind:
                 //   single-line AND height < 2× fontSize → treat as point text
                 const hasHardBreak = rawText.includes('\n');
-                const isPointText = (layer.textKind === 'point')
-                    || (!layer.textKind && !hasHardBreak && (layer.h < fontSize * 2.2));
-                const isParagraphText = (layer.textKind === 'paragraph')
-                    || (!layer.textKind && (hasHardBreak || (layer.h >= fontSize * 2.2)));
+                const isPointText = (layer.textKind === 'point' || layer.kind === 'Point' || layer.kind === 'point')
+                    || (!layer.textKind && !layer.kind && !hasHardBreak && (layer.h < fontSize * 2.2));
+                const isParagraphText = (layer.textKind === 'paragraph' || layer.kind === 'Paragraph' || layer.kind === 'paragraph')
+                    || (!layer.textKind && !layer.kind && (hasHardBreak || (layer.h >= fontSize * 2.2)));
 
                 // Common text properties
                 // Y-OFFSET FIX: Photoshop boundsNoEffects.y = top of VISUAL (tight) bounds (cap height).
                 // Fabric.js top = top of em-box, which includes internal leading ABOVE cap height.
                 // This internal leading ≈ fontSize * 0.12 in most fonts.
-                // Without adjustment, Fabric renders text ~12% of fontSize lower than Photoshop.
-                // For Paragraph Text with exact frame, NO y-offset needed (position IS top of frame).
-                const fabricYOffset = isPointText ? Math.round(fontSize * 0.12) : 0;
+                // Apply this offset to ALL text to perfectly sync Web Editor, Native App, and Photoshop.
+                const fabricYOffset = Math.round(fontSize * 0.12);
                 const commonTextProps = {
                     left:        layer.x,
                     top:         layer.y - fabricYOffset,
@@ -3241,15 +3612,15 @@
                 let fontSize = obj.fontSize;
 
                 if (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
-                    if (obj._psdData && obj.scaleX === 1 && obj.scaleY === 1 && obj.text === obj._psdData.text && obj.fontFamily === obj._psdData.fontFamily) {
+                    if (obj.type !== 'textbox' && obj._psdData && obj.scaleX === 1 && obj.scaleY === 1 && obj.text === obj._psdData.text && obj.fontFamily === obj._psdData.fontFamily) {
                         if (Math.abs(w - obj._psdData.w) < 10) w = Math.round(obj._psdData.w);
                         if (Math.abs(h - obj._psdData.h) < 10) h = Math.round(obj._psdData.h);
                     } else {
                         // User scaled it. Bake the scale into the font size!
                         fontSize = Math.round(obj.fontSize * Math.abs(obj.scaleY));
                     }
-                    let isPointText = (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox');
-                    let yOffset = isPointText ? Math.round(fontSize * 0.12) : 0;
+                    let isPointText = (obj.type !== 'textbox');
+                    let yOffset = obj._originalYOffset !== undefined ? obj._originalYOffset : Math.round(fontSize * 0.12);
                     y = Math.round(obj.top + yOffset);
                 }
 
@@ -3257,13 +3628,15 @@
                     x:x, y:y, w:w, h:h, rotation:obj.angle||0, opacity:obj.opacity??1, z_index:z, locked:!obj.selectable, visible:obj.visible!==false };
                 if (obj.type === 'image') { 
                     o.src=obj.getSrc(); o.is_background=obj.is_background||false; o.is_placeholder=obj.is_placeholder||false; o.is_slot=obj.is_slot||false; 
-                    if(obj.customType==='shape') o.is_shape=true; 
+                    if(obj.customType==='shape' || obj.customType==='icon') o.is_shape=true; 
                     if(obj.mask_layer_id) o.mask_layer_id = obj.mask_layer_id;
+                    if((obj.customType==='shape' || obj.customType==='icon') && obj.fill && typeof obj.fill === 'string') o.tint_color = obj.fill;
                 }
                 else if (obj.type==='text'||obj.type==='i-text'||obj.type==='textbox') {
                     o.text=obj.text; o.font={family:obj.fontFamily,size:fontSize,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,color:obj.fill,justification:obj.textAlign||'left',auto_scale:obj.auto_scale||false,charSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16};
                     o.placeholder=obj.customType==='placeholder'?{field_type:obj.placeholderKey,required:true}:null;
                     o.kind = (obj.type === 'textbox') ? 'Paragraph' : 'Point';
+                    o.textKind = (obj.type === 'textbox') ? 'paragraph' : 'point';
                 } else if (obj.customType==='shape' || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type)) {
                     o.type = 'shape';
                     o.shapeType = obj.type; // e.g. 'rect', 'ellipse'
@@ -3302,27 +3675,30 @@
             let fontSize = obj.fontSize;
 
             if (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
-                if (obj._psdData && obj.scaleX === 1 && obj.scaleY === 1 && obj.text === obj._psdData.text && obj.fontFamily === obj._psdData.fontFamily) {
+                if (obj.type !== 'textbox' && obj._psdData && obj.scaleX === 1 && obj.scaleY === 1 && obj.text === obj._psdData.text && obj.fontFamily === obj._psdData.fontFamily) {
                     if (Math.abs(w - obj._psdData.w) < 10) w = Math.round(obj._psdData.w);
                     if (Math.abs(h - obj._psdData.h) < 10) h = Math.round(obj._psdData.h);
                 } else {
                     fontSize = Math.round(obj.fontSize * Math.abs(obj.scaleY));
                 }
-                let isPointText = (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox');
-                let yOffset = isPointText ? Math.round(fontSize * 0.12) : 0;
+                let isPointText = (obj.type !== 'textbox');
+                let yOffset = obj._originalYOffset !== undefined ? obj._originalYOffset : (isPointText ? Math.round(fontSize * 0.12) : 0);
                 y = Math.round(obj.top + yOffset);
             }
 
             if (obj.type==='image') {
-                let imgData = {name:obj.customName||'layer_'+z,type:'image',src:obj.getSrc(),x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,is_background:obj.is_background||false,is_placeholder:obj.is_placeholder||false,is_slot:obj.is_slot||false, image_type: obj.image_type||'', is_shape: obj.customType === 'shape'};
+                let imgData = {name:obj.customName||'layer_'+z,type:'image',src:obj.getSrc(),x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,is_background:obj.is_background||false,is_placeholder:obj.is_placeholder||false,is_slot:obj.is_slot||false, image_type: obj.image_type||'', is_shape: obj.customType === 'shape' || obj.customType === 'icon'};
                 if (obj.mask_layer_id) imgData.mask_layer_id = obj.mask_layer_id;
+                if ((obj.customType==='shape' || obj.customType==='icon') && obj.fill && typeof obj.fill === 'string') imgData.tint_color = obj.fill;
                 j.layers.push(imgData);
             }
-            else if (obj.type==='i-text'||obj.type==='text'||obj.type==='textbox') j.layers.push({name:obj.customName||'text_'+z,type:'text',kind: (obj.type==='textbox'?'Paragraph':'Point'),text:obj.text,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,color:obj.fill,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,size:fontSize,font:obj.fontFamily,letterSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16,ai_role:obj.ai_role||null,ai_max_chars:obj.ai_max_chars||null});
-            else if (obj.customType==='shape' || ['rect','circle','triangle','path','polygon','line'].includes(obj.type)) {
+            else if (obj.type==='i-text'||obj.type==='text'||obj.type==='textbox') j.layers.push({name:obj.customName||'text_'+z,type:'text',kind: (obj.type==='textbox'?'Paragraph':'Point'),textKind: (obj.type==='textbox'?'paragraph':'point'),text:obj.text,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,color:obj.fill,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,size:fontSize,font_size:fontSize,font:obj.fontFamily,font_name:obj.fontFamily,justification:obj.textAlign||'left',letterSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16,ai_role:obj.ai_role||null,ai_max_chars:obj.ai_max_chars||null});
+            else if (obj.customType==='shape' || obj.customType==='icon' || ['rect','circle','triangle','path','polygon','line'].includes(obj.type)) {
                 try {
                     const dataUrl = obj.toDataURL({format: 'png', multiplier: 2});
-                    j.layers.push({name:obj.customName||'shape_'+z, type:'image', src:dataUrl, x:x, y:y, w:w, h:h, width:w, height:h, z_index:z, is_background:false, is_slot:false, image_type: '', is_shape: true});
+                    let shapeData = {name:obj.customName||'shape_'+z, type:'image', src:dataUrl, x:x, y:y, w:w, h:h, width:w, height:h, z_index:z, is_background:false, is_slot:false, image_type: '', is_shape: true};
+                    if (obj.fill && typeof obj.fill === 'string') shapeData.tint_color = obj.fill;
+                    j.layers.push(shapeData);
                 } catch(e) { console.error('Failed to rasterize shape for legacy json:', e); }
             }
         });
@@ -3367,113 +3743,52 @@
         });
         console.log('[PUBLISH] Schema elements:', schemaData.elements.length, '| Legacy layers:', legacyData.layers.length);
 
-        // Debug: log which elements are shapes
-        schemaData.elements.forEach((el, i) => {
-            if (['rect','circle','triangle','path','polygon','line','ellipse'].includes(el.type) || el.type === 'shape') {
-                console.log('[PUBLISH] Schema shape #' + i + ': type=' + el.type + ' fill=' + el.fill + ' stroke=' + el.stroke + ' w=' + el.w + ' h=' + el.h);
-            }
-        });
-
         fd.append('schema_json', JSON.stringify(schemaData));
         fd.append('legacy_json', JSON.stringify(legacyData));
 
-        fetch(saveUrl, { method:'POST', headers:{'X-CSRF-TOKEN':csrfToken}, body:fd })
-        .then(r => r.json()).then(data => {
+        const mode = btnSave.getAttribute('data-mode') || 'template';
+        const targetUrl = mode === 'frame' ? saveFrameUrl : saveUrl;
+
+        if (mode === 'frame') {
+            fd.append('poster_category_id', $('frame-category') ? $('frame-category').value : '');
+            fd.append('template_type', $('frame-template-type') ? $('frame-template-type').value : '');
+            fd.append('req_address', $('req_address') ? parseInt($('req_address').value) || 0 : 0);
+            fd.append('req_email', $('req_email') ? parseInt($('req_email').value) || 0 : 0);
+            fd.append('req_phone', $('req_phone') ? parseInt($('req_phone').value) || 0 : 0);
+            fd.append('req_website', $('req_website') ? parseInt($('req_website').value) || 0 : 0);
+        }
+
+        fetch(targetUrl, { method:'POST', headers:{'X-CSRF-TOKEN':csrfToken, 'Accept':'application/json'}, body:fd })
+        .then(async r => {
+            if (!r.ok) {
+                const text = await r.text();
+                console.error('[PUBLISH] Server returned error status:', r.status);
+                console.error('[PUBLISH] Raw server response:', text);
+                throw new Error('HTTP ' + r.status + ': ' + text.substring(0, 500));
+            }
+            return r.json();
+        }).then(data => {
             btnSave.disabled = false;
-            btnSave.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Publish Template';
-            alert(data.success ? '✅ Template Published!' : '❌ ' + (data.message||'Publishing failed'));
+            btnSave.innerHTML = `<i class="fa fa-save"></i> Publish ${mode === 'frame' ? 'Frame' : 'Template'}`;
+            if (data.success && (data.frame_id || data.template_id)) {
+                window.editing_frame_id = data.frame_id || data.template_id;
+                try {
+                    const newUrl = new URL(window.location.href);
+                    newUrl.searchParams.set('mode', mode);
+                    newUrl.searchParams.set('frame_id', window.editing_frame_id);
+                    window.history.replaceState({ path: newUrl.href }, '', newUrl.href);
+                } catch(e) {}
+            }
+            alert(data.success ? `✅ ${mode === 'frame' ? 'Frame' : 'Template'} Published!` : '❌ ' + (data.message||'Publishing failed'));
         }).catch(err => {
             btnSave.disabled = false;
-            btnSave.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Publish Template';
+            btnSave.innerHTML = `<i class="fa fa-save"></i> Publish ${mode === 'frame' ? 'Frame' : 'Template'}`;
             alert('❌ ' + err.message);
         });
 
         currentScale = updateCanvasZoom();
     });
 
-        
-        // --- CUSTOM CONTEXT MENU ---
-        const contextMenu = document.createElement('div');
-        contextMenu.id = 'artera-context-menu';
-        contextMenu.style.cssText = 'display:none; position:fixed; z-index:99999; background:#fff; border:1px solid #ccc; box-shadow:0 4px 6px rgba(0,0,0,0.1); border-radius:6px; padding:4px 0; min-width:150px; font-family:sans-serif; font-size:14px;';
-        
-        const style = document.createElement('style');
-        style.innerHTML = `
-            #artera-context-menu .cm-item { padding: 8px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: #333; }
-            #artera-context-menu .cm-item:hover { background-color: #f3f4f6; color: #2563eb; }
-            #artera-context-menu .cm-item i { width: 20px; color: #6b7280; }
-            #artera-context-menu .cm-item:hover i { color: #2563eb; }
-            #artera-context-menu .cm-divider { height: 1px; background: #e5e7eb; margin: 4px 0; }
-            #artera-context-menu .cm-shortcut { font-size: 11px; color: #9ca3af; }
-        `;
-        document.head.appendChild(style);
-        document.body.appendChild(contextMenu);
-
-        function createMenuItem(icon, text, shortcut, onClick) {
-            const item = document.createElement('div');
-            item.className = 'cm-item';
-            item.innerHTML = `<span><i class="${icon}"></i> ${text}</span> <span class="cm-shortcut">${shortcut}</span>`;
-            item.addEventListener('click', (e) => {
-                contextMenu.style.display = 'none';
-                onClick(e);
-            });
-            return item;
-        }
-
-        const btnCopy = createMenuItem('fas fa-copy', 'Copy', 'Ctrl+C', () => {
-            document.dispatchEvent(new Event('copy'));
-        });
-        const btnPaste = createMenuItem('fas fa-paste', 'Paste', 'Ctrl+V', () => {
-            document.dispatchEvent(new Event('paste'));
-        });
-        const btnDelete = createMenuItem('fas fa-trash', 'Delete', 'Del', () => {
-            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete' }));
-        });
-        const btnFront = createMenuItem('fas fa-bring-front', 'Bring to Front', '', () => {
-            if(canvas.getActiveObject()) { canvas.getActiveObject().bringToFront(); updateLayersList(); saveHistory(); }
-        });
-        const btnBack = createMenuItem('fas fa-send-back', 'Send to Back', '', () => {
-            if(canvas.getActiveObject()) { canvas.getActiveObject().sendToBack(); updateLayersList(); saveHistory(); }
-        });
-
-        contextMenu.appendChild(btnCopy);
-        contextMenu.appendChild(btnPaste);
-        contextMenu.appendChild(btnDelete);
-        const divider = document.createElement('div'); divider.className = 'cm-divider';
-        contextMenu.appendChild(divider);
-        contextMenu.appendChild(btnFront);
-        contextMenu.appendChild(btnBack);
-
-        document.querySelector('#canvas-wrapper').addEventListener('contextmenu', function(e) {
-            e.preventDefault();
-            // Check if user clicked on an object
-            const pointer = canvas.getPointer(e);
-            let target = canvas.findTarget(e);
-            
-            // Re-select target on right click
-            if (target && !canvas.getActiveObjects().includes(target)) {
-                canvas.setActiveObject(target);
-                canvas.renderAll();
-                updateProps();
-            }
-
-            const isObjSelected = !!canvas.getActiveObject();
-            btnCopy.style.display = isObjSelected ? 'flex' : 'none';
-            btnDelete.style.display = isObjSelected ? 'flex' : 'none';
-            btnFront.style.display = isObjSelected ? 'flex' : 'none';
-            btnBack.style.display = isObjSelected ? 'flex' : 'none';
-
-            contextMenu.style.left = e.clientX + 'px';
-            contextMenu.style.top = e.clientY + 'px';
-            contextMenu.style.display = 'block';
-        });
-
-        document.addEventListener('click', function(e) {
-            if (e.target.closest('#artera-context-menu')) return;
-            contextMenu.style.display = 'none';
-        });
-        // --- END CUSTOM CONTEXT MENU ---
-        
     } catch (err) {
         alert("CRITICAL JS ERROR: " + err.message + "\nStack: " + err.stack);
         console.error(err);

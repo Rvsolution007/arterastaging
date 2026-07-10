@@ -57,7 +57,7 @@
 
     /* Left Column — Dark */
     .contact-info-col {
-        background: var(--bg-dark);
+        background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
         color: #fff;
         padding: 56px 48px;
     }
@@ -219,12 +219,12 @@
     /* ---- Bottom CTA ---- */
     .contact-cta {
         position: relative;
-        background: var(--bg-dark);
-        color: #fff;
+        background: #f8fafc;
+        color: var(--text-dark);
         padding: 100px 0;
         overflow: hidden;
     }
-    .contact-cta .noise-overlay { z-index: 1; }
+    .contact-cta .noise-overlay { z-index: 1; opacity: 0.3; }
     .contact-cta-inner {
         position: relative;
         z-index: 2;
@@ -232,9 +232,9 @@
         max-width: 700px;
         margin: 0 auto;
     }
-    .contact-cta h2 { color: #fff; margin-bottom: 20px; }
+    .contact-cta h2 { color: var(--text-dark); margin-bottom: 20px; }
     .contact-cta p {
-        color: rgba(255, 255, 255, 0.55);
+        color: var(--text-gray);
         font-size: clamp(1rem, 2vw, 1.125rem);
         line-height: 1.7;
         margin-bottom: 40px;
@@ -328,7 +328,7 @@
                 <div class="social-links">
                     <a href="#" class="social-link" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
                     <a href="#" class="social-link" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
-                    <a href="#" class="social-link" aria-label="Twitter"><i class="fa-brands fa-x-twitter"></i></a>
+                    <a href="#" class="social-link" aria-label="LinkedIn"><i class="fa-brands fa-linkedin-in"></i></a>
                 </div>
             </div>
 
@@ -375,14 +375,14 @@
             <div class="reveal">
                 <span class="eyebrow-plain font-mono uppercase tracking-widest" style="color: var(--blue); margin-bottom: 16px; display: inline-block;">Prefer self-service?</span>
             </div>
-            <h2 class="heading-md text-shimmer-white reveal reveal-delay-1">Download the app<br>and get started now.</h2>
+            <h2 class="heading-md text-shimmer reveal reveal-delay-1">Download the app<br>and get started now.</h2>
             <p class="reveal reveal-delay-2">Everything you need to create professional marketing content — festival posters, business templates, and social media designs — right from your phone.</p>
             <div class="cta-actions reveal reveal-delay-3">
-                <a href="#" class="btn-sharp btn-sharp-white btn-glow">
+                <a href="#" class="btn-sharp btn-glow" style="background: var(--primary); color: #fff; border: none;">
                     <i class="fa-brands fa-google-play"></i> Get the App
                     <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                 </a>
-                <a href="{{ route('landing.packages') }}" class="btn-sharp btn-sharp-outline" style="border-color: rgba(255,255,255,0.2); color: rgba(255,255,255,0.7);">
+                <a href="{{ route('landing.packages') }}" class="btn-sharp btn-sharp-outline" style="border-color: rgba(0,0,0,0.2); color: var(--text-dark);">
                     View Plans
                     <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                 </a>

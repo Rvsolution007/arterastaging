@@ -38,18 +38,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint("Background FCM: ${message.notification?.title}");
 }
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase and Notifications only on mobile platforms
-  if (!kIsWeb) {
-    await Firebase.initializeApp();
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-    await NotificationService().initialize();
-    await AdService().initialize();
-  }
-  
-  // Register controllers globally so all screens can access them
+  // ── PERF: Register controllers immediately (no async, no delay) ──
   Get.put(AuthController(), permanent: true);
   Get.put(AdController(), permanent: true);
   Get.put(SubscriptionController(), permanent: true);
@@ -67,9 +59,6 @@ void main() async {
     originalDebugPrint(message, wrapWidth: wrapWidth);
   };
 
-  // Initialize Translations
-  await TranslationService.init();
-
   // Global Error Handler
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
@@ -85,6 +74,9 @@ void main() async {
     return true;
   };
 
+  // ── PERF: Call runApp() IMMEDIATELY ──
+  // No awaits before this! Logo shows within ~500ms instead of 6s blank.
+  // All heavy init (Firebase, Notifications, Ads, Translations) moves to SplashGate.
   runApp(const ArteraApp());
 }
 
@@ -168,30 +160,84 @@ class SplashGate extends StatefulWidget {
 }
 
 class _SplashGateState extends State<SplashGate> {
+
   @override
   void initState() {
     super.initState();
-    _checkLoginStatus();
+    _navigateFast();
   }
 
-  Future<void> _checkLoginStatus() async {
+  /// ── ULTRA-FAST STARTUP ──
+  /// 1. Native Splash shows `app_icon` instantly.
+  /// 2. We navigate to Dashboard/Login immediately (NO delay).
+  /// 3. Fire-and-forget ALL heavy init in background.
+  Future<void> _navigateFast() async {
+    // Read login status (SharedPreferences is instant, ~5ms)
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId');
     final isGuest = prefs.getBool('isGuest') ?? false;
 
-    // Small delay for splash feel
-    await Future.delayed(const Duration(milliseconds: 300));
-
     if ((userId != null && userId.isNotEmpty) || isGuest) {
+      // Navigate to dashboard FIRST
+      Get.offAllNamed('/DashboardScreen');
+
+      // ── PERF: ALL heavy init runs AFTER dashboard is visible ──
+      _doHeavyInitInBackground();
+      _syncUserDataInBackground(userId);
+
+      // Handle deep links (Web only)
+      if (kIsWeb) {
+        final fragment = Uri.base.fragment;
+        if (fragment.isNotEmpty) {
+          final path = Uri.parse(fragment).path;
+          if (path != '/' &&
+              path != '/DashboardScreen' &&
+              path != '/LoginScreen' &&
+              path != '/SplashGate' &&
+              path.isNotEmpty) {
+            await Future.delayed(const Duration(milliseconds: 200));
+            Get.toNamed(fragment);
+          }
+        }
+      }
+    } else {
+      // Not logged in — show login screen
+      Get.offAllNamed('/LoginScreen');
+      // Still init Firebase etc for push notifications
+      _doHeavyInitInBackground();
+    }
+  }
+
+  /// ── PERF: Fire-and-forget heavy initialization ──
+  void _doHeavyInitInBackground() {
+    Future(() async {
       try {
-        // Fetch latest user data to sync ad limits and subscription state
+        if (!kIsWeb) {
+          await Firebase.initializeApp();
+          FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+        }
+        await Future.wait([
+          if (!kIsWeb) NotificationService().initialize(),
+          if (!kIsWeb) AdService().initialize(),
+          TranslationService.init(),
+        ]);
+        debugPrint('[SplashGate] Background init complete ✓');
+      } catch (e) {
+        debugPrint('Background init error (non-fatal): $e');
+      }
+    });
+  }
+
+  /// ── PERF: Background sync of user data ──
+  void _syncUserDataInBackground(String? userId) {
+    Future(() async {
+      try {
         final response = await ApiService.post('/user_data', {'id': userId});
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
           if (data['adConfig'] != null) {
             Get.find<AdController>().updateAdConfig(data['adConfig']);
           }
-          // Sync subscription info for header badge & profile card
           final prefs2 = await SharedPreferences.getInstance();
           await prefs2.setString('planName', data['planName'] ?? '');
           await prefs2.setString('planDuration', data['planDuration'] ?? '');
@@ -201,56 +247,16 @@ class _SplashGateState extends State<SplashGate> {
           Get.find<SubscriptionController>().loadFromPrefs();
         }
       } catch (e) {
-        debugPrint('Failed to sync user data on splash: $e');
+        debugPrint('Background user data sync failed: $e');
       }
-
-      // User is already logged in
-      // On Web, read the actual browser URL to detect deep links (e.g. /#/editor?type=...)
-      String? deepLinkFragment;
-
-      if (kIsWeb) {
-        final fragment = Uri.base.fragment; // e.g. "/editor?type=festival&id=5&designUrl=..."
-        if (fragment.isNotEmpty) {
-          final path = Uri.parse(fragment).path;
-          // Only treat as deep link if it's NOT a root/dashboard/login route
-          if (path != '/' &&
-              path != '/DashboardScreen' &&
-              path != '/LoginScreen' &&
-              path != '/SplashGate' &&
-              path.isNotEmpty) {
-            deepLinkFragment = fragment; // Store the FULL fragment with query params
-            debugPrint('[SplashGate] Deep link detected: $fragment');
-          }
-        }
-      }
-
-      Get.offAllNamed('/DashboardScreen');
-
-      // If we detected a deep link (e.g. /editor?type=...&id=...), navigate there
-      if (deepLinkFragment != null) {
-        await Future.delayed(const Duration(milliseconds: 200)); // Let Dashboard settle
-        Get.toNamed(deepLinkFragment!);
-      }
-    } else {
-      // Not logged in — show login screen
-      Get.offAllNamed('/LoginScreen');
-    }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.rocket_launch, size: 80, color: AppColors.primary),
-            const SizedBox(height: 20),
-            CircularProgressIndicator(color: AppColors.primary),
-          ],
-        ),
-      ),
+    // Empty scaffold while navigating (Flutter removes native splash upon first render)
+    return const Scaffold(
+      backgroundColor: Colors.white,
     );
   }
 }

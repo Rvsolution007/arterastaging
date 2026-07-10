@@ -12,19 +12,21 @@
     .blog-hero {
         padding: 100px 0 80px;
         text-align: center;
-        background: var(--bg-white);
+        background: linear-gradient(135deg, var(--blue) 0%, #4338ca 100%);
         position: relative;
     }
     .blog-hero .eyebrow {
         margin-bottom: 28px;
+        color: rgba(255, 255, 255, 0.9);
+        background: rgba(255, 255, 255, 0.1);
     }
     .blog-hero .heading-lg {
-        color: var(--text-dark);
+        color: #ffffff;
         margin-bottom: 24px;
     }
     .blog-hero-subtitle {
         font-size: clamp(1rem, 1.5vw, 1.25rem);
-        color: var(--text-gray);
+        color: rgba(255, 255, 255, 0.8);
         max-width: 560px;
         margin: 0 auto;
         line-height: 1.7;
@@ -32,7 +34,7 @@
     .blog-hero-line {
         width: 60px;
         height: 3px;
-        background: var(--blue);
+        background: #ffffff;
         margin: 40px auto 0;
     }
 
@@ -265,12 +267,14 @@
                 @foreach($blogs as $blog)
                 <a href="{{ route('landing.blog_details', $blog->slug) }}" class="blog-card reveal-scale reveal-delay-{{ ($loop->index % 3) + 1 }}">
                     {{-- Card Visual --}}
-                    <div class="blog-card-visual">
+                    <div class="blog-card-visual" @if($blog->og_image) style="background-image: url('{{ asset($blog->og_image) }}'); background-size: cover; background-position: center;" @endif>
                         <div class="noise-overlay"></div>
+                        @if(!$blog->og_image)
                         <svg class="blog-card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M12 20h9"/>
                             <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
                         </svg>
+                        @endif
                     </div>
 
                     {{-- Card Body --}}

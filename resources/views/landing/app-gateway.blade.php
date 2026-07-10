@@ -64,7 +64,7 @@
             <h1 class="gateway-title">Authentication Successful!</h1>
             <p class="gateway-desc">Your account is ready. Artera works best directly on your mobile device. Please open the Artera Mobile App and login with your credentials to start designing.</p>
             
-            <a href="intent://#Intent;package=com.arterapixel.app;scheme=artera;end;" class="btn-intent" id="openAppBtn">
+            <a href="intent://#Intent;package=com.arterapixel.pro;scheme=artera;end;" class="btn-intent" id="openAppBtn">
                 <i class="fa-brands fa-google-play"></i> Open App to Continue
             </a>
             
@@ -88,10 +88,10 @@
         // or just link to play store if they are on Desktop.
         if(!isMobile) {
             e.preventDefault();
-            window.open('https://play.google.com/store/apps/details?id=com.arterapixel.app', '_blank');
+            window.open('https://play.google.com/store/apps/details?id=com.arterapixel.pro&hl=en_IN', '_blank');
         } else {
             // Intent links automatically failover to Play Store on modern Android devices if the package is specified.
-            // No custom timeout fallback needed for Android Intent specification 'package=com.arterapixel.app'
+            // No custom timeout fallback needed for Android Intent specification 'package=com.arterapixel.pro'
         }
     });
 </script>

@@ -77,7 +77,7 @@
                     {{-- CTA Buttons --}}
                     <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px;">
                         <a href="{{ config('seo.app_links.android') }}" class="btn-sharp btn-sharp-primary btn-glow" style="border-radius: 0; justify-content: center; font-size: 15px;">
-                            <i class="fab fa-google-play"></i> Customize & Download Free
+                            <i class="fab fa-google-play"></i> Download app for Customization
                         </a>
                         <a href="{{ config('seo.app_links.android') }}" class="btn-sharp btn-sharp-outline" style="border-radius: 0; justify-content: center; font-size: 14px;">
                             <i class="fas fa-mobile-alt"></i> Open in Artera App
@@ -149,7 +149,7 @@
         <h2 style="font-size: 24px; font-weight: 800; margin-bottom: 16px;">Create More {{ $parentName }} Posters</h2>
         <p style="color: rgba(255,255,255,0.8); margin-bottom: 24px;">Thousands of templates. Free to start. No design skills needed.</p>
         <a href="{{ config('seo.app_links.android') }}" class="btn-sharp btn-sharp-white" style="border-radius: 0;">
-            <i class="fab fa-google-play"></i> Download Free App
+            <i class="fab fa-google-play"></i> Download app for Customization
         </a>
     </div>
 </section>

@@ -8,23 +8,41 @@
     .category-header h1 { font-size: 42px; font-weight: 800; margin-bottom: 15px; color: white; }
     .category-header p { font-size: 20px; opacity: 0.9; max-width: 600px; margin: 0 auto; }
 
-    .template-section { padding: 60px 0; background: #f8fafc; }
+    .template-section { padding: 80px 0; background: #f8fafc; }
     
-    .template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 25px; }
-    .template-card { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: 0.3s; position: relative; }
-    .template-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px rgba(0,0,0,0.1); }
-    .template-img-wrapper { position: relative; padding-top: 100%; background: #f1f5f9; }
-    .template-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+    .template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 30px; }
+    .template-card { background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.04); transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); position: relative; border: 1px solid rgba(0,0,0,0.03); }
+    .template-card:hover { transform: translateY(-8px); box-shadow: 0 20px 40px rgba(0,0,0,0.08); border-color: rgba(37, 99, 235, 0.1); }
+    .template-img-wrapper { position: relative; padding-top: 100%; background: #f1f5f9; overflow: hidden; }
+    .template-img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
+    .template-card:hover .template-img { transform: scale(1.05); }
     
-    .template-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; opacity: 0; transition: 0.3s; }
+    .template-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; opacity: 0; transition: all 0.4s ease; }
     .template-card:hover .template-overlay { opacity: 1; }
-    .btn-customize { background: var(--primary); color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 600; }
-    .btn-customize:hover { background: #1e3a8a; color: white; }
+    .btn-customize { background: linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%); color: white; padding: 12px 24px; border-radius: 50px; text-decoration: none; font-weight: 700; font-size: 14px; letter-spacing: 0.5px; box-shadow: 0 8px 20px rgba(37, 99, 235, 0.3); transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 8px; transform: translateY(10px); }
+    .template-card:hover .btn-customize { transform: translateY(0); }
+    .btn-customize:hover { background: linear-gradient(135deg, #1e40af 0%, var(--primary) 100%); color: white; box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4); transform: translateY(-2px) !important; }
+    .btn-customize:hover { background: linear-gradient(135deg, #1e40af 0%, var(--primary) 100%); color: white; box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4); transform: translateY(-2px) !important; }
 
-    .template-info { padding: 15px; text-align: center; }
-    .template-info h4 { font-size: 16px; margin: 0; color: #333; }
+    /* ---- Pagination UI ---- */
+    .pagination { display: flex; justify-content: center; list-style: none; padding: 0; margin-top: 40px; gap: 8px; }
+    .pagination li { display: inline-block; }
+    .pagination li a, .pagination li span { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 8px; font-weight: 600; font-size: 14px; text-decoration: none; color: #475569; background: #fff; border: 1px solid #e2e8f0; transition: all 0.3s ease; }
+    .pagination li a:hover { background: #f1f5f9; color: var(--primary); border-color: #cbd5e1; }
+    .pagination li.active span { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: 0 4px 10px rgba(37,99,235,0.2); }
+    .pagination li.disabled span { opacity: 0.5; cursor: not-allowed; }
+    .empty-state { text-align: center; padding: 80px 0; color: #64748b; background: white; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); margin-top: 20px; }
 
-    .empty-state { text-align: center; padding: 50px 0; color: #64748b; }
+    @media (max-width: 768px) {
+        .template-grid { grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .template-section { padding: 40px 0; }
+        .category-header { padding: 50px 0 30px; }
+        .category-header h1 { font-size: 28px; }
+        .template-card { border-radius: 12px; }
+
+        .btn-customize { padding: 8px 12px; font-size: 11px; flex-direction: column; gap: 4px; border-radius: 12px; text-align: center; }
+        .btn-customize i { font-size: 16px; }
+    }
 </style>
 @endsection
 
@@ -43,14 +61,14 @@
             @foreach($posts as $post)
             <div class="template-card">
                 <div class="template-img-wrapper">
-                    <img src="{{ $post->frame_image ? asset('uploads/'.$post->frame_image) : asset('assets/images/placeholder.png') }}" class="template-img" alt="Template">
+                    <img src="{{ $post->seo_image ?? asset('assets/images/placeholder.png') }}" class="template-img" alt="{{ $category->name }} Template">
                     <div class="template-overlay">
-                        <a href="{{ App\Models\AppUpdateSetting::getAppUpdateSetting('app_link') }}" target="_blank" class="btn-customize">DOWNLOAD APP TO CUSTOMIZE</a>
+                        <a href="{{ config('seo.app_links.android') }}" target="_blank" class="btn-customize">
+                            <i class="fa-brands fa-google-play"></i> Download App to Customize
+                        </a>
                     </div>
                 </div>
-                <div class="template-info">
-                    <h4>{{ $category->name }} Template</h4>
-                </div>
+
             </div>
             @endforeach
         </div>

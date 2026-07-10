@@ -79,7 +79,7 @@ input:checked + .slider:before {
             <h3 class="card-title float-left">
                 Frame Category
             </h3>
-            <a href="{{ route('poster-category.create')}}" class="btn btn-success float-right">Add New</a>
+            <a href="{{ route('Frame-category.create')}}" class="btn btn-success float-right">Add New</a>
         </div> 
       
       <div class="card-body table-responsive table-bordered table-striped">
@@ -105,11 +105,11 @@ input:checked + .slider:before {
               </td>
               <td class="align-middle">
                 <div class="btn-group text-center">
-                    <a href="{{url('admin/poster-category/'.$row->id.'/edit') }}"><button type="button" class="btn btn-success"><span aria-hidden="true" class="fa fa-edit"></span></button></a>
+                    <a href="{{url('admin/Frame-category/'.$row->id.'/edit') }}"><button type="button" class="btn btn-success"><span aria-hidden="true" class="fa fa-edit"></span></button></a>
                     <a data-id="{{$row->id}}" data-toggle="modal" data-target="#myModal"><button type="button" class="btn btn-danger ml-2"><span aria-hidden="true" class="fa fa-trash"></span></button></a>
                 </div>
               </div>
-                {!! Form::open(['url' => 'admin/poster-category/'.$row->id,'method'=>'DELETE','class'=>'form-horizontal','id'=>'form_'.$row->id]) !!}
+                {!! Form::open(['url' => 'admin/Frame-category/'.$row->id,'method'=>'DELETE','class'=>'form-horizontal','id'=>'form_'.$row->id]) !!}
                 {!! Form::hidden("id",$row->id) !!}
                 {!! Form::close() !!}
               </td>

@@ -64,7 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildSearchBar(),
               _buildStories(hc),
               _buildFestivalSection(hc),
-              _buildCustomPostsSection(hc),
+              if (!AppConfig.isStaging) _buildCustomPostsSection(hc),
               _buildCategorySection(hc),
               _buildNewsSection(hc),
               _buildVideosSection(hc),
@@ -391,10 +391,10 @@ class _HomeScreenState extends State<HomeScreen> {
         child: SizedBox(
           height: 170,
           child: AppConfig.isProduction 
-              ? const ComingSoonWidget(title: 'Custom Posts')
+              ? ComingSoonWidget(title: 'custom_posts'.trFormat)
               : Obx(() {
                   if (hc.customPosts.isEmpty) {
-                    return Center(child: Text('No custom posts available', style: AppTextStyles.bodyMedium));
+                    return Center(child: Text('no_custom_posts_available'.trFormat, style: AppTextStyles.bodyMedium));
                   }
                   return ListView.builder(
                     scrollDirection: Axis.horizontal,
@@ -490,7 +490,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return Column(children: [
         SectionHeader(
           icon: Icons.play_circle_outline,
-          title: 'Videos',
+          title: 'videos'.trFormat,
           trailing: Row(children: [
             Container(
               width: 40, height: 40,

@@ -382,11 +382,13 @@
 </section>
 
 <!-- Hero Image -->
-<div class="article-hero reveal-scale">
+<div class="article-hero reveal-scale" @if($blog->og_image) style="background-image: url('{{ asset($blog->og_image) }}'); background-size: cover; background-position: center;" @endif>
     <div class="noise-overlay"></div>
+    @if(!$blog->og_image)
     <span class="hero-icon">
         <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19 7-7 3 3-7 7-3-3z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="m2 2 7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
     </span>
+    @endif
 </div>
 
 <!-- Article Body -->
@@ -403,11 +405,11 @@
                 <div class="share-box">
                     <div class="share-box-title">Share This Article</div>
                     <div class="social-icons">
-                        <a href="https://twitter.com/intent/tweet?text={{ urlencode($blog->title) }}&url={{ urlencode(Request::url()) }}" target="_blank" aria-label="Share on Twitter">
-                            <i class="fa-brands fa-x-twitter"></i>
-                        </a>
                         <a href="https://www.facebook.com/sharer/sharer.php?u={{ urlencode(Request::url()) }}" target="_blank" aria-label="Share on Facebook">
                             <i class="fa-brands fa-facebook-f"></i>
+                        </a>
+                        <a href="https://www.instagram.com/" target="_blank" aria-label="Share on Instagram">
+                            <i class="fa-brands fa-instagram"></i>
                         </a>
                         <a href="https://www.linkedin.com/shareArticle?mini=true&url={{ urlencode(Request::url()) }}&title={{ urlencode($blog->title) }}" target="_blank" aria-label="Share on LinkedIn">
                             <i class="fa-brands fa-linkedin-in"></i>

@@ -408,7 +408,7 @@
                                 <span class="switch-label">Premium</span>
                                 <input class="{{ $tab == 'video' ? 'video-type-switch-ajax' : 'type-switch-ajax' }}" type="checkbox" data-id="{{$frame->id}}" value="1" @if($frame->paid==1) checked @endif>
                             </div>
-                            <div class="text-center">
+                            <div class="text-center d-none">
                                 <span class="switch-label">AI</span>
                                 <input class="ai-switch-ajax" type="checkbox" data-id="{{$frame->id}}" value="1" @if($frame->is_ai==1) checked @endif>
                             </div>

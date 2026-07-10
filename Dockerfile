@@ -2,9 +2,9 @@ FROM php:8.2-apache
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    git curl zip unzip libpng-dev libjpeg-dev libfreetype6-dev \
+    git curl zip unzip libpng-dev libjpeg-dev libfreetype6-dev libwebp-dev \
     libonig-dev libxml2-dev libzip-dev mariadb-client \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -19,21 +19,27 @@ RUN sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/Allo
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Copy application code
-COPY . /var/www/html/
-
 WORKDIR /var/www/html
 
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+# Copy only composer files first to leverage Docker cache
+COPY composer.json composer.lock /var/www/html/
 
-# Create required storage directories
+# Create required storage directories (needed for composer install scripts)
 RUN mkdir -p storage/framework/cache/data \
     storage/framework/sessions \
     storage/framework/views \
     storage/logs \
     bootstrap/cache \
     public/uploads
+
+# Install PHP dependencies (this layer will be cached unless composer files change)
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-scripts
+
+# Copy the rest of the application code
+COPY . /var/www/html/
+
+# Run composer post-install scripts (like package:discover) now that code is present
+RUN composer run-script post-autoload-dump
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html \

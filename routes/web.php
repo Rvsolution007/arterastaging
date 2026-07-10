@@ -112,6 +112,18 @@ Route::get('/bg-remover', function () {
     return view('bg_remove');
 })->name('bg.remover');
 
+// Business Registration (Web Landing Page)
+Route::get('/business-registration', 'BusinessRegistrationController@showForm')->name('business.registration');
+Route::post('/business-registration', 'BusinessRegistrationController@register')->name('business.registration.post');
+Route::get('/business-registration/success', 'BusinessRegistrationController@success')->name('business.registration.success');
+
+// AJAX routes for business form
+Route::get('/api/web/get-business-category', 'BusinessRegistrationController@getCategories')->name('web.api.get_categories');
+Route::get('/api/web/get-business-sub-category', 'BusinessRegistrationController@getSubCategories')->name('web.api.get_sub_categories');
+Route::get('/api/web/get-business-type', 'BusinessRegistrationController@getBusinessTypes')->name('web.api.get_business_types');
+Route::get('/api/web/get-products', 'BusinessRegistrationController@getProducts')->name('web.api.get_products');
+
+
 // Shared UI routes
 Route::get('/client/get-sub-categories/{category_id}', 'MainController@getSubCategories')->name('client.get_sub_categories');
 Route::get('/webview-login', 'ClientAuthController@webviewLogin')->name('webview.login');
@@ -133,7 +145,7 @@ Route::get('/auth/google/callback', 'ClientAuthController@handleGoogleCallback')
 Route::get('/forgot-password', 'ClientAuthController@showForgotForm')->name('password.forgot');
 Route::post('/forgot-password/send-otp', 'ClientAuthController@sendOtp')->name('password.send-otp');
 Route::post('/forgot-password/verify-otp', 'ClientAuthController@verifyOtp')->name('password.verify-otp');
-Route::post('/forgot-password/update', 'ClientAuthController@updatePassword')->name('password.update');
+Route::post('/forgot-password/update', 'ClientAuthController@updatePassword')->name('client.password.update');
 
 
 Route::group(['middleware' => ['canInstall']], function () {
@@ -167,6 +179,8 @@ Route::get('upload-all-image-digitalOcean', 'HomeController@upload_image_digital
 Route::get('/pre-register', 'PreRegistrationController@index')->name('landing.pre_register');
 Route::post('/pre-register', 'PreRegistrationController@store')->name('landing.pre_register.store');
 Route::get('/', 'LandingController@home')->name('landing.home');
+Route::get('/ajax-search', 'LandingController@ajaxSearch')->name('landing.ajax_search');
+Route::get('/search', 'LandingController@searchPage')->name('landing.search');
 Route::get('/auth-gate', 'LandingController@authGate')->name('landing.auth_gate');
 Route::get('/app-gateway', 'LandingController@appGateway')->name('landing.app_gateway');
 Route::get('/about', 'LandingController@about')->name('landing.about');

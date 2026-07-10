@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../screens/dashboard_screen.dart'; // We will create this next
 import '../screens/login_screen.dart';
+import '../screens/business_profile_screen.dart';
 import '../widgets/guest_login_prompt_sheet.dart';
 import '../controllers/ad_controller.dart';
 import '../controllers/home_controller.dart';
@@ -55,7 +56,7 @@ class AuthController extends GetxController {
           Get.find<HomeController>().fetchHomeData();
         }
         
-        await _registerFcmToken(data['userId'].toString());
+        _registerFcmToken(data['userId'].toString());
         
         Get.snackbar('Success', 'Login Successful!', backgroundColor: Colors.green, colorText: Colors.white);
         
@@ -155,7 +156,7 @@ class AuthController extends GetxController {
           Get.find<HomeController>().fetchHomeData();
         }
 
-        await _registerFcmToken(data['userId'].toString());
+        _registerFcmToken(data['userId'].toString());
 
         Get.snackbar('Success', 'Registration successful! Welcome aboard.', backgroundColor: Colors.green, colorText: Colors.white);
         
@@ -190,7 +191,7 @@ class AuthController extends GetxController {
     Get.offAll(() => const LoginScreen());
   }
 
-  Future<void> forgotPassword(String email) async {
+  Future<bool> forgotPassword(String email) async {
     try {
       isLoading.value = true;
       final response = await ApiService.post('/forgot-password', {
@@ -198,8 +199,8 @@ class AuthController extends GetxController {
       });
 
       if (response.statusCode == 200) {
-        Get.snackbar('Success', 'Password reset email sent!', backgroundColor: Colors.green, colorText: Colors.white);
-        Get.back();
+        Get.snackbar('Success', 'OTP sent to your email!', backgroundColor: Colors.green, colorText: Colors.white);
+        return true;
       } else {
         try {
           final errorData = jsonDecode(response.body);
@@ -207,9 +208,67 @@ class AuthController extends GetxController {
         } catch (_) {
           Get.snackbar('Error', 'Server Error (${response.statusCode}).', backgroundColor: Colors.redAccent, colorText: Colors.white);
         }
+        return false;
       }
     } catch (e) {
-      Get.snackbar('Error', 'Failed to send reset email. $e', backgroundColor: Colors.redAccent, colorText: Colors.white);
+      Get.snackbar('Error', 'Failed to send OTP. $e', backgroundColor: Colors.redAccent, colorText: Colors.white);
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<bool> verifyOtp(String email, String otp) async {
+    try {
+      isLoading.value = true;
+      final response = await ApiService.post('/forgot-password/verify-otp', {
+        'email': email,
+        'otp': otp,
+      });
+
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        try {
+          final errorData = jsonDecode(response.body);
+          Get.snackbar('Error', errorData['message'].toString(), backgroundColor: Colors.redAccent, colorText: Colors.white);
+        } catch (_) {
+          Get.snackbar('Error', 'Wrong Code or Server Error.', backgroundColor: Colors.redAccent, colorText: Colors.white);
+        }
+        return false;
+      }
+    } catch (e) {
+      Get.snackbar('Error', 'Verification failed. $e', backgroundColor: Colors.redAccent, colorText: Colors.white);
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<bool> updatePassword(String email, String otp, String newPassword) async {
+    try {
+      isLoading.value = true;
+      final response = await ApiService.post('/forgot-password/update', {
+        'email': email,
+        'otp': otp,
+        'new_password': newPassword,
+      });
+
+      if (response.statusCode == 200) {
+        Get.snackbar('Success', 'Password updated successfully!', backgroundColor: Colors.green, colorText: Colors.white);
+        return true;
+      } else {
+        try {
+          final errorData = jsonDecode(response.body);
+          Get.snackbar('Error', errorData['message'].toString(), backgroundColor: Colors.redAccent, colorText: Colors.white);
+        } catch (_) {
+          Get.snackbar('Error', 'Failed to update password.', backgroundColor: Colors.redAccent, colorText: Colors.white);
+        }
+        return false;
+      }
+    } catch (e) {
+      Get.snackbar('Error', 'Update failed. $e', backgroundColor: Colors.redAccent, colorText: Colors.white);
+      return false;
     } finally {
       isLoading.value = false;
     }
@@ -246,6 +305,27 @@ class AuthController extends GetxController {
         backgroundColor: Colors.transparent,
       );
     } else {
+      // Check if business profile is valid (has at least a name, and either phone or email)
+      bool hasValidBusiness = true;
+      if (Get.isRegistered<HomeController>()) {
+        final hc = Get.find<HomeController>();
+        if (hc.businessId.value.isEmpty || (hc.businessPhone.value.isEmpty && hc.businessEmail.value.isEmpty)) {
+          hasValidBusiness = false;
+        }
+      }
+
+      if (!hasValidBusiness) {
+        Get.snackbar(
+          'Profile Incomplete',
+          'Please complete your business profile (add mobile or email) to use the editor.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.orangeAccent,
+          colorText: Colors.white,
+        );
+        Get.to(() => const BusinessProfileScreen());
+        return;
+      }
+
       Get.toNamed(route, arguments: arguments);
     }
   }

@@ -24,6 +24,7 @@ use App\Models\NotificationSetting;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\URL;
 
 class SettingController extends Controller
 {
@@ -168,43 +169,32 @@ class SettingController extends Controller
 
         $app_name = str_replace(" ", "_", $request->name['app_title']);
 
-        if (!env('APP_TIMEZONE')) {
-            file_put_contents(base_path('.env'), "APP_TIMEZONE=" . $request->name['app_timezone'] . PHP_EOL, FILE_APPEND);
-        }
-        if (env('APP_TIMEZONE')) {
-            file_put_contents(base_path('.env'), str_replace('APP_TIMEZONE=' . env('APP_TIMEZONE'), 'APP_TIMEZONE=' . $request->name['app_timezone'], file_get_contents(base_path('.env'))));
-        }
-
-        if (!env('MAIL_FROM_ADDRESS')) {
-            file_put_contents(base_path('.env'), "MAIL_FROM_ADDRESS=" . $request->name['email'] . PHP_EOL, FILE_APPEND);
-        }
-        if (env('MAIL_FROM_ADDRESS')) {
-            file_put_contents(base_path('.env'), str_replace('MAIL_FROM_ADDRESS="' . env('MAIL_FROM_ADDRESS') . '"', 'MAIL_FROM_ADDRESS="' . $request->name['email'] . '"', file_get_contents(base_path('.env'))));
-        }
-
-        if (!env('MAIL_FROM_NAME')) {
-            file_put_contents(base_path('.env'), "MAIL_FROM_NAME=" . $request->name['app_title'] . PHP_EOL, FILE_APPEND);
-        }
-        if (env('MAIL_FROM_NAME')) {
-            file_put_contents(base_path('.env'), str_replace('MAIL_FROM_NAME="' . env('MAIL_FROM_NAME') . '"', 'MAIL_FROM_NAME="' . $request->name['app_title'] . '"', file_get_contents(base_path('.env'))));
-        }
-
-        if (!env('API_KEY')) {
-            file_put_contents(base_path('.env'), "API_KEY=" . $request->name['api_key'] . PHP_EOL, FILE_APPEND);
-        }
-        if (env('API_KEY')) {
-            file_put_contents(base_path('.env'), str_replace('API_KEY=' . env('API_KEY'), 'API_KEY=' . $request->name['api_key'], file_get_contents(base_path('.env'))));
-        }
-
-        if (!env('APP_NAME')) {
-            file_put_contents(base_path('.env'), "APP_NAME=" . $app_name . PHP_EOL, FILE_APPEND);
-        }
-        if (env('APP_NAME')) {
-            file_put_contents(base_path('.env'), str_replace(
-                'APP_NAME=' . env('APP_NAME'),
-                'APP_NAME=' . $app_name,
-                file_get_contents(base_path('.env'))
-            ));
+        try {
+            $envFile = base_path('.env');
+            if (file_exists($envFile) && is_writable($envFile)) {
+                $content = file_get_contents($envFile);
+                $envUpdates = [
+                    'APP_TIMEZONE' => $request->name['app_timezone'] ?? '',
+                    'MAIL_FROM_ADDRESS' => $request->name['email'] ?? '',
+                    'MAIL_FROM_NAME' => $request->name['app_title'] ?? '',
+                    'API_KEY' => $request->name['api_key'] ?? '',
+                    'APP_NAME' => $app_name,
+                ];
+                
+                foreach ($envUpdates as $envKey => $envValue) {
+                    $envValue = trim((string)($envValue ?? ''));
+                    $quotedValue = '"' . str_replace('"', '\\"', $envValue) . '"';
+                    $pattern = "/^{$envKey}=.*/m";
+                    if (preg_match($pattern, $content)) {
+                        $content = preg_replace($pattern, "{$envKey}={$quotedValue}", $content);
+                    } else {
+                        $content .= PHP_EOL . "{$envKey}={$quotedValue}";
+                    }
+                }
+                file_put_contents($envFile, $content);
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Could not update .env for app settings: ' . $e->getMessage());
         }
 
         Cache::flush();
@@ -230,76 +220,40 @@ class SettingController extends Controller
             }
         }
 
-        if (!env('MAIL_HOST')) {
+        // Try to update .env file, but don't crash if it fails
+        try {
+            $envFile = base_path('.env');
+            if (file_exists($envFile) && is_writable($envFile)) {
+                $content = file_get_contents($envFile);
+                $envUpdates = [
+                    'MAIL_HOST' => $request->name['smtp_host'] ?? '',
+                    'MAIL_USERNAME' => $request->name['username'] ?? '',
+                    'MAIL_FROM_ADDRESS' => $request->name['username'] ?? '',
+                    'MAIL_ENCRYPTION' => $request->name['encryption'] ?? 'tls',
+                    'MAIL_PORT' => $request->name['port'] ?? '587',
+                    'MAIL_MAILER' => 'smtp',
+                ];
+                
+                if (!empty($request->name['password'])) {
+                    $envUpdates['MAIL_PASSWORD'] = $request->name['password'];
+                }
 
-            file_put_contents(base_path('.env'), "MAIL_HOST=" . $request->name['smtp_host'] . PHP_EOL, FILE_APPEND);
-        }
-        if (env('MAIL_HOST')) {
-
-            file_put_contents(base_path('.env'), str_replace(
-                'MAIL_HOST=' . env('MAIL_HOST'),
-                'MAIL_HOST=' . $request->name['smtp_host'],
-                file_get_contents(base_path('.env'))
-            ));
-        }
-
-        if (!env('MAIL_USERNAME')) {
-
-            file_put_contents(base_path('.env'), "MAIL_USERNAME=" . $request->name['username'] . PHP_EOL, FILE_APPEND);
-        }
-        if (env('MAIL_USERNAME')) {
-
-            file_put_contents(base_path('.env'), str_replace(
-                'MAIL_USERNAME=' . env('MAIL_USERNAME'),
-                'MAIL_USERNAME=' . $request->name['username'],
-                file_get_contents(base_path('.env'))
-            ));
-            file_put_contents(base_path('.env'), str_replace(
-                'MAIL_FROM_ADDRESS=' . env('MAIL_FROM_ADDRESS'),
-                'MAIL_FROM_ADDRESS=' . $request->name['username'],
-                file_get_contents(base_path('.env'))
-            ));
-        }
-
-        if (!env('MAIL_PASSWORD')) {
-
-            file_put_contents(base_path('.env'), "MAIL_PASSWORD=" . $request->name['password'] . PHP_EOL, FILE_APPEND);
-        }
-        if (env('MAIL_PASSWORD')) {
-
-            if ($request->name['password'] != "") {
-                file_put_contents(base_path('.env'), str_replace(
-                    'MAIL_PASSWORD=' . env('MAIL_PASSWORD'),
-                    'MAIL_PASSWORD=' . $request->name['password'],
-                    file_get_contents(base_path('.env'))
-                ));
+                foreach ($envUpdates as $key => $value) {
+                    $value = trim((string)($value ?? ''));
+                    // Quote the value if it contains special chars
+                    $quotedValue = '"' . str_replace('"', '\\"', $value) . '"';
+                    
+                    $pattern = "/^{$key}=.*/m";
+                    if (preg_match($pattern, $content)) {
+                        $content = preg_replace($pattern, "{$key}={$quotedValue}", $content);
+                    } else {
+                        $content .= PHP_EOL . "{$key}={$quotedValue}";
+                    }
+                }
+                file_put_contents($envFile, $content);
             }
-        }
-
-        if (!env('MAIL_ENCRYPTION')) {
-
-            file_put_contents(base_path('.env'), "MAIL_ENCRYPTION=" . $request->name['encryption'] . PHP_EOL, FILE_APPEND);
-        }
-        if (env('MAIL_ENCRYPTION')) {
-
-            file_put_contents(base_path('.env'), str_replace(
-                'MAIL_ENCRYPTION=' . env('MAIL_ENCRYPTION'),
-                'MAIL_ENCRYPTION=' . $request->name['encryption'],
-                file_get_contents(base_path('.env'))
-            ));
-        }
-
-        if (!env('MAIL_PORT')) {
-
-            file_put_contents(base_path('.env'), "MAIL_PORT=" . $request->name['port'] . PHP_EOL, FILE_APPEND);
-        }
-        if (env('MAIL_PORT')) {
-
-            file_put_contents(base_path('.env'), str_replace(
-                'MAIL_PORT=' . env('MAIL_PORT'),
-                'MAIL_PORT=' . $request->name['port'],
-                file_get_contents(base_path('.env'))
-            ));
+        } catch (\Exception $e) {
+            \Log::warning('Could not update .env for email settings: ' . $e->getMessage());
         }
 
         Cache::flush();
@@ -409,7 +363,14 @@ SPACES_ENDPOINT="' . $endpoint . '"
 
             $newenv = $cleanString . $storageSetting;
 
-            file_put_contents(base_path('.env'), $newenv);
+            try {
+                $envFile = base_path('.env');
+                if (file_exists($envFile) && is_writable($envFile)) {
+                    file_put_contents($envFile, $newenv);
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Could not update .env for digital ocean settings: ' . $e->getMessage());
+            }
 
             // if(!env('SPACES_ACCESS_KEY_ID')) 
             // {
@@ -665,11 +626,22 @@ SPACES_ENDPOINT="' . $endpoint . '"
                 // Sync with .env
                 $envKey = strtoupper($key);
                 if (in_array($envKey, ['GOOGLE_CLOUD_PROJECT_ID', 'VERTEX_LOCATION', 'AI_MODEL', 'AI_PROVIDER', 'GEMINI_API_KEY', 'GEMINI_MODEL', 'CHATGPT_API_KEY', 'CHATGPT_MODEL'])) {
-                    if (!env($envKey)) {
-                        file_put_contents(base_path('.env'), $envKey . "=" . $val . PHP_EOL, FILE_APPEND);
-                    } else {
-                        $envContent = file_get_contents(base_path('.env'));
-                        file_put_contents(base_path('.env'), str_replace($envKey . '=' . env($envKey), $envKey . '=' . $val, $envContent));
+                    try {
+                        $envFile = base_path('.env');
+                        if (file_exists($envFile) && is_writable($envFile)) {
+                            $content = file_get_contents($envFile);
+                            $quotedValue = '"' . str_replace('"', '\\"', $val) . '"';
+                            $pattern = "/^{$envKey}=.*/m";
+                            
+                            if (preg_match($pattern, $content)) {
+                                $content = preg_replace($pattern, "{$envKey}={$quotedValue}", $content);
+                            } else {
+                                $content .= PHP_EOL . "{$envKey}={$quotedValue}";
+                            }
+                            file_put_contents($envFile, $content);
+                        }
+                    } catch (\Exception $e) {
+                        \Log::warning('Could not update .env for ai settings: ' . $e->getMessage());
                     }
                 }
             }

@@ -68,6 +68,28 @@ class HomeApi extends Controller
     {
         $limit = 20;
 
+        $appUpdateSetting = AppUpdateSetting::all();
+        $update = [];
+        foreach ($appUpdateSetting as $s) 
+        {
+            $update[$this->from_camel_case($s->key_name)] = $s->key_value;
+        }
+
+        // --- Force Update Delay Logic ---
+        if (isset($update['appPublishDate']) && isset($update['forceUpdateDelayDays'])) {
+            try {
+                $publishDate = \Carbon\Carbon::parse($update['appPublishDate']);
+                $delayDays = (int) $update['forceUpdateDelayDays'];
+                $forceDate = $publishDate->addDays($delayDays);
+
+                if (\Carbon\Carbon::now()->greaterThanOrEqualTo($forceDate)) {
+                    $update['cancelOption'] = "0"; // Force update!
+                }
+            } catch (\Exception $e) {
+                // Ignore parsing errors
+            }
+        }
+
         // === OPTIMIZATION: Cache storage setting once (was called 20+ times) ===
         $isDigitalOcean = StorageSetting::getStorageSetting('storage') == 'DigitalOcean';
 
@@ -241,8 +263,13 @@ class HomeApi extends Controller
                             }
                             else
                             {
-                                $file = scandir('./uploads/template/'.$cc->zip_name.'/json/', 1);
-                                return file_get_contents(asset('uploads/template/'.$cc->zip_name.'/json/'.$file[0]));
+                                if (is_dir('./uploads/template/'.$cc->zip_name.'/json/')) {
+                                    $file = scandir('./uploads/template/'.$cc->zip_name.'/json/', 1);
+                                    if (isset($file[0]) && $file[0] != '.' && $file[0] != '..') {
+                                        return file_get_contents(asset('uploads/template/'.$cc->zip_name.'/json/'.$file[0]));
+                                    }
+                                }
+                                return "";
                             }
                         });
                     }
@@ -333,6 +360,20 @@ class HomeApi extends Controller
                 "video" => (count($video) == 0)?false:true,
             );
         }
+        $otherSetting = \App\Models\OtherSetting::whereIn('key_name', ['privacy_policy', 'terms_condition', 'refund_policy'])->get();
+        $privacyPolicyHtml = '';
+        $termsConditionHtml = '';
+        $refundPolicyHtml = '';
+
+        foreach ($otherSetting as $s) {
+            if ($s->key_name == "privacy_policy") {
+                $privacyPolicyHtml = $s->key_value;
+            } else if ($s->key_name == "terms_condition") {
+                $termsConditionHtml = $s->key_value;
+            } else if ($s->key_name == "refund_policy") {
+                $refundPolicyHtml = $s->key_value;
+            }
+        }
         
         return response()->json([
             "Story" => $story_data,
@@ -341,6 +382,10 @@ class HomeApi extends Controller
             "BusinessCategory" => $business_category_data,
             "Category" => $category_data,
             "ProfileBusinessCategory" => $profile_business_category_data,
+            "privacyPolicyHtml" => $privacyPolicyHtml,
+            "termsConditionHtml" => $termsConditionHtml,
+            "refundPolicyHtml" => $refundPolicyHtml,
+            "appUpdate" => $update,
         ], 200);
     }
 
@@ -1228,8 +1273,12 @@ class HomeApi extends Controller
                     }
                     else
                     {
-                        $file = scandir('./uploads/template/'.$c->zip_name.'/json/', 1);
-                        $json_data = file_get_contents(asset('uploads/template/'.$c->zip_name.'/json/'.$file[0]));
+                        if (is_dir('./uploads/template/'.$c->zip_name.'/json/')) {
+                            $file = scandir('./uploads/template/'.$c->zip_name.'/json/', 1);
+                            if (isset($file[0]) && $file[0] != '.' && $file[0] != '..') {
+                                $json_data = file_get_contents(asset('uploads/template/'.$c->zip_name.'/json/'.$file[0]));
+                            }
+                        }
                     }
                 }
 
@@ -2969,7 +3018,6 @@ class HomeApi extends Controller
     {
         $appSetting = AppSetting::all();
         $emailSetting = EmailSetting::all();
-        $appUpdateSetting = AppUpdateSetting::all();
         $notificationSetting = NotificationSetting::all();
         $paymentSetting = PaymentSetting::all();
         $storageSetting = StorageSetting::all();
@@ -3021,13 +3069,6 @@ class HomeApi extends Controller
             }
         }
 
-        foreach ($appUpdateSetting as $s) 
-        {
-            $update[$this->from_camel_case($s->key_name)] = $s->key_value;
-        }
-
-        $data['appUpdate'] = $update;
-
         // foreach ($notificationSetting as $s) 
         // {
         //     $data[$this->from_camel_case($s->key_name)] = $s->key_value;
@@ -3038,14 +3079,17 @@ class HomeApi extends Controller
             if($s->key_name == "privacy_policy")
             {
                 $data[$this->from_camel_case($s->key_name)] = url('/privacy-policy');
+                $data['privacyPolicyHtml'] = $s->key_value;
             }
             else if($s->key_name == "refund_policy")
             {
                 $data[$this->from_camel_case($s->key_name)] = url('/refund-policy');
+                $data['refundPolicyHtml'] = $s->key_value;
             }
             else if($s->key_name == "terms_condition")
             {
                 $data[$this->from_camel_case($s->key_name)] = url('/terms-condition');
+                $data['termsConditionHtml'] = $s->key_value;
             }
             else
             {
@@ -3369,7 +3413,7 @@ class HomeApi extends Controller
 
     public function getBusinessCategory()
     {
-        $category = \App\Models\CustomFramePurpose::where('status',1)->get();
+        $category = \App\Models\BusinessCategory::where('status',1)->get();
         if(!$category->isEmpty())
         {
             foreach ($category as $cat) {
@@ -3883,8 +3927,12 @@ class HomeApi extends Controller
                 }
                 else
                 {
-                    $file = scandir('./uploads/template/'.$p->zip_name.'/json/', 1);
-                    $json_data = file_get_contents(asset('uploads/template/'.$p->zip_name.'/json/'.$file[0]));
+                    if (is_dir('./uploads/template/'.$p->zip_name.'/json/')) {
+                        $file = scandir('./uploads/template/'.$p->zip_name.'/json/', 1);
+                        if (isset($file[0]) && $file[0] != '.' && $file[0] != '..') {
+                            $json_data = file_get_contents(asset('uploads/template/'.$p->zip_name.'/json/'.$file[0]));
+                        }
+                    }
                 }
 
                 $data[] = array(

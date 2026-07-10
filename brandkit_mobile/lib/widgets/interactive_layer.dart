@@ -32,6 +32,14 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
   double _dragDy = 0.0;
   bool _isDragging = false;
 
+  // Local scale offset
+  double _scaleFactor = 1.0;
+  bool _isScaling = false;
+  double _scaleDx = 0.0;
+  double _scaleDy = 0.0;
+  bool _activeHandleIsLeft = false;
+  bool _activeHandleIsTop = false;
+
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<NativeEditorController>();
@@ -44,15 +52,7 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
       final double x = safeDouble(widget.layerConfig['x'] ?? 0) * widget.scale;
       double y = safeDouble(widget.layerConfig['y'] ?? 0) * widget.scale;
 
-      // RC-6: Point Text Y-offset correction
-      if (widget.layerConfig['type'] == 'text' && widget.layerConfig['kind']?.toString().toLowerCase() == 'point') {
-        final double rawSize = safeDouble(widget.layerConfig['fontSize'] ?? widget.layerConfig['font_size'] ?? widget.layerConfig['size'] ?? 16);
-        final double docPPI = safeDouble(controller.templateConfig['info']?['ppi'] ?? 72);
-        final double ppiScale = docPPI / 72.0;
-        final double layerScaleYForFont = safeDouble(widget.layerConfig['scaleY'] ?? widget.layerConfig['scaleX'] ?? 1.0);
-        final double effectiveFontSize = rawSize * ppiScale * layerScaleYForFont * widget.scale;
-        y -= (effectiveFontSize * 0.12);
-      }
+      // The Y-offset correction is now handled universally at the JSON exporter level.
       double rawW = safeDouble(widget.layerConfig['w'] ?? widget.layerConfig['width'] ?? 0);
       double rawH = safeDouble(widget.layerConfig['h'] ?? widget.layerConfig['height'] ?? 0);
 
@@ -73,6 +73,7 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
       final double angle = safeDouble(widget.layerConfig['angle'] ?? 0);
 
       final bool isText = widget.layerConfig['type'] == 'text';
+      final bool isSingleLine = isText && widget.layerConfig['_is_single_line'] == true;
       final double? posW = w > 0 ? w : null;
       final double? posH = (h > 0 && !isText) ? h : null;
 
@@ -106,18 +107,59 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
       final double visualX = x + (_isDragging ? _dragDx : 0.0);
       final double visualY = y + (_isDragging ? _dragDy : 0.0);
 
+      Widget gestureChild = Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          // Expand hit area for very thin or narrow layers (like lines)
+          if ((posW != null && posW < 40) || (posH != null && posH < 40))
+            Container(
+              width: posW != null ? math.max(posW, 40.0) : 40.0,
+              height: posH != null ? math.max(posH, 40.0) : 40.0,
+              color: Colors.transparent,
+            ),
+          SizedBox(
+            width: posW,
+            height: posH,
+            child: widget.child,
+          ),
+          if (isSelected)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: const Color(0xFF6366F1), width: 2),
+                ),
+              ),
+            ),
+          if (isSelected)
+            ..._buildHandles(),
+        ],
+      );
+
+      if (_isScaling) {
+        Alignment scaleAlignment = Alignment.topLeft;
+        if (_activeHandleIsLeft && _activeHandleIsTop) scaleAlignment = Alignment.bottomRight;
+        else if (_activeHandleIsLeft && !_activeHandleIsTop) scaleAlignment = Alignment.topRight;
+        else if (!_activeHandleIsLeft && _activeHandleIsTop) scaleAlignment = Alignment.bottomLeft;
+        else scaleAlignment = Alignment.topLeft;
+
+        gestureChild = Transform.scale(
+          scale: _scaleFactor,
+          alignment: scaleAlignment,
+          child: gestureChild,
+        );
+      }
+
       Widget layerContent = Transform.rotate(
         angle: angle * math.pi / 180,
         child: canInteract ? GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () {
             debugPrint('[LAYER_TAP] ✅ onTap FIRED for "${widget.layerName}"');
-            controller.layerWasTapped = true;
             controller.selectLayer(widget.layerName);
           },
           onPanStart: (details) {
             debugPrint('[LAYER_PAN] ✅ onPanStart for "${widget.layerName}"');
-            controller.layerWasTapped = true;
             if (controller.selectedLayerId.value != widget.layerName) {
               controller.selectLayer(widget.layerName);
             }
@@ -140,10 +182,15 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
             if (controller.selectedLayerId.value == widget.layerName) {
               // Commit the accumulated drag to the controller
               final layers = controller.templateConfig['layers'] as List<dynamic>?;
-              final currentLayer = layers?.firstWhere(
-                (l) => (l['name'] ?? l['id']).toString() == widget.layerName,
-                orElse: () => null,
-              );
+              Map<String, dynamic>? currentLayer;
+              if (layers != null) {
+                for (var l in layers) {
+                  if ((l['name'] ?? l['id']).toString() == widget.layerName) {
+                    currentLayer = l as Map<String, dynamic>;
+                    break;
+                  }
+                }
+              }
               if (currentLayer != null) {
                 final currentX = safeDouble(currentLayer['x'] ?? 0);
                 final currentY = safeDouble(currentLayer['y'] ?? 0);
@@ -164,30 +211,14 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
               _dragDy = 0.0;
             });
           },
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              SizedBox(
-                width: posW,
-                height: posH,
-                child: widget.child,
-              ),
-              if (isSelected)
-                Positioned.fill(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: const Color(0xFF6366F1), width: 2),
-                    ),
-                  ),
-                ),
-              if (isSelected)
-                ..._buildHandles(),
-            ],
-          ),
+          child: gestureChild,
         ) : widget.child,
       );
 
-      final String just = (widget.layerConfig['justification']?.toString().toLowerCase().trim()) ?? 'left';
+      final dynamic fontObj = widget.layerConfig['font'];
+      final String just = (widget.layerConfig['justification'] ?? 
+                          (fontObj is Map ? fontObj['justification'] : null) ?? 
+                          widget.layerConfig['textAlign'] ?? 'left').toString().toLowerCase().trim();
       double? finalLeft;
       double? finalRight;
 
@@ -217,26 +248,135 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
 
   List<Widget> _buildHandles() {
     return [
-      _buildHandle(-5, -5), // Top-left
-      _buildHandle(null, -5, right: -5), // Top-right
-      _buildHandle(-5, null, bottom: -5), // Bottom-left
-      _buildHandle(null, null, right: -5, bottom: -5), // Bottom-right
+      _buildHandle(left: 0, top: 0, isLeft: true, isTop: true), // Top-left
+      _buildHandle(right: 0, top: 0, isLeft: false, isTop: true), // Top-right
+      _buildHandle(left: 0, bottom: 0, isLeft: true, isTop: false), // Bottom-left
+      _buildHandle(right: 0, bottom: 0, isLeft: false, isTop: false), // Bottom-right
     ];
   }
 
-  Widget _buildHandle(double? left, double? top, {double? right, double? bottom}) {
+  Widget _buildHandle({double? left, double? top, double? right, double? bottom, required bool isLeft, required bool isTop}) {
+    double? posLeft = left != null ? left - 12 : null;
+    double? posTop = top != null ? top - 12 : null;
+    double? posRight = right != null ? right - 12 : null;
+    double? posBottom = bottom != null ? bottom - 12 : null;
+
+    final double angle = safeDouble(widget.layerConfig['angle'] ?? 0);
+    final double angleRad = angle * math.pi / 180;
+
     return Positioned(
-      left: left,
-      top: top,
-      right: right,
-      bottom: bottom,
-      child: Container(
-        width: 10,
-        height: 10,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: const Color(0xFF6366F1), width: 2),
-          shape: BoxShape.circle,
+      left: posLeft,
+      top: posTop,
+      right: posRight,
+      bottom: posBottom,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onPanStart: (details) {
+          final controller = Get.find<NativeEditorController>();
+          if (controller.selectedLayerId.value != widget.layerName) {
+            controller.selectLayer(widget.layerName);
+          }
+          setState(() {
+            _isScaling = true;
+            _scaleFactor = 1.0;
+            _scaleDx = 0.0;
+            _scaleDy = 0.0;
+            _activeHandleIsLeft = isLeft;
+            _activeHandleIsTop = isTop;
+          });
+        },
+        onPanUpdate: (details) {
+          setState(() {
+            double rotatedDx = details.delta.dx * math.cos(-angleRad) - details.delta.dy * math.sin(-angleRad);
+            double rotatedDy = details.delta.dx * math.sin(-angleRad) + details.delta.dy * math.cos(-angleRad);
+            
+            _scaleDx += rotatedDx;
+            _scaleDy += rotatedDy;
+            
+            double dx = _scaleDx;
+            if (isLeft) dx = -dx;
+            
+            double initialW = safeDouble(widget.layerConfig['w'] ?? widget.layerConfig['width'] ?? 0) * safeDouble(widget.layerConfig['scaleX'] ?? 1.0) * widget.scale;
+            if (initialW <= 0 && context.size != null) {
+              initialW = context.size!.width;
+            }
+            if (initialW < 20) initialW = 20;
+
+            _scaleFactor = 1.0 + (dx / initialW);
+            if (_scaleFactor < 0.1) _scaleFactor = 0.1;
+            debugPrint('[LAYER_RESIZE] onPanUpdate dx: $dx, initialW: $initialW, scaleFactor: $_scaleFactor');
+          });
+        },
+        onPanEnd: (_) {
+          final controller = Get.find<NativeEditorController>();
+          final layers = controller.templateConfig['layers'] as List<dynamic>?;
+          Map<String, dynamic>? currentLayer;
+          if (layers != null) {
+            for (var l in layers) {
+              if ((l['name'] ?? l['id']).toString() == widget.layerName) {
+                currentLayer = l as Map<String, dynamic>;
+                break;
+              }
+            }
+          }
+          if (currentLayer != null) {
+            final double currentX = safeDouble(currentLayer['x'] ?? 0);
+            final double currentY = safeDouble(currentLayer['y'] ?? 0);
+            final double currentScaleX = safeDouble(currentLayer['scaleX'] ?? 1.0);
+            final double currentScaleY = safeDouble(currentLayer['scaleY'] ?? 1.0);
+            
+            double initialW = safeDouble(currentLayer['w'] ?? currentLayer['width'] ?? 0) * currentScaleX;
+            double initialH = safeDouble(currentLayer['h'] ?? currentLayer['height'] ?? 0) * currentScaleY;
+            
+            if (initialW <= 0 && context.size != null) {
+              initialW = context.size!.width / widget.scale;
+            }
+            if (initialH <= 0 && context.size != null) {
+              initialH = context.size!.height / widget.scale;
+            }
+            
+            double newW = initialW * _scaleFactor;
+            double newH = initialH * _scaleFactor;
+            
+            double finalX = currentX;
+            double finalY = currentY;
+            
+            if (isLeft) {
+              finalX = currentX - (newW - initialW);
+            }
+            if (isTop) {
+              finalY = currentY - (newH - initialH);
+            }
+            
+            controller.updateLayerProperties(widget.layerName, {
+              'x': finalX,
+              'y': finalY,
+              'scaleX': currentScaleX * _scaleFactor,
+              'scaleY': currentScaleY * _scaleFactor,
+            });
+            controller.commitLayerChange();
+          }
+          setState(() {
+            _isScaling = false;
+            _scaleFactor = 1.0;
+            _scaleDx = 0.0;
+            _scaleDy = 0.0;
+          });
+        },
+        child: Container(
+          width: 24,
+          height: 24,
+          color: Colors.transparent,
+          alignment: Alignment.center,
+          child: Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: const Color(0xFF6366F1), width: 2),
+              shape: BoxShape.circle,
+            ),
+          ),
         ),
       ),
     );

@@ -1187,12 +1187,16 @@ class MainController extends Controller
     }
     public function filterFramesByBusinessData($frames_list, $business)
     {
-        if (!$business) return $frames_list;
+        $visiblePhones = 0;
+        $visibleEmails = 0;
+        $visibleAddresses = 0;
+        $visibleWebsites = 0;
 
-        $hiddenFields = [];
-        if (!empty($business->hidden_frame_fields)) {
-            $hiddenFields = is_string($business->hidden_frame_fields) ? json_decode($business->hidden_frame_fields, true) : $business->hidden_frame_fields;
-        }
+        if ($business) {
+            $hiddenFields = [];
+            if (!empty($business->hidden_frame_fields)) {
+                $hiddenFields = is_string($business->hidden_frame_fields) ? json_decode($business->hidden_frame_fields, true) : $business->hidden_frame_fields;
+            }
 
         // Visible Phones
         $visiblePhones = 0;
@@ -1246,6 +1250,8 @@ class MainController extends Controller
             }
         }
 
+        } // End of if ($business) check
+
         $filterClosure = function($f) use ($visiblePhones, $visibleEmails, $visibleAddresses, $visibleWebsites) {
             $is_array = is_array($f);
             $req_phone = (int)($is_array ? ($f['req_phone'] ?? 0) : ($f->req_phone ?? 0));
@@ -1253,10 +1259,12 @@ class MainController extends Controller
             $req_address = (int)($is_array ? ($f['req_address'] ?? 0) : ($f->req_address ?? 0));
             $req_website = (int)($is_array ? ($f['req_website'] ?? 0) : ($f->req_website ?? 0));
             
-            return $req_phone == $visiblePhones &&
-                   $req_email == $visibleEmails &&
-                   $req_address == $visibleAddresses &&
-                   $req_website == $visibleWebsites;
+            // User must have AT LEAST as many visible fields as frame requires
+            // Also: if frame requires 0, user can have any amount (no restriction)
+            return ($visiblePhones >= $req_phone) &&
+                   ($visibleEmails >= $req_email) &&
+                   ($visibleAddresses >= $req_address) &&
+                   ($visibleWebsites >= $req_website);
         };
 
         if ($frames_list instanceof \Illuminate\Support\Collection) {

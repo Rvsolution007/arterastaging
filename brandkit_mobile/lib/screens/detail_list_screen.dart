@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import '../config/app_config.dart';
 import '../services/ad_service.dart';
 import '../services/download_service.dart';
 import '../controllers/ad_controller.dart';
@@ -117,6 +119,15 @@ class _DetailListScreenState extends State<DetailListScreen> {
 
   /// Load a Native Ad to inject into the template grid
   void _loadNativeAd() {
+    // Skip native ads in debug/staging to avoid AdMob validator popup
+    if (kDebugMode || AppConfig.isStaging) {
+      debugPrint('[DetailList] Native ad skipped (debug/staging mode).');
+      return;
+    }
+    if (Get.find<SubscriptionController>().isSubscribe.value) {
+      return;
+    }
+    
     _nativeAd = NativeAd(
       adUnitId: AdService.nativeAdUnitId,
       request: const AdRequest(),
@@ -408,19 +419,21 @@ class _DetailListScreenState extends State<DetailListScreen> {
                         )
                       : const Center(child: Icon(Icons.image, color: Colors.grey, size: 30)),
                   // Paid badge
-                  if (item['isPaid'] == true)
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.amber,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text('PRO', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: Colors.white)),
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: item['isPaid'] == true ? Colors.black45 : Colors.green.withOpacity(0.8),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        item['isPaid'] == true ? 'PREMIUM' : 'FREE',
+                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.5),
                       ),
                     ),
+                  ),
                   // Selected checkmark
                   if (isSelected)
                     Positioned(
@@ -753,32 +766,7 @@ class _DetailListScreenState extends State<DetailListScreen> {
                         ),
                       ),
 
-                      // AI Filter (Only for Images)
-                      if (activeTab == 'images' && widget.type != 'greeting')
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            border: Border(bottom: BorderSide(color: const Color(0xFFF8FAFC))),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          child: Row(
-                            children: [
-                              _buildFilterChip('Normal', imageFilter == 'Normal', () {
-                                setState(() {
-                                  imageFilter = 'Normal';
-                                  selectedIndex = 0;
-                                });
-                              }),
-                              const SizedBox(width: 8),
-                              _buildFilterChip('AI', imageFilter == 'AI', () {
-                                setState(() {
-                                  imageFilter = 'AI';
-                                  selectedIndex = 0;
-                                });
-                              }),
-                            ],
-                          ),
-                        ),
+                      // AI Filter (Only for Images) - Removed as per request
 
                       // Frames Grid (with Native Ad injected)
                       Expanded(

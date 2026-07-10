@@ -226,6 +226,17 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
       return;
     }
 
+    if (_phoneCtrl.text.isNotEmpty) {
+      String digits = _phoneCtrl.text.replaceAll(RegExp(r'\D'), '');
+      bool isValid = false;
+      if (digits.length == 10) isValid = true;
+      if (digits.length == 12 && digits.startsWith('91')) isValid = true;
+      if (!isValid) {
+        Get.snackbar('Error', 'Please enter a valid 10-digit mobile number (with optional +91)', backgroundColor: Colors.red, colorText: Colors.white);
+        return;
+      }
+    }
+
     setState(() => _isLoading = true);
     
     // Build hidden_frame_fields
@@ -251,7 +262,14 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
       final endpoint = isNewBusiness ? '/add-business' : '/update-business';
       
       final prefs = await SharedPreferences.getInstance();
-      final userId = prefs.getString('userId') ?? '';
+      final userId = prefs.getString('userId') ?? prefs.getString('user_id') ?? prefs.getString('id') ?? '';
+
+      if (isNewBusiness && userId.isEmpty) {
+        setState(() => _isLoading = false);
+        Get.snackbar('Session Error', 'Your session data is missing. Please log out and log back in to save.',
+            backgroundColor: Colors.orange, colorText: Colors.white, duration: const Duration(seconds: 4));
+        return;
+      }
 
       dynamic response;
 
@@ -326,6 +344,7 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
           backgroundColor: AppColors.success,
           colorText: Colors.white,
           margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 1),
         );
       } else {
         setState(() => _isLoading = false);

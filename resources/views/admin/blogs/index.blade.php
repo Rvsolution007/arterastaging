@@ -78,9 +78,10 @@
                         </td>
                         <td>{{ $blog->created_at->format('M d, Y') }}</td>
                         <td>
-                            <a href="#" class="btn btn-sm btn-light border" style="border-radius: 8px;"><i class="fa fa-edit text-info"></i></a>
-                            <form action="#" method="POST" class="d-inline">
+                            <a href="{{ route('admin.blogs.edit', $blog->id) }}" class="btn btn-sm btn-light border" style="border-radius: 8px;"><i class="fa fa-edit text-info"></i></a>
+                            <form action="{{ route('admin.blogs.destroy', $blog->id) }}" method="POST" class="d-inline">
                                 @csrf
+                                @method('DELETE')
                                 <button type="submit" class="btn btn-sm btn-light border" style="border-radius: 8px;" onclick="return confirm('Delete this blog?')"><i class="fa fa-trash text-danger"></i></button>
                             </form>
                         </td>

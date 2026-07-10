@@ -398,6 +398,78 @@ class PosterMakerController extends Controller
             $this->rrmdir($sourcePath);
         }
     }
+    public function duplicate(Request $request)
+    {
+        $request->validate([
+            'id' => 'required|exists:poster_maker,id',
+            'zip_name' => 'required|string|unique:poster_maker,zip_name'
+        ], [
+            'zip_name.unique' => 'same name ki duplicate publish nhi hogi, kripya unique name dalein.'
+        ]);
+
+        $original = PosterMaker::find($request->id);
+        if (!$original) {
+            return response()->json(['success' => false, 'message' => 'Frame not found']);
+        }
+
+        $newZipName = $request->zip_name;
+
+        // Duplicate the DB record
+        $newFrame = $original->replicate();
+        $newFrame->zip_name = $newZipName;
+        // Optionally duplicate the thumb file
+        if ($original->post_thumb && File::exists(public_path('uploads/' . $original->post_thumb))) {
+            $ext = pathinfo($original->post_thumb, PATHINFO_EXTENSION);
+            $newThumbName = \Illuminate\Support\Str::uuid() . '.' . $ext;
+            File::copy(public_path('uploads/' . $original->post_thumb), public_path('uploads/' . $newThumbName));
+            $newFrame->post_thumb = $newThumbName;
+            
+            if (StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
+                Storage::disk('spaces')->put('uploads/' . $newThumbName, file_get_contents(public_path('uploads/' . $newThumbName)), 'public');
+            }
+        }
+        $newFrame->save();
+
+        // Duplicate template folder
+        $oldTemplatePath = public_path('uploads/template/' . $original->zip_name);
+        $newTemplatePath = public_path('uploads/template/' . $newZipName);
+
+        if (File::exists($oldTemplatePath)) {
+            File::copyDirectory($oldTemplatePath, $newTemplatePath);
+            
+            if (StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
+                // To avoid downloading all S3 files, we'll just push local copies to S3
+                $localFiles = File::allFiles($newTemplatePath);
+                foreach ($localFiles as $file) {
+                    $relPath = $file->getRelativePathname();
+                    Storage::disk('spaces')->put('/uploads/template/' . $newZipName . '/' . str_replace('\\', '/', $relPath), file_get_contents($file), 'public');
+                }
+            }
+        }
+
+        // If it was a web template, duplicate EditorTemplate too so it remains editable in Web Editor natively
+        if (str_starts_with($original->zip_name, 'Template_')) {
+            $oldUuid = str_replace(['Template_', '.zip'], '', $original->zip_name);
+            $oldEditorTpl = \App\Models\EditorTemplate::where('uuid', $oldUuid)->first();
+            
+            if ($oldEditorTpl && str_starts_with($newZipName, 'Template_')) {
+                $newUuid = str_replace(['Template_', '.zip'], '', $newZipName);
+                $newEditorTpl = $oldEditorTpl->replicate();
+                $newEditorTpl->uuid = $newUuid;
+                $newEditorTpl->title = $oldEditorTpl->title . ' (Copy)';
+                $newEditorTpl->save();
+
+                $oldEditorPath = public_path('uploads/editor/templates/' . $oldUuid);
+                $newEditorPath = public_path('uploads/editor/templates/' . $newUuid);
+                if (File::exists($oldEditorPath)) {
+                    File::copyDirectory($oldEditorPath, $newEditorPath);
+                }
+            }
+        }
+
+        return response()->json(['success' => true, 'message' => 'Frame duplicated successfully.']);
+    }
+
     public function bulkDelete(Request $request)
     {
         $ids = $request->input('ids');
@@ -426,5 +498,183 @@ class PosterMakerController extends Controller
         }
 
         return response()->json(['success' => true, 'message' => 'Selected frames deleted successfully.']);
+    }
+
+    public function exportFrames(Request $request)
+    {
+        $ids = $request->input('ids');
+        if ($ids) {
+            $idArray = explode(',', $ids);
+            $frames = \App\Models\PosterMaker::with('poster_category')->whereIn('id', $idArray)->get();
+        } else {
+            $frames = \App\Models\PosterMaker::with('poster_category')->get();
+        }
+        
+        if ($frames->isEmpty()) {
+            return redirect()->back()->with('error', 'No frames found to export.');
+        }
+
+        $exportData = [];
+        $zipFilePath = public_path('uploads/exported_frames_'.time().'.zip');
+        
+        $zip = new \ZipArchive();
+        if ($zip->open($zipFilePath, \ZipArchive::CREATE) === TRUE) {
+            foreach ($frames as $frame) {
+                $exportData[] = $frame->toArray();
+                
+                // Add zip to archive
+                $templateZipName = $frame->zip_name . '.zip';
+                
+                if(\App\Models\StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
+                    if (\Illuminate\Support\Facades\Storage::disk('spaces')->exists('uploads/custom_frames_zips/' . $templateZipName)) {
+                        $fileContent = \Illuminate\Support\Facades\Storage::disk('spaces')->get('uploads/custom_frames_zips/' . $templateZipName);
+                        $zip->addFromString('templates/' . $templateZipName, $fileContent);
+                    }
+                } else {
+                    $localPath = public_path('uploads/custom_frames_zips/' . $templateZipName);
+                    if (file_exists($localPath)) {
+                        $zip->addFile($localPath, 'templates/' . $templateZipName);
+                    } else {
+                        // Fallback for legacy frames: if zip doesn't exist, check template folder
+                        $templateDirPath = public_path('uploads/template/' . $frame->zip_name);
+                        if (is_dir($templateDirPath)) {
+                            // Create a temporary zip for the folder to include in export
+                            $tempZipPath = public_path('uploads/temp_export_' . $templateZipName);
+                            $tempZip = new \ZipArchive();
+                            if ($tempZip->open($tempZipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === TRUE) {
+                                $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($templateDirPath), \RecursiveIteratorIterator::LEAVES_ONLY);
+                                foreach ($files as $name => $file) {
+                                    if (!$file->isDir()) {
+                                        $filePath = $file->getRealPath();
+                                        $relativePath = substr($filePath, strlen($templateDirPath) + 1);
+                                        $tempZip->addFile($filePath, $relativePath);
+                                    }
+                                }
+                                $tempZip->close();
+                                $zip->addFile($tempZipPath, 'templates/' . $templateZipName);
+                                // Note: we can't delete tempZipPath immediately because $zip->addFile needs it until $zip->close().
+                                // We will clean it up later if needed, or leave it to standard tmp cleanup.
+                            }
+                        }
+                    }
+                }
+            }
+            
+            $zip->addFromString('data.json', json_encode($exportData, JSON_PRETTY_PRINT));
+            $zip->close();
+            
+            return response()->download($zipFilePath)->deleteFileAfterSend(true);
+        }
+        
+        return redirect()->back()->with('error', 'Could not create export zip file.');
+    }
+
+    public function importFrames(Request $request)
+    {
+        $request->validate([
+            'import_file' => 'required|mimes:zip'
+        ]);
+
+        $zipFile = $request->file('import_file');
+        $zip = new \ZipArchive();
+        $tempDir = public_path('uploads/temp_poster_import_'.time());
+
+        if ($zip->open($zipFile->getPathname()) === TRUE) {
+            $zip->extractTo($tempDir);
+            $zip->close();
+
+            if (file_exists($tempDir . '/data.json')) {
+                $jsonData = file_get_contents($tempDir . '/data.json');
+                $frames = json_decode($jsonData, true);
+                
+                $importedCount = 0;
+                $skippedCount = 0;
+                $skippedNames = [];
+
+                foreach ($frames as $frameData) {
+                    // Check if already exists
+                    $existing = \App\Models\PosterMaker::where('zip_name', $frameData['zip_name'])->first();
+                    if (!$existing) {
+                        // Create poster_category if missing
+                        $categoryId = $frameData['poster_category_id'];
+                        if (isset($frameData['poster_category'])) {
+                            $category = \App\Models\PosterCategory::firstOrCreate(
+                                ['name' => $frameData['poster_category']['name']]
+                            );
+                            $categoryId = $category->id;
+                        }
+
+                        // Copy template zip
+                        $templateZipName = $frameData['zip_name'] . '.zip';
+                        $sourcePath = $tempDir . '/templates/' . $templateZipName;
+                        if (file_exists($sourcePath)) {
+                            if(\App\Models\StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
+                                \Illuminate\Support\Facades\Storage::disk('spaces')->put('uploads/custom_frames_zips/' . $templateZipName, file_get_contents($sourcePath), 'public');
+                            } else {
+                                if (!file_exists(public_path('uploads/custom_frames_zips'))) {
+                                    mkdir(public_path('uploads/custom_frames_zips'), 0777, true);
+                                }
+                                copy($sourcePath, public_path('uploads/custom_frames_zips/' . $templateZipName));
+                            }
+                            
+                            // Unzip to template folder
+                            $innerZip = new \ZipArchive();
+                            $zipNameWithoutExt = $frameData['zip_name'];
+                            $extractPath = public_path('uploads/template/' . $zipNameWithoutExt);
+                            if ($innerZip->open($sourcePath) === TRUE) {
+                                if (!file_exists($extractPath)) {
+                                    mkdir($extractPath, 0777, true);
+                                }
+                                $innerZip->extractTo($extractPath);
+                                $innerZip->close();
+
+                                if(\App\Models\StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
+                                    // Upload extracted files to space
+                                    $files = \Illuminate\Support\Facades\File::allFiles($extractPath);
+                                    foreach($files as $file) {
+                                        $relativePath = str_replace($extractPath.'\\', '', $file->getPathname());
+                                        $relativePath = str_replace($extractPath.'/', '', $relativePath);
+                                        $relativePath = str_replace('\\', '/', $relativePath);
+                                        \Illuminate\Support\Facades\Storage::disk('spaces')->put('uploads/template/'.$zipNameWithoutExt.'/'.$relativePath, file_get_contents($file->getPathname()), 'public');
+                                    }
+                                    // Remove local folder
+                                    \Illuminate\Support\Facades\File::deleteDirectory($extractPath);
+                                }
+                            }
+
+                            // Insert into database
+                            \App\Models\PosterMaker::create([
+                                'poster_category_id' => $categoryId,
+                                'template_type' => $frameData['template_type'],
+                                'zip_name' => $frameData['zip_name'],
+                                'post_thumb' => $frameData['post_thumb'],
+                                'theme' => $frameData['theme'] ?? 'all',
+                                'req_address' => $frameData['req_address'] ?? 0,
+                                'req_email' => $frameData['req_email'] ?? 0,
+                                'req_phone' => $frameData['req_phone'] ?? 0,
+                                'req_website' => $frameData['req_website'] ?? 0,
+                                'paid' => $frameData['paid'] ?? 1
+                            ]);
+                            $importedCount++;
+                        }
+                    } else {
+                        $skippedCount++;
+                        $skippedNames[] = $frameData['zip_name'];
+                    }
+                }
+
+                if (file_exists($tempDir)) {
+                    \Illuminate\Support\Facades\File::deleteDirectory($tempDir);
+                }
+                
+                $msg = "$importedCount frames imported successfully.";
+                if ($skippedCount > 0) {
+                    $msg .= " $skippedCount frames skipped due to duplicate names: " . implode(', ', $skippedNames);
+                    return redirect()->back()->with('warning', $msg);
+                }
+                return redirect()->back()->with('success', $msg);
+            }
+        }
+        return redirect()->back()->with('error', 'Invalid import file.');
     }
 }

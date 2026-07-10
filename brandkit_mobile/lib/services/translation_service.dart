@@ -47,9 +47,22 @@ class TranslationService extends Translations {
             appKeys[code] = stringTrans;
           }
         }
+
+        // ── CRITICAL FIX: Inject translations into GetX's internal map ──
+        // GetMaterialApp reads `keys` only once at startup (when appKeys is empty).
+        // We must manually push loaded translations into GetX so .tr works.
+        if (appKeys.isNotEmpty) {
+          Get.addTranslations(appKeys);
+          debugPrint('[TranslationService] Injected ${appKeys.length} languages into GetX');
+          
+          // Re-apply saved locale so GetX picks up the correct language
+          if (savedLangCode != null && savedLangCode != 'en') {
+            Get.updateLocale(Locale(savedLangCode!));
+          }
+        }
       }
     } catch (e) {
-      print("Failed to load translations from API: $e");
+      debugPrint("Failed to load translations from API: $e");
     }
   }
 
@@ -57,6 +70,11 @@ class TranslationService extends Translations {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_langKey, langCode);
     savedLangCode = langCode;
+    
+    // Re-inject translations to be safe (ensures GetX has them)
+    if (appKeys.isNotEmpty) {
+      Get.addTranslations(appKeys);
+    }
     
     // Apply changes in GetX globally
     Get.updateLocale(Locale(langCode));

@@ -25,9 +25,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   List<Widget> get _pages => [
     const HomeScreen(),
-    const TemplateGridScreen(),
+    Scaffold(
+      appBar: AppBar(title: Text('custom'.trFormat, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)), backgroundColor: AppColors.primary, centerTitle: true, elevation: 0),
+      body: const ComingSoonWidget(title: 'Custom Posts'),
+    ),
     const MyBusinessScreen(),
-    const AiTrendsScreen(),
+    Scaffold(
+      appBar: AppBar(title: Text('greetings'.trFormat, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)), backgroundColor: AppColors.primary, centerTitle: true, elevation: 0),
+      body: const ComingSoonWidget(title: 'Greetings'),
+    ),
     const MoreScreen(),
   ];
 
@@ -86,11 +92,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildNavItem(0, Icons.home_outlined, Icons.home, 'home'.trFormat),
-                    if (!AppConfig.isStaging) _buildNavItem(1, Icons.image_outlined, Icons.image, 'custom'.trFormat),
-                    _buildNavItem(2, Icons.storefront_outlined, Icons.storefront, 'business'.trFormat),
-                    if (!AppConfig.isStaging) _buildNavItem(3, Icons.celebration_outlined, Icons.celebration, 'Greetings'),
-                    _buildNavItem(4, Icons.menu, Icons.menu, 'more'.trFormat),
+                    Expanded(child: _buildNavItem(0, Icons.home_outlined, Icons.home, 'home'.trFormat)),
+                    if (!AppConfig.isStaging) Expanded(child: _buildNavItem(1, Icons.image_outlined, Icons.image, 'custom'.trFormat)),
+                    Expanded(child: _buildNavItem(2, Icons.storefront_outlined, Icons.storefront, 'business'.trFormat)),
+                    if (!AppConfig.isStaging) Expanded(child: _buildNavItem(3, Icons.celebration_outlined, Icons.celebration, 'greetings'.trFormat)),
+                    Expanded(child: _buildNavItem(4, Icons.menu, Icons.menu, 'more'.trFormat)),
                   ],
                 ),
               ),

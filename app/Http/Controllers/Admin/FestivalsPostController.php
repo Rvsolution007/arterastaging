@@ -88,9 +88,13 @@ class FestivalsPostController extends Controller
                     ])->id;
 
                     if (StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
-                        $file = Str::uuid() . '.' . $image->getClientOriginalExtension();
+                        $file = Str::uuid() . '.webp';
+                        
+                        $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver());
+                        $imageFile = $manager->read($image->getRealPath());
+                        $encoded = $imageFile->toWebp(90);
 
-                        $path = Storage::disk('spaces')->put('uploads/' . $file, file_get_contents($image), 'public');
+                        $path = Storage::disk('spaces')->put('uploads/' . $file, (string) $encoded, 'public');
 
                         $f = FestivalsPost::find($id);
                         $f->frame_image = $file;
@@ -234,9 +238,13 @@ class FestivalsPostController extends Controller
                 if (StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
                     if ($request->file("frame_image")) {
                         $image = $request->file('frame_image');
-                        $file = Str::uuid() . '.' . $image->getClientOriginalExtension();
+                        $file = Str::uuid() . '.webp';
+                        
+                        $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver());
+                        $imageFile = $manager->read($image->getRealPath());
+                        $encoded = $imageFile->toWebp(90);
 
-                        $path = Storage::disk('spaces')->put('uploads/' . $file, file_get_contents($image), 'public');
+                        $path = Storage::disk('spaces')->put('uploads/' . $file, (string) $encoded, 'public');
 
                         $user = FestivalsPost::find($request->get("id"));
                         $user->frame_image = $file;
@@ -274,9 +282,12 @@ class FestivalsPostController extends Controller
         if (!file_exists($destinationPath)) {
             mkdir($destinationPath, 0777, true);
         }
-        $extension = $file->getClientOriginalExtension();
-        $fileName = Str::uuid() . '.' . $extension;
-        $file->move($destinationPath, $fileName);
+        $fileName = Str::uuid() . '.webp';
+        
+        $manager = new \Intervention\Image\ImageManager(new \Intervention\Image\Drivers\Gd\Driver());
+        $imageFile = $manager->read($file->getRealPath());
+        $encoded = $imageFile->toWebp(90);
+        file_put_contents($destinationPath . '/' . $fileName, (string) $encoded);
 
         $image = FestivalsPost::find($id);
         $image->$field = $fileName;

@@ -17,11 +17,12 @@ import '../controllers/home_controller.dart';
 import '../controllers/subscription_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'partner_dashboard_screen.dart';
-import '../widgets/error_submission_dialog.dart';
 import 'referral_screen.dart';
 import '../services/translation_service.dart';
+import 'policy_screen.dart';
 import 'achievements_screen.dart';
 import 'mini_website_dashboard_screen.dart';
+import '../controllers/app_update_controller.dart';
 
 
 class MoreScreen extends StatefulWidget {
@@ -197,13 +198,13 @@ class _MoreScreenState extends State<MoreScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Digital Identity'),
+        _buildSectionTitle('digital_identity'.trFormat),
         _buildSectionContainer(
           children: [
             SettingsItem(
               icon: Icons.language,
-              title: 'Mini Website',
-              subtitle: 'Digital Business Card & Bio Link',
+              title: 'mini_website'.trFormat,
+              subtitle: 'digital_business_card_bio_link'.trFormat,
               iconColor: Colors.blue.shade500,
               iconBgColor: Colors.transparent,
               onTap: () => Get.to(() => MiniWebsiteDashboardScreen()),
@@ -235,13 +236,13 @@ class _MoreScreenState extends State<MoreScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Billing & Payments'),
+        _buildSectionTitle('billing_and_payments'.trFormat),
         _buildSectionContainer(
           children: [
             SettingsItem(
               icon: Icons.receipt_long_outlined,
-              title: 'Billing & Payment History',
-              subtitle: 'View invoices and past payments',
+              title: 'billing_and_payment_history'.trFormat,
+              subtitle: 'view_invoices_and_past_payments'.trFormat,
               iconColor: AppColors.blue600,
               iconBgColor: Colors.transparent,
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BillingHistoryScreen())),
@@ -256,25 +257,11 @@ class _MoreScreenState extends State<MoreScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Help & Support'),
+        _buildSectionTitle('help_support'.trFormat),
         _buildSectionContainer(
           children: [
             SettingsItem(icon: Icons.help_outline, title: 'help_support'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen()))),
             SettingsItem(icon: Icons.chat_bubble_outline, title: 'faqs'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FaqsScreen()))),
-            SettingsItem(
-              icon: Icons.bug_report_outlined,
-              title: 'report_problem'.trFormat,
-              iconColor: AppColors.gray500,
-              iconBgColor: Colors.transparent,
-              onTap: () {
-                Get.dialog(
-                  const ErrorSubmissionDialog(
-                    errorCode: 'MANUAL_REPORT',
-                    errorMessage: 'User reporting a problem manually from Settings.',
-                  ),
-                );
-              },
-            ),
           ],
         ),
       ],
@@ -288,10 +275,18 @@ class _MoreScreenState extends State<MoreScreen> {
         _buildSectionTitle('about_app'.trFormat),
         _buildSectionContainer(
           children: [
-            SettingsItem(icon: Icons.rss_feed, title: 'blog'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
-            SettingsItem(icon: Icons.lock_outline, title: 'privacy_policy'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
-            SettingsItem(icon: Icons.description_outlined, title: 'terms_conditions'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
-            SettingsItem(icon: Icons.credit_card_outlined, title: 'refund_policy'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {}),
+            SettingsItem(icon: Icons.lock_outline, title: 'privacy_policy'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {
+              final hc = Get.find<HomeController>();
+              Get.to(() => PolicyScreen(title: 'privacy_policy'.trFormat, htmlContent: hc.privacyPolicyHtml.value));
+            }),
+            SettingsItem(icon: Icons.description_outlined, title: 'terms_conditions'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {
+              final hc = Get.find<HomeController>();
+              Get.to(() => PolicyScreen(title: 'terms_conditions'.trFormat, htmlContent: hc.termsConditionHtml.value));
+            }),
+            SettingsItem(icon: Icons.credit_card_outlined, title: 'refund_policy'.trFormat, iconColor: AppColors.gray500, iconBgColor: Colors.transparent, onTap: () {
+              final hc = Get.find<HomeController>();
+              Get.to(() => PolicyScreen(title: 'refund_policy'.trFormat, htmlContent: hc.refundPolicyHtml.value));
+            }),
           ],
         ),
       ],
@@ -302,62 +297,52 @@ class _MoreScreenState extends State<MoreScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Account'),
+        _buildSectionTitle('account'.trFormat),
         _buildSectionContainer(
           children: [
             SettingsItem(
               icon: Icons.card_giftcard_outlined,
-              title: 'Invite & Earn',
-              subtitle: 'Invite friends, get premium free',
+              title: 'invite_and_earn'.trFormat,
+              subtitle: 'invite_friends_get_premium_free'.trFormat,
               iconColor: AppColors.success,
               iconBgColor: Colors.transparent,
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReferralScreen())),
             ),
             SettingsItem(
-              icon: Icons.person_add_outlined,
-              title: 'Follow Us',
-              iconColor: AppColors.gray500,
+              icon: Icons.system_update,
+              title: 'Check for Updates',
+              iconColor: AppColors.primary,
               iconBgColor: Colors.transparent,
-              trailing: Row(
-                children: [
-                  _buildSocialIcon(Icons.facebook),
-                  AppSpacing.gapH8,
-                  _buildSocialIcon(Icons.camera_alt_outlined),
-                  AppSpacing.gapH8,
-                  _buildSocialIcon(null, label: 'X'),
-                  AppSpacing.gapH8,
-                  _buildSocialIcon(Icons.play_arrow_rounded),
-                ],
-              ),
-            ),
-            SettingsItem(
-              icon: Icons.person_remove_outlined,
-              title: 'Delete Your Account',
-              iconColor: AppColors.gray500,
-              iconBgColor: Colors.transparent,
-              onTap: () {},
+              onTap: () {
+                final hc = Get.find<HomeController>();
+                if (hc.appUpdate != null) {
+                  AppUpdateController.showUpdateDialogIfNeeded(hc.appUpdate!, isManualCheck: true);
+                } else {
+                  Get.snackbar('Check for Updates', 'Unable to check for updates at this time.');
+                }
+              },
             ),
             SettingsItem(
               icon: Icons.logout,
-              title: 'Logout',
+              title: 'logout'.trFormat,
               iconColor: AppColors.red500,
               iconBgColor: Colors.transparent,
               onTap: () {
                 Get.dialog(
                   AlertDialog(
-                    title: const Text('Logout', style: TextStyle(fontWeight: FontWeight.w800)),
-                    content: const Text('Are you sure you want to logout?'),
+                    title: Text('logout'.trFormat, style: TextStyle(fontWeight: FontWeight.w800)),
+                    content: Text('logout_confirmation'.trFormat),
                     actions: [
                       TextButton(
                         onPressed: () => Get.back(),
-                        child: Text('Cancel', style: TextStyle(color: AppColors.gray500)),
+                        child: Text('cancel'.trFormat, style: TextStyle(color: AppColors.gray500)),
                       ),
                       TextButton(
                         onPressed: () {
                           Get.back();
                           Get.find<AuthController>().logout();
                         },
-                        child: Text('Logout', style: TextStyle(color: AppColors.red500, fontWeight: FontWeight.w700)),
+                        child: Text('logout'.trFormat, style: TextStyle(color: AppColors.red500, fontWeight: FontWeight.w700)),
                       ),
                     ],
                   ),
@@ -559,7 +544,7 @@ class _LanguageSelectionDrawerState extends State<LanguageSelectionDrawer> {
                   ),
                 ),
                 AppSpacing.gapH8,
-                Text('Select Language', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.gray900)),
+                Text('select_language'.trFormat, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.gray900)),
               ],
             ),
           ),
@@ -575,7 +560,7 @@ class _LanguageSelectionDrawerState extends State<LanguageSelectionDrawer> {
               child: TextField(
                 onChanged: (val) => setState(() => searchQuery = val),
                 decoration: InputDecoration(
-                  hintText: 'Search languages',
+                  hintText: 'search_languages'.trFormat,
                   prefixIcon: Icon(Icons.search, color: AppColors.gray400),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
@@ -599,7 +584,7 @@ class _LanguageSelectionDrawerState extends State<LanguageSelectionDrawer> {
                           child: Icon(Icons.translate, color: AppColors.gray300, size: 32),
                         ),
                         AppSpacing.gapV16,
-                        Text('No languages found', style: TextStyle(color: AppColors.gray400, fontWeight: FontWeight.w700, fontSize: 16)),
+                        Text('no_languages_found'.trFormat, style: TextStyle(color: AppColors.gray400, fontWeight: FontWeight.w700, fontSize: 16)),
                       ],
                     ),
                   )
@@ -616,7 +601,7 @@ class _LanguageSelectionDrawerState extends State<LanguageSelectionDrawer> {
                               selectedLanguages.remove(lang);
                             } else {
                               if (selectedLanguages.length >= 5) {
-                                Get.snackbar('Limit Reached', 'You can select up to 5 languages maximum',
+                                Get.snackbar('limit_reached'.trFormat, 'max_languages_limit'.trFormat,
                                     snackPosition: SnackPosition.BOTTOM, backgroundColor: AppColors.orange500, colorText: Colors.white);
                               } else {
                                 selectedLanguages.add(lang);
@@ -664,7 +649,7 @@ class _LanguageSelectionDrawerState extends State<LanguageSelectionDrawer> {
                 Expanded(
                   child: TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: Text('Cancel', style: TextStyle(color: AppColors.gray500, fontSize: 16, fontWeight: FontWeight.w700)),
+                    child: Text('cancel'.trFormat, style: TextStyle(color: AppColors.gray500, fontSize: 16, fontWeight: FontWeight.w700)),
                   ),
                 ),
                 Expanded(
@@ -680,7 +665,7 @@ class _LanguageSelectionDrawerState extends State<LanguageSelectionDrawer> {
                     onPressed: () async {
                       // Apply changes
                       await _saveSelectedLanguages();
-                      Get.snackbar('Success', 'Preferred languages updated successfully',
+                      Get.snackbar('success'.trFormat, 'preferred_languages_updated'.trFormat,
                           snackPosition: SnackPosition.BOTTOM, 
                           backgroundColor: AppColors.success, 
                           colorText: Colors.white);
@@ -689,7 +674,7 @@ class _LanguageSelectionDrawerState extends State<LanguageSelectionDrawer> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('Apply Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                        Text('apply_changes'.trFormat, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                         AppSpacing.gapH8,
                         Icon(Icons.arrow_forward, size: 20),
                       ],

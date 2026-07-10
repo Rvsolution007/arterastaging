@@ -295,6 +295,9 @@ class TemplateBuilderController extends Controller
         } else {
             return response()->json(['success' => false, 'message' => 'ZIP file or template directory not found']);
         }
+        if (!$jsonConfig && is_dir($extractedPath . '/skins')) {
+            $jsonConfig = ['schema_version' => 1, 'layers' => []];
+        }
 
         if ($jsonConfig) {
                 // Return frame settings alongside zip content
@@ -492,6 +495,7 @@ class TemplateBuilderController extends Controller
         // Clear mobile API cache for this template so app gets fresh data
         $templateName = "Template_" . $uuid;
         \Illuminate\Support\Facades\Cache::forget("template_json:{$templateName}");
+        \Illuminate\Support\Facades\Cache::forget("template_json:{$templateName}.zip");
         \Log::info('Cache cleared for template_json:' . $templateName);
 
         return response()->json(['success' => true, 'message' => 'Template saved successfully!', 'uuid' => $uuid]);
@@ -918,7 +922,7 @@ class TemplateBuilderController extends Controller
             }
             $existingFrame->save();
         } else {
-            \App\Models\PosterMaker::create([
+            $existingFrame = \App\Models\PosterMaker::create([
                 'poster_category_id' => $request->input('poster_category_id'),
                 'template_type' => $request->input('template_type'),
                 'zip_name' => $templateName,
@@ -933,7 +937,8 @@ class TemplateBuilderController extends Controller
         }
         
         \Illuminate\Support\Facades\Cache::forget("template_json:{$templateName}");
+        \Illuminate\Support\Facades\Cache::forget("template_json:{$templateName}.zip");
 
-        return response()->json(['success' => true, 'message' => 'Frame saved successfully!', 'uuid' => $uuid]);
+        return response()->json(['success' => true, 'message' => 'Frame saved successfully!', 'uuid' => $uuid, 'frame_id' => $existingFrame ? $existingFrame->id : null]);
     }
 }

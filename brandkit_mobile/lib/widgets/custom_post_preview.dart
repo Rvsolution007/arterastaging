@@ -609,8 +609,16 @@ class _CustomPostPreviewState extends State<CustomPostPreview> {
     if (type == 'text') {
       final double fontSize =
           (layer['size'] ?? 16).toDouble() * scale;
-      final bool isMultiLine = h > (fontSize * 1.5);
-      final String just = layer['justification'] ?? 'left';
+      final String lname = (layer['name'] ?? layer['id'] ?? '').toString().toLowerCase();
+      final bool isKnownSingleLineField = lname.contains('name') || 
+                                          lname.contains('email') || 
+                                          lname.contains('phone') || 
+                                          lname.contains('mobile') || 
+                                          lname.contains('web') ||
+                                          lname.contains('address');
+      final bool isMultiLine = !isKnownSingleLineField && (h > (fontSize * 1.6));
+      final dynamic fontObj = layer['font'];
+      final String just = (layer['justification'] ?? (fontObj is Map ? fontObj['justification'] : null) ?? layer['textAlign'] ?? layer['align'] ?? 'left').toString().toLowerCase().trim();
 
       if (isMultiLine) {
         // Multi-line paragraph text: constrain width for wrapping, NO fixed height
@@ -620,6 +628,18 @@ class _CustomPostPreviewState extends State<CustomPostPreview> {
           top: y,
           width: w > 0 ? w : null,
           child: content,
+        );
+      } else if (w > 0) {
+        // Single-line point text with known width: use FittedBox(scaleDown) to prevent overlap!
+        return Positioned(
+          left: x,
+          top: y,
+          width: w,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: just == 'right' ? Alignment.centerRight : (just == 'center' ? Alignment.center : Alignment.centerLeft),
+            child: content,
+          ),
         );
       } else {
         // Single-line point text: do not constrain width, anchor based on justification
@@ -785,10 +805,12 @@ class _CustomPostPreviewState extends State<CustomPostPreview> {
     }
 
     // Justification
-    final String just = layer['justification'] ?? 'left';
+    final dynamic fontObj = layer['font'];
+    final String just = (layer['justification'] ?? (fontObj is Map ? fontObj['justification'] : null) ?? layer['textAlign'] ?? layer['align'] ?? 'left').toString().toLowerCase().trim();
     TextAlign textAlign = TextAlign.left;
     if (just == 'center') textAlign = TextAlign.center;
-    if (just == 'right') textAlign = TextAlign.right;
+    else if (just == 'right') textAlign = TextAlign.right;
+    else if (just == 'justify' || just == 'full') textAlign = TextAlign.justify;
 
     Widget textWidget = Text(
       textValue,

@@ -32,7 +32,6 @@ class NativeEditorController extends GetxController {
   final RxInt layerUpdateTrigger = 0.obs; // Forces Obx rebuild on layer property changes
   
   // Flag used to differentiate between canvas background taps and layer taps
-  bool layerWasTapped = false;
 
   @override
   void onInit() {
@@ -74,6 +73,41 @@ class NativeEditorController extends GetxController {
     }
   }
 
+  List<dynamic> get filteredFrames {
+    if (!Get.isRegistered<HomeController>()) return frames;
+    final hc = Get.find<HomeController>();
+    
+    int activeEmails = (hc.businessEmail.value.isNotEmpty ? 1 : 0) + hc.extraEmails.length;
+    int activePhones = (hc.businessPhone.value.isNotEmpty ? 1 : 0) + hc.extraPhones.length;
+    int activeWebsites = (hc.businessWebsite.value.isNotEmpty ? 1 : 0) + hc.extraWebsites.length;
+    int activeAddresses = (hc.businessAddress.value.isNotEmpty ? 1 : 0) + hc.extraAddresses.length;
+    
+    final hf = hc.hiddenFrameFields;
+    if (hf['emails'] != null) activeEmails -= (hf['emails'] as List).length;
+    if (hf['mobile_numbers'] != null) activePhones -= (hf['mobile_numbers'] as List).length;
+    if (hf['websites'] != null) activeWebsites -= (hf['websites'] as List).length;
+    if (hf['addresses'] != null) activeAddresses -= (hf['addresses'] as List).length;
+    
+    activeEmails = activeEmails.clamp(0, 99);
+    activePhones = activePhones.clamp(0, 99);
+    activeWebsites = activeWebsites.clamp(0, 99);
+    activeAddresses = activeAddresses.clamp(0, 99);
+
+    return frames.where((frame) {
+      int reqEmail = int.tryParse(frame['req_email']?.toString() ?? '0') ?? 0;
+      int reqPhone = int.tryParse(frame['req_phone']?.toString() ?? '0') ?? 0;
+      int reqWeb = int.tryParse(frame['req_website']?.toString() ?? '0') ?? 0;
+      int reqAddress = int.tryParse(frame['req_address']?.toString() ?? '0') ?? 0;
+      
+      if (reqEmail != activeEmails) return false;
+      if (reqPhone != activePhones) return false;
+      if (reqWeb != activeWebsites) return false;
+      if (reqAddress != activeAddresses) return false;
+      
+      return true;
+    }).toList();
+  }
+
   // History stack for Undo/Redo
   var historyStack = <String>[].obs;
   var historyIndex = (-1).obs;
@@ -89,15 +123,41 @@ class NativeEditorController extends GetxController {
     templateBaseUrl = tplBaseUrl;
     uploadsBaseUrl = upBaseUrl;
     baseImgUrl = baseImg;
+    templateConfig['type'] = editorType;
 
     if (editorType == 'business_custom_frame') {
       _injectDynamicBusinessFrame();
+    }
+
+    if (templateConfig['layers'] != null) {
+      _deduplicateLayerNames(templateConfig['layers']);
     }
 
     _pushHistory();
     
     // Run brightness detection on initial load too (not just on frame switch)
     _applyInitialBrightness();
+  }
+
+  void _deduplicateLayerNames(List<dynamic> layers) {
+    Map<String, int> nameCounts = {};
+    for (var layer in layers) {
+      if (layer is Map<String, dynamic>) {
+        String baseName = (layer['name'] ?? layer['id'] ?? 'layer').toString();
+        if (nameCounts.containsKey(baseName)) {
+          int count = nameCounts[baseName]! + 1;
+          nameCounts[baseName] = count;
+          layer['name'] = '${baseName}_$count';
+          layer['id'] = layer['name'];
+        } else {
+          nameCounts[baseName] = 1;
+          if (layer['name'] == null) {
+            layer['name'] = baseName;
+          }
+          layer['id'] = layer['name'];
+        }
+      }
+    }
   }
 
   void _injectDynamicBusinessFrame() {
@@ -154,7 +214,7 @@ class NativeEditorController extends GetxController {
       layers.add({
         'name': '_b_phone',
         'type': 'text',
-        'text': homeCtrl.businessPhone.value,
+        'text': homeCtrl.businessPhone.value.replaceAll(' ', '\u00A0'),
         'x': cW * 0.12, 'y': cH * 0.88,
         'w': cW * 0.4, 'h': 26,
         'fontSize': 22,
@@ -350,6 +410,18 @@ class NativeEditorController extends GetxController {
         }
       }
       
+      // Also match by _businessKey (frame layers have arbitrary names but tagged _businessKey)
+      if (!matches && layer['_businessKey'] != null) {
+        final String bizKey = layer['_businessKey'].toString().toLowerCase().trim();
+        for (String target in targets) {
+          final t = target.replaceAll(RegExp(r'[\s\-_]'), '');
+          if (bizKey == t || t.contains(bizKey) || bizKey.contains(t)) {
+            matches = true;
+            break;
+          }
+        }
+      }
+      
       if (matches) {
         layer['opacity'] = isVisible ? 1.0 : 0.0;
       }
@@ -379,10 +451,27 @@ class NativeEditorController extends GetxController {
         }
       }
       
+      // Also match by _businessKey (frame layers have arbitrary names but tagged _businessKey)
+      if (!matches && layer['_businessKey'] != null) {
+        final String bizKey = layer['_businessKey'].toString().toLowerCase().trim();
+        for (String target in targets) {
+          final t = target.replaceAll(RegExp(r'[\s\-_]'), '');
+          if (bizKey == t || t.contains(bizKey) || bizKey.contains(t)) {
+            matches = true;
+            debugPrint('[VISIBLE_CHECK] "$rawName" MATCHED via bizKey="$bizKey" target="$t" opacity=${layer['opacity']}');
+            break;
+          }
+        }
+      }
+      
       if (matches) {
-        return (layer['opacity'] ?? 1.0) > 0.0;
+        final opacity = layer['opacity'];
+        final result = (opacity ?? 1.0) is num ? (opacity ?? 1.0 as num) > 0.0 : true;
+        debugPrint('[VISIBLE_CHECK] "$rawName" → opacity=$opacity result=$result (targets=$targets)');
+        return result;
       }
     }
+    debugPrint('[VISIBLE_CHECK] NO MATCH for targets=$targets');
     return false;
   }
 
@@ -670,6 +759,11 @@ class NativeEditorController extends GetxController {
       }
       double ppiScale = docPPI / 72.0;
 
+      // Counters for multi-value business fields
+      Map<String, int> bizKeyCounter = {
+        'phone': 0, 'email': 0, 'website': 0, 'address': 0,
+      };
+
       for (var newLayer in newLayers) {
         double rawW = safeDouble((newLayer['w'] ?? newLayer['width'] ?? 0) as num);
         double rawH = safeDouble((newLayer['h'] ?? newLayer['height'] ?? 0) as num);
@@ -736,22 +830,51 @@ class NativeEditorController extends GetxController {
         String bLow = layerName;
         if (newLayer['type'] == 'text') {
           if (bLow.contains('name') || bLow.contains('business_name')) newLayer['_businessKey'] = 'name';
-          else if (bLow.contains('phone') || bLow.contains('mobile') || bLow.contains('contact') || bLow.contains('call') || bLow.contains('whatsapp') || bLow.contains('number') || bLow.contains('tel') || bLow.contains('ph')) newLayer['_businessKey'] = 'phone';
+          else if (bLow.contains('phone') || bLow.contains('mobile') || bLow.contains('whatsapp') || bLow.contains('number') || bLow.contains('tel')) newLayer['_businessKey'] = 'phone';
           else if (bLow.contains('email') || bLow.contains('mail')) newLayer['_businessKey'] = 'email';
           else if (bLow.contains('website') || bLow.contains('web') || bLow.contains('url')) newLayer['_businessKey'] = 'website';
           else if (bLow.contains('address') || bLow.contains('location')) newLayer['_businessKey'] = 'address';
-          
           bool hasValidUserText = userTexts.containsKey(name) && userTexts[name] != null && userTexts[name]!.trim().isNotEmpty;
           
           if (hasValidUserText && (name.startsWith('_b_') || newLayer['_businessKey'] != null)) {
             newLayer['text'] = userTexts[name]; 
           } else if (Get.isRegistered<HomeController>() && newLayer['_businessKey'] != null) {
             final homeCtrl = Get.find<HomeController>();
-            if (newLayer['_businessKey'] == 'name') newLayer['text'] = homeCtrl.businessName.value;
-            else if (newLayer['_businessKey'] == 'phone') newLayer['text'] = homeCtrl.businessPhone.value;
-            else if (newLayer['_businessKey'] == 'email') newLayer['text'] = homeCtrl.businessEmail.value;
-            else if (newLayer['_businessKey'] == 'website') newLayer['text'] = homeCtrl.businessWebsite.value;
-            else if (newLayer['_businessKey'] == 'address') newLayer['text'] = homeCtrl.businessAddress.value;
+            if (newLayer['_businessKey'] == 'name') {
+              newLayer['text'] = homeCtrl.businessName.value;
+            } else if (newLayer['_businessKey'] == 'phone') {
+              int idx = bizKeyCounter['phone']!;
+              if (idx == 0) {
+                newLayer['text'] = homeCtrl.businessPhone.value.replaceAll(' ', '\u00A0');
+              } else if (idx - 1 < homeCtrl.extraPhones.length) {
+                newLayer['text'] = homeCtrl.extraPhones[idx - 1].replaceAll(' ', '\u00A0');
+              }
+              bizKeyCounter['phone'] = idx + 1;
+            } else if (newLayer['_businessKey'] == 'email') {
+              int idx = bizKeyCounter['email']!;
+              if (idx == 0) {
+                newLayer['text'] = homeCtrl.businessEmail.value;
+              } else if (idx - 1 < homeCtrl.extraEmails.length) {
+                newLayer['text'] = homeCtrl.extraEmails[idx - 1];
+              }
+              bizKeyCounter['email'] = idx + 1;
+            } else if (newLayer['_businessKey'] == 'website') {
+              int idx = bizKeyCounter['website']!;
+              if (idx == 0) {
+                newLayer['text'] = homeCtrl.businessWebsite.value;
+              } else if (idx - 1 < homeCtrl.extraWebsites.length) {
+                newLayer['text'] = homeCtrl.extraWebsites[idx - 1];
+              }
+              bizKeyCounter['website'] = idx + 1;
+            } else if (newLayer['_businessKey'] == 'address') {
+              int idx = bizKeyCounter['address']!;
+              if (idx == 0) {
+                newLayer['text'] = homeCtrl.businessAddress.value;
+              } else if (idx - 1 < homeCtrl.extraAddresses.length) {
+                newLayer['text'] = homeCtrl.extraAddresses[idx - 1];
+              }
+              bizKeyCounter['address'] = idx + 1;
+            }
           }
         } else if (newLayer['type'] == 'image') {
           if (bLow.contains('phone') || bLow.contains('call') || bLow.contains('mobile') || bLow.contains('contact') || bLow.contains('whatsapp') || bLow.contains('tel') || bLow.contains('ph')) newLayer['_businessKey'] = 'phone';
@@ -797,6 +920,18 @@ class NativeEditorController extends GetxController {
             }
           }
         }
+
+        // ══ FRAME LAYER DIAGNOSTICS ══
+        debugPrint('╔══ [FRAME_LOAD] ══════════════════════════════════════');
+        debugPrint('║ name="$name" type=${newLayer['type']}');
+        debugPrint('║ _is_frame_layer=${newLayer['_is_frame_layer']}');
+        debugPrint('║ _businessKey=${newLayer['_businessKey']}');
+        debugPrint('║ tint_color=${newLayer['tint_color']}');
+        debugPrint('║ fill=${newLayer['fill']}');
+        debugPrint('║ color=${newLayer['color']}');
+        debugPrint('║ is_shape=${newLayer['is_shape']}');
+        debugPrint('║ src=${newLayer['src']?.toString().substring(0, (newLayer['src']?.toString().length ?? 0) > 60 ? 60 : (newLayer['src']?.toString().length ?? 0))}...');
+        debugPrint('╚══════════════════════════════════════════════════════');
       }
 
       // 1. Find the maximum z_index from native/preserved layers
@@ -861,7 +996,9 @@ class NativeEditorController extends GetxController {
         }
       }
       
-      templateConfig['layers'] = uniqueLayers.reversed.toList();
+      var finalLayersList = uniqueLayers.reversed.toList();
+      _deduplicateLayerNames(finalLayersList);
+      templateConfig['layers'] = finalLayersList;
       templateConfig.refresh();
       _pushHistory();
 
@@ -979,6 +1116,84 @@ class NativeEditorController extends GetxController {
       debugPrint('[BRIGHTNESS] Applying colors: templateIsDark=$templateIsDark, shapeLayers=${shapeLayers.length}, textLayers=${newLayers.where((l) => l['type'] == 'text').length}');
       bool needsRefresh = false;
       
+      // PASS 0: Logo Background Plate (auto-detect dark background)
+      // When background is dark, inject a white rectangle behind the frame's logo
+      // so it remains visible on any background color.
+      if (templateIsDark) {
+        final layers = templateConfig['layers'] as List;
+        
+        // Find the frame logo layer
+        Map<String, dynamic>? logoLayer;
+        int logoIndex = -1;
+        for (int i = 0; i < layers.length; i++) {
+          final l = layers[i];
+          if (l['_businessKey'] == 'logo' && 
+              (l['_isFrameLayer'] == true || l['_is_frame_layer'] == true)) {
+            logoLayer = l;
+            logoIndex = i;
+            break;
+          }
+        }
+        
+        if (logoLayer != null && logoIndex >= 0) {
+          // Remove any existing plate (prevents duplicates on frame switch)
+          layers.removeWhere((l) => l['name'] == '_logo_bg_plate');
+          
+          // Recalculate logoIndex after removal
+          logoIndex = layers.indexOf(logoLayer);
+          
+          // Calculate plate dimensions
+          double logoX = safeDouble(logoLayer['x'] ?? 0);
+          double logoY = safeDouble(logoLayer['y'] ?? 0);
+          double logoW = safeDouble(logoLayer['w'] ?? logoLayer['width'] ?? 0);
+          double logoH = safeDouble(logoLayer['h'] ?? logoLayer['height'] ?? 0);
+          
+          double paddingX = 10.0;
+          double paddingBottom = 10.0;
+          double paddingTop = 20.0;
+          
+          double plateX = logoX - paddingX;          // 10px left gap
+          double plateY = logoY - paddingTop;        // 20px top gap
+          double plateW = logoW + (paddingX * 2);    // 10px left + 10px right
+          double plateH = logoH + paddingTop + paddingBottom;   // 20px top + logo + 10px bottom
+          
+          // Create the plate layer
+          Map<String, dynamic> plateLayer = {
+            'name': '_logo_bg_plate',
+            'type': 'solid_rect',
+            'x': plateX,
+            'y': plateY,
+            'w': plateW,
+            'h': plateH,
+            'color': '#FFFFFF',
+            'z_index': (logoLayer['z_index'] ?? 99) is int 
+                ? (logoLayer['z_index'] ?? 99) - 1 
+                : ((logoLayer['z_index'] ?? 99) as num).toInt() - 1,
+            '_isFrameLayer': true,
+            '_is_logo_plate': true,
+          };
+          
+          // Insert BEFORE the logo so it renders behind it
+          if (logoIndex >= 0 && logoIndex <= layers.length) {
+            layers.insert(logoIndex, plateLayer);
+          }
+          needsRefresh = true;
+          
+          debugPrint('[LOGO_PLATE] ✅ Injected white plate: '
+            'x=$plateX y=$plateY w=$plateW h=$plateH '
+            'logoAt=($logoX,$logoY,$logoW,$logoH)');
+        }
+      } else {
+        // Light background: remove any existing plate
+        final layers = templateConfig['layers'] as List;
+        final removed = layers.where((l) => l['name'] == '_logo_bg_plate').length;
+        layers.removeWhere((l) => l['name'] == '_logo_bg_plate');
+        if (removed > 0) {
+          needsRefresh = true;
+          debugPrint('[LOGO_PLATE] ❌ Removed plate (light background)');
+        }
+      }
+
       // PASS 1: Apply colors to TEXT layers first
       for (var newLayer in newLayers) {
         if (newLayer['type'] == 'text') {
@@ -1030,15 +1245,8 @@ class NativeEditorController extends GetxController {
         }
         
         String layerName = (newLayer['name'] ?? '').toString();
-        if (matchedTextColor != null) {
-          debugPrint('[COLOR] ICON "$layerName" → matched text color=$matchedTextColor (bizKey=$iconBizKey)');
-          if (newLayer['tint_color'] != matchedTextColor) needsRefresh = true;
-          newLayer['tint_color'] = matchedTextColor;
-        } else {
-          // No matching text - use brightness-based color (for social icons etc.)
-          if (_applyDynamicTextColor(newLayer, templateIsDark, shapeLayers)) {
-            needsRefresh = true;
-          }
+        if (_applyDynamicTextColor(newLayer, templateIsDark, shapeLayers, matchedColor: matchedTextColor)) {
+          needsRefresh = true;
         }
       }
       
@@ -1055,11 +1263,17 @@ class NativeEditorController extends GetxController {
     Map<String, dynamic> layer,
     bool templateIsDark,
     List<Map<String, dynamic>> shapeLayers,
+    {String? matchedColor}
   ) {
+    final String diagName = (layer['name'] ?? layer['id'] ?? '').toString();
+    debugPrint('[COLOR_DIAG] Starting _applyDynamicTextColor for layer: "$diagName" (type: ${layer['type']})');
+    
     // DO NOT override user colors for Custom templates / frames!
     final type = Get.parameters['type'] ?? templateConfig['type'] ?? 'business_custom_frame';
     final tLow = type.toString().toLowerCase();
+    debugPrint('[COLOR_DIAG] Editor Type: $type ($tLow)');
     if (tLow.contains('custom') || tLow == 'post' || tLow == 'business_custom_frame') {
+      debugPrint('[COLOR_DIAG] ❌ SKIPPED: Template type is custom or business_custom_frame');
       return false; // Skip auto-color for custom templates to preserve original ZIP colors
     }
 
@@ -1072,9 +1286,23 @@ class NativeEditorController extends GetxController {
                    'social', 'linkedin'].any((key) => lname.contains(key))
                   );
 
-    if (!isText && !isIcon) return false;
+    // DO NOT override colors for frame layers — EXCEPT for text and contact icons.
+    // If it's a frame layer and not a text/icon, skip it.
+    if (layer['_is_frame_layer'] == true || layer['_isFrameLayer'] == true) {
+      if (!isText && !isIcon) {
+        debugPrint('[COLOR_DIAG] ❌ SKIPPED: Regular frame layer that is not text or icon');
+        return false;
+      }
+    }
+
+    if (!isText && !isIcon) {
+      debugPrint('[COLOR_DIAG] ❌ SKIPPED: Not text or contact icon');
+      return false;
+    }
 
     final String layerName = (layer['name'] ?? layer['id'] ?? '').toString();
+    debugPrint('[COLOR_DIAG] ✅ PROCEEDING for "$layerName" (isText=$isText, isIcon=$isIcon)');
+    
     final double textX = safeDouble(layer['x'] ?? 0);
     final double textY = safeDouble(layer['y'] ?? 0);
     final double textW = safeDouble(layer['w'] ?? layer['width'] ?? 0);
@@ -1099,7 +1327,7 @@ class NativeEditorController extends GetxController {
 
     bool changed = false;
     if (!overlapsShape) {
-      String newColor = templateIsDark ? '0xFFFFFFFF' : '0xFF000000';
+      String newColor = matchedColor ?? (templateIsDark ? '0xFFFFFFFF' : '0xFF000000');
       if (isText) {
         debugPrint('[COLOR] TEXT "$layerName" → templateIsDark=$templateIsDark → color=$newColor (was: ${layer['color']})');
         if (layer['color'] != newColor) changed = true;
@@ -1111,7 +1339,7 @@ class NativeEditorController extends GetxController {
         layer['tint_color'] = newColor;
       }
     } else {
-      String originalColor = layer['original_color'] ?? layer['color'] ?? '0xFFFFFFFF';
+      String originalColor = layer['original_color'] ?? layer['color'] ?? layer['tint_color'] ?? '0xFFFFFFFF';
       if (isText) {
         if (layer['color'] != originalColor) changed = true;
         layer['color'] = originalColor;

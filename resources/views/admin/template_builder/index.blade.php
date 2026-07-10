@@ -179,43 +179,7 @@
                     <input type="text" class="aim-input mb-2" id="icon-search" placeholder="Search icons...">
                     <div class="icons-grid-wrap">
                         <div class="icons-grid" id="icons-grid">
-                            <div class="icon-item" data-icon="fa-solid fa-heart" title="Heart"><i class="fa-solid fa-heart"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-star" title="Star"><i class="fa-solid fa-star"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-house" title="Home"><i class="fa-solid fa-house"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-user" title="User"><i class="fa-solid fa-user"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-phone" title="Phone"><i class="fa-solid fa-phone"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-envelope" title="Envelope"><i class="fa-solid fa-envelope"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-map-marker-alt" title="Address Location Map Marker"><i class="fa-solid fa-map-marker-alt"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-location-dot" title="Address Pin Location"><i class="fa-solid fa-location-dot"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-address-book" title="Address Book Contact"><i class="fa-solid fa-address-book"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-address-card" title="Address Card Contact"><i class="fa-solid fa-address-card"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-globe" title="Website Globe Web Address"><i class="fa-solid fa-globe"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-building" title="Office Building Address"><i class="fa-solid fa-building"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-camera" title="Camera"><i class="fa-solid fa-camera"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-music" title="Music"><i class="fa-solid fa-music"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-bolt" title="Bolt"><i class="fa-solid fa-bolt"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-gift" title="Gift"><i class="fa-solid fa-gift"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-trophy" title="Trophy"><i class="fa-solid fa-trophy"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-crown" title="Crown"><i class="fa-solid fa-crown"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-gem" title="Diamond"><i class="fa-solid fa-gem"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-fire" title="Fire"><i class="fa-solid fa-fire"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-rocket" title="Rocket"><i class="fa-solid fa-rocket"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-flag" title="Flag"><i class="fa-solid fa-flag"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-bell" title="Bell"><i class="fa-solid fa-bell"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-bookmark" title="Bookmark"><i class="fa-solid fa-bookmark"></i></div>
-                            <div class="icon-item" data-icon="fa-solid fa-thumbs-up" title="Thumbs Up"><i class="fa-solid fa-thumbs-up"></i></div>
-                            <!-- Social Icons -->
-                            <div class="icon-item" data-icon="fa-brands fa-facebook" title="Facebook"><i class="fa-brands fa-facebook"></i></div>
-                            <div class="icon-item" data-icon="fa-brands fa-instagram" title="Instagram"><i class="fa-brands fa-instagram"></i></div>
-                            <div class="icon-item" data-icon="fa-brands fa-twitter" title="Twitter"><i class="fa-brands fa-twitter"></i></div>
-                            <div class="icon-item" data-icon="fa-brands fa-x-twitter" title="X (Twitter)"><i class="fa-brands fa-x-twitter"></i></div>
-                            <div class="icon-item" data-icon="fa-brands fa-whatsapp" title="WhatsApp"><i class="fa-brands fa-whatsapp"></i></div>
-                            <div class="icon-item" data-icon="fa-brands fa-youtube" title="YouTube"><i class="fa-brands fa-youtube"></i></div>
-                            <div class="icon-item" data-icon="fa-brands fa-linkedin" title="LinkedIn"><i class="fa-brands fa-linkedin"></i></div>
-                            <div class="icon-item" data-icon="fa-brands fa-telegram" title="Telegram"><i class="fa-brands fa-telegram"></i></div>
-                            <div class="icon-item" data-icon="fa-brands fa-pinterest" title="Pinterest"><i class="fa-brands fa-pinterest"></i></div>
-                            <div class="icon-item" data-icon="fa-brands fa-tiktok" title="TikTok"><i class="fa-brands fa-tiktok"></i></div>
-                            <div class="icon-item" data-icon="fa-brands fa-snapchat" title="Snapchat"><i class="fa-brands fa-snapchat"></i></div>
+                            <!-- Icons will be dynamically populated here by JS -->
                         </div>
                     </div>
                 </div>
@@ -338,7 +302,7 @@
                             </div>
                             <div class="col-6 mb-3">
                                 <label class="aim-label">Color</label>
-                                <input type="color" class="aim-input p-0 w-100" id="prop-color" style="height: 38px;">
+                                <input type="text" class="aim-input w-100" id="prop-color" data-jscolor="{}" placeholder="#000000" style="height: 38px; padding-left: 10px;">
                             </div>
                         </div>
                         
@@ -376,6 +340,10 @@
                             <input type="checkbox" class="custom-control-input" id="prop-is-placeholder">
                             <label class="custom-control-label small" for="prop-is-placeholder">Is Post Images</label>
                         </div>
+                        <div class="mb-2 custom-control custom-switch">
+                            <input type="checkbox" class="custom-control-input" id="prop-is-colorizable-shape">
+                            <label class="custom-control-label small" for="prop-is-colorizable-shape">Treat as Shape (Colorizable)</label>
+                        </div>
                         @if($mode === 'frame')
                         <div class="mb-2 custom-control custom-switch">
                             <input type="checkbox" class="custom-control-input" id="prop-is-logo">
@@ -399,15 +367,15 @@
                         <div class="panel-section-title" style="color: #6366f1;"><i class="fa-solid fa-shapes"></i> Shape Settings</div>
                         <div class="row">
                             <div class="col-6 mb-3">
-                                <label class="aim-label">Fill Color</label>
-                                <input type="color" class="aim-input p-0 w-100" id="prop-fill-color" value="#6366f1" style="height: 38px;">
+                                <label class="aim-label d-block mb-1">Fill Color</label>
+                                <input type="text" class="aim-input w-100" id="prop-fill-color" data-jscolor="{}" placeholder="#6366f1" style="height: 38px; padding-left: 10px;">
                             </div>
                             <div class="col-6 mb-3">
-                                <label class="aim-label">Stroke Color</label>
-                                <input type="color" class="aim-input p-0 w-100" id="prop-stroke-color" value="#000000" style="height: 38px;">
+                                <label class="aim-label d-block mb-1">Stroke Color</label>
+                                <input type="text" class="aim-input w-100" id="prop-stroke-color" data-jscolor="{}" placeholder="#000000" style="height: 38px; padding-left: 10px;">
                             </div>
                         </div>
-                        <div class="mb-3 custom-control custom-switch">
+                        <div class="mb-3 custom-control custom-switch" id="shape-vector-gradient-wrapper">
                             <input type="checkbox" class="custom-control-input" id="prop-shape-gradient">
                             <label class="custom-control-label small" for="prop-shape-gradient">Use Gradient Fill</label>
                         </div>
@@ -415,15 +383,15 @@
                             <div class="row">
                                 <div class="col-4 mb-2">
                                     <label class="aim-label">Start Color</label>
-                                    <input type="color" class="aim-input p-0 w-100" id="prop-grad-color1" value="#6366f1" style="height:30px;">
+                                    <input type="text" class="aim-input w-100" id="prop-grad-color1" data-jscolor="{}" value="#6366f1" placeholder="#6366f1" style="height:30px; padding-left: 10px;">
                                 </div>
                                 <div class="col-4 mb-2">
                                     <label class="aim-label">Mid Color</label>
-                                    <input type="color" class="aim-input p-0 w-100" id="prop-grad-color-mid" value="#a855f7" style="height:30px;">
+                                    <input type="text" class="aim-input w-100" id="prop-grad-color-mid" data-jscolor="{}" value="#a855f7" placeholder="#a855f7" style="height:30px; padding-left: 10px;">
                                 </div>
                                 <div class="col-4 mb-2">
                                     <label class="aim-label">End Color</label>
-                                    <input type="color" class="aim-input p-0 w-100" id="prop-grad-color2" value="#ffffff" style="height:30px;">
+                                    <input type="text" class="aim-input w-100" id="prop-grad-color2" data-jscolor="{}" value="#ffffff" placeholder="#ffffff" style="height:30px; padding-left: 10px;">
                                 </div>
                             </div>
                             <div class="mb-2">
@@ -448,7 +416,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="row">
+                        <div class="row" id="shape-vector-controls-wrapper">
                             <div class="col-6 mb-3">
                                 <label class="aim-label">Stroke Width</label>
                                 <input type="number" class="aim-input" id="prop-stroke-width" value="0" min="0">
@@ -492,7 +460,7 @@
                                 </div>
                                 <div class="col-6 mb-2">
                                     <label class="aim-label">Color</label>
-                                    <input type="color" class="aim-input p-0 w-100" id="prop-shadow-color" value="#000000" style="height: 38px;">
+                                    <input type="text" class="aim-input w-100" id="prop-shadow-color" data-jscolor="{}" value="#000000" placeholder="#000000" style="height: 38px; padding-left: 10px;">
                                 </div>
                                 <div class="col-6 mb-2">
                                     <label class="aim-label">Offset X</label>
@@ -567,29 +535,6 @@
                     </div>
                 </div>
                 @endif
-
-                <hr class="my-3">
-
-                <!-- Canvas Background -->
-                <div class="panel-section-title"><i class="fa-solid fa-fill-drip"></i> Canvas Background</div>
-                <div class="mb-3 mt-2">
-                    <label class="aim-label">Background Color</label>
-                    <input type="color" class="aim-input p-0 w-100" id="canvas-bg-color" value="#ffffff" style="height: 38px;">
-                </div>
-                <div class="mb-3 custom-control custom-switch">
-                    <input type="checkbox" class="custom-control-input" id="canvas-gradient-toggle">
-                    <label class="custom-control-label small" for="canvas-gradient-toggle">Use Gradient Background</label>
-                </div>
-                <div class="gradient-colors" id="gradient-color-fields" style="display:none;">
-                    <div class="color-field">
-                        <label class="aim-label">Start Color</label>
-                        <input type="color" class="aim-input p-0 w-100" id="canvas-gradient-start" value="#6366f1">
-                    </div>
-                    <div class="color-field">
-                        <label class="aim-label">End Color</label>
-                        <input type="color" class="aim-input p-0 w-100" id="canvas-gradient-end" value="#8b5cf6">
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -755,7 +700,21 @@
 @section('script')
 <script src="{{ asset('assets/js/fabric.min.js') }}"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jscolor/2.5.2/jscolor.min.js"></script>
 <script>
+    function triggerNativeInput(picker) {
+        if (picker && picker.targetElement) {
+            if (picker.targetElement.dataset.isTriggering) return;
+            picker.targetElement.dataset.isTriggering = true;
+            picker.targetElement.dispatchEvent(new Event('input', { bubbles: true }));
+            picker.targetElement.dataset.isTriggering = '';
+        }
+    }
+    jscolor.presets.default = {
+        format: 'hex',
+        hash: true,
+        onInput: 'triggerNativeInput(this)'
+    };
     const parseUrl = "{{ route('template_builder.parse_zip') }}";
     const saveUrl = "{{ route('template_builder.save') }}";
     const saveFrameUrl = "{{ route('template_builder.save_frame') }}";
@@ -765,6 +724,7 @@
     const apiBaseUrl = "{{ url(env('API_KEY', 'api')) }}";
     const GLOBAL_FONTS = @json($globalFonts ?? []);
 </script>
+<script src="{{ asset('assets/js/font_awesome_library.js') }}?v={{ time() }}"></script>
 <script src="{{ asset('assets/js/template_builder.js') }}?v={{ time() }}"></script>
 <script>
 function filterFrames() {

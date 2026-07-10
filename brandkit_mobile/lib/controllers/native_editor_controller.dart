@@ -73,6 +73,41 @@ class NativeEditorController extends GetxController {
     }
   }
 
+  List<dynamic> get filteredFrames {
+    if (!Get.isRegistered<HomeController>()) return frames;
+    final hc = Get.find<HomeController>();
+    
+    int activeEmails = (hc.businessEmail.value.isNotEmpty ? 1 : 0) + hc.extraEmails.length;
+    int activePhones = (hc.businessPhone.value.isNotEmpty ? 1 : 0) + hc.extraPhones.length;
+    int activeWebsites = (hc.businessWebsite.value.isNotEmpty ? 1 : 0) + hc.extraWebsites.length;
+    int activeAddresses = (hc.businessAddress.value.isNotEmpty ? 1 : 0) + hc.extraAddresses.length;
+    
+    final hf = hc.hiddenFrameFields;
+    if (hf['emails'] != null) activeEmails -= (hf['emails'] as List).length;
+    if (hf['mobile_numbers'] != null) activePhones -= (hf['mobile_numbers'] as List).length;
+    if (hf['websites'] != null) activeWebsites -= (hf['websites'] as List).length;
+    if (hf['addresses'] != null) activeAddresses -= (hf['addresses'] as List).length;
+    
+    activeEmails = activeEmails.clamp(0, 99);
+    activePhones = activePhones.clamp(0, 99);
+    activeWebsites = activeWebsites.clamp(0, 99);
+    activeAddresses = activeAddresses.clamp(0, 99);
+
+    return frames.where((frame) {
+      int reqEmail = int.tryParse(frame['req_email']?.toString() ?? '0') ?? 0;
+      int reqPhone = int.tryParse(frame['req_phone']?.toString() ?? '0') ?? 0;
+      int reqWeb = int.tryParse(frame['req_website']?.toString() ?? '0') ?? 0;
+      int reqAddress = int.tryParse(frame['req_address']?.toString() ?? '0') ?? 0;
+      
+      if (reqEmail != activeEmails) return false;
+      if (reqPhone != activePhones) return false;
+      if (reqWeb != activeWebsites) return false;
+      if (reqAddress != activeAddresses) return false;
+      
+      return true;
+    }).toList();
+  }
+
   // History stack for Undo/Redo
   var historyStack = <String>[].obs;
   var historyIndex = (-1).obs;

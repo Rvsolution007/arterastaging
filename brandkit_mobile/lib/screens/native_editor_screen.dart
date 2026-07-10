@@ -859,7 +859,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                       child: Center(child: SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))),
                     );
                   }
-                  if (controller.frames.isEmpty) {
+                  if (controller.filteredFrames.isEmpty) {
                     return Padding(
                       padding: const EdgeInsets.all(8),
                       child: Center(child: Text('no_frames_found'.trFormat, style: const TextStyle(color: Colors.grey, fontSize: 12))),
@@ -870,9 +870,9 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: controller.frames.length,
+                      itemCount: controller.filteredFrames.length,
                       itemBuilder: (context, index) {
-                        final frame = controller.frames[index];
+                        final frame = controller.filteredFrames[index];
                         final thumbUrl = frame['thumbnail'] ?? frame['thumbnail_url'] ?? frame['full_url'] ?? '';
                         return GestureDetector(
                           onTap: () {

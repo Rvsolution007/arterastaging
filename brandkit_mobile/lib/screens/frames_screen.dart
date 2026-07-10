@@ -132,6 +132,13 @@ class _FramesScreenState extends State<FramesScreen> with SingleTickerProviderSt
     activeWebsites = activeWebsites.clamp(0, 99);
     activeAddresses = activeAddresses.clamp(0, 99);
 
+    debugPrint('[FRAME_FILTER] ═══════════════════════════════════');
+    debugPrint('[FRAME_FILTER] User Profile: email=${hc.businessEmail.value}, phone=${hc.businessPhone.value}');
+    debugPrint('[FRAME_FILTER] Extras: emails=${hc.extraEmails.length}, phones=${hc.extraPhones.length}, webs=${hc.extraWebsites.length}, addrs=${hc.extraAddresses.length}');
+    debugPrint('[FRAME_FILTER] Hidden: $hf');
+    debugPrint('[FRAME_FILTER] ACTIVE COUNTS → email=$activeEmails, phone=$activePhones, web=$activeWebsites, address=$activeAddresses');
+    debugPrint('[FRAME_FILTER] Total frames: ${_allFrames.length}');
+
     return _allFrames.where((frame) {
       if (onlyLiked && !_likedFrameIds.contains(frame['id']?.toString())) return false;
       
@@ -144,6 +151,10 @@ class _FramesScreenState extends State<FramesScreen> with SingleTickerProviderSt
       int reqWeb = int.tryParse(frame['req_website']?.toString() ?? '0') ?? 0;
       int reqAddress = int.tryParse(frame['req_address']?.toString() ?? '0') ?? 0;
       
+      bool match = (reqEmail == activeEmails && reqPhone == activePhones && reqWeb == activeWebsites && reqAddress == activeAddresses);
+      debugPrint('[FRAME_FILTER] Frame#${frame['id']} req(e=$reqEmail,p=$reqPhone,w=$reqWeb,a=$reqAddress) → ${match ? "✅ SHOW" : "❌ HIDE"}');
+      
+      // Only show frame if user's active field counts EXACTLY match frame requirements
       if (reqEmail != activeEmails) return false;
       if (reqPhone != activePhones) return false;
       if (reqWeb != activeWebsites) return false;

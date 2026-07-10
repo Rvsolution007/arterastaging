@@ -1251,13 +1251,11 @@ class NativeEditorController extends GetxController {
                    'social', 'linkedin'].any((key) => lname.contains(key))
                   );
 
-    // DO NOT override colors for frame layers — admin set these colors intentionally
-    // EXCEPT for business data text/icons (_businessKey != null) or placeholders like _b_phone
+    // DO NOT override colors for frame layers — EXCEPT for text and contact icons.
+    // If it's a frame layer and not a text/icon, skip it.
     if (layer['_is_frame_layer'] == true || layer['_isFrameLayer'] == true) {
-      if (layer['_businessKey'] != null || diagName.startsWith('_b_') || isIcon) {
-        debugPrint('[COLOR_DIAG] 🔓 ALLOWED: Frame layer but contains business data or is a contact icon');
-      } else {
-        debugPrint('[COLOR_DIAG] ❌ SKIPPED: Layer is a regular frame layer');
+      if (!isText && !isIcon) {
+        debugPrint('[COLOR_DIAG] ❌ SKIPPED: Regular frame layer that is not text or icon');
         return false;
       }
     }

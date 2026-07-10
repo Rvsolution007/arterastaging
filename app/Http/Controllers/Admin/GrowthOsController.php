@@ -113,7 +113,7 @@ class GrowthOsController extends Controller
         $topTemplates = DB::table('general_posts')
             ->orderBy('downloads_count', 'desc')
             ->limit(10)
-            ->get(['id', 'title', 'downloads_count', 'views_count', 'image']);
+            ->get(['id', 'task_name as title', 'downloads_count', 'views_count', 'frame_image as image']);
 
         return response()->json([
             'status' => 'success',

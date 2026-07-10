@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import '../config/app_config.dart';
 import '../services/ad_service.dart';
 import '../services/download_service.dart';
 import '../controllers/ad_controller.dart';
@@ -117,6 +119,11 @@ class _DetailListScreenState extends State<DetailListScreen> {
 
   /// Load a Native Ad to inject into the template grid
   void _loadNativeAd() {
+    // Skip native ads in debug/staging to avoid AdMob validator popup
+    if (kDebugMode || AppConfig.isStaging) {
+      debugPrint('[DetailList] Native ad skipped (debug/staging mode).');
+      return;
+    }
     if (Get.find<SubscriptionController>().isSubscribe.value) {
       return;
     }

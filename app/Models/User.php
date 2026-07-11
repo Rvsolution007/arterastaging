@@ -38,6 +38,7 @@ class User extends Authenticatable
         'user_type',
         'business_limit',
         "referral_code",
+        'registration_source',
         "current_balance",
         "total_balance",
         "is_partner",

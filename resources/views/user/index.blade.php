@@ -245,6 +245,7 @@
                                 <th>Email</th>
                                 <th>Mobile</th>
                                 <th>Joined Date</th>
+                                <th>Source</th>
                                 <th>Status</th>
                                 <th class="text-right">Actions</th>
                             </tr>
@@ -283,6 +284,13 @@
                                 <td><span class="text-muted">{{$row->email}}</span></td>
                                 <td><span class="font-math">{{$row->mobile_no}}</span></td>
                                 <td><span class="badge-soft">{{date('d M Y',strtotime($row->created_at))}}</span></td>
+                                <td>
+                                    @if(isset($row->registration_source) && $row->registration_source == 'Website')
+                                        <span class="badge badge-info px-2 py-1" style="font-size: 0.75rem;"><i class="fa-solid fa-globe mr-1"></i> Website</span>
+                                    @else
+                                        <span class="badge badge-secondary px-2 py-1" style="font-size: 0.75rem;"><i class="fa-solid fa-mobile-screen mr-1"></i> App</span>
+                                    @endif
+                                </td>
                                 <td>
                                     <label class="switch my-auto">
                                         <input type="checkbox" name="status" data-id="{{$row->id}}" value="1" class="status" @if($row->status==1) checked @endif>

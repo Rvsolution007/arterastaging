@@ -90,6 +90,7 @@ class BusinessRegistrationController extends Controller
             'login_type' => 'normal',
             'referral_code' => strtoupper(str::random(10)),
             'user_type' => 'User',
+            'registration_source' => 'Website',
         ])->id;
 
         // Image Upload

@@ -18,6 +18,7 @@ import 'catalogue_columns_screen.dart';
 import 'frames_screen.dart';
 import 'business_list_screen.dart';
 import 'downloads_screen.dart';
+import 'edit_profile_screen.dart';
 
 class MyBusinessScreen extends StatelessWidget {
   const MyBusinessScreen({super.key});
@@ -94,17 +95,26 @@ class MyBusinessScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          GestureDetector(
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BusinessProfileScreen())),
-            child: Text(
-              'edit'.trFormat,
-              style: TextStyle(
-                color: AppColors.indigo600,
-                fontWeight: FontWeight.w700,
-                fontSize: 15,
-                letterSpacing: 0.5,
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EditProfileScreen())),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.slate50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.slate200),
+                  ),
+                  child: const Text(
+                    'Edit Profile',
+                    style: TextStyle(color: AppColors.slate600, fontWeight: FontWeight.w600, fontSize: 12),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         ],
       ),

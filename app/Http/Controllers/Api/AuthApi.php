@@ -51,11 +51,11 @@ class AuthApi extends Controller
                 'planDuration' => $user->active_subscription ? $user->active_subscription->duration." ".$user->active_subscription->duration_type : "",
                 'planStartDate' => ($user->subscription_start_date)?$user->subscription_start_date:"",
                 'planEndDate' => ($user->subscription_start_date)?$user->subscription_end_date:"",
-                'isSubscribe' => ($user->is_subscribe)?(date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?true:false:false,
+                'isSubscribe' => ($user->is_subscribe && !empty($user->subscription_end_date))?(date("Y-m-d", strtotime($user->subscription_end_date)) >= date("Y-m-d",strtotime('today')))?true:false:false,
                 'is_email_verify' => ($user->email_verified_at != null)?true:false,
                 'userType' => $user->login_type,
                 'isPartner' => ($user->is_partner == 1) ? true : false, 
-                'businessLimit' => (date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
+                'businessLimit' => (!empty($user->subscription_end_date) && date("Y-m-d", strtotime($user->subscription_end_date)) >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
                 'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
                                 'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
                 'adConfig' => $user->getAdConfigPayload(),
@@ -92,9 +92,9 @@ class AuthApi extends Controller
         $validation = Validator::make($request->all(), [
             'name' => 'required',
             'password' => 'required|min:8',
-            'email' => 'required|email|unique:users,email,' . \Request::get("id"),
+            'email' => 'required|email|unique:users,email,' . (\Request::get("id") ?? 'NULL') . ',id,deleted_at,NULL',
             'country' => 'nullable|numeric',
-            'mobile_no' => 'required|numeric|unique:users,mobile_no',
+            'mobile_no' => 'required|numeric|unique:users,mobile_no,NULL,id,deleted_at,NULL',
             'image' => "nullable|mimes:jpg,png,jpeg",
         ]);
 
@@ -263,10 +263,10 @@ class AuthApi extends Controller
                 'planDuration' => $user->active_subscription ? $user->active_subscription->duration." ".$user->active_subscription->duration_type : "",
                 'planStartDate' => ($user->subscription_start_date)?$user->subscription_start_date:"",
                 'planEndDate' => ($user->subscription_start_date)?$user->subscription_end_date:"",
-                'isSubscribe' => ($user->is_subscribe)?(date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?true:false:false,
+                'isSubscribe' => ($user->is_subscribe && !empty($user->subscription_end_date))?(date("Y-m-d", strtotime($user->subscription_end_date)) >= date("Y-m-d",strtotime('today')))?true:false:false,
                 'userType' => $user->login_type,
                 'isPartner' => ($user->is_partner == 1) ? true : false, 
-                'businessLimit' => (date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
+                'businessLimit' => (!empty($user->subscription_end_date) && date("Y-m-d", strtotime($user->subscription_end_date)) >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
                 'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
                                 'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
                 'adConfig' => $user->getAdConfigPayload(),
@@ -360,10 +360,10 @@ class AuthApi extends Controller
                 'planDuration' => $user->active_subscription ? $user->active_subscription->duration." ".$user->active_subscription->duration_type : "",
                 'planStartDate' => ($user->subscription_start_date)?$user->subscription_start_date:"",
                 'planEndDate' => ($user->subscription_start_date)?$user->subscription_end_date:"",
-                'isSubscribe' => ($user->is_subscribe)?(date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?true:false:false,
+                'isSubscribe' => ($user->is_subscribe && !empty($user->subscription_end_date))?(date("Y-m-d", strtotime($user->subscription_end_date)) >= date("Y-m-d",strtotime('today')))?true:false:false,
                 'userType' => $user->login_type,
                 'isPartner' => ($user->is_partner == 1) ? true : false, 
-                'businessLimit' => (date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
+                'businessLimit' => (!empty($user->subscription_end_date) && date("Y-m-d", strtotime($user->subscription_end_date)) >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
                 'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
                                 'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
                 'adConfig' => $user->getAdConfigPayload(),
@@ -391,10 +391,10 @@ class AuthApi extends Controller
                     'planDuration' => $user->active_subscription ? $user->active_subscription->duration." ".$user->active_subscription->duration_type : "",
                     'planStartDate' => ($user->subscription_start_date)?$user->subscription_start_date:"",
                     'planEndDate' => ($user->subscription_start_date)?$user->subscription_end_date:"",
-                    'isSubscribe' => ($user->is_subscribe)?(date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?true:false:false,
+                    'isSubscribe' => ($user->is_subscribe && !empty($user->subscription_end_date))?(date("Y-m-d", strtotime($user->subscription_end_date)) >= date("Y-m-d",strtotime('today')))?true:false:false,
                     'userType' => $user->login_type,
                 'isPartner' => ($user->is_partner == 1) ? true : false, 
-                    'businessLimit' => (date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
+                    'businessLimit' => (!empty($user->subscription_end_date) && date("Y-m-d", strtotime($user->subscription_end_date)) >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
                     'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
                                     'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
                 'adConfig' => $user->getAdConfigPayload(),
@@ -431,10 +431,10 @@ class AuthApi extends Controller
                     'planDuration' => $user->active_subscription ? $user->active_subscription->duration." ".$user->active_subscription->duration_type : "",
                     'planStartDate' => ($user->subscription_start_date)?$user->subscription_start_date:"",
                     'planEndDate' => ($user->subscription_start_date)?$user->subscription_end_date:"",
-                    'isSubscribe' => ($user->is_subscribe)?(date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?true:false:false,
+                    'isSubscribe' => ($user->is_subscribe && !empty($user->subscription_end_date))?(date("Y-m-d", strtotime($user->subscription_end_date)) >= date("Y-m-d",strtotime('today')))?true:false:false,
                     'userType' => $user->login_type,
                 'isPartner' => ($user->is_partner == 1) ? true : false, 
-                    'businessLimit' => (date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
+                    'businessLimit' => (!empty($user->subscription_end_date) && date("Y-m-d", strtotime($user->subscription_end_date)) >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
                     'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
                                     'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
                 'adConfig' => $user->getAdConfigPayload(),
@@ -466,10 +466,10 @@ class AuthApi extends Controller
                 'planDuration' => $user->active_subscription ? $user->active_subscription->duration." ".$user->active_subscription->duration_type : "",
                 'planStartDate' => ($user->subscription_start_date)?$user->subscription_start_date:"",
                 'planEndDate' => ($user->subscription_start_date)?$user->subscription_end_date:"",
-                'isSubscribe' => ($user->is_subscribe)?(date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?true:false:false,
+                'isSubscribe' => ($user->is_subscribe && !empty($user->subscription_end_date))?(date("Y-m-d", strtotime($user->subscription_end_date)) >= date("Y-m-d",strtotime('today')))?true:false:false,
                 'userType' => $user->login_type,
                 'isPartner' => ($user->is_partner == 1) ? true : false, 
-                'businessLimit' => (date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
+                'businessLimit' => (!empty($user->subscription_end_date) && date("Y-m-d", strtotime($user->subscription_end_date)) >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
                 'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
                                 'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
                 'adConfig' => $user->getAdConfigPayload(),
@@ -502,10 +502,10 @@ class AuthApi extends Controller
                     'planDuration' => $user->active_subscription ? $user->active_subscription->duration." ".$user->active_subscription->duration_type : "",
                     'planStartDate' => ($user->subscription_start_date)?$user->subscription_start_date:"",
                     'planEndDate' => ($user->subscription_start_date)?$user->subscription_end_date:"",
-                    'isSubscribe' => ($user->is_subscribe)?(date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?true:false:false,
+                    'isSubscribe' => ($user->is_subscribe && !empty($user->subscription_end_date))?(date("Y-m-d", strtotime($user->subscription_end_date)) >= date("Y-m-d",strtotime('today')))?true:false:false,
                     'userType' => $user->login_type,
                 'isPartner' => ($user->is_partner == 1) ? true : false, 
-                    'businessLimit' => (date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
+                    'businessLimit' => (!empty($user->subscription_end_date) && date("Y-m-d", strtotime($user->subscription_end_date)) >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
                     'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
                                     'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
                 'adConfig' => $user->getAdConfigPayload(),
@@ -544,10 +544,10 @@ class AuthApi extends Controller
                     'planDuration' => $user->active_subscription ? $user->active_subscription->duration." ".$user->active_subscription->duration_type : "",
                     'planStartDate' => ($user->subscription_start_date)?$user->subscription_start_date:"",
                     'planEndDate' => ($user->subscription_start_date)?$user->subscription_end_date:"",
-                    'isSubscribe' => ($user->is_subscribe)?(date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?true:false:false,
+                    'isSubscribe' => ($user->is_subscribe && !empty($user->subscription_end_date))?(date("Y-m-d", strtotime($user->subscription_end_date)) >= date("Y-m-d",strtotime('today')))?true:false:false,
                     'userType' => $user->login_type,
                 'isPartner' => ($user->is_partner == 1) ? true : false, 
-                    'businessLimit' => (date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
+                    'businessLimit' => (!empty($user->subscription_end_date) && date("Y-m-d", strtotime($user->subscription_end_date)) >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
                     'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
                                     'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
                 'adConfig' => $user->getAdConfigPayload(),
@@ -579,10 +579,10 @@ class AuthApi extends Controller
                 'planDuration' => $user->active_subscription ? $user->active_subscription->duration." ".$user->active_subscription->duration_type : "",
                 'planStartDate' => ($user->subscription_start_date)?$user->subscription_start_date:"",
                 'planEndDate' => ($user->subscription_start_date)?$user->subscription_end_date:"",
-                'isSubscribe' => ($user->is_subscribe)?(date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?true:false:false,
+                'isSubscribe' => ($user->is_subscribe && !empty($user->subscription_end_date))?(date("Y-m-d", strtotime($user->subscription_end_date)) >= date("Y-m-d",strtotime('today')))?true:false:false,
                 'userType' => $user->login_type,
                 'isPartner' => ($user->is_partner == 1) ? true : false, 
-                'businessLimit' => (date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
+                'businessLimit' => (!empty($user->subscription_end_date) && date("Y-m-d", strtotime($user->subscription_end_date)) >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
                 'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
                                 'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
                 'adConfig' => $user->getAdConfigPayload(),
@@ -603,6 +603,14 @@ class AuthApi extends Controller
 
     public function profile_update(Request $request)
     {
+        \Log::info('=== PROFILE_UPDATE DEBUG START ===', [
+            'request_all' => $request->all(),
+            'request_id' => $request->id,
+            'has_image' => $request->hasFile('image'),
+        ]);
+
+        try {
+
         if($request->get('referralCode'))
         {
             $referral_exist = User::where('referral_code', $request->get('referralCode'))->first();
@@ -628,137 +636,125 @@ class AuthApi extends Controller
                 
                             return response()->json([
                                 'status' => "Error",
-                                'message' => $errors,
-                            ], 404);
+                                'message' => implode("\n", $errors),
+                            ], 200);
                         }
-                        else
-                        {
-                            if($user->email_verified_at != null)
+                            // Removed email_verified_at check to allow profile updates
+                            $user_mobile = User::where("mobile_no",$request->get("mobile_no"))->first();
+                            if($request->get("mobile_no") == null || empty($user_mobile) || $user_mobile->id == $user->id)
                             {
-                                $user_mobile = User::where("mobile_no",$request->get("mobile_no"))->first();
-                                if($request->get("mobile_no") == null || empty($user_mobile) || $user_mobile->id == $user->id)
+                                $user = User::find($request->id);
+                                $user->name = $request->get("name");
+                                $user->email = $request->get("email");
+                                $user->country = $request->get("country");
+                                $user->mobile_no = $request->get("mobile_no");
+                                $user->save();
+                    
+                                if(StorageSetting::getStorageSetting("storage") == "DigitalOcean")
                                 {
-                                    $user = User::find($request->id);
-                                    $user->name = $request->get("name");
-                                    $user->email = $request->get("email");
-                                    $user->country = $request->get("country");
-                                    $user->mobile_no = $request->get("mobile_no");
-                                    $user->save();
-                        
-                                    if(StorageSetting::getStorageSetting("storage") == "DigitalOcean")
-                                    {
-                                        if ($request->file("image") && $request->file('image')->isValid()) {
-                                            $image = $request->file('image');
-                                            $file = Str::uuid().'.'.$image->getClientOriginalExtension();
-                                    
-                                            $path = Storage::disk('spaces')->put('uploads/'.$file, file_get_contents($image),'public');
-                                            
-                                            $user = User::find($request->id);
-                                            $user->image = $file;
-                                            $user->save();
-                                        }
-                                    }
-                                    else
-                                    {
-                                        if ($request->file("image") && $request->file('image')->isValid()) {
-                                            $this->upload_image($request->file("image"),"image", $request->id);
-                                        }
-                                    }
-
-                                    $rr = ReferralRegister::where("user_id",$request->id)->where("referral_code",$request->get('referralCode'))->first();
-                                    if($rr == null && $request->get('referralCode'))
-                                    {
-                                        ReferralRegister::create([
-                                            "user_id" => $request->id,
-                                            "referral_code" => $request->get('referralCode')
-                                        ]);
-
-                                        $referral_user = User::where('referral_code',$request->get('referralCode'))->first();
+                                    if ($request->file("image") && $request->file('image')->isValid()) {
+                                        $image = $request->file('image');
+                                        $file = Str::uuid().'.'.$image->getClientOriginalExtension();
+                                
+                                        $path = Storage::disk('spaces')->put('uploads/'.$file, file_get_contents($image),'public');
                                         
-                                        $isFraud = \App\Services\FraudDetectionService::isFraudulentSignup($request, $request->get('email'));
-
-                                        if (!$isFraud) {
-                                            $referral_user->current_balance = $referral_user->current_balance + ReferralSystem::getReferralSystem('register_point');
-                                            $referral_user->total_balance = $referral_user->total_balance + ReferralSystem::getReferralSystem('register_point');
-                                            $referral_user->save();
-                                        }
-
-                                        EarningHistory::create([
-                                            "user_id" => $referral_user->id,
-                                            "amount" => ReferralSystem::getReferralSystem('register_point'),
-                                            "amount_type" => 1,
-                                            "refer_user" => $request->id,
-                                            "status" => $isFraud ? 'fraud' : 'pending'
-                                        ]);
-
-                                        // B2C Package Reward Logic
-                                        $required_invites = \App\Models\ReferralSystem::getReferralSystem('referral_invite_count') ?? 5;
-                                        $reward_days = \App\Models\ReferralSystem::getReferralSystem('referral_reward_days') ?? 15;
-                                        $reward_package_id = \App\Models\ReferralSystem::getReferralSystem('referral_reward_package_id');
-
-                                        $total_invites = \App\Models\ReferralRegister::where('referral_code', $request->get('referralCode'))->count();
-
-                                        if ($total_invites > 0 && $total_invites % $required_invites == 0) {
-                                            $sub = \App\Models\Subscription::find($reward_package_id);
-                                            if($sub) {
-                                                $referral_user->is_subscribe = 1;
-                                                $referral_user->subscription_id = $sub->id;
-                                                $current_end = $referral_user->subscription_end_date && strtotime($referral_user->subscription_end_date) > time() ? $referral_user->subscription_end_date : date('Y-m-d');
-                                                $referral_user->subscription_end_date = date('Y-m-d', strtotime($current_end . " + {$reward_days} days"));
-                                                $referral_user->save();
-                                            }
-                                        }
+                                        $user = User::find($request->id);
+                                        $user->image = $file;
+                                        $user->save();
                                     }
-
-                                    $user = User::find($request->id);
-                                    $ReferralRegister = ReferralRegister::where('user_id',$user->id)->first();
-
-                                    $data = array(
-                                        'userId' => $user->id, 
-                                        'userName' => $user->name,
-                                        'emailId' => $user->email, 
-                                        'password' => "",
-                                        'country' => $user->country,
-                                        'phoneNumber' => $user->mobile_no,
-                                        'useReferral' => ($ReferralRegister)?$ReferralRegister->referral_code:"",
-                                        'planName' => $user->active_subscription ? $user->active_subscription->plan_name : "",
-                                        'planDuration' => $user->active_subscription ? $user->active_subscription->duration." ".$user->active_subscription->duration_type : "",
-                                        'planStartDate' => ($user->subscription_start_date)?$user->subscription_start_date:"",
-                                        'planEndDate' => ($user->subscription_start_date)?$user->subscription_end_date:"",
-                                        'isSubscribe' => ($user->is_subscribe)?(date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?true:false:false,
-                                        'userType' => $user->login_type,
-                'isPartner' => ($user->is_partner == 1) ? true : false, 
-                                        'businessLimit' => (date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
-                                        'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
-                                                        'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
-                'adConfig' => $user->getAdConfigPayload(),
-                'currentStreak' => $user->current_streak ?? 1,
-                'maxStreak' => $user->max_streak ?? 1
-                                    );
                                 }
                                 else
                                 {
-                                    return response()->json([
-                                        'status' => "Error",
-                                        'message' => "Mobile No Already Register!",
-                                    ], 404);
+                                    if ($request->file("image") && $request->file('image')->isValid()) {
+                                        $this->upload_image($request->file("image"),"image", $request->id);
+                                    }
                                 }
+
+                                $rr = ReferralRegister::where("user_id",$request->id)->where("referral_code",$request->get('referralCode'))->first();
+                                if($rr == null && $request->get('referralCode'))
+                                {
+                                    ReferralRegister::create([
+                                        "user_id" => $request->id,
+                                        "referral_code" => $request->get('referralCode')
+                                    ]);
+
+                                    $referral_user = User::where('referral_code',$request->get('referralCode'))->first();
+                                    
+                                    $isFraud = \App\Services\FraudDetectionService::isFraudulentSignup($request, $request->get('email'));
+
+                                    if (!$isFraud) {
+                                        $referral_user->current_balance = $referral_user->current_balance + ReferralSystem::getReferralSystem('register_point');
+                                        $referral_user->total_balance = $referral_user->total_balance + ReferralSystem::getReferralSystem('register_point');
+                                        $referral_user->save();
+                                    }
+
+                                    EarningHistory::create([
+                                        "user_id" => $referral_user->id,
+                                        "amount" => ReferralSystem::getReferralSystem('register_point'),
+                                        "amount_type" => 1,
+                                        "refer_user" => $request->id,
+                                        "status" => $isFraud ? 'fraud' : 'pending'
+                                    ]);
+
+                                    // B2C Package Reward Logic
+                                    $required_invites = \App\Models\ReferralSystem::getReferralSystem('referral_invite_count') ?? 5;
+                                    $reward_days = \App\Models\ReferralSystem::getReferralSystem('referral_reward_days') ?? 15;
+                                    $reward_package_id = \App\Models\ReferralSystem::getReferralSystem('referral_reward_package_id');
+
+                                    $total_invites = \App\Models\ReferralRegister::where('referral_code', $request->get('referralCode'))->count();
+
+                                    if ($total_invites > 0 && $total_invites % $required_invites == 0) {
+                                        $sub = \App\Models\Subscription::find($reward_package_id);
+                                        if($sub) {
+                                            $referral_user->is_subscribe = 1;
+                                            $referral_user->subscription_id = $sub->id;
+                                            $current_end = $referral_user->subscription_end_date && strtotime($referral_user->subscription_end_date) > time() ? $referral_user->subscription_end_date : date('Y-m-d');
+                                            $referral_user->subscription_end_date = date('Y-m-d', strtotime($current_end . " + {$reward_days} days"));
+                                            $referral_user->save();
+                                        }
+                                    }
+                                }
+
+                                $user = User::find($request->id);
+                                $ReferralRegister = ReferralRegister::where('user_id',$user->id)->first();
+
+                                $data = array(
+                                    'userId' => $user->id, 
+                                    'userName' => $user->name,
+                                    'emailId' => $user->email, 
+                                    'password' => "",
+                                    'country' => $user->country,
+                                    'phoneNumber' => $user->mobile_no,
+                                    'useReferral' => ($ReferralRegister)?$ReferralRegister->referral_code:"",
+                                    'planName' => $user->active_subscription ? $user->active_subscription->plan_name : "",
+                                    'planDuration' => $user->active_subscription ? $user->active_subscription->duration." ".$user->active_subscription->duration_type : "",
+                                    'planStartDate' => ($user->subscription_start_date)?$user->subscription_start_date:"",
+                                    'planEndDate' => ($user->subscription_start_date)?$user->subscription_end_date:"",
+                                    'isSubscribe' => ($user->is_subscribe && !empty($user->subscription_end_date))?(date("Y-m-d", strtotime($user->subscription_end_date)) >= date("Y-m-d",strtotime('today')))?true:false:false,
+                                    'userType' => $user->login_type,
+            'isPartner' => ($user->is_partner == 1) ? true : false, 
+                                    'businessLimit' => (!empty($user->subscription_end_date) && date("Y-m-d", strtotime($user->subscription_end_date)) >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
+                                    'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
+                                                    'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
+            'adConfig' => $user->getAdConfigPayload(),
+            'currentStreak' => $user->current_streak ?? 1,
+            'maxStreak' => $user->max_streak ?? 1
+                                );
                             }
                             else
                             {
                                 return response()->json([
                                     'status' => "Error",
-                                    'message' => "Please Verify Email Id!",
-                                ], 404);
+                                    'message' => "Mobile No Already Register!",
+                                ], 200);
                             }
-                        }
                     }
                     else
                     {
                         return response()->json([
                             'status' => "Error",
                             'message' => "This Function not work for Demo User!",
-                        ], 404);
+                        ], 200);
                     }
                 }
                 else 
@@ -766,7 +762,7 @@ class AuthApi extends Controller
                     return response()->json([
                         'status' => "Error",
                         'message' => "Invalid userId",
-                    ], 404);
+                    ], 200);
                 }
             }
             else
@@ -774,7 +770,7 @@ class AuthApi extends Controller
                 return response()->json([
                     'status' => "Error",
                     'message' => "Invalid Referral Code",
-                ], 404);
+                ], 200);
             }
         }
         else
@@ -796,84 +792,75 @@ class AuthApi extends Controller
         
                     return response()->json([
                         'status' => "Error",
-                        'message' => $errors,
-                    ], 404);
+                        'message' => implode("\n", $errors),
+                    ], 200);
                 }
                 else
                 {
-                    if($user->email_verified_at != null)
-                    {
-                        $user_mobile = User::where("mobile_no",$request->get("mobile_no"))->first();
-                        if($request->get("mobile_no") == null || empty($user_mobile) || $user_mobile->id == $user->id)
-                        {
-                            $user = User::find($request->id);
-                            $user->name = $request->get("name");
-                            $user->email = $request->get("email");
-                            $user->country = $request->get("country");
-                            $user->mobile_no = $request->get("mobile_no");
-                            $user->save();
-                
-                            if(StorageSetting::getStorageSetting("storage") == "DigitalOcean")
+                            // Removed email_verified_at check to allow profile updates
+                            $user_mobile = User::where("mobile_no",$request->get("mobile_no"))->first();
+                            if($request->get("mobile_no") == null || empty($user_mobile) || $user_mobile->id == $user->id)
                             {
-                                if ($request->file("image") && $request->file('image')->isValid()) {
-                                    $image = $request->file('image');
-                                    $file = Str::uuid().'.'.$image->getClientOriginalExtension();
-                            
-                                    $path = Storage::disk('spaces')->put('uploads/'.$file, file_get_contents($image),'public');
-                                    
-                                    $user = User::find($request->id);
-                                    $user->image = $file;
-                                    $user->save();
+                                $user = User::find($request->id);
+                                $user->name = $request->get("name");
+                                $user->email = $request->get("email");
+                                $user->country = $request->get("country");
+                                $user->mobile_no = $request->get("mobile_no");
+                                $user->save();
+                    
+                                if(StorageSetting::getStorageSetting("storage") == "DigitalOcean")
+                                {
+                                    if ($request->file("image") && $request->file('image')->isValid()) {
+                                        $image = $request->file('image');
+                                        $file = Str::uuid().'.'.$image->getClientOriginalExtension();
+                                
+                                        $path = Storage::disk('spaces')->put('uploads/'.$file, file_get_contents($image),'public');
+                                        
+                                        $user = User::find($request->id);
+                                        $user->image = $file;
+                                        $user->save();
+                                    }
                                 }
+                                else
+                                {
+                                    if ($request->file("image") && $request->file('image')->isValid()) {
+                                        $this->upload_image($request->file("image"),"image", $request->id);
+                                    }
+                                }
+                                
+                                $user = User::find($request->id);
+                                $ReferralRegister = ReferralRegister::where('user_id',$user->id)->first();
+                                
+                                $data = array(
+                                    'userId' => $user->id, 
+                                    'userName' => $user->name,
+                                    'emailId' => $user->email, 
+                                    'password' => "",
+                                    'country' => $user->country,
+                                    'phoneNumber' => $user->mobile_no,
+                                    'useReferral' => ($ReferralRegister)?$ReferralRegister->referral_code:"",
+                                    'planName' => $user->active_subscription ? $user->active_subscription->plan_name : "",
+                                    'planDuration' => $user->active_subscription ? $user->active_subscription->duration." ".$user->active_subscription->duration_type : "",
+                                    'planStartDate' => ($user->subscription_start_date)?$user->subscription_start_date:"",
+                                    'planEndDate' => ($user->subscription_start_date)?$user->subscription_end_date:"",
+                                    'isSubscribe' => ($user->is_subscribe && !empty($user->subscription_end_date))?(date("Y-m-d", strtotime($user->subscription_end_date)) >= date("Y-m-d",strtotime('today')))?true:false:false,
+                                    'userType' => $user->login_type,
+            'isPartner' => ($user->is_partner == 1) ? true : false, 
+                                    'businessLimit' => (!empty($user->subscription_end_date) && date("Y-m-d", strtotime($user->subscription_end_date)) >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
+                                    'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
+                                                    'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
+            'adConfig' => $user->getAdConfigPayload(),
+            'currentStreak' => $user->current_streak ?? 1,
+            'maxStreak' => $user->max_streak ?? 1
+                                );
                             }
                             else
                             {
-                                if($request->file("image") && $request->file('image')->isValid()) {
-                                    $this->upload_image($request->file("image"),"image", $request->id);
-                                }
+                                return response()->json([
+                                    'status' => "Error",
+                                    'message' => "Mobile No Already Register!",
+                                ], 200);
                             }
-                            
-                            $user = User::find($request->id);
-                            $ReferralRegister = ReferralRegister::where('user_id',$user->id)->first();
-                            
-                            $data = array(
-                                'userId' => $user->id, 
-                                'userName' => $user->name,
-                                'emailId' => $user->email, 
-                                'password' => "",
-                                'country' => $user->country,
-                                'phoneNumber' => $user->mobile_no,
-                                'useReferral' => ($ReferralRegister)?$ReferralRegister->referral_code:"",
-                                'planName' => $user->active_subscription ? $user->active_subscription->plan_name : "",
-                                'planDuration' => $user->active_subscription ? $user->active_subscription->duration." ".$user->active_subscription->duration_type : "",
-                                'planStartDate' => ($user->subscription_start_date)?$user->subscription_start_date:"",
-                                'planEndDate' => ($user->subscription_start_date)?$user->subscription_end_date:"",
-                                'isSubscribe' => ($user->is_subscribe)?(date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?true:false:false,
-                                'userType' => $user->login_type,
-                'isPartner' => ($user->is_partner == 1) ? true : false, 
-                                'businessLimit' => (date_format(date_create(implode("", preg_split("/[-\s:,]/", $user->subscription_end_date))),"Y-m-d") >= date("Y-m-d",strtotime('today')))?$user->business_limit:1,   
-                                'profileImage' => ($user->image)?(substr($user->image, 0, 4)=="http")?$user->image:((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$user->image):asset('uploads/'.$user->image)):"",
-                                                'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
-                'adConfig' => $user->getAdConfigPayload(),
-                'currentStreak' => $user->current_streak ?? 1,
-                'maxStreak' => $user->max_streak ?? 1
-                            );
-                        }
-                        else
-                        {
-                            return response()->json([
-                                'status' => "Error",
-                                'message' => "Mobile No Already Register!",
-                            ], 404);
-                        }
-                    }
-                    else
-                    {
-                        return response()->json([
-                            'status' => "Error",
-                            'message' => "Please Verify Email Id!",
-                        ], 404);
-                    }
                 }
             }
             else 
@@ -881,11 +868,30 @@ class AuthApi extends Controller
                 return response()->json([
                     'status' => "Error",
                     'message' => "Invalid userId",
-                ], 404);
+                ], 200);
             }
         }
 
-        return $data;
+        return response()->json([
+            'status' => 'Success',
+            'message' => 'Profile Updated Successfully',
+            'data' => $data
+        ], 200);
+
+        } catch (\Exception $e) {
+            \Log::error('=== PROFILE_UPDATE ERROR ===', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json([
+                'status' => 'Error',
+                'message' => 'Server error: ' . $e->getMessage(),
+                'debug_file' => $e->getFile(),
+                'debug_line' => $e->getLine(),
+            ], 500);
+        }
     }
 
     private function upload_image($file,$field,$id)
@@ -1451,3 +1457,4 @@ class AuthApi extends Controller
         ]);
     }
 }
+

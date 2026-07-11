@@ -317,8 +317,8 @@ class UserController extends Controller
 
             $user = User::find($request->get("id"));
             $user->subscription_id = $request->get("plan");
-            $user->subscription_start_date = Carbon::createFromFormat('d M, y',$request->get("subscription_start_from"))->format('Y-m-d');
-            $user->subscription_end_date = Carbon::createFromFormat('d M, y',$request->get("subscription_start_to"))->format('Y-m-d');
+            $user->subscription_start_date = Carbon::parse($request->get("subscription_start_from"))->format('Y-m-d');
+            $user->subscription_end_date = Carbon::parse($request->get("subscription_start_to"))->format('Y-m-d');
             $user->is_subscribe = 1;
             $user->business_limit = $subscription->business_limit;
             $user->save();

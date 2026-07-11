@@ -85,6 +85,8 @@ class AdService {
     return '';
   }
 
+  static bool get hasValidNativeAdId => _dynamicNativeId.isNotEmpty;
+
   // ── State ──
   InterstitialAd? _interstitialAd;
   RewardedAd? _rewardedAd;

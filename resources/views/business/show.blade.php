@@ -1,311 +1,290 @@
 @extends('layouts.app')
 
 @section('heading')
-  <div class="text-primary">View Business</div>
+  <div class="d-flex align-items-center">
+      <a href="{{ url('admin/business') }}" class="btn btn-sm btn-light rounded-circle shadow-sm mr-3" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; border: 1px solid #e2e8f0;">
+          <i class="fa-solid fa-arrow-left text-primary"></i>
+      </a>
+      <div>
+          <h4 class="font-weight-bold mb-0 text-dark" style="letter-spacing: -0.5px;">Business Details</h4>
+          <small class="text-muted" style="font-size: 0.85rem; font-weight: 500;">Overview and management</small>
+      </div>
+  </div>
 @endsection
 
 @section('extra_css')
   <style type="text/css">
-    .card {
-      position: relative;
-      width: 100%;
-      border-radius: 10px;
+    .business-card-premium {
       border: none;
-    }
-
-    .upper {
-      height: 100px;
-    }
-
-    .upper img {
-      width: 100%;
-      height: 100px;
-      border-top-left-radius: 10px;
-      border-top-right-radius: 10px;
-    }
-
-    .user {
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+      background: #fff;
       position: relative;
     }
-
-    .profile {
-      height: 100px;
-      width: 100px;
+    
+    .business-header-gradient {
+      height: 140px;
+      background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+      position: relative;
+    }
+    
+    .business-profile-container {
       position: absolute;
-      left: 50%;
-      top: 15%;
-      transform: translate(-50%, -50%);
+      left: 40px;
+      bottom: -45px;
+      display: flex;
+      align-items: flex-end;
+    }
+    
+    .business-profile-img {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      border: 4px solid #fff;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      background-color: white;
+      object-fit: cover;
+    }
+    
+    .business-title-container {
+      margin-left: 20px;
+      margin-bottom: 55px; /* Push above the border */
+      color: #fff;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .business-name {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 0;
+    }
+    
+    .business-badge {
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(4px);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      display: inline-block;
+      margin-top: 5px;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 20px;
+      padding: 20px;
+    }
+    
+    .info-card {
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      align-items: flex-start;
+      border: 1px solid #edf2f7;
+      transition: all 0.3s ease;
+    }
+    
+    .info-card:hover {
+      background: #fff;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+      border-color: #e2e8f0;
+      transform: translateY(-2px);
+    }
+    
+    .info-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 15px;
+      flex-shrink: 0;
+    }
+    
+    .icon-blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+    .icon-purple { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+    .icon-green { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+    .icon-orange { background: rgba(249, 115, 22, 0.1); color: #f97316; }
+    .icon-red { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+    .icon-indigo { background: rgba(99, 102, 241, 0.1); color: #6366f1; }
+    
+    .info-content {
+      overflow: hidden;
+    }
+    
+    .info-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #64748b;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    
+    .info-value {
+      font-size: 0.95rem;
+      color: #1e293b;
+      font-weight: 500;
+      word-break: break-word;
+    }
+
+    .extra-items-list {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed #cbd5e1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .extra-item {
+      font-size: 0.85rem;
+      color: #475569;
+      background: #f1f5f9;
+      padding: 3px 8px;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+    }
+    
+    .extra-item i {
+      font-size: 0.75rem;
+      margin-right: 6px;
+      opacity: 0.7;
     }
   </style>
 @endsection
 
 @section('content')
-  <div class="row border-top">
-    <div class="col-md-1 d-md-block"></div>
-    <div class="col-md-5 mt-5">
-      <div class="card card-light">
-        <div class="upper">
-          <img src="{{asset('assets/images/BG1.png')}}" class="img-fluid">
+  <div class="row">
+    <div class="col-xl-8 col-lg-10 mx-auto mt-4">
+      
+      <div class="business-card-premium mb-5">
+        <!-- Header Gradient & Profile -->
+        <div class="business-header-gradient">
+          <div class="business-profile-container">
+            <img 
+              src="@if($data->logo) @if(App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean'){{\Storage::disk('spaces')->url('uploads/' . $data->logo)}} @else {{asset('uploads/' . $data->logo)}} @endif @else {{asset('assets/images/no-user.jpg')}} @endif" 
+              class="business-profile-img" 
+              alt="Business Logo">
+            
+            <div class="business-title-container">
+              <h2 class="business-name">{{$data->name}}</h2>
+              @if($data->business_category_id)
+                <div class="business-badge">
+                  <i class="fa-solid fa-layer-group mr-1"></i> {{$data->business_category->name}}
+                </div>
+              @endif
+            </div>
+          </div>
         </div>
-        <div class="user text-center">
-          <div class="profile">
-            <img
-              src="@if($data->logo) @if(App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean'){{\Storage::disk('spaces')->url('uploads/' . $data->logo)}} @else {{asset('uploads/' . $data->logo)}} @endif @else {{asset('assets/images/no-user.jpg')}} @endif"
-              class="rounded-circle border-primary shadow" style="background-color:white;" width="90px" height="90px">
-          </div>
-        </div>
-        <!-- <div class="w-100"><img src="@if($data->logo) {{asset('uploads/'.$data->logo)}} @else {{asset('assets/images/no-user.jpg')}} @endif" alt="Logo" class="rounded-circle profile_img shadow bg-white rounded border-primary"></div> -->
-        <div class="mt-5 text-center">
-          <h4 class="mb-0 text-primary">{{$data->name}}</h4>
-          <span class="text-muted d-block">{{$data->address}}</span>
-        </div>
-        <div class="d-flex flex-column mt-4 mb-4">
-          <div class="mt-2 ml-5">
-            <i class="fa-solid fa-envelope text-primary"></i><span class="ml-3">{{$data->email}}</span>
-          </div>
 
-          <div class="mt-2 ml-5">
-            <i class="fa-solid fa-phone text-primary"></i><span class="ml-3">{{$data->mobile_no}}</span>
-          </div>
-
-          <div class="mt-2 ml-5">
-            <i class="fa-solid fa-globe text-primary"></i></i><span class="ml-3">{{$data->website}}</span>
-          </div>
-
-          <div class="mt-2 ml-5">
-            <i class="fa-solid fa-circle-plus text-primary"></i></i><span
-              class="ml-3">{{$data->created_at->format('d/m/Y')}}</span>
-          </div>
-
-          <div class="mt-2 ml-5">
-            <i class="fa-solid fa-list text-primary"></i></i><span
-              class="ml-3">@if($data->business_category_id){{$data->business_category->name}}@endif</span>
-          </div>
-
-          @if($data->extra_emails && count($data->extra_emails) > 0)
-          <div class="mt-3 ml-5">
-            <small class="text-muted d-block mb-1"><b>Extra Emails</b></small>
-            @foreach($data->extra_emails as $extraEmail)
-            <div class="mt-1">
-              <i class="fa-regular fa-envelope text-secondary"></i><span class="ml-3">{{ $extraEmail }}</span>
+        <!-- Body Content -->
+        <div style="padding: 60px 20px 20px 20px;">
+          
+          <div class="info-grid">
+            <!-- Email -->
+            <div class="info-card">
+              <div class="info-icon icon-blue">
+                <i class="fa-solid fa-envelope"></i>
+              </div>
+              <div class="info-content">
+                <div class="info-label">Primary Email</div>
+                <div class="info-value">{{$data->email ?: 'N/A'}}</div>
+                @if($data->extra_emails && count($data->extra_emails) > 0)
+                  <div class="extra-items-list">
+                    @foreach($data->extra_emails as $extraEmail)
+                      <div class="extra-item"><i class="fa-solid fa-at"></i> {{ $extraEmail }}</div>
+                    @endforeach
+                  </div>
+                @endif
+              </div>
             </div>
-            @endforeach
-          </div>
-          @endif
 
-          @if($data->extra_mobile_numbers && count($data->extra_mobile_numbers) > 0)
-          <div class="mt-3 ml-5">
-            <small class="text-muted d-block mb-1"><b>Extra Mobile Numbers</b></small>
-            @foreach($data->extra_mobile_numbers as $extraPhone)
-            <div class="mt-1">
-              <i class="fa-solid fa-mobile-screen text-secondary"></i><span class="ml-3">{{ $extraPhone }}</span>
+            <!-- Mobile -->
+            <div class="info-card">
+              <div class="info-icon icon-purple">
+                <i class="fa-solid fa-phone"></i>
+              </div>
+              <div class="info-content">
+                <div class="info-label">Primary Mobile</div>
+                <div class="info-value">{{$data->mobile_no ?: 'N/A'}}</div>
+                @if($data->extra_mobile_numbers && count($data->extra_mobile_numbers) > 0)
+                  <div class="extra-items-list">
+                    @foreach($data->extra_mobile_numbers as $extraPhone)
+                      <div class="extra-item"><i class="fa-solid fa-mobile-screen"></i> {{ $extraPhone }}</div>
+                    @endforeach
+                  </div>
+                @endif
+              </div>
             </div>
-            @endforeach
-          </div>
-          @endif
 
-          @if($data->extra_websites && count($data->extra_websites) > 0)
-          <div class="mt-3 ml-5">
-            <small class="text-muted d-block mb-1"><b>Extra Websites</b></small>
-            @foreach($data->extra_websites as $extraWeb)
-            <div class="mt-1">
-              <i class="fa-solid fa-link text-secondary"></i><span class="ml-3">{{ $extraWeb }}</span>
+            <!-- Website -->
+            <div class="info-card">
+              <div class="info-icon icon-green">
+                <i class="fa-solid fa-globe"></i>
+              </div>
+              <div class="info-content">
+                <div class="info-label">Primary Website</div>
+                <div class="info-value">{{$data->website ?: 'N/A'}}</div>
+                @if($data->extra_websites && count($data->extra_websites) > 0)
+                  <div class="extra-items-list">
+                    @foreach($data->extra_websites as $extraWeb)
+                      <div class="extra-item"><i class="fa-solid fa-link"></i> {{ $extraWeb }}</div>
+                    @endforeach
+                  </div>
+                @endif
+              </div>
             </div>
-            @endforeach
-          </div>
-          @endif
 
-          @if($data->extra_addresses && count($data->extra_addresses) > 0)
-          <div class="mt-3 ml-5">
-            <small class="text-muted d-block mb-1"><b>Extra Addresses</b></small>
-            @foreach($data->extra_addresses as $extraAddr)
-            <div class="mt-1">
-              <i class="fa-solid fa-location-dot text-secondary"></i><span class="ml-3">{{ $extraAddr }}</span>
+            <!-- Address -->
+            <div class="info-card" style="grid-column: 1 / -1;">
+              <div class="info-icon icon-orange">
+                <i class="fa-solid fa-location-dot"></i>
+              </div>
+              <div class="info-content">
+                <div class="info-label">Primary Address</div>
+                <div class="info-value">{{$data->address ?: 'N/A'}}</div>
+                @if($data->extra_addresses && count($data->extra_addresses) > 0)
+                  <div class="extra-items-list" style="flex-direction: row; flex-wrap: wrap;">
+                    @foreach($data->extra_addresses as $extraAddr)
+                      <div class="extra-item"><i class="fa-solid fa-map-pin"></i> {{ $extraAddr }}</div>
+                    @endforeach
+                  </div>
+                @endif
+              </div>
             </div>
-            @endforeach
+
+            <!-- Created At -->
+            <div class="info-card">
+              <div class="info-icon icon-indigo">
+                <i class="fa-solid fa-calendar-plus"></i>
+              </div>
+              <div class="info-content">
+                <div class="info-label">Created On</div>
+                <div class="info-value">{{$data->created_at->format('d M, Y')}}</div>
+              </div>
+            </div>
+
           </div>
-          @endif
+
         </div>
       </div>
-      <!-- <div class="card-body">
-            @if (count($errors) > 0)
-              <div class="alert alert-danger">
-                <ul>
-                  @foreach ($errors->all() as $error)
-                  <li>{{ $error }}</li>
-                  @endforeach
-                </ul>
-              </div>
-            @endif
-
-            <div class="row mt-5">
-              <div class="col-12">
-                <div class="form-group row">
-                  {!! Form::label('name','Name', ['class' => 'col-sm-3 col-form-label text-primary']) !!}
-                  <span class="my-auto col-sm-9">{{$data->name}}</sapn>
-                </div>
-              </div>
-            </div>
-
-            <div class="row">
-              <div class="col-12">
-                <div class="form-group row">
-                  {!! Form::label('email','Email', ['class' => 'col-sm-3 col-form-label text-primary']) !!}
-                  <span class="my-auto col-sm-9">{{$data->email}}</sapn>
-                </div>
-              </div>
-            </div>
-
-            <div class="row">
-              <div class="col-12">
-                <div class="form-group row">
-                  {!! Form::label('mobile_no','Mobile No', ['class' => 'col-sm-3 col-form-label text-primary']) !!}
-                  <span class="my-auto col-sm-9">{{$data->mobile_no}}</sapn>
-                </div>
-              </div>
-            </div>
-
-            <div class="row">
-              <div class="col-12">
-                <div class="form-group row">
-                  {!! Form::label('website','Website', ['class' => 'col-sm-3 col-form-label text-primary']) !!}
-                  <span class="my-auto col-sm-9">{{$data->website}}</sapn>
-                </div>
-              </div>
-            </div>
-
-            <div class="row">
-              <div class="col-12">
-                <div class="form-group row">
-                  {!! Form::label('address','Address', ['class' => 'col-sm-3 col-form-label text-primary']) !!}
-                  <span class="my-auto col-sm-9">{{$data->address}}</sapn>
-                </div>
-              </div>
-            </div>
-
-            <div class="row">
-              <div class="col-12">
-                <div class="form-group row">
-                  {!! Form::label('created_at','Created', ['class' => 'col-sm-3 col-form-label text-primary']) !!}
-                  <span class="my-auto col-sm-9">{{$data->created_at->format('d/m/Y')}}</sapn>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div> -->
+      
     </div>
-    <div class="col-md-5 mt-5">
-      <div class="card card-light">
-        <div class="upper">
-          <img src="{{asset('assets/images/BG2.png')}}" class="img-fluid">
-        </div>
-        <div class="user text-center">
-          <div class="profile">
-            <img
-              src="@if($data->user->image) @if(substr($data->user->image, 0, 4) == 'http') {{$data->user->image}} @else {{asset('uploads/' . $data->user->image)}} @endif @else {{asset('assets/images/no-user.jpg')}} @endif"
-              class="rounded-circle border-primary shadow" style="background-color:white;" width="90px" height="90px">
-          </div>
-        </div>
-        <!-- <div class="w-100"><img src="@if($data->logo) {{asset('uploads/'.$data->logo)}} @else {{asset('assets/images/no-user.jpg')}} @endif" alt="Logo" class="rounded-circle profile_img shadow bg-white rounded border-primary"></div> -->
-        <div class="mt-5 text-center">
-          <h4 class="mb-0 text-primary">{{$data->user->name}}</h4>
-          <span class="text-muted d-block">{{$data->user->email}}</span>
-        </div>
-        <div class="d-flex flex-column mt-4 mb-4">
-          <div class="mt-2 ml-5">
-            <i class="fa-solid fa-phone text-primary"></i><span class="ml-3">{{$data->user->mobile_no}}</span>
-          </div>
-
-          <div class="mt-2 ml-5">
-            <i class="fa-solid fa-dollar-sign fa-xl text-primary"></i><span
-              class="ml-3">@if($data->user->subscription_id){{$data->user->subscription->plan_name}}@endif</span>
-          </div>
-
-          <div class="mt-2 ml-5">
-            <i class="fa-solid fa-hourglass-start text-primary"></i></i><span
-              class="ml-3">@if($data->user->subscription_id){{date("d M, y", strtotime($data->user->subscription_start_date))}}@endif</span>
-          </div>
-
-          <div class="mt-2 ml-5">
-            <i class="fa-solid fa-hourglass-end text-primary"></i></i><span
-              class="ml-3">@if($data->user->subscription_id){{date("d M, y", strtotime($data->user->subscription_end_date))}}@endif</span>
-          </div>
-        </div>
-        <!-- <div class="w-100"><img src="@if($data->user->image) @if(substr($data->user->image, 0, 4)=="http") {{$data->user->image}} @else {{asset('uploads/'.$data->user->image)}} @endif @else {{asset('assets/images/no-user.jpg')}} @endif" alt="Profile Image" class="rounded-circle profile_img shadow bg-white rounded border-primary"></div>
-          <div class="card-body">
-
-            <div class="row mt-5">
-              <div class="col-12">
-                <div class="form-group row">
-                  {!! Form::label('name','Name', ['class' => 'col-sm-4 col-form-label text-primary']) !!}
-                  <span class="my-auto col-sm-8">{{$data->user->name}}</sapn>
-                </div>
-              </div>
-            </div>
-
-            <div class="row">
-              <div class="col-12">
-                <div class="form-group row">
-                  {!! Form::label('email','Email', ['class' => 'col-sm-4 col-form-label text-primary']) !!}
-                  <span class="my-auto col-sm-8">{{$data->user->email}}</sapn>
-                </div>
-              </div>
-            </div>
-
-            <div class="row">
-              <div class="col-12">
-                <div class="form-group row">
-                  {!! Form::label('mobile_no','Mobile No', ['class' => 'col-sm-4 col-form-label text-primary']) !!}
-                  <span class="my-auto col-sm-8">{{$data->user->mobile_no}}</sapn>
-                </div>
-              </div>
-            </div>
-
-            <div class="row">
-              <div class="col-12">
-                <div class="form-group row">
-                  {!! Form::label('created_at','Entry', ['class' => 'col-sm-4 col-form-label text-primary']) !!}
-                  <span class="my-auto col-sm-8">{{$data->user->created_at->format('d/m/Y')}}</sapn>
-                </div>
-              </div>
-            </div>
-
-            <div class="row">
-              <div class="col-12">
-                <div class="form-group row">
-                  {!! Form::label('current_plan','Current Plan', ['class' => 'col-sm-4 col-form-label text-primary']) !!}
-                  <span class="my-auto col-sm-8">@if($data->user->subscription_id){{$data->user->subscription->plan_name}}@endif</sapn>
-                </div>
-              </div>
-            </div>
-
-            <div class="row">
-              <div class="col-12">
-                <div class="form-group row">
-                  {!! Form::label('sub_date','Subscription Start Date', ['class' => 'col-sm-4 col-form-label text-primary']) !!}
-                  <span class="my-auto col-sm-8">@if($data->user->subscription_id){{$data->user->subscription_start_date}}@endif</sapn>
-                </div>
-              </div>
-            </div>
-
-            <div class="row">
-              <div class="col-12">
-                <div class="form-group row">
-                  {!! Form::label('expire_date','Expire Date', ['class' => 'col-sm-4 col-form-label text-primary']) !!}
-                  <span class="my-auto col-sm-8">@if($data->user->subscription_id){{$data->user->subscription_end_date}}@endif</sapn>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div> -->
-      </div>
-    </div>
+  </div>
 @endsection
 
-  @section("script")
-    <script type="text/javascript">
-      $('.datepicker').datepicker({
-        format: 'dd/mm/yyyy',
-      });
-    </script>
-  @endsection
+@section("script")
+  <script type="text/javascript">
+    $('.datepicker').datepicker({
+      format: 'dd/mm/yyyy',
+    });
+  </script>
+@endsection

@@ -257,14 +257,6 @@
                         </div>
                     </div>
 
-                    <div class="grid-2">
-                        <div class="input-group-custom">
-                            <label>Website <span style="text-transform:none; font-weight:normal; color:#aaa;">(Optional)</span></label>
-                            <input type="text" name="bussinessWebsite" value="{{ old('bussinessWebsite') }}" placeholder="https://www.example.com">
-                        </div>
-                        <div></div>
-                    </div>
-
                     <!-- Business Info Section -->
                     <div class="section-divider">
                         <span>Business Profile</span>
@@ -276,6 +268,29 @@
                             <input type="text" name="bussinessName" value="{{ old('bussinessName') }}" required placeholder="e.g. Acme Corp">
                         </div>
                         <div class="input-group-custom">
+                            <label>Website <span style="text-transform:none; font-weight:normal; color:#aaa;">(Optional)</span></label>
+                            <input type="text" name="bussinessWebsite" value="{{ old('bussinessWebsite') }}" placeholder="https://www.example.com">
+                        </div>
+                    </div>
+
+                    <div class="input-group-custom" style="margin-bottom: 24px; display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="sameAsPersonal" style="width: 16px; height: 16px; margin: 0; cursor: pointer;">
+                        <label for="sameAsPersonal" style="margin: 0; cursor: pointer; text-transform: none; color: #555;">Same as personal info</label>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="input-group-custom">
+                            <label>Business Email *</label>
+                            <input type="email" name="bussinessEmail" id="bussinessEmail" value="{{ old('bussinessEmail') }}" required placeholder="business@example.com">
+                        </div>
+                        <div class="input-group-custom">
+                            <label>Business Mobile Number *</label>
+                            <input type="text" name="bussinessNumber" id="bussinessNumber" value="{{ old('bussinessNumber') }}" required placeholder="e.g. 9876543210">
+                        </div>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="input-group-custom">
                             <label>Business Category *</label>
                             <select name="businessCategoryId" id="businessCategoryId" required>
                                 <option value="">Select Category</option>
@@ -284,28 +299,24 @@
                                 @endforeach
                             </select>
                         </div>
-                    </div>
-
-                    <div class="grid-2">
                         <div class="input-group-custom">
                             <label>Business Sub-Category</label>
                             <select class="select2" name="businessSubCategoryIds[]" id="businessSubCategoryIds" multiple="multiple" data-placeholder="Select Sub Categories">
                             </select>
                         </div>
+                    </div>
+
+                    <div class="grid-2">
                         <div class="input-group-custom">
                             <label>Business Type</label>
                             <select class="select2" name="businessTypeIds[]" id="businessTypeIds" multiple="multiple" data-placeholder="Select Business Types">
                             </select>
                         </div>
-                    </div>
-
-                    <div class="grid-2">
                         <div class="input-group-custom">
                             <label>Products / Services</label>
                             <select class="select2" name="product_ids[]" id="product_ids" multiple="multiple" data-placeholder="Select Products">
                             </select>
                         </div>
-                        <div></div>
                     </div>
 
                     <button type="submit" class="btn-submit">
@@ -411,6 +422,23 @@
         } else {
             isInitialLoad = false;
         }
+
+        $('#sameAsPersonal').change(function() {
+            if($(this).is(':checked')) {
+                $('#bussinessEmail').val($('input[name="email"]').val()).prop('readonly', true).css('background-color', '#f5f5f5');
+                $('#bussinessNumber').val($('input[name="mobile_no"]').val()).prop('readonly', true).css('background-color', '#f5f5f5');
+            } else {
+                $('#bussinessEmail').val('').prop('readonly', false).css('background-color', '');
+                $('#bussinessNumber').val('').prop('readonly', false).css('background-color', '');
+            }
+        });
+
+        $('input[name="email"], input[name="mobile_no"]').on('input', function() {
+            if($('#sameAsPersonal').is(':checked')) {
+                $('#bussinessEmail').val($('input[name="email"]').val());
+                $('#bussinessNumber').val($('input[name="mobile_no"]').val());
+            }
+        });
     });
 </script>
 @endsection

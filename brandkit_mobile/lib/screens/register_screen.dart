@@ -1,13 +1,12 @@
-import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import '../controllers/auth_controller.dart';
-import '../services/api_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_text_styles.dart';
-import '../widgets/multi_select_dropdown.dart';
-import '../widgets/cascading_business_dropdowns.dart';
+
 class RegisterScreen extends StatefulWidget {
   final String? redirectRoute;
   final dynamic redirectArguments;
@@ -24,49 +23,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
-  final TextEditingController websiteController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController referralController = TextEditingController();
   
-  // Business fields
-  final TextEditingController bizNameController = TextEditingController();
-  
-  List<dynamic> _categories = [];
-  String _selectedCategoryId = '1';
-  List<String> _selectedSubCategoryIds = [];
-  List<String> _selectedBusinessTypeIds = [];
-  bool _hasTypesForSelectedSubCategory = false;
-  List<String> _selectedProductIds = [];
-  
-  // Per-category selection cache
-  final Map<String, Map<String, dynamic>> _categoryCacheMap = {};
-  int _cascadingKey = 0;
-  int _productKey = 0;
+  File? _selectedImage;
 
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  Future<List<Map<String, dynamic>>> _fetchProducts(String query) async {
-    if (_selectedSubCategoryIds.isEmpty) return [];
-    if (_hasTypesForSelectedSubCategory && _selectedBusinessTypeIds.isEmpty) {
-      return [];
-    }
-    
-    try {
-      final res = await ApiService.post('/business-products/search', {
-        'business_sub_category_id': _selectedSubCategoryIds.join(','),
-        'business_type_id': _selectedBusinessTypeIds.join(','),
-        'query': query,
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _selectedImage = File(pickedFile.path);
       });
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        List<dynamic> list = data['data'] ?? [];
-        return list.map((e) => Map<String, dynamic>.from(e)).toList();
-      }
-    } catch (_) {}
-    return [];
+    }
   }
 
   void _submit() {
@@ -74,12 +43,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         emailController.text.isEmpty || 
         phoneController.text.isEmpty || 
         passwordController.text.isEmpty) {
-      Get.snackbar('Error', 'Please fill all required personal fields', backgroundColor: Colors.redAccent, colorText: Colors.white);
-      return;
-    }
-
-    if (bizNameController.text.isEmpty) {
-      Get.snackbar('Error', 'Please provide a Business Name', backgroundColor: Colors.redAccent, colorText: Colors.white);
+      Get.snackbar('Error', 'Please fill all required fields', backgroundColor: Colors.redAccent, colorText: Colors.white);
       return;
     }
 
@@ -89,12 +53,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       phone: phoneController.text, 
       password: passwordController.text,
       referralCode: referralController.text,
-      businessName: bizNameController.text,
-      businessWebsite: websiteController.text,
-      businessCategoryId: _selectedCategoryId,
-      businessSubCategoryIds: _selectedSubCategoryIds,
-      businessTypeIds: _selectedBusinessTypeIds,
-      productIds: _selectedProductIds,
+      profileImage: _selectedImage,
       redirectRoute: widget.redirectRoute,
       redirectArguments: widget.redirectArguments,
     );
@@ -128,9 +87,42 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 40),
 
-              // Personal Details Section
-              const Text('Personal Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-              const SizedBox(height: 16),
+              // Profile Image Upload
+              Center(
+                child: GestureDetector(
+                  onTap: _pickImage,
+                  child: Stack(
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.gray200, width: 1),
+                        ),
+                        child: _selectedImage != null
+                            ? ClipOval(child: Image.file(_selectedImage!, fit: BoxFit.cover))
+                            : const Icon(Icons.person, size: 50, color: AppColors.textSecondary),
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: const BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+
               TextField(
                 controller: nameController,
                 decoration: InputDecoration(
@@ -161,16 +153,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 16),
               TextField(
-                controller: websiteController,
-                decoration: InputDecoration(
-                  labelText: 'Website (Optional)',
-                  prefixIcon: const Icon(Icons.language),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                keyboardType: TextInputType.url,
-              ),
-              const SizedBox(height: 16),
-              TextField(
                 controller: passwordController,
                 decoration: InputDecoration(
                   labelText: 'Password *',
@@ -191,74 +173,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
               
               const SizedBox(height: 32),
               
-              // Business Details Section
-              const Text('Business Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-              const SizedBox(height: 16),
-              TextField(
-                controller: bizNameController,
-                decoration: InputDecoration(
-                  labelText: 'Business Name *',
-                  prefixIcon: const Icon(Icons.business),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              
-              CascadingBusinessDropdowns(
-                key: ValueKey('reg_cascade_$_cascadingKey'),
-                initialCategoryId: _selectedCategoryId,
-                initialSubCategoryIds: _selectedSubCategoryIds,
-                initialBusinessTypeIds: _selectedBusinessTypeIds,
-                onSelected: (categoryId, subCategoryIds, businessTypeIds, hasTypes) {
-                  if (categoryId != _selectedCategoryId && categoryId.isNotEmpty) {
-                    if (_selectedCategoryId.isNotEmpty) {
-                      _categoryCacheMap[_selectedCategoryId] = {
-                        'subCategoryIds': List<String>.from(_selectedSubCategoryIds),
-                        'businessTypeIds': List<String>.from(_selectedBusinessTypeIds),
-                        'productIds': List<String>.from(_selectedProductIds),
-                        'hasTypes': _hasTypesForSelectedSubCategory,
-                      };
-                    }
-                    final cached = _categoryCacheMap[categoryId];
-                    setState(() {
-                      _selectedCategoryId = categoryId;
-                      if (cached != null) {
-                        _selectedSubCategoryIds = List<String>.from(cached['subCategoryIds'] ?? []);
-                        _selectedBusinessTypeIds = List<String>.from(cached['businessTypeIds'] ?? []);
-                        _selectedProductIds = List<String>.from(cached['productIds'] ?? []);
-                        _hasTypesForSelectedSubCategory = cached['hasTypes'] ?? false;
-                      } else {
-                        _selectedSubCategoryIds = subCategoryIds;
-                        _selectedBusinessTypeIds = businessTypeIds;
-                        _selectedProductIds = [];
-                        _hasTypesForSelectedSubCategory = hasTypes;
-                      }
-                      _cascadingKey++;
-                      _productKey++;
-                    });
-                  } else {
-                    setState(() {
-                      _selectedCategoryId = categoryId;
-                      _selectedSubCategoryIds = subCategoryIds;
-                      _selectedBusinessTypeIds = businessTypeIds;
-                      _hasTypesForSelectedSubCategory = hasTypes;
-                      _selectedProductIds.clear();
-                      _productKey++;
-                    });
-                  }
-                },
-              ),
-              
-              const SizedBox(height: 16),
-              MultiSelectDropdown(
-                key: ValueKey('reg_products_$_productKey'),
-                title: 'Products / Services (Optional)',
-                initialSelectedIds: _selectedProductIds,
-                fetchItems: _fetchProducts,
-                onChanged: (ids) => setState(() => _selectedProductIds = ids),
-              ),
-
-              const SizedBox(height: 32),
               Obx(() => ElevatedButton(
                 onPressed: authController.isLoading.value ? null : _submit,
                 style: ElevatedButton.styleFrom(
@@ -283,5 +197,4 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ),
     );
   }
-
 }

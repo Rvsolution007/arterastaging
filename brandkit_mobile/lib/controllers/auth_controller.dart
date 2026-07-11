@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -7,6 +8,7 @@ import '../screens/dashboard_screen.dart'; // We will create this next
 import '../screens/login_screen.dart';
 import '../screens/business_profile_screen.dart';
 import '../widgets/guest_login_prompt_sheet.dart';
+import '../widgets/create_business_prompt_sheet.dart';
 import '../controllers/ad_controller.dart';
 import '../controllers/home_controller.dart';
 import '../services/notification_service.dart';
@@ -28,14 +30,16 @@ class AuthController extends GetxController {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('userId', data['userId'].toString());
         await prefs.setBool('isGuest', false);
-        await prefs.setString('userName', data['userName']);
-        await prefs.setString('emailId', data['emailId']);
+        await prefs.setString('userName', data['userName']?.toString() ?? '');
+        await prefs.setString('emailId', data['emailId']?.toString() ?? '');
+        await prefs.setString('phoneNumber', data['phoneNumber']?.toString() ?? '');
+        await prefs.setString('profileImage', data['profileImage']?.toString() ?? '');
         
         // Save subscription info for Profile & Header
-        await prefs.setString('planName', data['planName'] ?? '');
-        await prefs.setString('planDuration', data['planDuration'] ?? '');
-        await prefs.setString('planStartDate', data['planStartDate'] ?? '');
-        await prefs.setString('planEndDate', data['planEndDate'] ?? '');
+        await prefs.setString('planName', data['planName']?.toString() ?? '');
+        await prefs.setString('planDuration', data['planDuration']?.toString() ?? '');
+        await prefs.setString('planStartDate', data['planStartDate']?.toString() ?? '');
+        await prefs.setString('planEndDate', data['planEndDate']?.toString() ?? '');
         await prefs.setBool('isSubscribe', data['isSubscribe'] ?? false);
         await prefs.setBool('isPartner', data['isPartner'] ?? false);
         
@@ -88,13 +92,7 @@ class AuthController extends GetxController {
     required String phone,
     required String password,
     String referralCode = '',
-    String? businessName,
-    String? businessCategoryId,
-    List<String>? businessSubCategoryIds,
-    List<String>? businessTypeIds,
-    List<String>? productIds,
-    String? businessWebsite,
-    String? businessAddress,
+    File? profileImage,
     String? redirectRoute,
     dynamic redirectArguments,
   }) async {
@@ -109,17 +107,17 @@ class AuthController extends GetxController {
         'referralCode': referralCode,
       };
 
-      if (businessName != null && businessName.isNotEmpty) {
-        payload['bussinessName'] = businessName;
-        if (businessCategoryId != null) payload['businessCategoryId'] = businessCategoryId;
-        if (businessSubCategoryIds != null) payload['businessSubCategoryIds'] = businessSubCategoryIds.join(',');
-        if (businessTypeIds != null) payload['businessTypeIds'] = businessTypeIds.join(',');
-        if (productIds != null) payload['product_ids'] = productIds.join(',');
-        if (businessWebsite != null) payload['bussinessWebsite'] = businessWebsite;
-        if (businessAddress != null) payload['bussinessAddress'] = businessAddress;
+      var response;
+      if (profileImage != null) {
+        response = await ApiService.multipartPost(
+          '/registration',
+          payload,
+          fileKey: 'image',
+          filePath: profileImage.path,
+        );
+      } else {
+        response = await ApiService.post('/registration', payload);
       }
-
-      final response = await ApiService.post('/registration', payload);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -128,14 +126,16 @@ class AuthController extends GetxController {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('userId', data['userId'].toString());
         await prefs.setBool('isGuest', false);
-        await prefs.setString('userName', data['userName']);
-        await prefs.setString('emailId', data['emailId']);
+        await prefs.setString('userName', data['userName']?.toString() ?? '');
+        await prefs.setString('emailId', data['emailId']?.toString() ?? '');
+        await prefs.setString('phoneNumber', data['phoneNumber']?.toString() ?? '');
+        await prefs.setString('profileImage', data['profileImage']?.toString() ?? '');
         
         // Save subscription info for Profile & Header
-        await prefs.setString('planName', data['planName'] ?? '');
-        await prefs.setString('planDuration', data['planDuration'] ?? '');
-        await prefs.setString('planStartDate', data['planStartDate'] ?? '');
-        await prefs.setString('planEndDate', data['planEndDate'] ?? '');
+        await prefs.setString('planName', data['planName']?.toString() ?? '');
+        await prefs.setString('planDuration', data['planDuration']?.toString() ?? '');
+        await prefs.setString('planStartDate', data['planStartDate']?.toString() ?? '');
+        await prefs.setString('planEndDate', data['planEndDate']?.toString() ?? '');
         await prefs.setBool('isSubscribe', data['isSubscribe'] ?? false);
         await prefs.setBool('isPartner', data['isPartner'] ?? false);
         
@@ -312,17 +312,24 @@ class AuthController extends GetxController {
         if (hc.businessId.value.isEmpty || (hc.businessPhone.value.isEmpty && hc.businessEmail.value.isEmpty)) {
           hasValidBusiness = false;
         }
+      } else {
+        final cachedBizId = prefs.getString('cached_biz_id') ?? '';
+        final cachedBizPhone = prefs.getString('cached_biz_phone') ?? '';
+        final cachedBizEmail = prefs.getString('cached_biz_email') ?? '';
+        if (cachedBizId.isEmpty || (cachedBizPhone.isEmpty && cachedBizEmail.isEmpty)) {
+          hasValidBusiness = false;
+        }
       }
 
       if (!hasValidBusiness) {
-        Get.snackbar(
-          'Profile Incomplete',
-          'Please complete your business profile (add mobile or email) to use the editor.',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.orangeAccent,
-          colorText: Colors.white,
+        Get.bottomSheet(
+          CreateBusinessPromptSheet(
+            redirectRoute: route,
+            redirectArguments: arguments,
+          ),
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
         );
-        Get.to(() => const BusinessProfileScreen());
         return;
       }
 

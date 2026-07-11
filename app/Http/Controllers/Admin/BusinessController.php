@@ -143,7 +143,10 @@ class BusinessController extends Controller
     {
         $business = Business::find($id);
         $category =  BusinessCategory::where('status',1)->get();
-        return view("business.edit", compact("business","category"));
+        $user_data = User::find($business->user_id);
+        $subscription = \App\Models\Subscription::where('status',1)->get();
+        $transaction = \App\Models\Transaction::where('user_id',$business->user_id)->get();
+        return view("business.edit", compact("business","category","user_data","subscription","transaction"));
     }
 
     public function update(Request $request, $id)

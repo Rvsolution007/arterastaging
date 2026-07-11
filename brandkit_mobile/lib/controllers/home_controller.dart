@@ -45,6 +45,10 @@ class HomeController extends GetxController {
   var businessCategoryId = ''.obs;
   var businessId = ''.obs;
   
+  // User info
+  var userName = ''.obs;
+  var userProfileImage = ''.obs;
+  
   // List of all businesses
   var businesses = [].obs;
   
@@ -157,6 +161,11 @@ class HomeController extends GetxController {
       }
 
       final userId = prefs.getString('userId') ?? '';
+      
+      // Load user info for Profile screen
+      userName.value = prefs.getString('userName') ?? '';
+      userProfileImage.value = prefs.getString('profileImage') ?? '';
+      
       final response = await ApiService.get('/business?userId=$userId');
       debugPrint('[HomeCtrl] Business API status: ${response.statusCode}');
       debugPrint('[HomeCtrl] Business API body: ${response.body}');

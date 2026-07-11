@@ -63,20 +63,19 @@ class MyBusinessScreen extends StatelessWidget {
             child: Row(
               children: [
                 Obx(() {
-                  final logo = hc.businessLogo.value;
-                  return Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.slate200),
-                      color: logo.isEmpty ? AppColors.slate100 : Colors.white,
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: logo.isNotEmpty
+                  return CircleAvatar(
+                    radius: 36,
+                    backgroundColor: AppColors.slate100,
+                    child: hc.userProfileImage.value.isNotEmpty
                         ? CachedNetworkImage(
-                            imageUrl: '${hc.uploadsBaseUrl}/$logo',
-                            fit: BoxFit.cover,
+                            imageUrl: '${hc.uploadsBaseUrl}/${hc.userProfileImage.value}',
+                            imageBuilder: (context, imageProvider) => Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                image: DecorationImage(image: imageProvider, fit: BoxFit.cover),
+                              ),
+                            ),
+                            placeholder: (_, __) => _buildPlaceholderIcon(),
                             errorWidget: (_, __, ___) => _buildPlaceholderIcon(),
                           )
                         : _buildPlaceholderIcon(),
@@ -85,7 +84,7 @@ class MyBusinessScreen extends StatelessWidget {
                 AppSpacing.gapH20,
                 Expanded(
                   child: Obx(() => Text(
-                    hc.businessName.value.isNotEmpty ? hc.businessName.value : 'business'.trFormat,
+                    hc.userName.value.isNotEmpty ? hc.userName.value : 'User Name',
                     style: AppTextStyles.heading2,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,

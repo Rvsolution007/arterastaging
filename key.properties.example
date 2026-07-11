@@ -1,0 +1,7 @@
+# Android Signing Key Configuration
+# Copy this file to key.properties and fill in your real values.
+# NEVER commit key.properties to version control.
+storePassword=YOUR_KEYSTORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=upload
+storeFile=upload-keystore.jks

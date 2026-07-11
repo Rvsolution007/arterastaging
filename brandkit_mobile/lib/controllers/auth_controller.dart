@@ -56,7 +56,7 @@ class AuthController extends GetxController {
         }
         
         if (Get.isRegistered<HomeController>()) {
-          Get.find<HomeController>().loadBusinessInfo();
+          await Get.find<HomeController>().loadBusinessInfo();
           Get.find<HomeController>().fetchHomeData();
         }
         
@@ -67,7 +67,11 @@ class AuthController extends GetxController {
         // Navigate to Dashboard or Redirect Route
         if (redirectRoute != null) {
           Get.offAll(() => const DashboardScreen());
-          Get.toNamed(redirectRoute, arguments: redirectArguments);
+          if (redirectRoute.startsWith('/editor')) {
+            checkAndNavigateToEditor(redirectRoute, arguments: redirectArguments);
+          } else {
+            Get.toNamed(redirectRoute, arguments: redirectArguments);
+          }
         } else {
           Get.offAll(() => const DashboardScreen());
         }
@@ -152,7 +156,7 @@ class AuthController extends GetxController {
         }
         
         if (Get.isRegistered<HomeController>()) {
-          Get.find<HomeController>().loadBusinessInfo();
+          await Get.find<HomeController>().loadBusinessInfo();
           Get.find<HomeController>().fetchHomeData();
         }
 
@@ -163,7 +167,11 @@ class AuthController extends GetxController {
         // Auto-login and navigate to Dashboard or Redirect Route
         if (redirectRoute != null) {
           Get.offAll(() => const DashboardScreen());
-          Get.toNamed(redirectRoute, arguments: redirectArguments);
+          if (redirectRoute.startsWith('/editor')) {
+            checkAndNavigateToEditor(redirectRoute, arguments: redirectArguments);
+          } else {
+            Get.toNamed(redirectRoute, arguments: redirectArguments);
+          }
         } else {
           Get.offAll(() => const DashboardScreen());
         }

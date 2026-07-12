@@ -344,30 +344,56 @@ class TemplateBuilderController extends Controller
                 }
 
                 // If EditorTemplate found, use its schema_json (vector shapes preserved)
+                // BUT ONLY if the EditorTemplate's asset files actually exist locally.
+                // When a frame is imported from staging but the EditorTemplate assets
+                // directory was never synced, the assets/ files will be missing.
+                // In that case, skip the EditorTemplate and use the original ZIP JSON.
                 if ($editorTemplate && is_array($editorTemplate->schema_json)) {
-                    $jsonConfig = $editorTemplate->schema_json;
-                    if (isset($jsonConfig['elements'])) {
-                        foreach ($jsonConfig['elements'] as &$el) {
+                    $schemaCandidate = $editorTemplate->schema_json;
+                    $hasAllAssets = true;
+                    
+                    if (isset($schemaCandidate['elements'])) {
+                        foreach ($schemaCandidate['elements'] as $el) {
                             if (isset($el['src']) && strpos($el['src'], 'assets/') === 0) {
-                                $el['src'] = asset('uploads/editor/templates/' . $editorUuid . '/' . $el['src']);
+                                $assetPath = public_path('uploads/editor/templates/' . $editorUuid . '/' . $el['src']);
+                                if (!file_exists($assetPath)) {
+                                    $hasAllAssets = false;
+                                    break;
+                                }
                             }
                         }
                     }
-                    // Extract and load fonts from schema
-                    $schemaFonts = [];
-                    array_walk_recursive($jsonConfig, function($value, $key) use (&$schemaFonts) {
-                        if ($key === 'font' || $key === 'fontFamily' || $key === 'family') {
-                            $schemaFonts[] = $value;
-                        }
-                    });
-                    $schemaFonts = array_unique($schemaFonts);
-                    foreach ($schemaFonts as $fontName) {
-                        if (!isset($fonts[$fontName])) {
-                            $normalizedFontName = str_replace([' ', '-', '_'], '', strtolower($fontName));
-                            $fontDb = \App\Models\Font::whereRaw("LOWER(REPLACE(REPLACE(REPLACE(name, ' ', ''), '-', ''), '_', '')) = ?", [$normalizedFontName])->first();
-                            if ($fontDb) {
-                                $fonts[$fontName] = asset($fontDb->file_path);
+
+                    if ($hasAllAssets) {
+                        // All assets exist locally — use EditorTemplate schema (preserves vector shapes)
+                        $jsonConfig = $schemaCandidate;
+                        if (isset($jsonConfig['elements'])) {
+                            foreach ($jsonConfig['elements'] as &$el) {
+                                if (isset($el['src']) && strpos($el['src'], 'assets/') === 0) {
+                                    $el['src'] = asset('uploads/editor/templates/' . $editorUuid . '/' . $el['src']);
+                                }
                             }
+                            unset($el);
+                        }
+                    } else {
+                        // Assets missing locally (e.g. imported from staging) — use original ZIP JSON
+                        \Log::info('[loadFrameZip] EditorTemplate assets missing locally for frame #' . $id . ', using ZIP JSON instead');
+                    }
+                }
+                // Extract and load fonts from schema
+                $schemaFonts = [];
+                array_walk_recursive($jsonConfig, function($value, $key) use (&$schemaFonts) {
+                    if ($key === 'font' || $key === 'fontFamily' || $key === 'family') {
+                        $schemaFonts[] = $value;
+                    }
+                });
+                $schemaFonts = array_unique($schemaFonts);
+                foreach ($schemaFonts as $fontName) {
+                    if (!isset($fonts[$fontName])) {
+                        $normalizedFontName = str_replace([' ', '-', '_'], '', strtolower($fontName));
+                        $fontDb = \App\Models\Font::whereRaw("LOWER(REPLACE(REPLACE(REPLACE(name, ' ', ''), '-', ''), '_', '')) = ?", [$normalizedFontName])->first();
+                        if ($fontDb) {
+                            $fonts[$fontName] = asset($fontDb->file_path);
                         }
                     }
                 }

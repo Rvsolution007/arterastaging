@@ -2332,6 +2332,7 @@
     var _nodeEditMode = false;
     var _nodeCircles = [];
     var _nodeLines = [];
+    var _nodeSnapLines = { h: null, v: null };
     var _nodeEditTarget = null;
     var _nodeEditPathObj = null;   // The resolved path/polygon object
     var _nodeEditWrapper = null;   // The wrapper (group or same as pathObj)
@@ -2545,28 +2546,40 @@
      * Draw connecting lines between nodes for visual feedback
      */
     function _drawNodeLines(pathObj, wrapperObj, nodes) {
-        // Remove old lines
-        _nodeLines.forEach(function(l) { canvas.remove(l); });
-        _nodeLines = [];
-
         if (nodes.length < 2) return;
 
+        // If the number of lines doesn't match the nodes, recreate them (e.g. initial draw or node added/removed)
+        if (_nodeLines.length !== nodes.length) {
+            _nodeLines.forEach(function(l) { canvas.remove(l); });
+            _nodeLines = [];
+            for (var i = 0; i < nodes.length; i++) {
+                var line = new fabric.Line([0, 0, 0, 0], {
+                    stroke: '#6366f1',
+                    strokeWidth: 1,
+                    strokeDashArray: [4, 3],
+                    selectable: false,
+                    evented: false,
+                    excludeFromExport: true,
+                    _isNodeGuide: true
+                });
+                canvas.add(line);
+                _nodeLines.push(line);
+            }
+        }
+
+        // Just update coordinates for extreme smoothness during drag
         for (var i = 0; i < nodes.length; i++) {
             var n1 = nodes[i];
             var n2 = nodes[(i + 1) % nodes.length]; // wrap around
             var p1 = _pathPointToCanvas(pathObj, wrapperObj, n1.x, n1.y);
             var p2 = _pathPointToCanvas(pathObj, wrapperObj, n2.x, n2.y);
-            var line = new fabric.Line([p1.x, p1.y, p2.x, p2.y], {
-                stroke: '#6366f1',
-                strokeWidth: 1,
-                strokeDashArray: [4, 3],
-                selectable: false,
-                evented: false,
-                excludeFromExport: true,
-                _isNodeGuide: true
+            
+            _nodeLines[i].set({
+                x1: p1.x,
+                y1: p1.y,
+                x2: p2.x,
+                y2: p2.y
             });
-            canvas.add(line);
-            _nodeLines.push(line);
         }
     }
 
@@ -2619,8 +2632,12 @@
             lockScalingY: true,
             lockRotation: true,
             hasControls: true, // MUST BE TRUE to show custom node controls
-            hasBorders: false
+            hasBorders: false,
+            objectCaching: false // Fix visual artifacts when moving points out of original bounds
         });
+        if (pathObj !== targetObj) {
+            pathObj.set({ objectCaching: false });
+        }
 
         var nodes = _extractNodes(pathObj);
         
@@ -2662,7 +2679,57 @@
                 },
                 actionHandler: function(eventData, transform, x, y) {
                     _lastInteractedNodeIdx = nd.pathIndex;
-                    // x, y are canvas pointer coordinates
+                    
+                    var snapDist = 6;
+                    var snappedX = false, snappedY = false;
+                    var snapTargetX = null, snapTargetY = null;
+
+                    // Clear previous snap lines
+                    if (_nodeSnapLines.h) { canvas.remove(_nodeSnapLines.h); _nodeSnapLines.h = null; }
+                    if (_nodeSnapLines.v) { canvas.remove(_nodeSnapLines.v); _nodeSnapLines.v = null; }
+
+                    // Check snapping against other nodes
+                    nodes.forEach(function(otherNd, i) {
+                        if (i === idx) return; // skip self
+                        var otherCanvasPt = _pathPointToCanvas(pathObj, wrapperObj, otherNd.x, otherNd.y);
+                        
+                        if (!snappedX && Math.abs(x - otherCanvasPt.x) < snapDist) {
+                            x = otherCanvasPt.x;
+                            snappedX = true;
+                            snapTargetX = otherCanvasPt;
+                        }
+                        if (!snappedY && Math.abs(y - otherCanvasPt.y) < snapDist) {
+                            y = otherCanvasPt.y;
+                            snappedY = true;
+                            snapTargetY = otherCanvasPt;
+                        }
+                    });
+
+                    // Draw snap lines if snapped
+                    if (snappedX && snapTargetX) {
+                        _nodeSnapLines.v = new fabric.Line([x, -9999, x, 9999], {
+                            stroke: '#a0aec0',
+                            strokeWidth: 1,
+                            strokeDashArray: [4, 4],
+                            selectable: false,
+                            evented: false,
+                            excludeFromExport: true
+                        });
+                        canvas.add(_nodeSnapLines.v);
+                    }
+                    if (snappedY && snapTargetY) {
+                        _nodeSnapLines.h = new fabric.Line([-9999, y, 9999, y], {
+                            stroke: '#a0aec0',
+                            strokeWidth: 1,
+                            strokeDashArray: [4, 4],
+                            selectable: false,
+                            evented: false,
+                            excludeFromExport: true
+                        });
+                        canvas.add(_nodeSnapLines.h);
+                    }
+
+                    // x, y are canvas pointer coordinates (now potentially snapped)
                     var pathPt = _canvasPointToPath(pathObj, wrapperObj, x, y);
 
                     if (nd.isPolygon) {
@@ -2682,6 +2749,11 @@
                     // Update guide lines
                     _drawNodeLines(pathObj, wrapperObj, nodes);
 
+                    return true;
+                },
+                mouseUpHandler: function(eventData, transform, x, y) {
+                    if (_nodeSnapLines.h) { canvas.remove(_nodeSnapLines.h); _nodeSnapLines.h = null; }
+                    if (_nodeSnapLines.v) { canvas.remove(_nodeSnapLines.v); _nodeSnapLines.v = null; }
                     return true;
                 },
                 cursorStyle: 'crosshair',
@@ -2799,6 +2871,9 @@
         // Remove guide lines
         _nodeLines.forEach(function(l) { canvas.remove(l); });
         _nodeLines = [];
+        
+        if (_nodeSnapLines.h) { canvas.remove(_nodeSnapLines.h); _nodeSnapLines.h = null; }
+        if (_nodeSnapLines.v) { canvas.remove(_nodeSnapLines.v); _nodeSnapLines.v = null; }
 
         // Restore original controls
         if (_nodeEditTarget && _nodeEditTarget._originalControls) {
@@ -2815,12 +2890,16 @@
                 lockScalingY: false,
                 lockRotation: false,
                 hasControls: true,
-                hasBorders: true
+                hasBorders: true,
+                objectCaching: true
             });
 
             // Recalculate dimensions after edits
             var pathObj = _resolvePathObj(_nodeEditTarget);
             if (pathObj) {
+                if (pathObj !== _nodeEditTarget) {
+                    pathObj.set({ objectCaching: true });
+                }
                 if (pathObj.type === 'polygon' || pathObj.type === 'polyline') {
                     // Force fabric to recalculate the polygon's bounding box and offset
                     var points = pathObj.points;
@@ -4014,7 +4093,7 @@
                             updateLayersList();
                             completedAsyncLoads++;
                             checkAllLoaded();
-                        }, { crossOrigin: 'anonymous' });
+                        }, imgSrc.startsWith('data:') || imgSrc.startsWith('blob:') ? {} : { crossOrigin: 'anonymous' });
                     } catch (e) {
                         console.error('[FABRIC IMAGE ERROR] for layer:', layer.name, e);
                         completedAsyncLoads++;

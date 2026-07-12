@@ -479,11 +479,47 @@ class NativeEditorController extends GetxController {
     final layers = templateConfig['layers'] as List<dynamic>?;
     if (layers == null) return;
 
+    if (layerName == '_frame_bg' && property == 'src') {
+      // Clean up old frame layers except _frame_bg (which we are updating/adding)
+      layers.removeWhere((l) => (l['_is_frame_layer'] == true || l['_isFrameLayer'] == true) && (l['name'] ?? l['id']).toString() != '_frame_bg');
+    }
+
+    bool found = false;
     for (var layer in layers) {
       if ((layer['name'] ?? layer['id']).toString() == layerName) {
         layer[property] = value;
+        found = true;
         break;
       }
+    }
+    
+    // Inject _frame_bg if missing and we are trying to update its src (simple PNG frame swap)
+    if (!found && layerName == '_frame_bg' && property == 'src') {
+      final double canvasW = safeDouble(templateConfig['info']?['width'] ?? templateConfig['width'] ?? 1080);
+      final double canvasH = safeDouble(templateConfig['info']?['height'] ?? templateConfig['height'] ?? 1080);
+      
+      int maxZIndex = 0;
+      for (var l in layers) {
+        int z = (l['z_index'] ?? 0) is int ? (l['z_index'] ?? 0) : ((l['z_index'] ?? 0) as num).toInt();
+        if (z > maxZIndex) maxZIndex = z;
+      }
+      
+      layers.add({
+        'name': '_frame_bg',
+        'id': '_frame_bg',
+        'type': 'image',
+        'src': value,
+        'opacity': 1.0,
+        'x': 0,
+        'y': 0,
+        'w': canvasW,
+        'h': canvasH,
+        'width': canvasW,
+        'height': canvasH,
+        '_is_frame_layer': true,
+        '_isFrameLayer': true,
+        'z_index': maxZIndex + 1,
+      });
     }
     
     templateConfig.refresh();
@@ -739,6 +775,29 @@ class NativeEditorController extends GetxController {
       }
       if (frameW <= 0) frameW = 1080;
       if (frameH <= 0) frameH = 1080;
+
+      bool hasBg = newLayers.any((l) {
+        String n = (l['name'] ?? l['id'] ?? '').toString().toLowerCase();
+        return n == 'bg' || n == '_frame_bg' || n.contains('background') || l['is_background'] == true;
+      });
+
+      // FIX: If the frame JSON lacks a background layer, but provides a full_url, auto-create the frame background
+      if (!hasBg && newFrameJson['full_url'] != null && newFrameJson['full_url'].toString().isNotEmpty) {
+        newLayers.insert(0, {
+          'name': '_frame_bg',
+          'id': '_frame_bg',
+          'type': 'image',
+          'src': newFrameJson['full_url'],
+          'opacity': 1.0,
+          'x': 0,
+          'y': 0,
+          'w': frameW,
+          'h': frameH,
+          'width': frameW,
+          'height': frameH,
+          'z_index': 0,
+        });
+      }
 
       double scaleX = canvasW / frameW;
       double scaleY = canvasH / frameH;

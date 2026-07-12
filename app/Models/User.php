@@ -33,16 +33,16 @@ class User extends Authenticatable
         'is_subscribe',
         'user_language',
         'login_type',
-        'api_token',
+        // Security fix: 'api_token' removed — prevents token injection via mass assignment
         'email_verified_at',
-        'user_type',
+        // Security fix: 'user_type' removed — prevents privilege escalation via mass assignment
         'business_limit',
         "referral_code",
         'registration_source',
         "current_balance",
         "total_balance",
-        "is_partner",
-        "partner_commission_percent",
+        // Security fix: 'is_partner' removed — prevents partner fraud via mass assignment
+        // Security fix: 'partner_commission_percent' removed — prevents commission fraud via mass assignment
         "last_notification_read_at",
         "custom_post_used",
         "daily_drip_used",
@@ -65,6 +65,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'api_token',
     ];
 
     /**

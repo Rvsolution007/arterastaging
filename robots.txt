@@ -8,7 +8,6 @@ Disallow: /api/
 Disallow: /setup-wizard
 Disallow: /webview-login
 Disallow: /installation
-Disallow: /debug/
 Disallow: /catalogue-columns
 Disallow: /products
 Disallow: /custom
@@ -28,9 +27,6 @@ Disallow: /my-product-images
 Disallow: /save-product-selection
 Disallow: /toggle-favorite-frame
 Disallow: /update-preferred-languages
-Disallow: /licence-details
-Disallow: /destroy
-Disallow: /destroydb
 
 # Sitemaps
 Sitemap: https://arterapixel.com/sitemap.xml

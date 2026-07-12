@@ -42,6 +42,15 @@ verify_*.php
 /brandkit_mobile/build_old/
 /brandkit_mobile/.dart_tool/
 
+# Android signing credentials (NEVER commit these)
+key.properties
+upload-keystore.jks
+upload_certificate.pem
+*.jks
+*.keystore
+*.p12
+*.pem
+
 # Custom Excludes for Artera
 /uploads/
 /uploads_old/

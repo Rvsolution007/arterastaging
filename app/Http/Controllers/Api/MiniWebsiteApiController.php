@@ -26,6 +26,22 @@ class MiniWebsiteApiController extends Controller
         ]);
     }
 
+    /**
+     * Helper to resolve the authenticated user ID.
+     * Prioritizes sanctum auth, falls back to session auth, then request param.
+     */
+    private function resolveUserId(Request $request)
+    {
+        if (auth('sanctum')->check()) {
+            return auth('sanctum')->id();
+        }
+        if (auth()->check()) {
+            return auth()->id();
+        }
+        // Fallback for mobile app that passes userId in request
+        return $request->user_id;
+    }
+
     public function generate(Request $request)
     {
         $request->validate([
@@ -33,19 +49,24 @@ class MiniWebsiteApiController extends Controller
             'mini_website_template_id' => 'required'
         ]);
 
+        // Security: Use authenticated user ID when available
+        $userId = $this->resolveUserId($request);
+
         $slug = \Illuminate\Support\Str::random(6) . '-' . time();
         
         $site = new \App\Models\UserMiniWebsite();
-        $site->user_id = $request->user_id;
-        $site->business_id = $request->business_id; // optional
+        $site->user_id = $userId;
         $site->mini_website_template_id = $request->mini_website_template_id;
         $site->slug = $slug;
         $site->views_count = 0;
 
-        // Snapshot business details if provided
+        // Security: Only allow access to businesses owned by the user
         if ($request->business_id) {
-            $business = \App\Models\Business::find($request->business_id);
+            $business = \App\Models\Business::where('id', $request->business_id)
+                ->where('user_id', $userId)
+                ->first();
             if ($business) {
+                $site->business_id = $business->id;
                 $site->business_name = $business->name;
                 $site->email = $business->email;
                 $site->mobile_no = $business->mobile_no;
@@ -75,6 +96,18 @@ class MiniWebsiteApiController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Not found'], 404);
         }
 
+        // Security: Verify ownership before allowing update
+        $userId = $this->resolveUserId($request);
+        if ($site->user_id != $userId) {
+            \Log::warning('IDOR attempt on mini-website update', [
+                'auth_user' => $userId,
+                'target_site' => $id,
+                'site_owner' => $site->user_id,
+                'ip' => $request->ip(),
+            ]);
+            return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
+        }
+
         $site->business_name = $request->business_name;
         $site->email = $request->email;
         $site->mobile_no = $request->mobile_no;
@@ -93,6 +126,11 @@ class MiniWebsiteApiController extends Controller
         $site->years_experience = $request->years_experience;
 
         if ($request->hasFile('logo')) {
+            // Security: Validate file type for logo uploads
+            $request->validate([
+                'logo' => 'image|mimes:jpg,jpeg,png,gif,webp|max:5120', // 5MB max
+            ]);
+
             $destinationPath = public_path('uploads');
             $extension = $request->file('logo')->getClientOriginalExtension();
             $fileName = \Illuminate\Support\Str::uuid() . '.' . $extension;
@@ -110,7 +148,8 @@ class MiniWebsiteApiController extends Controller
 
     public function myLinks(Request $request)
     {
-        $userId = $request->user_id;
+        // Security: Use authenticated user ID, not client-supplied value
+        $userId = $this->resolveUserId($request);
         if (!$userId) {
             return response()->json(['status' => 'error', 'message' => 'user_id is required']);
         }
@@ -133,12 +172,26 @@ class MiniWebsiteApiController extends Controller
             'data' => $sites
         ]);
     }
+
     public function delete($id)
     {
         $site = \App\Models\UserMiniWebsite::find($id);
         if (!$site) {
             return response()->json(['status' => 'error', 'message' => 'Not found'], 404);
         }
+
+        // Security: Verify ownership before allowing deletion
+        $userId = $this->resolveUserId(request());
+        if ($site->user_id != $userId) {
+            \Log::warning('IDOR attempt on mini-website delete', [
+                'auth_user' => $userId,
+                'target_site' => $id,
+                'site_owner' => $site->user_id,
+                'ip' => request()->ip(),
+            ]);
+            return response()->json(['status' => 'error', 'message' => 'Unauthorized'], 403);
+        }
+
         $site->delete();
         return response()->json(['status' => 'success', 'message' => 'Website deleted successfully']);
     }

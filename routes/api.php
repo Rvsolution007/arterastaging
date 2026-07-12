@@ -4,65 +4,18 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/phonepe-callback', 'Api\HomeApi@phonepe_callback');
 
-// TEMPORARY DEBUG ROUTE
-Route::post('/client-debug-log', function(Illuminate\Http\Request $request) {
-    \Illuminate\Support\Facades\Log::info("CLIENT JS DEBUG:", $request->all());
-    return response()->json(['success' => true]);
-});
 
-// FCM DEBUG - check token status and test send
-Route::get('/fcm-debug', function() {
-    $tokens = \App\Models\AndroidLogin::whereNotNull('fcmToken')
-        ->where('fcmToken', '!=', '')
-        ->get(['id', 'userId', 'fcmToken', 'deviceId', 'created_at']);
-    
-    $tokenSummary = $tokens->map(function($t) {
-        return [
-            'id' => $t->id,
-            'userId' => $t->userId,
-            'token_preview' => substr($t->fcmToken, 0, 30) . '...',
-            'deviceId' => $t->deviceId,
-            'created_at' => $t->created_at,
-        ];
-    });
-
-    $fcm = new \App\Services\FcmService();
-    
-    return response()->json([
-        'fcm_configured' => $fcm->isConfigured(),
-        'total_tokens' => $tokens->count(),
-        'tokens' => $tokenSummary,
-        'topic_subscribed' => 'all',
-        'hint' => 'If total_tokens is 0, the app has not registered its FCM token on this server.',
-    ]);
-});
-
-Route::get('/fcm-test-send', function() {
-    $fcm = new \App\Services\FcmService();
-    if (!$fcm->isConfigured()) {
-        return response()->json(['error' => 'FCM not configured']);
-    }
-    
-    $result = $fcm->sendNotification(
-        'Test Notification ðŸ””',
-        'This is a test from FCM debug endpoint',
-        null,
-        ['type' => 'ai_campaign'],
-        'all'
-    );
-    
-    return response()->json([
-        'result' => $result,
-        'token_count' => \App\Models\AndroidLogin::whereNotNull('fcmToken')->where('fcmToken', '!=', '')->count(),
-    ]);
-});
 
 Route::
-        namespace('Api')->middleware(['throttle'])->group(function () {
+        namespace('Api')->middleware(['throttle:login'])->group(function () {
             Route::post('/login', 'AuthApi@login');
             Route::post('/registration', 'AuthApi@registration');
             Route::post('/google-registration', 'AuthApi@google_registration');
             Route::post('/phone-login', 'AuthApi@phone_login');
+        });
+
+Route::
+        namespace('Api')->middleware(['throttle:password-reset'])->group(function () {
             Route::post('/forgot-password', 'AuthApi@forgot_password');
             Route::post('/forgot-password/verify-otp', 'AuthApi@verify_forgot_password_otp');
             Route::post('/forgot-password/update', 'AuthApi@update_forgot_password');
@@ -79,6 +32,7 @@ Route::
             Route::get('/user', 'AuthApi@user_data');
             Route::post('/user_data', 'AuthApi@user_data');
             Route::post('/use-reward-credit', 'AuthApi@useRewardCredit');
+            Route::post('/generate-webview-url', 'AuthApi@generateWebviewUrl');
             Route::post('/profile-update', 'AuthApi@profile_update');
             Route::post('/user-account-delete', 'AuthApi@delete_user_account');
             Route::post('/report-error', 'AuthApi@reportError');
@@ -124,7 +78,7 @@ Route::
             Route::get('/payment-details', 'HomeApi@getPaymentDetails');
             Route::get('/payment-history', 'HomeApi@getPaymentHistory');
             Route::post('/create-order-cashfree', 'HomeApi@create_order_cashfree');
-            Route::post('get-val', 'HomeApi@get_val');
+            // Security fix: Route::post('get-val', 'HomeApi@get_val');
 
             Route::get('/contact-subject', 'HomeApi@getContactSubject');
             Route::post('/contact-massage', 'HomeApi@postContacts');

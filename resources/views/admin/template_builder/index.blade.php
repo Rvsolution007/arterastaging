@@ -169,6 +169,11 @@
                         <button class="aim-btn aim-btn-outline" id="add-line"><i class="fa-solid fa-minus"></i> Line</button>
                         <button class="aim-btn aim-btn-outline" id="add-star"><i class="fa-regular fa-star"></i> Star</button>
                     </div>
+                    <div class="mt-3">
+                        <button class="aim-btn aim-btn-outline w-100 mb-2" id="btn-svg-library" style="border-color: #6366f1; color: #5538EE;"><i class="fa-solid fa-icons"></i> Shape Library</button>
+                        <button class="aim-btn aim-btn-outline w-100" onclick="document.getElementById('svg-upload').click()"><i class="fa-solid fa-upload"></i> Upload Custom SVG</button>
+                        <input type="file" id="svg-upload" accept=".svg" style="display:none">
+                    </div>
                 </div>
 
                 <hr>
@@ -236,20 +241,19 @@
                             <input type="number" class="aim-input" id="prop-y">
                         </div>
                     </div>
-                    <!-- Nudge Arrows -->
+                    <!-- Flip -->
                     <div class="mb-3">
-                        <label class="aim-label d-block">Move</label>
-                        <div class="d-flex align-items-center gap-1">
-                            <button type="button" class="btn btn-sm btn-outline-secondary" id="nudge-left" title="Move Left" style="min-width:32px;"><i class="fa fa-arrow-left"></i></button>
-                            <div class="d-flex flex-column gap-1">
-                                <button type="button" class="btn btn-sm btn-outline-secondary" id="nudge-up" title="Move Up" style="min-width:32px;"><i class="fa fa-arrow-up"></i></button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary" id="nudge-down" title="Move Down" style="min-width:32px;"><i class="fa fa-arrow-down"></i></button>
-                            </div>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" id="nudge-right" title="Move Right" style="min-width:32px;"><i class="fa fa-arrow-right"></i></button>
-                            <span style="border-left:1px solid #e2e8f0;height:30px;margin:0 6px;"></span>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" id="layer-to-top" title="Bring to Front" style="min-width:32px;font-size:0.7rem;"><i class="fa fa-angles-up"></i></button>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" id="layer-to-bottom" title="Send to Back" style="min-width:32px;font-size:0.7rem;"><i class="fa fa-angles-down"></i></button>
+                        <label class="aim-label d-block">Flip</label>
+                        <div class="d-flex align-items-center gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="flip-horizontal" title="Flip Horizontal" style="min-width:32px;"><i class="fa-solid fa-arrows-left-right"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="flip-vertical" title="Flip Vertical" style="min-width:32px;"><i class="fa-solid fa-arrows-up-down"></i></button>
                         </div>
+                    </div>
+                    <!-- Edit Points (Node Editor) - visible only for path/SVG shapes -->
+                    <div class="mb-3" id="node-edit-section" style="display:none;">
+                        <button type="button" class="btn btn-sm btn-outline-primary w-100" id="btn-edit-points">
+                            <i class="fa-solid fa-bezier-curve me-1"></i> <span id="btn-edit-points-text">Edit Points</span>
+                        </button>
                     </div>
                     <div class="row">
                         <div class="col-6 mb-3">
@@ -695,6 +699,126 @@
             </div>
         </div>
     </div>
+    <!-- SVG Library Modal -->
+    <style>
+        .premium-modal .modal-content {
+            border: none;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            overflow: hidden;
+        }
+        .premium-modal .modal-header {
+            background: #ffffff;
+            border-bottom: 1px solid #f1f5f9;
+            padding: 1.25rem 1.5rem;
+        }
+        .premium-modal .modal-title {
+            font-size: 1.1rem;
+            color: #1e293b;
+        }
+        .premium-modal .close {
+            opacity: 0.6;
+            transition: 0.2s;
+        }
+        .premium-modal .close:hover {
+            opacity: 1;
+            color: #ef4444;
+        }
+        .premium-tabs {
+            border-bottom: none;
+            gap: 10px;
+            padding: 0 1.5rem;
+            margin-top: 1rem;
+        }
+        .premium-tabs .nav-link {
+            border: none;
+            background: #f8fafc;
+            color: #64748b;
+            border-radius: 8px !important;
+            padding: 8px 16px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .premium-tabs .nav-link:hover {
+            background: #f1f5f9;
+            color: #475569;
+        }
+        .premium-tabs .nav-link.active {
+            background: #eff6ff;
+            color: #4f46e5;
+        }
+        .premium-modal-body {
+            max-height: 60vh;
+            overflow-y: auto;
+            padding: 1.5rem;
+            background: #ffffff;
+        }
+        /* Custom Scrollbar */
+        .premium-modal-body::-webkit-scrollbar {
+            width: 8px;
+        }
+        .premium-modal-body::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        .premium-modal-body::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .premium-modal-body::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        
+        .shape-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 18px;
+        }
+        .premium-btn-close {
+            background: #f1f5f9;
+            color: #475569;
+            border: none;
+            font-weight: 600;
+            padding: 8px 20px;
+            border-radius: 8px;
+            transition: 0.2s;
+        }
+        .premium-btn-close:hover {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+    </style>
+    <div class="modal fade premium-modal" id="svgLibraryModal" tabindex="-1" role="dialog" aria-labelledby="svgLibraryModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+            <div class="modal-content" style="border-radius: 16px;">
+                <div class="modal-header">
+                    <h5 class="modal-title font-weight-bold" id="svgLibraryModalLabel" style="font-family: 'Inter', sans-serif;">
+                        <i class="fa-solid fa-shapes text-primary mr-2"></i> Shape Library
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true"><i class="fa-solid fa-times"></i></span>
+                    </button>
+                </div>
+                
+                <div class="modal-body premium-modal-body">
+                    <div class="shape-grid" id="custom-svg-container">
+                        <!-- Custom SVGs will be populated here by JS -->
+                    </div>
+                    <div class="col-12 text-center text-muted py-5" id="custom-svg-empty" style="display:none;">
+                        <div style="background: #f8fafc; border-radius: 50%; width: 80px; height: 80px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
+                            <i class="fa-solid fa-cloud-arrow-up fa-2x" style="color: #cbd5e1;"></i>
+                        </div>
+                        <h6 class="font-weight-bold text-slate-700">No Custom Shapes Yet</h6>
+                        <p class="small text-slate-500 mb-0">Click "Upload Custom SVG" from the sidebar<br>to build your personal library.</p>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-2 pb-3 px-4">
+                    <button type="button" class="premium-btn-close" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 @endsection
 
 @section('script')

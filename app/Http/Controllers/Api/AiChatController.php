@@ -21,7 +21,7 @@ class AiChatController extends Controller
             'ticket_id' => 'nullable'
         ]);
 
-        \Illuminate\Support\Facades\Log::info("AiChat Request:", $request->all());
+        \Illuminate\Support\Facades\Log::info("AiChat Request:", $request->only(['user_id', 'ticket_id', 'category']));
 
         $userId = $request->user_id;
         $userMessageText = $request->message;

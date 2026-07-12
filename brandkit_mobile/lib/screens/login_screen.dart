@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:get/get.dart';
 import '../controllers/auth_controller.dart';
+import '../controllers/home_controller.dart';
 import '../utils/app_colors.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
@@ -119,6 +120,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: () async {
                   final prefs = await SharedPreferences.getInstance();
                   await prefs.setBool('isGuest', true);
+                  
+                  if (Get.isRegistered<HomeController>()) {
+                    Get.find<HomeController>().fetchHomeData();
+                  }
+                  
                   Get.offAllNamed('/DashboardScreen');
                 },
                 child: const Text('Skip for now', style: TextStyle(color: AppColors.textSecondary, decoration: TextDecoration.underline)),

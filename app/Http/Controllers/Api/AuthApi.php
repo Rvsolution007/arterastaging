@@ -448,6 +448,23 @@ class AuthApi extends Controller
 
     public function phone_login(Request $request)
     {
+        // Security: Firebase ID token verification for phone ownership
+        // Currently in WARNING mode — logs missing tokens but allows the request
+        // TODO: Once mobile app sends firebaseToken, change to ENFORCEMENT mode (uncomment the return)
+        $firebaseToken = $request->get('firebaseToken') ?? $request->header('X-Firebase-Token');
+        if (!$firebaseToken) {
+            \Log::warning('SECURITY: Phone login without Firebase token — no phone ownership verification', [
+                'phone' => substr($request->get('phoneNumber'), -4), // Log only last 4 digits
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+            // FUTURE ENFORCEMENT: Uncomment the next 4 lines once mobile app sends firebaseToken
+            // return response()->json([
+            //     'status' => 'Error',
+            //     'message' => 'Phone verification token is required',
+            // ], 401);
+        }
+
         $exist = User::where('mobile_no', $request->get('phoneNumber'))->first();
         if($exist != null)
         {
@@ -561,7 +578,33 @@ class AuthApi extends Controller
 
     public function user_data(Request $request)
     {
-        $user = User::find($request->id);
+        // Security: Determine user ID from authentication first, fallback to request param
+        $requestedId = $request->id;
+        
+        // Check auth guards and enforce ownership
+        if (auth('sanctum')->check()) {
+            if (auth('sanctum')->id() != $requestedId) {
+                \Log::warning('IDOR attempt on user_data (sanctum)', [
+                    'auth_user' => auth('sanctum')->id(),
+                    'target_user' => $requestedId,
+                    'ip' => $request->ip(),
+                ]);
+                return response()->json(['status' => 'Error', 'message' => 'Unauthorized'], 403);
+            }
+        } elseif (auth()->check()) {
+            if (auth()->id() != $requestedId) {
+                \Log::warning('IDOR attempt on user_data (session)', [
+                    'auth_user' => auth()->id(),
+                    'target_user' => $requestedId,
+                    'ip' => $request->ip(),
+                ]);
+                return response()->json(['status' => 'Error', 'message' => 'Unauthorized'], 403);
+            }
+        }
+        // If neither guard is active, allow request (mobile app backward compat)
+        // TODO: Once mobile app sends auth tokens, remove this fallback
+
+        $user = User::find($requestedId);
 
         if (!empty($user))
         {
@@ -604,7 +647,6 @@ class AuthApi extends Controller
     public function profile_update(Request $request)
     {
         \Log::info('=== PROFILE_UPDATE DEBUG START ===', [
-            'request_all' => $request->all(),
             'request_id' => $request->id,
             'has_image' => $request->hasFile('image'),
         ]);
@@ -617,6 +659,17 @@ class AuthApi extends Controller
             if($referral_exist != null)
             {
                 $user = User::find($request->id);
+
+                // Security: IDOR protection - verify ownership when authenticated
+                if (auth('sanctum')->check() && auth('sanctum')->id() != $request->id) {
+                    \Log::warning('IDOR attempt on profile_update', [
+                        'auth_user' => auth('sanctum')->id(),
+                        'target_user' => $request->id,
+                        'ip' => $request->ip(),
+                    ]);
+                    return response()->json(['status' => 'Error', 'message' => 'Unauthorized'], 403);
+                }
+
                 if(!empty($user))
                 {
                     if($user->user_type != "Demo")
@@ -665,8 +718,15 @@ class AuthApi extends Controller
                                 }
                                 else
                                 {
-                                    if ($request->file("image") && $request->file('image')->isValid()) {
-                                        $this->upload_image($request->file("image"),"image", $request->id);
+                                    if ($request->hasFile("image")) {
+                                        if ($request->file('image')->isValid()) {
+                                            $this->upload_image($request->file("image"),"image", $request->id);
+                                        } else {
+                                            return response()->json([
+                                                'status' => "Error",
+                                                'message' => "Profile image upload failed. It might be too large.",
+                                            ], 200);
+                                        }
                                     }
                                 }
 
@@ -823,8 +883,15 @@ class AuthApi extends Controller
                                 }
                                 else
                                 {
-                                    if ($request->file("image") && $request->file('image')->isValid()) {
-                                        $this->upload_image($request->file("image"),"image", $request->id);
+                                    if ($request->hasFile("image")) {
+                                        if ($request->file('image')->isValid()) {
+                                            $this->upload_image($request->file("image"),"image", $request->id);
+                                        } else {
+                                            return response()->json([
+                                                'status' => "Error",
+                                                'message' => "Profile image upload failed. It might be too large.",
+                                            ], 200);
+                                        }
                                     }
                                 }
                                 
@@ -897,6 +964,9 @@ class AuthApi extends Controller
     private function upload_image($file,$field,$id)
     {
         $destinationPath = public_path('uploads');
+        if (!file_exists($destinationPath)) {
+            mkdir($destinationPath, 0777, true);
+        }
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);
@@ -1012,6 +1082,17 @@ class AuthApi extends Controller
     public function change_password(Request $request)
     {
         $user = User::find($request->get('userId'));
+
+        // Security: IDOR protection - verify ownership when authenticated
+        if (auth('sanctum')->check() && auth('sanctum')->id() != $request->get('userId')) {
+            \Log::warning('IDOR attempt on change_password', [
+                'auth_user' => auth('sanctum')->id(),
+                'target_user' => $request->get('userId'),
+                'ip' => $request->ip(),
+            ]);
+            return response()->json(['status' => 'Error', 'message' => 'Unauthorized'], 403);
+        }
+
         $validation = Validator::make($request->all(), [
             'newPassword' => 'required',
         ]);
@@ -1114,10 +1195,25 @@ class AuthApi extends Controller
             \DB::beginTransaction();
 
             $data = User::where('id', $request->get('userId'))->first();
-			
+
+            // Security: IDOR protection - verify ownership when authenticated
+            if (auth('sanctum')->check() && auth('sanctum')->id() != $request->get('userId')) {
+                \Log::warning('IDOR attempt on delete_user_account', [
+                    'auth_user' => auth('sanctum')->id(),
+                    'target_user' => $request->get('userId'),
+                    'ip' => $request->ip(),
+                ]);
+                return response()->json(['status' => 'Error', 'message' => 'Unauthorized'], 403);
+            }
+
 			if ($data) {
                 $emaildata = $data->email."_deleted";
-                User::where('id', $request->get('userId'))->update(['email' => $emaildata]);
+                User::where('id', $request->get('userId'))->update([
+                    'email' => $emaildata,
+                    'name' => 'Deleted User',
+                    'mobile_no' => null,
+                    'password' => \Hash::make(\Illuminate\Support\Str::random(16))
+                ]);
 
 				$data->delete();
                 \DB::commit();
@@ -1454,6 +1550,58 @@ class AuthApi extends Controller
             'status' => 'success',
             'message' => 'Reward credit used successfully',
             'rewardPoints' => $user->reward_points
+        ]);
+    }
+
+    /**
+     * Generate a signed webview-login URL for the mobile app.
+     * The mobile app calls this endpoint with userId,
+     * and receives a time-limited signed URL to open in WebView.
+     */
+    public function generateWebviewUrl(Request $request)
+    {
+        $userId = $request->get('userId') ?? $request->get('user_id');
+
+        if (!$userId) {
+            return response()->json([
+                'status' => 'Error',
+                'message' => 'userId is required',
+            ], 400);
+        }
+
+        $user = User::find($userId);
+        if (!$user) {
+            return response()->json([
+                'status' => 'Error',
+                'message' => 'Invalid userId',
+            ], 404);
+        }
+
+        // Security: IDOR protection — only allow generating URL for yourself
+        if (auth('sanctum')->check() && auth('sanctum')->id() != $userId) {
+            \Log::warning('IDOR attempt on generateWebviewUrl', [
+                'auth_user' => auth('sanctum')->id(),
+                'target_user' => $userId,
+                'ip' => $request->ip(),
+            ]);
+            return response()->json(['status' => 'Error', 'message' => 'Unauthorized'], 403);
+        }
+
+        // Generate a signed URL that expires in 5 minutes
+        $redirectPath = $request->get('redirect', '/dashboard');
+        
+        $signedUrl = \Illuminate\Support\Facades\URL::temporarySignedRoute(
+            'webview.login',
+            now()->addMinutes(5),
+            [
+                'user_id' => $userId,
+                'redirect' => $redirectPath,
+            ]
+        );
+
+        return response()->json([
+            'status' => 'Success',
+            'url' => $signedUrl,
         ]);
     }
 }

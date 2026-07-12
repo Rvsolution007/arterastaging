@@ -103,8 +103,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           await prefs.setString('emailId', _emailCtrl.text);
           await prefs.setString('phoneNumber', _phoneCtrl.text);
 
-          if (data['user'] != null && data['user']['profileImage'] != null) {
-            await prefs.setString('profileImage', data['user']['profileImage']);
+          if (data['data'] != null && data['data']['profileImage'] != null) {
+            await prefs.setString('profileImage', data['data']['profileImage']);
           }
 
           // Reload business info so changes immediately reflect across the app

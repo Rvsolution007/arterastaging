@@ -655,6 +655,16 @@ class PosterMakerController extends Controller
                                 $innerZip->extractTo($extractPath);
                                 $innerZip->close();
 
+                                // Check for extracted preview image BEFORE DO upload deletes local files
+                                $previewPath = null;
+                                if (file_exists($extractPath . '/preview.webp')) {
+                                    $previewPath = 'template/' . $zipNameWithoutExt . '/preview.webp';
+                                } elseif (file_exists($extractPath . '/preview.png')) {
+                                    $previewPath = 'template/' . $zipNameWithoutExt . '/preview.png';
+                                } elseif (file_exists($extractPath . '/preview.jpg')) {
+                                    $previewPath = 'template/' . $zipNameWithoutExt . '/preview.jpg';
+                                }
+
                                 if(\App\Models\StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
                                     // Upload extracted files to space
                                     $files = \Illuminate\Support\Facades\File::allFiles($extractPath);
@@ -667,17 +677,7 @@ class PosterMakerController extends Controller
                                     // Remove local folder
                                     \Illuminate\Support\Facades\File::deleteDirectory($extractPath);
                                 }
-                            }
-
-                            // Check for extracted preview image
-                            $previewPath = null;
-                            if (file_exists($extractPath . '/preview.webp')) {
-                                $previewPath = 'template/' . $zipNameWithoutExt . '/preview.webp';
-                            } elseif (file_exists($extractPath . '/preview.png')) {
-                                $previewPath = 'template/' . $zipNameWithoutExt . '/preview.png';
-                            } elseif (file_exists($extractPath . '/preview.jpg')) {
-                                $previewPath = 'template/' . $zipNameWithoutExt . '/preview.jpg';
-                            }
+                                }
 
                             // Insert into database
                             $posterMaker = \App\Models\PosterMaker::create([

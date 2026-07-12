@@ -520,7 +520,34 @@ class PosterMakerController extends Controller
         $zip = new \ZipArchive();
         if ($zip->open($zipFilePath, \ZipArchive::CREATE) === TRUE) {
             foreach ($frames as $frame) {
-                $exportData[] = $frame->toArray();
+                $frameArr = $frame->toArray();
+                
+                // Fetch EditorTemplate schema if it exists
+                if (str_starts_with($frame->zip_name, 'Template_')) {
+                    $uuid = str_replace(['Template_', '.zip'], '', $frame->zip_name);
+                    $editorTemplate = \App\Models\EditorTemplate::where('uuid', $uuid)->first();
+                    if ($editorTemplate) {
+                        $frameArr['_schema_json'] = $editorTemplate->schema_json;
+                        $frameArr['_legacy_json'] = $editorTemplate->legacy_json;
+                        $frameArr['_editor_uuid'] = $editorTemplate->uuid;
+                    }
+                }
+                $exportData[] = $frameArr;
+                
+                // Add thumbnail to archive
+                if ($frame->post_thumb) {
+                    if(\App\Models\StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
+                        if (\Illuminate\Support\Facades\Storage::disk('spaces')->exists('uploads/' . $frame->post_thumb)) {
+                            $thumbContent = \Illuminate\Support\Facades\Storage::disk('spaces')->get('uploads/' . $frame->post_thumb);
+                            $zip->addFromString('thumbnails/' . basename($frame->post_thumb), $thumbContent);
+                        }
+                    } else {
+                        $thumbLocalPath = public_path('uploads/' . $frame->post_thumb);
+                        if (file_exists($thumbLocalPath)) {
+                            $zip->addFile($thumbLocalPath, 'thumbnails/' . basename($frame->post_thumb));
+                        }
+                    }
+                }
                 
                 // Add zip to archive
                 $templateZipName = $frame->zip_name . '.zip';
@@ -643,7 +670,7 @@ class PosterMakerController extends Controller
                             }
 
                             // Insert into database
-                            \App\Models\PosterMaker::create([
+                            $posterMaker = \App\Models\PosterMaker::create([
                                 'poster_category_id' => $categoryId,
                                 'template_type' => $frameData['template_type'],
                                 'zip_name' => $frameData['zip_name'],
@@ -655,6 +682,39 @@ class PosterMakerController extends Controller
                                 'req_website' => $frameData['req_website'] ?? 0,
                                 'paid' => $frameData['paid'] ?? 1
                             ]);
+                            
+                            // Restore EditorTemplate schema if included
+                            if (isset($frameData['_schema_json']) && isset($frameData['_editor_uuid'])) {
+                                $uuid = $frameData['_editor_uuid'];
+                                $existingTpl = \App\Models\EditorTemplate::where('uuid', $uuid)->first();
+                                if (!$existingTpl) {
+                                    \App\Models\EditorTemplate::create([
+                                        'uuid' => $uuid,
+                                        'title' => $frameData['zip_name'],
+                                        'canvas_width' => $frameData['_schema_json']['canvas']['width'] ?? 1080,
+                                        'canvas_height' => $frameData['_schema_json']['canvas']['height'] ?? 1080,
+                                        'schema_json' => $frameData['_schema_json'],
+                                        'legacy_json' => $frameData['_legacy_json'] ?? null,
+                                        'status' => 'published',
+                                        'author_id' => auth()->id() ?? 1,
+                                    ]);
+                                }
+                            }
+                            
+                            // Restore thumbnail
+                            if (!empty($frameData['post_thumb'])) {
+                                $thumbSource = $tempDir . '/thumbnails/' . basename($frameData['post_thumb']);
+                                if (file_exists($thumbSource)) {
+                                    if(\App\Models\StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
+                                        \Illuminate\Support\Facades\Storage::disk('spaces')->put('uploads/' . $frameData['post_thumb'], file_get_contents($thumbSource), 'public');
+                                    } else {
+                                        $thumbDest = public_path('uploads/' . $frameData['post_thumb']);
+                                        $thumbDir = dirname($thumbDest);
+                                        if (!file_exists($thumbDir)) mkdir($thumbDir, 0777, true);
+                                        copy($thumbSource, $thumbDest);
+                                    }
+                                }
+                            }
                             $importedCount++;
                         }
                     } else {

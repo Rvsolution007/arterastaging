@@ -32,12 +32,14 @@ class BlogController extends Controller
         ];
 
         if ($request->hasFile('og_image')) {
+            $request->validate(['og_image' => 'image|mimes:jpg,jpeg,png,webp,gif|max:5120']);
+            
             $file = $request->file('og_image');
-            $filename = time() . '_' . $file->getClientOriginalName();
+            $filename = \Illuminate\Support\Str::uuid() . '.' . $file->guessExtension();
             $destinationPath = public_path('uploads/blogs');
             
             if (!file_exists($destinationPath)) {
-                mkdir($destinationPath, 0777, true);
+                mkdir($destinationPath, 0755, true);
             }
             
             $file->move($destinationPath, $filename);

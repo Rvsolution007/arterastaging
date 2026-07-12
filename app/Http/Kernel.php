@@ -22,6 +22,7 @@ class Kernel extends HttpKernel
         \App\Http\Middleware\TrimStrings::class,
         \Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull::class,
         \Fruitcake\Cors\HandleCors::class,
+        \App\Http\Middleware\SecurityHeaders::class,
     ];
 
     /**
@@ -67,8 +68,8 @@ class Kernel extends HttpKernel
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'role' => \Spatie\Permission\Middlewares\RoleMiddleware::class,
-        // 'permission' => \Spatie\Permission\Middlewares\PermissionMiddleware::class,
-        'permission' => \App\Http\Middleware\BypassPermission::class,
+        'permission' => \Spatie\Permission\Middlewares\PermissionMiddleware::class,
+        // 'bypass_permission' => \App\Http\Middleware\BypassPermission::class, // Disabled for security
         'role_or_permission' => \Spatie\Permission\Middlewares\RoleOrPermissionMiddleware::class,
         'admin' => \App\Http\Middleware\Admin::class,
         'canInstall' => \App\Http\Middleware\canInstall::class,

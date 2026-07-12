@@ -436,10 +436,32 @@
     });
     canvas.on('object:modified', updateProps);
 
-    // ── Anti-stretch: convert scale → width + fontSize on text objects ──
+    // ── Anti-stretch: convert scale → width + fontSize on text objects & width/height on rects ──
     canvas.on('object:modified', function(e) {
         const obj = e.target;
         if (!obj) return;
+        
+        // Fix for Rect shape border radius stretching (prevents ellipse effect like CorelDraw)
+        if (obj.type === 'rect') {
+            const sx = obj.scaleX || 1;
+            const sy = obj.scaleY || 1;
+            if (Math.abs(sx - 1) > 0.001 || Math.abs(sy - 1) > 0.001) {
+                const newWidth = Math.max(1, obj.width * sx);
+                const newHeight = Math.max(1, obj.height * sy);
+                obj.set({
+                    width: newWidth,
+                    height: newHeight,
+                    scaleX: 1,
+                    scaleY: 1
+                });
+                obj.setCoords();
+                canvas.renderAll();
+                if (inputW) inputW.value = Math.round(newWidth);
+                if (inputH) inputH.value = Math.round(newHeight);
+            }
+            return;
+        }
+
         const isText = (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox');
         if (!isText) return;
         const sx = obj.scaleX || 1;
@@ -1513,7 +1535,8 @@
                 shape = new fabric.Triangle({ ...defaultProps, width: 200, height: 180 });
                 break;
             case 'line':
-                shape = new fabric.Line([50, 50, 350, 50], { stroke: '#6366f1', strokeWidth: 4, customType: 'shape', fill: null });
+                // Using Rect for line to ensure it has a physical height (5px) while staying at 0 degrees.
+                shape = new fabric.Rect({ left: 50, top: 50, width: 300, height: 5, fill: '#6366f1', customType: 'shape' });
                 break;
             case 'star':
                 // Star as polygon

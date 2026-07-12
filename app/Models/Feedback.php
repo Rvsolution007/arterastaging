@@ -9,5 +9,11 @@ class Feedback extends Model
 {
     use HasFactory;
     
-    protected $guarded = [];
+    // Security fix: replaced $guarded = [] with explicit $fillable
+    protected $fillable = [
+        'user_id',
+        'rating',
+        'comment',
+        'feature_name',
+    ];
 }

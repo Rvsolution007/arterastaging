@@ -882,6 +882,9 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                             if (jsonStr != null) {
                               try {
                                 final Map<String, dynamic> config = jsonStr is String ? jsonDecode(jsonStr) : Map<String, dynamic>.from(jsonStr);
+                                if (frame['full_url'] != null) {
+                                  config['full_url'] = frame['full_url'];
+                                }
                                 controller.loadNewFrame(config);
                               } catch (e) {
                                 debugPrint('Error parsing frame JSON: $e');

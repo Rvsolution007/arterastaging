@@ -9,7 +9,7 @@ Route::group(['middleware' => ['IsUpdate']], function () {
 Route::post('login', 'Auth\LoginController@authenticate')->middleware(['IsInstalled', 'IsUpdate'])->name('admin.login');
 
 Route::
-        namespace('Admin')->middleware(['auth', 'IsInstalled', 'IsUpdate'])->group(function () {
+        namespace('Admin')->middleware(['auth', 'admin', 'IsInstalled', 'IsUpdate'])->group(function () {
             Route::post("logout", 'HomeController@logout')->name('admin.logout');
             Route::get('/', 'HomeController@index')->name('admin');
 

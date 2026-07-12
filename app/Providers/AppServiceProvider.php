@@ -64,6 +64,17 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme('https');
         }
         
+        // ==========================================
+        // SECURITY: Verify Critical Environment Variables
+        // ==========================================
+        $requiredEnvVars = ['APP_KEY', 'DB_CONNECTION', 'DB_HOST', 'DB_PORT', 'DB_DATABASE', 'DB_USERNAME'];
+        foreach ($requiredEnvVars as $var) {
+            if (empty(env($var))) {
+                throw new \Exception("Critical Environment Variable Missing: $var. The application refuses to start.");
+            }
+        }
+
+        
         Paginator::useBootstrapFour();
         Schema::defaultStringLength(191);
         

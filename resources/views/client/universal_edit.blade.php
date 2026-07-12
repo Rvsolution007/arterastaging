@@ -2073,7 +2073,6 @@ async function removeBackgroundFromActiveObject() {
     // ── Step 1: Try Photoroom paid API first ──
     try {
         if (label) label.innerText = "Removing BG (AI)...";
-        console.log("🔄 Attempting Photoroom API...");
 
         const response = await fetch('{{ route("remove-background") }}', {
             method: 'POST',
@@ -2088,10 +2087,8 @@ async function removeBackgroundFromActiveObject() {
         const data = await response.json();
 
         if (data.success && !data.fallback && data.image) {
-            console.log("✅ Photoroom API success! Remaining limit:", data.remaining_limit);
             resultImageURL = data.image;
         } else {
-            console.log("⚠️ Photoroom API returned fallback:", data.message);
             // Will proceed to client-side fallback below
         }
     } catch (apiErr) {
@@ -2126,12 +2123,9 @@ async function performLocalBgRemoval(dataURL, label, overlay, targetObj) {
     try {
         if (overlay) overlay.style.display = 'flex';
         if (label) label.innerText = "Removing BG (Local)...";
-        console.log("🔄 Using client-side @imgly background removal...");
 
         if (!_bgRemovalModule) {
-            console.log("Loading AI Background Removal module...");
             _bgRemovalModule = await import('https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.1/+esm');
-            console.log("✅ AI module loaded successfully.");
         }
 
         const removeBg = _bgRemovalModule.default || _bgRemovalModule.removeBackground;
@@ -2142,7 +2136,6 @@ async function performLocalBgRemoval(dataURL, label, overlay, targetObj) {
             output: { format: 'image/png', quality: 1 },
         });
         const resultImageURL = URL.createObjectURL(blob);
-        console.log("✅ Client-side background removal success.");
         
         replaceBgImage(resultImageURL, targetObj, overlay, label);
     } catch (localErr) {
@@ -2477,9 +2470,6 @@ function changeFrame(url, element) {
         
         let isBase = false;
         
-        console.log('[FRAME] changeFrame called. URL:', url);
-        console.log('[FRAME] data-config value:', ca ? (ca.substring(0, 100) + '...') : 'NULL/EMPTY');
-        console.log('[FRAME] Rendering mode:', (!ca || ca === 'null' || ca === 'undefined' || ca === '') ? '🖼️ PNG OVERLAY (no JSON config)' : '📦 ZIP/JSON CONFIG (full layer rendering)');
 
         // ── KEY FIX: For JSON-based PosterMaker frames, we MUST use applyFrameConfig to render the layers.
         // For simple PNG frames (CustomFrame, BusinessFrame), they won't have a config, so we load them as PNG overlays.
@@ -2546,7 +2536,6 @@ function changeFrame(url, element) {
                     if (configTextLabels.length > 0) {
                         const allExist = configTextLabels.every(name => existingLabels.has(name));
                         if (allExist) {
-                            console.log('[FRAME] All text layers from this config already exist on canvas. Skipping duplicate overlay. Labels:', configTextLabels);
                             return; // Abort - this would create duplicate text
                         }
                     }
@@ -2685,7 +2674,6 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
                     extractedTemplateAccentColor = extractDominantColor(globalBaseImageElement) || '#1e88e5';
                     let brightness = getImageBrightness(globalBaseImageElement);
                     templateIsDark = (brightness < 128);
-                    console.log("[THEMING] Accent:", extractedTemplateAccentColor, "| Brightness:", Math.round(brightness), "| isDark:", templateIsDark);
                     // -----------------------
 
                     fCanvas.setBackgroundImage(img, () => { resolve(); }, {
@@ -2835,7 +2823,6 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
                             mappedSrc = uploadBase + mappedSrc;
                         }
                         src = mappedSrc;
-                        console.log("AI Mapped layer " + lname + " → " + src);
                     }
                 }
 
@@ -2877,7 +2864,6 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
                         const imgUrl = isAIMapped ? src : (src + '?v=' + Date.now());
                         
                         // Log attempt to load
-                        console.log("Attempting to load image layer: " + lname + " from " + src);
                         
                         fabric.Image.fromURL(imgUrl, (img, isError) => {
                             if (!img || isError) { 
@@ -3066,7 +3052,6 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
                             color = '#000000';
                         }
                     }
-                    console.log('[THEMING] Text "' + lname + '" → color=' + color + ' (templateIsDark=' + templateIsDark + ', overlapsShape=' + overlapsShape + ')');
                 }
                 // --------------------------------
                 // Determine the primary template font to use as a smart fallback 
@@ -3224,7 +3209,6 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
         // For AI templates: use individual height-constrained auto-shrink per text layer.
         // DO NOT CHANGE — locked for AI content auto-adjust.
         if (!aiConfig) {
-            console.log('[DIAG] Starting grouped auto-scaling. Groups:', Object.keys(textGroups));
             for (let baseName in textGroups) {
                 let group = textGroups[baseName];
                 if (group.length === 0) continue;
@@ -3288,13 +3272,11 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
                         item.t.initDimensions();
                     }
                 }
-                console.log('[DIAG] Group:', baseName, 'Layer:', item.t._label, 'origSize:', item.origSize, 'finalSize:', currentSize, 'lh:', item.lh, 'actualH:', Math.round(item.t.height), 'needed:', needed);
                 requiredFontSizes.push(currentSize);
             }
             
             // 2. Find the lowest common denominator font size
             let groupMinSize = Math.min(...requiredFontSizes);
-            console.log('[DIAG] Group:', baseName, 'groupMinSize:', groupMinSize, 'sizes:', requiredFontSizes);
             
             // 3. Apply the uniform size to all items in the group
             for (let item of group) {
@@ -3309,7 +3291,6 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
         // --- POST-PROCESS ICON COLORS ---
         // We do this after all images AND text are loaded into frameOverlayObjects
         if (iconsToProcess && iconsToProcess.length > 0) {
-            console.log('[THEMING] Processing ' + iconsToProcess.length + ' contact icons for dynamic color matching...');
             iconsToProcess.forEach(iconData => {
                 let matchingTextLayer = null;
                 if (iconData.textKey && iconData.textKey !== 'social') {
@@ -3351,7 +3332,6 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
                 }
 
                 if (targetColor) {
-                    console.log('[THEMING] Icon "' + iconData.lname + '" → matched color=' + targetColor);
                     iconData.img.filters.push(new fabric.Image.filters.BlendColor({
                         color: targetColor,
                         mode: 'tint',
@@ -3379,7 +3359,6 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
         }
 
         // UNFREEZE canvas and render everything in one perfect frame
-        console.log('[DIAG] Final renderAll. isBaseTemplate:', isBaseTemplate, 'Total objects:', fCanvas.getObjects().length);
         fCanvas.renderOnAddRemove = prevRenderOnAdd;
 
         // Recalculate interaction coordinates for ALL objects after auto-scaling changed sizes
@@ -3402,7 +3381,6 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
 
         // ── Run Auto-Layout for AI-modified content ──
         if (aiConfig) {
-            console.log('[AI-LAYOUT-INIT] AI content detected — running flex layout');
             solveFlexLayout();
         }
         
@@ -3411,7 +3389,6 @@ async function applyFrameConfig(config, isBaseTemplate = false) {
         
         // Debug: Log selection state of all objects
         fCanvas.getObjects().forEach((obj, i) => {
-            console.log('[DIAG] Object #' + i + ':', obj._label || obj.type, '| selectable:', obj.selectable, '| evented:', obj.evented, '| visible:', obj.visible, '| _isDecorativeShape:', !!obj._isDecorativeShape);
         });
         
         // Start history tracking if this is the base template
@@ -4083,7 +4060,6 @@ window.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => { 
                 applyFrameConfig(baseConfig, true).then(() => {
                     console.timeEnd('[DIAG] Base config render');
-                    console.log('[DIAG] Base config done. Objects on canvas:', fCanvas.getObjects().length);
                     
                     // ── BULLETPROOF FIX FOR DUPLICATE LAYERS ──
                     // If baseConfig exists, we have already rendered the full template.
@@ -4500,7 +4476,7 @@ function trackProductSelection(productId, imageUrl, mode) {
             image_url: imageUrl,
             image_mode: mode
         })
-    }).catch(err => console.log('Track selection error:', err));
+    }).catch(err => 
 }
 
 function markProductAsUsed(productId) {
@@ -4877,7 +4853,6 @@ function applyAiText() {
         if (typeof fCanvas === 'undefined' || !fCanvas) return;
         if (fCanvas.getObjects().length === 0) return;
         applied = true;
-        console.log('[AutoFrame] Auto-clicking first selected frame.');
         try {
             const frameUrl = firstFrame.getAttribute('onclick');
             const urlMatch = frameUrl ? frameUrl.match(/changeFrame\('([^']+)'/) : null;

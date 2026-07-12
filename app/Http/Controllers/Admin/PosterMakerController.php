@@ -725,6 +725,69 @@ class PosterMakerController extends Controller
                                     }
                                 }
                             }
+
+                            // Verify thumbnail actually exists; if not, generate from template skins
+                            $thumbOk = false;
+                            $currentThumb = $posterMaker->post_thumb;
+                            if ($currentThumb) {
+                                if (\App\Models\StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
+                                    $thumbOk = \Illuminate\Support\Facades\Storage::disk('spaces')->exists('uploads/' . $currentThumb);
+                                } else {
+                                    $thumbOk = file_exists(public_path('uploads/' . $currentThumb));
+                                }
+                            }
+
+                            if (!$thumbOk) {
+                                // Try to generate preview from extracted template skin images
+                                $tplFolder = public_path('uploads/template/' . $frameData['zip_name']);
+                                $skinFolder = $tplFolder . '/skins/' . $frameData['zip_name'];
+                                $generatedPreview = null;
+
+                                if (is_dir($skinFolder)) {
+                                    // Find the first non-shape PNG (asset_ files are frame overlays)
+                                    $skinFiles = glob($skinFolder . '/asset_*.png');
+                                    if (empty($skinFiles)) {
+                                        // Fallback to any PNG
+                                        $skinFiles = glob($skinFolder . '/*.png');
+                                    }
+                                    if (!empty($skinFiles)) {
+                                        $sourceImg = $skinFiles[0];
+                                        $previewDest = $tplFolder . '/preview.webp';
+                                        
+                                        // Convert/copy to preview.webp
+                                        if (function_exists('imagecreatefrompng')) {
+                                            $img = @imagecreatefrompng($sourceImg);
+                                            if ($img) {
+                                                imagewebp($img, $previewDest, 80);
+                                                imagedestroy($img);
+                                                $generatedPreview = 'template/' . $frameData['zip_name'] . '/preview.webp';
+                                            }
+                                        }
+                                        
+                                        // Fallback: just copy the PNG as preview
+                                        if (!$generatedPreview) {
+                                            $previewDestPng = $tplFolder . '/preview.png';
+                                            copy($sourceImg, $previewDestPng);
+                                            $generatedPreview = 'template/' . $frameData['zip_name'] . '/preview.png';
+                                        }
+                                    }
+                                }
+
+                                if ($generatedPreview) {
+                                    // Upload to DO if needed
+                                    if (\App\Models\StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
+                                        $localPreview = public_path('uploads/' . $generatedPreview);
+                                        if (file_exists($localPreview)) {
+                                            \Illuminate\Support\Facades\Storage::disk('spaces')->put('uploads/' . $generatedPreview, file_get_contents($localPreview), 'public');
+                                        }
+                                    }
+                                    $posterMaker->post_thumb = $generatedPreview;
+                                    $posterMaker->save();
+                                    \Log::info("[importFrames] Auto-generated preview for {$frameData['zip_name']}: $generatedPreview");
+                                } else {
+                                    \Log::warning("[importFrames] No preview could be generated for {$frameData['zip_name']}");
+                                }
+                            }
                             $importedCount++;
                         }
                     } else {

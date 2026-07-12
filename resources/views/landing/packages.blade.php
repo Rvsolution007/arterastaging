@@ -97,15 +97,17 @@
         display: flex;
         align-items: baseline;
         gap: 8px;
+        flex-wrap: wrap;
     }
     .plan-price {
-        font-size: 48px;
+        font-size: clamp(32px, 5vw, 48px);
         font-weight: 900;
         color: #0f172a;
         line-height: 1;
+        word-break: break-word;
     }
     .plan-currency {
-        font-size: 24px;
+        font-size: clamp(16px, 3vw, 24px);
         font-weight: 700;
         color: #64748b;
     }

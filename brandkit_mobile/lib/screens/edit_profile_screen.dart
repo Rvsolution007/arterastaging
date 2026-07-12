@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_text_styles.dart';
+import '../controllers/home_controller.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({Key? key}) : super(key: key);
@@ -101,6 +102,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           await prefs.setString('userName', _nameCtrl.text);
           await prefs.setString('emailId', _emailCtrl.text);
           await prefs.setString('phoneNumber', _phoneCtrl.text);
+
+          if (data['user'] != null && data['user']['profileImage'] != null) {
+            await prefs.setString('profileImage', data['user']['profileImage']);
+          }
+
+          // Reload business info so changes immediately reflect across the app
+          if (Get.isRegistered<HomeController>()) {
+            await Get.find<HomeController>().loadBusinessInfo();
+          }
 
           Get.back();
           Get.snackbar('Success', 'Profile updated successfully',

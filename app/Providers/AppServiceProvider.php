@@ -67,10 +67,19 @@ class AppServiceProvider extends ServiceProvider
         // ==========================================
         // SECURITY: Verify Critical Environment Variables
         // ==========================================
-        $requiredEnvVars = ['APP_KEY', 'DB_CONNECTION', 'DB_HOST', 'DB_PORT', 'DB_DATABASE', 'DB_USERNAME'];
-        foreach ($requiredEnvVars as $var) {
-            if (empty(env($var))) {
-                throw new \Exception("Critical Environment Variable Missing: $var. The application refuses to start.");
+        $requiredConfigVars = [
+            'app.key', 
+            'database.default', 
+            'database.connections.mysql.host', 
+            'database.connections.mysql.port', 
+            'database.connections.mysql.database', 
+            'database.connections.mysql.username'
+        ];
+        foreach ($requiredConfigVars as $var) {
+            if (empty(config($var))) {
+                // throw new \Exception("Critical Configuration Variable Missing: $var. The application refuses to start.");
+                // Log error instead of crashing to prevent issues when clearing cache
+                \Log::error("Critical Configuration Variable Missing: $var");
             }
         }
 

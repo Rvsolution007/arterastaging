@@ -68,7 +68,7 @@ class MyBusinessScreen extends StatelessWidget {
                     backgroundColor: AppColors.slate100,
                     child: hc.userProfileImage.value.isNotEmpty
                         ? CachedNetworkImage(
-                            imageUrl: '${hc.uploadsBaseUrl}/${hc.userProfileImage.value}',
+                            imageUrl: hc.userProfileImage.value.startsWith('http') ? hc.userProfileImage.value : '${hc.uploadsBaseUrl}/${hc.userProfileImage.value}',
                             imageBuilder: (context, imageProvider) => Container(
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,

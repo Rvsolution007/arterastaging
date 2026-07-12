@@ -1,6 +1,22 @@
 // Template Builder JS — runs immediately (no DOMContentLoaded since script loads at end of body)
 (function() {
     'use strict';
+    // ── Suppress verbose debug/font/mask logs for clean console ──
+    (function() {
+        var _log = console.log, _warn = console.warn, _err = console.error;
+        var _suppressPrefixes = ['[DEBUG]', '[FONTS]', '[MASK_AUTODETECT]', '[TEMPLATE_BUILDER]'];
+        function _shouldSuppress(args) {
+            if (args[0] && typeof args[0] === 'string') {
+                for (var i = 0; i < _suppressPrefixes.length; i++) {
+                    if (args[0].indexOf(_suppressPrefixes[i]) === 0) return true;
+                }
+            }
+            return false;
+        }
+        console.log = function() { if (!_shouldSuppress(arguments)) _log.apply(console, arguments); };
+        console.warn = function() { if (!_shouldSuppress(arguments)) _warn.apply(console, arguments); };
+        console.error = function() { if (!_shouldSuppress(arguments)) _err.apply(console, arguments); };
+    })();
     console.log('[TEMPLATE_BUILDER] v3.0 loaded — fill control + vector paths + complete effects');
     try {
     
@@ -112,6 +128,18 @@
         } else {
             setTimeout(() => { if(window.loadExistingTemplate) window.loadExistingTemplate(window.editing_frame_id); }, 500);
         }
+    }
+
+    // Suppress "Canvas2D: willReadFrequently" warnings from fabric filters
+    if (typeof HTMLCanvasElement !== 'undefined') {
+        var _origGetContext = HTMLCanvasElement.prototype.getContext;
+        HTMLCanvasElement.prototype.getContext = function(type, attrs) {
+            if (type === '2d') {
+                attrs = attrs || {};
+                attrs.willReadFrequently = true;
+            }
+            return _origGetContext.call(this, type, attrs);
+        };
     }
 
     // Initialize Canvas
@@ -1263,9 +1291,16 @@
         const objs = canvas.getActiveObjects();
         if (objs.length) {
             objs.forEach(obj => {
-                if (obj.customType === 'shape' || obj.is_shape || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type)) { 
-                    if (obj.fill === this.value) return; // Prevent infinite loop
+                if (obj.customType === 'shape' || obj.is_shape || ['rect','circle','triangle','path','polygon','line','ellipse', 'group'].includes(obj.type)) { 
+                    if (obj.fill === this.value && obj.type !== 'group') return; // Prevent infinite loop
                     obj.set('fill', this.value); 
+                    
+                    if (obj.type === 'group' && typeof obj.getObjects === 'function') {
+                        obj.getObjects().forEach(child => {
+                            if (child.set) child.set('fill', this.value);
+                        });
+                    }
+                    
                     if (obj.type === 'image' && typeof fabric.Image.filters.BlendColor !== 'undefined') {
                         obj.filters = [new fabric.Image.filters.BlendColor({
                             color: this.value,
@@ -1284,9 +1319,15 @@
         const objs = canvas.getActiveObjects();
         if (objs.length) {
             objs.forEach(obj => {
-                if (obj.customType === 'shape' || obj.is_shape || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type)) {
-                    if (obj.stroke === this.value) return; // Prevent infinite loop
+                if (obj.customType === 'shape' || obj.is_shape || ['rect','circle','triangle','path','polygon','line','ellipse', 'group'].includes(obj.type)) {
+                    if (obj.stroke === this.value && obj.type !== 'group') return; // Prevent infinite loop
                     obj.set('stroke', this.value); 
+                    
+                    if (obj.type === 'group' && typeof obj.getObjects === 'function') {
+                        obj.getObjects().forEach(child => {
+                            if (child.set) child.set('stroke', this.value);
+                        });
+                    }
                 }
             });
             canvas.renderAll();
@@ -1296,7 +1337,19 @@
 
     if (inputStrokeWidth) inputStrokeWidth.addEventListener('change', function() {
         const obj = canvas.getActiveObject();
-        if (obj && obj.customType === 'shape') { obj.set('strokeWidth', parseInt(this.value) || 0); canvas.renderAll(); saveHistory(); }
+        if (obj && (obj.customType === 'shape' || obj.type === 'group')) { 
+            const val = parseInt(this.value) || 0;
+            obj.set('strokeWidth', val); 
+            
+            if (obj.type === 'group' && typeof obj.getObjects === 'function') {
+                obj.getObjects().forEach(child => {
+                    if (child.set) child.set('strokeWidth', val);
+                });
+            }
+            
+            canvas.renderAll(); 
+            saveHistory(); 
+        }
     });
     if (inputBorderRadius) inputBorderRadius.addEventListener('change', function() {
         const obj = canvas.getActiveObject();
@@ -1563,6 +1616,142 @@
         if (btn) btn.addEventListener('click', () => addShape(type));
     });
 
+    // --- SVG UPLOAD ---
+    const svgUploadInput = $('svg-upload');
+    if (svgUploadInput) {
+        svgUploadInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(f) {
+                const svgString = f.target.result;
+                fabric.loadSVGFromString(svgString, function(objects, options) {
+                    const obj = fabric.util.groupSVGElements(objects, options);
+                    obj.set({
+                        left: 150,
+                        top: 150,
+                        customType: 'shape',
+                        customName: 'Custom Shape'
+                    });
+                    
+                    // Automatically color all internal paths to black by default for easier recoloring,
+                    // unless we want to keep original colors. But for shapes, solid tint_color is usually desired.
+                    if (obj.isSameColor && obj.isSameColor() || obj.paths) {
+                         obj.set({ fill: '#000000' });
+                    }
+                    
+                    // Save to custom shapes library
+                    try {
+                        let customShapes = JSON.parse(localStorage.getItem('artera_custom_shapes') || '[]');
+                        // Add to beginning of array
+                        customShapes.unshift({
+                            name: file.name.replace('.svg', ''),
+                            data: svgString,
+                            id: 'cs_' + Date.now()
+                        });
+                        // Keep only last 20 custom shapes to avoid quota issues
+                        if (customShapes.length > 20) customShapes = customShapes.slice(0, 20);
+                        localStorage.setItem('artera_custom_shapes', JSON.stringify(customShapes));
+                        
+                        // If library modal is open, reload it
+                        const customContainer = $('custom-svg-container');
+                        if (customContainer && customContainer.children.length > 1) { // more than just empty state
+                            customContainer.innerHTML = '<div class="col-12 text-center text-muted py-4" id="custom-svg-empty"><i class="fa-solid fa-cloud-arrow-up fa-3x mb-3 text-light"></i><p>No custom SVGs uploaded yet.<br>Click "Upload Custom SVG" from the sidebar to add shapes here.</p></div>';
+                            loadCustomSvgLibrary();
+                        }
+                    } catch(e) {
+                        console.error('Failed to save custom shape:', e);
+                    }
+                    
+                    canvas.add(obj);
+                    canvas.setActiveObject(obj);
+                    updateLayersList();
+                    saveHistory();
+                });
+            };
+            reader.readAsText(file);
+            svgUploadInput.value = ''; // Reset
+        });
+    }
+
+    // --- SVG LIBRARY ---
+    const btnSvgLibrary = $('btn-svg-library');
+    if (btnSvgLibrary) {
+        btnSvgLibrary.addEventListener('click', function() {
+            window.jQuery('#svgLibraryModal').modal('show');
+            loadCustomSvgLibrary();
+        });
+    }
+
+    function loadCustomSvgLibrary() {
+        const container = $('custom-svg-container');
+        const emptyState = $('custom-svg-empty');
+        if (!container) return;
+        
+        let customShapes = [];
+        try {
+            customShapes = JSON.parse(localStorage.getItem('artera_custom_shapes') || '[]');
+        } catch(e) {}
+        
+        // Remove existing shapes (skip empty state)
+        Array.from(container.children).forEach(child => {
+            if (child.id !== 'custom-svg-empty') child.remove();
+        });
+        
+        if (customShapes.length === 0) {
+            if (emptyState) emptyState.style.display = 'block';
+            return;
+        }
+        
+        if (emptyState) emptyState.style.display = 'none';
+        
+        customShapes.forEach((shape, index) => {
+            const item = document.createElement('div');
+            item.className = 'text-center position-relative';
+            item.style.cursor = 'pointer';
+            
+            // Render SVG string as data URI
+            const encodedData = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(shape.data)));
+            
+            item.innerHTML = '<div style="border:1px solid #f1f5f9; border-radius:12px; padding:5px 15px; transition: all 0.25s ease; background:#f8fafc; min-height:60px; display:flex; align-items:center; justify-content:center; position:relative;" ' +
+                'onmouseover="this.style.borderColor=\'#6366f1\'; this.style.boxShadow=\'0 4px 12px rgba(99,102,241,0.15)\'; this.style.transform=\'translateY(-2px)\'; this.querySelector(\'.delete-shape\').style.display=\'flex\';" ' +
+                'onmouseout="this.style.borderColor=\'#f1f5f9\'; this.style.boxShadow=\'none\'; this.style.transform=\'none\'; this.querySelector(\'.delete-shape\').style.display=\'none\';">' +
+                '<button class="delete-shape btn btn-danger position-absolute" style="display:none; align-items:center; justify-content:center; top:-8px; right:-8px; width:22px; height:22px; padding:0; border-radius:50%; z-index:10; box-shadow:0 2px 4px rgba(239,68,68,0.3); border:2px solid #fff;"><i class="fa-solid fa-times" style="font-size:10px;"></i></button>' +
+                '<img src="' + encodedData + '" style="width:100%; height:70px; object-fit:contain;">' +
+                '</div><div class="small mt-2 text-truncate" style="font-weight:600; font-size:0.8rem; color:#475569;" title="'+shape.name+'">' + shape.name + '</div>';
+            
+            // Delete handler
+            item.querySelector('.delete-shape').addEventListener('click', function(e) {
+                e.stopPropagation();
+                customShapes.splice(index, 1);
+                localStorage.setItem('artera_custom_shapes', JSON.stringify(customShapes));
+                loadCustomSvgLibrary(); // Refresh
+            });
+            
+            item.addEventListener('click', function() {
+                fabric.loadSVGFromString(shape.data, function(objects, options) {
+                    if (!objects || objects.length === 0) return;
+                    const obj = fabric.util.groupSVGElements(objects, options);
+                    obj.set({
+                        left: 150,
+                        top: 150,
+                        customType: 'shape',
+                        customName: shape.name
+                    });
+                    if (obj.isSameColor && obj.isSameColor() || obj.paths) {
+                         obj.set({ fill: '#000000' });
+                    }
+                    canvas.add(obj);
+                    canvas.setActiveObject(obj);
+                    updateLayersList();
+                    saveHistory();
+                    window.jQuery('#svgLibraryModal').modal('hide');
+                });
+            });
+            container.appendChild(item);
+        });
+    }
+
     // --- ADD ICONS (Dynamic via Iconify API) ---
     const iconsGrid = $('icons-grid');
     const iconSearch = $('icon-search');
@@ -1667,6 +1856,9 @@
         const objects = canvas.getObjects().slice().reverse(); // top layer first
 
         objects.forEach(function(obj, displayIdx) {
+            // Exclude node editor UI elements
+            if (obj._isNodeHandle || obj._isNodeGuide) return;
+
             var li = document.createElement('li');
             li.className = 'aim-list-item';
             li.setAttribute('draggable', 'true');
@@ -2106,35 +2298,649 @@
         }
     });
 
-    // Nudge buttons
-    function nudgeObj(dir) {
-        var obj = canvas.getActiveObject();
-        if (!obj) return;
-        var step = 5;
-        if (dir === 'left')  obj.set('left', obj.left - step);
-        if (dir === 'right') obj.set('left', obj.left + step);
-        if (dir === 'up')    obj.set('top', obj.top - step);
-        if (dir === 'down')  obj.set('top', obj.top + step);
-        obj.setCoords();
-        canvas.renderAll();
-        updateProps();
-        saveHistory();
+    // Flip buttons
+    const btnFlipH = $('flip-horizontal');
+    const btnFlipV = $('flip-vertical');
+    
+    if (btnFlipH) {
+        btnFlipH.addEventListener('click', function() {
+            const obj = canvas.getActiveObject();
+            if (obj) {
+                obj.set('flipX', !obj.flipX);
+                canvas.renderAll();
+                saveHistory();
+            }
+        });
     }
-    var nudgeLeft = $('nudge-left'), nudgeRight = $('nudge-right'), nudgeUp = $('nudge-up'), nudgeDown = $('nudge-down');
-    if (nudgeLeft)  nudgeLeft.addEventListener('click', function() { nudgeObj('left'); });
-    if (nudgeRight) nudgeRight.addEventListener('click', function() { nudgeObj('right'); });
-    if (nudgeUp)    nudgeUp.addEventListener('click', function() { nudgeObj('up'); });
-    if (nudgeDown)  nudgeDown.addEventListener('click', function() { nudgeObj('down'); });
+    
+    if (btnFlipV) {
+        btnFlipV.addEventListener('click', function() {
+            const obj = canvas.getActiveObject();
+            if (obj) {
+                obj.set('flipY', !obj.flipY);
+                canvas.renderAll();
+                saveHistory();
+            }
+        });
+    }
 
-    // Layer jump buttons
-    var layerToTop = $('layer-to-top'), layerToBottom = $('layer-to-bottom');
-    if (layerToTop) layerToTop.addEventListener('click', function() {
+    // Layer buttons removed as per user request
+
+    // ═══════════════════════════════════════════════════════════════
+    // NODE / POINT EDITOR  (CorelDRAW-style "Convert to Curves")
+    // ═══════════════════════════════════════════════════════════════
+    var _nodeEditMode = false;
+    var _nodeCircles = [];
+    var _nodeLines = [];
+    var _nodeEditTarget = null;
+    var _nodeEditPathObj = null;   // The resolved path/polygon object
+    var _nodeEditWrapper = null;   // The wrapper (group or same as pathObj)
+    var _nodeMovingHandler = null;
+    var _nodeModifiedHandler = null;
+    var _lastInteractedNodeIdx = -1; // Track last dragged node for Delete key
+    var nodeEditSection = $('node-edit-section');
+    var btnEditPoints = $('btn-edit-points');
+    var btnEditPointsText = $('btn-edit-points-text');
+
+    /**
+     * Resolve to the inner fabric.Path from any object:
+     *  - fabric.Path → return directly
+     *  - fabric.Group with single Path child → return that child path
+     *  - otherwise → null
+     */
+    function _resolvePathObj(obj) {
+        if (!obj) return null;
+        if (['path', 'polygon', 'polyline', 'rect'].includes(obj.type)) return obj;
+        
+        if (obj.type === 'group' && obj._objects && obj._objects.length > 0) {
+            // Find the first editable shape in the group
+            for (var i = 0; i < obj._objects.length; i++) {
+                var child = obj._objects[i];
+                if (['path', 'polygon', 'polyline', 'rect'].includes(child.type)) {
+                    return child;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Can this object enter node-edit mode? */
+    function canEditNodes(obj) {
+        var resolved = _resolvePathObj(obj);
+        if (!resolved) return false;
+        // Allow editing for paths, polygons, polylines, and rects
+        return true;
+    }
+
+    /** Convert a rect to a polygon for node editing */
+    function _convertToPolygon(rectObj) {
+        if (rectObj.type !== 'rect') return rectObj;
+        var w = rectObj.width;
+        var h = rectObj.height;
+        
+        // Always use 0-based points (Fabric polygon handles pathOffset internally)
+        var pts = [
+            {x: 0, y: 0},
+            {x: w, y: 0},
+            {x: w, y: h},
+            {x: 0, y: h}
+        ];
+        
+        var poly = new fabric.Polygon(pts, {
+            fill: rectObj.fill,
+            stroke: rectObj.stroke,
+            strokeWidth: rectObj.strokeWidth,
+            scaleX: rectObj.scaleX,
+            scaleY: rectObj.scaleY,
+            angle: rectObj.angle,
+            skewX: rectObj.skewX,
+            skewY: rectObj.skewY,
+            opacity: rectObj.opacity,
+            originX: rectObj.originX,
+            originY: rectObj.originY,
+            flipX: rectObj.flipX,
+            flipY: rectObj.flipY,
+            customName: rectObj.customName || 'Converted Polygon',
+            customType: rectObj.customType || 'shape',
+            is_shape: true
+        });
+        
+        // CRITICAL: Position the polygon so it visually matches the rect exactly
+        // Use the rect's actual bounding rect to align
+        var rectCenter = rectObj.getCenterPoint();
+        poly.set({ left: rectCenter.x, top: rectCenter.y, originX: 'center', originY: 'center' });
+        poly.setCoords();
+        
+        console.log('[NODE_EDIT] Converted rect to polygon. Rect center:', rectCenter, 'Poly left/top:', poly.left, poly.top, 'Points:', pts);
+        
+        return poly;
+    }
+
+    /** Show / hide the "Edit Points" button based on selected object */
+    function updateNodeEditButton() {
         var obj = canvas.getActiveObject();
-        if (obj) { canvas.bringToFront(obj); updateLayersList(); saveHistory(); }
+        if (nodeEditSection) {
+            var canEdit = obj && canEditNodes(obj);
+            console.log('[NODE_EDIT] updateNodeEditButton: obj type=' + (obj ? obj.type : 'null') + ', canEdit=' + canEdit + ', nodeEditSection exists=' + !!nodeEditSection);
+            if (canEdit) {
+                nodeEditSection.style.display = 'block';
+                if (btnEditPointsText) {
+                    btnEditPointsText.textContent = _nodeEditMode ? 'Exit Edit Points' : 'Edit Points';
+                }
+                if (btnEditPoints) {
+                    if (_nodeEditMode) {
+                        btnEditPoints.classList.remove('btn-outline-primary');
+                        btnEditPoints.classList.add('btn-primary');
+                    } else {
+                        btnEditPoints.classList.remove('btn-primary');
+                        btnEditPoints.classList.add('btn-outline-primary');
+                    }
+                }
+            } else {
+                nodeEditSection.style.display = 'none';
+            }
+        } else {
+            console.warn('[NODE_EDIT] nodeEditSection DOM element not found!');
+        }
+    }
+
+    /**
+     * Convert a point from a path's coordinate space to canvas coordinates
+     */
+    function _pathPointToCanvas(pathObj, wrapperObj, px, py) {
+        // For polygon/polyline: pathOffset is the center of the points bounding box
+        // For path: pathOffset is set by Fabric when parsing the path
+        var offsetX = 0, offsetY = 0;
+        if (pathObj.pathOffset) {
+            offsetX = pathObj.pathOffset.x;
+            offsetY = pathObj.pathOffset.y;
+        } else if (pathObj.type === 'polygon' || pathObj.type === 'polyline') {
+            // Fallback: compute from points
+            var pts = pathObj.points || [];
+            var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            pts.forEach(function(p) { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); });
+            offsetX = (minX + maxX) / 2;
+            offsetY = (minY + maxY) / 2;
+        }
+        
+        // Convert point from path-local space to center-relative
+        var lx = px - offsetX;
+        var ly = py - offsetY;
+        
+        // Use the actual object on canvas for transform (targetObj, not inner pathObj if different)
+        var transformObj = (wrapperObj && wrapperObj !== pathObj) ? wrapperObj : pathObj;
+        var matrix = transformObj.calcTransformMatrix();
+        var result = fabric.util.transformPoint(new fabric.Point(lx, ly), matrix);
+        
+        return result;
+    }
+
+    /**
+     * Convert a canvas coordinate back to the path's coordinate space
+     */
+    function _canvasPointToPath(pathObj, wrapperObj, cx, cy) {
+        var transformObj = (wrapperObj && wrapperObj !== pathObj) ? wrapperObj : pathObj;
+        var matrix = transformObj.calcTransformMatrix();
+        var inv = fabric.util.invertTransform(matrix);
+        var pt = fabric.util.transformPoint(new fabric.Point(cx, cy), inv);
+        
+        var offsetX = 0, offsetY = 0;
+        if (pathObj.pathOffset) {
+            offsetX = pathObj.pathOffset.x;
+            offsetY = pathObj.pathOffset.y;
+        } else if (pathObj.type === 'polygon' || pathObj.type === 'polyline') {
+            var pts = pathObj.points || [];
+            var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            pts.forEach(function(p) { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); });
+            offsetX = (minX + maxX) / 2;
+            offsetY = (minY + maxY) / 2;
+        }
+        
+        var px = pt.x + offsetX;
+        var py = pt.y + offsetY;
+        
+        return { x: px, y: py };
+    }
+
+    /**
+     * Extract all editable node coordinates from a path's data array or polygon's points array.
+     */
+    function _extractNodes(targetObj) {
+        var nodes = [];
+        
+        if (targetObj.type === 'polygon' || targetObj.type === 'polyline') {
+            var pts = targetObj.points || [];
+            for (var j = 0; j < pts.length; j++) {
+                nodes.push({ isPolygon: true, pathIndex: j, xIdx: 0, yIdx: 0, x: pts[j].x, y: pts[j].y });
+            }
+            return nodes;
+        }
+
+        var pathData = targetObj.path || [];
+        for (var i = 0; i < pathData.length; i++) {
+            var cmd = pathData[i];
+            var c = cmd[0].toUpperCase();
+            if (c === 'Z') continue;
+
+            if (c === 'M' || c === 'L' || c === 'T') {
+                nodes.push({ pathIndex: i, xIdx: 1, yIdx: 2, x: cmd[1], y: cmd[2] });
+            } else if (c === 'H') {
+                nodes.push({ pathIndex: i, xIdx: 1, yIdx: -1, x: cmd[1], y: 0 });
+            } else if (c === 'V') {
+                nodes.push({ pathIndex: i, xIdx: -1, yIdx: 1, x: 0, y: cmd[1] });
+            } else if (c === 'C') {
+                nodes.push({ pathIndex: i, xIdx: 5, yIdx: 6, x: cmd[5], y: cmd[6] });
+            } else if (c === 'S') {
+                nodes.push({ pathIndex: i, xIdx: 3, yIdx: 4, x: cmd[3], y: cmd[4] });
+            } else if (c === 'Q') {
+                nodes.push({ pathIndex: i, xIdx: 3, yIdx: 4, x: cmd[3], y: cmd[4] });
+            } else if (c === 'A') {
+                nodes.push({ pathIndex: i, xIdx: 6, yIdx: 7, x: cmd[6], y: cmd[7] });
+            }
+        }
+        return nodes;
+    }
+
+    /**
+     * Draw connecting lines between nodes for visual feedback
+     */
+    function _drawNodeLines(pathObj, wrapperObj, nodes) {
+        // Remove old lines
+        _nodeLines.forEach(function(l) { canvas.remove(l); });
+        _nodeLines = [];
+
+        if (nodes.length < 2) return;
+
+        for (var i = 0; i < nodes.length; i++) {
+            var n1 = nodes[i];
+            var n2 = nodes[(i + 1) % nodes.length]; // wrap around
+            var p1 = _pathPointToCanvas(pathObj, wrapperObj, n1.x, n1.y);
+            var p2 = _pathPointToCanvas(pathObj, wrapperObj, n2.x, n2.y);
+            var line = new fabric.Line([p1.x, p1.y, p2.x, p2.y], {
+                stroke: '#6366f1',
+                strokeWidth: 1,
+                strokeDashArray: [4, 3],
+                selectable: false,
+                evented: false,
+                excludeFromExport: true,
+                _isNodeGuide: true
+            });
+            canvas.add(line);
+            _nodeLines.push(line);
+        }
+    }
+
+    /**
+     * ENTER node editing mode
+     */
+    function enterNodeEditMode(targetObj) {
+        if (_nodeEditMode) exitNodeEditMode();
+
+        var pathObj = _resolvePathObj(targetObj);
+        if (!pathObj) return;
+
+        // If it's a rect, convert it to polygon first
+        if (pathObj.type === 'rect') {
+            var poly = _convertToPolygon(pathObj);
+            
+            if (targetObj === pathObj) {
+                // Not in a group, replace directly on canvas
+                canvas.remove(pathObj);
+                canvas.add(poly);
+                canvas.setActiveObject(poly);
+                targetObj = poly;
+                pathObj = poly;
+            } else if (targetObj.type === 'group' && targetObj._objects) {
+                // It's inside a group
+                var idx = targetObj._objects.indexOf(pathObj);
+                if (idx !== -1) {
+                    targetObj.removeWithUpdate(pathObj);
+                    targetObj.insertAt(poly, idx, true);
+                    pathObj = poly;
+                }
+            }
+        }
+        
+        if (!pathObj.path && !pathObj.points) return;
+
+        _nodeEditMode = true;
+        _nodeEditTarget = targetObj;
+
+        // Determine the wrapper (for transforms). If the path is inside a group, use the group.
+        var wrapperObj = (targetObj !== pathObj) ? targetObj : pathObj;
+        _nodeEditPathObj = pathObj;
+        _nodeEditWrapper = wrapperObj;
+
+        // Lock the target from regular transforms while in edit mode
+        targetObj.set({
+            lockMovementX: true,
+            lockMovementY: true,
+            lockScalingX: true,
+            lockScalingY: true,
+            lockRotation: true,
+            hasControls: true, // MUST BE TRUE to show custom node controls
+            hasBorders: false
+        });
+
+        var nodes = _extractNodes(pathObj);
+        
+        // Pre-compute pathOffset once for this edit session
+        var _editOffsetX = 0, _editOffsetY = 0;
+        if (pathObj.pathOffset) {
+            _editOffsetX = pathObj.pathOffset.x;
+            _editOffsetY = pathObj.pathOffset.y;
+        } else if (pathObj.type === 'polygon' || pathObj.type === 'polyline') {
+            var pts = pathObj.points || [];
+            var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            pts.forEach(function(p) { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y); });
+            _editOffsetX = (minX + maxX) / 2;
+            _editOffsetY = (minY + maxY) / 2;
+        }
+        
+        console.log('[NODE_EDIT] Extracted ' + nodes.length + ' nodes. pathOffset: (' + _editOffsetX.toFixed(1) + ', ' + _editOffsetY.toFixed(1) + ')');
+        console.log('[NODE_EDIT] pathObj type:', pathObj.type, 'left:', pathObj.left, 'top:', pathObj.top, 'scaleX:', pathObj.scaleX, 'scaleY:', pathObj.scaleY);
+        console.log('[NODE_EDIT] targetObj === pathObj:', targetObj === pathObj, ', wrapperObj === pathObj:', wrapperObj === pathObj);
+
+        // Draw initial guide lines (these are fabric objects, use canvas coordinates)
+        _drawNodeLines(pathObj, wrapperObj, nodes);
+
+        // Save original controls to restore them later
+        targetObj._originalControls = targetObj.controls;
+        var nodeControls = {};
+
+        // Create a custom control for each node
+        nodes.forEach(function(nd, idx) {
+            nodeControls['node_' + idx] = new fabric.Control({
+                positionHandler: function(dim, finalMatrix, fabricObject) {
+                    // Convert path-local point to canvas coordinates using the full
+                    // transform matrix (includes translate + rotate + scale + flip).
+                    // Then convert canvas coords to screen coords via viewport transform,
+                    // because controls are drawn WITHOUT the viewport transform applied.
+                    var canvasPt = _pathPointToCanvas(pathObj, wrapperObj, nd.x, nd.y);
+                    var vpt = canvas.viewportTransform;
+                    return fabric.util.transformPoint(canvasPt, vpt);
+                },
+                actionHandler: function(eventData, transform, x, y) {
+                    _lastInteractedNodeIdx = nd.pathIndex;
+                    // x, y are canvas pointer coordinates
+                    var pathPt = _canvasPointToPath(pathObj, wrapperObj, x, y);
+
+                    if (nd.isPolygon) {
+                        pathObj.points[nd.pathIndex].x = pathPt.x;
+                        pathObj.points[nd.pathIndex].y = pathPt.y;
+                    } else {
+                        var cmd = pathObj.path[nd.pathIndex];
+                        if (nd.xIdx > 0) cmd[nd.xIdx] = pathPt.x;
+                        if (nd.yIdx > 0) cmd[nd.yIdx] = pathPt.y;
+                    }
+                    nd.x = pathPt.x;
+                    nd.y = pathPt.y;
+
+                    pathObj.dirty = true;
+                    if (wrapperObj !== pathObj) wrapperObj.dirty = true;
+                    
+                    // Update guide lines
+                    _drawNodeLines(pathObj, wrapperObj, nodes);
+
+                    return true;
+                },
+                cursorStyle: 'crosshair',
+                actionName: 'modifyNode',
+                render: function(ctx, left, top, styleOverride, fabricObject) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(left, top, 6, 0, 2 * Math.PI, false);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.strokeStyle = '#6366f1';
+                    ctx.lineWidth = 2.5;
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.restore();
+                }
+            });
+        });
+
+        // ── MIDPOINT "+" CONTROLS — click or drag to insert a new point ──
+        if (pathObj.type === 'polygon' || pathObj.type === 'polyline') {
+            for (var mi = 0; mi < nodes.length; mi++) {
+                (function(edgeIdx, n1, n2) {
+                    var inserted = false;
+                    var insertedPointIdx = -1;
+
+                    nodeControls['mid_' + edgeIdx] = new fabric.Control({
+                        positionHandler: function(dim, finalMatrix, fabricObject) {
+                            if (inserted && insertedPointIdx >= 0 && insertedPointIdx < pathObj.points.length) {
+                                var pt = pathObj.points[insertedPointIdx];
+                                var canvasPt = _pathPointToCanvas(pathObj, wrapperObj, pt.x, pt.y);
+                                return fabric.util.transformPoint(canvasPt, canvas.viewportTransform);
+                            }
+                            var midX = (n1.x + n2.x) / 2;
+                            var midY = (n1.y + n2.y) / 2;
+                            var canvasPt = _pathPointToCanvas(pathObj, wrapperObj, midX, midY);
+                            return fabric.util.transformPoint(canvasPt, canvas.viewportTransform);
+                        },
+                        actionHandler: function(eventData, transform, x, y) {
+                            if (!inserted) {
+                                // First drag call — insert the new point
+                                var midX = (n1.x + n2.x) / 2;
+                                var midY = (n1.y + n2.y) / 2;
+                                insertedPointIdx = edgeIdx + 1;
+                                pathObj.points.splice(insertedPointIdx, 0, { x: midX, y: midY });
+                                inserted = true;
+                                pathObj.dirty = true;
+                                console.log('[NODE_EDIT] Inserted new point at index', insertedPointIdx);
+                            }
+                            // Move the newly inserted point with the drag
+                            var pathPt = _canvasPointToPath(pathObj, wrapperObj, x, y);
+                            pathObj.points[insertedPointIdx].x = pathPt.x;
+                            pathObj.points[insertedPointIdx].y = pathPt.y;
+                            pathObj.dirty = true;
+                            if (wrapperObj !== pathObj) wrapperObj.dirty = true;
+                            return true;
+                        },
+                        mouseUpHandler: function(eventData, transformData) {
+                            if (!inserted) {
+                                // Simple click (no drag) — insert at midpoint
+                                var midX = (n1.x + n2.x) / 2;
+                                var midY = (n1.y + n2.y) / 2;
+                                insertedPointIdx = edgeIdx + 1;
+                                pathObj.points.splice(insertedPointIdx, 0, { x: midX, y: midY });
+                                inserted = true;
+                                pathObj.dirty = true;
+                            }
+                            // Rebuild controls to reflect the new point
+                            var target = _nodeEditTarget;
+                            exitNodeEditMode();
+                            enterNodeEditMode(target);
+                            return true;
+                        },
+                        cursorStyle: 'copy',
+                        actionName: 'addNode',
+                        render: function(ctx, left, top, styleOverride, fabricObject) {
+                            ctx.save();
+                            // Semi-transparent purple circle
+                            ctx.beginPath();
+                            ctx.arc(left, top, 5, 0, 2 * Math.PI, false);
+                            ctx.fillStyle = 'rgba(99, 102, 241, 0.45)';
+                            ctx.fill();
+                            ctx.strokeStyle = '#6366f1';
+                            ctx.lineWidth = 1.5;
+                            ctx.stroke();
+                            // "+" sign
+                            ctx.strokeStyle = '#ffffff';
+                            ctx.lineWidth = 1.5;
+                            ctx.beginPath();
+                            ctx.moveTo(left - 3, top);
+                            ctx.lineTo(left + 3, top);
+                            ctx.moveTo(left, top - 3);
+                            ctx.lineTo(left, top + 3);
+                            ctx.stroke();
+                            ctx.restore();
+                        }
+                    });
+                })(mi, nodes[mi], nodes[(mi + 1) % nodes.length]);
+            }
+        }
+
+        targetObj.controls = nodeControls;
+        canvas.renderAll();
+        console.log('[NODE_EDIT] Node edit mode ENTERED. Controls count:', Object.keys(nodeControls).length);
+
+        // Update button state
+        updateNodeEditButton();
+    }
+
+    /**
+     * EXIT node editing mode
+     */
+    function exitNodeEditMode() {
+        if (!_nodeEditMode) return;
+
+        // Remove guide lines
+        _nodeLines.forEach(function(l) { canvas.remove(l); });
+        _nodeLines = [];
+
+        // Restore original controls
+        if (_nodeEditTarget && _nodeEditTarget._originalControls) {
+            _nodeEditTarget.controls = _nodeEditTarget._originalControls;
+            delete _nodeEditTarget._originalControls;
+        }
+
+        // Restore object interactivity
+        if (_nodeEditTarget) {
+            _nodeEditTarget.set({
+                lockMovementX: false,
+                lockMovementY: false,
+                lockScalingX: false,
+                lockScalingY: false,
+                lockRotation: false,
+                hasControls: true,
+                hasBorders: true
+            });
+
+            // Recalculate dimensions after edits
+            var pathObj = _resolvePathObj(_nodeEditTarget);
+            if (pathObj) {
+                if (pathObj.type === 'polygon' || pathObj.type === 'polyline') {
+                    // Force fabric to recalculate the polygon's bounding box and offset
+                    var points = pathObj.points;
+                    pathObj.initialize(points, pathObj);
+                } else if (pathObj.type === 'path') {
+                    var pathData = pathObj.path;
+                    pathObj.initialize(pathData, pathObj);
+                }
+                
+                pathObj.setCoords();
+                if (_nodeEditTarget !== pathObj) {
+                    _nodeEditTarget.setCoords();
+                    // Recalculate group dimensions
+                    if (typeof _nodeEditTarget.addWithUpdate === 'function') {
+                        // Force group to recalculate
+                        _nodeEditTarget._calcBounds();
+                        _nodeEditTarget.setCoords();
+                    }
+                }
+            }
+
+            canvas.setActiveObject(_nodeEditTarget);
+        }
+
+        _nodeEditTarget = null;
+        _nodeEditPathObj = null;
+        _nodeEditWrapper = null;
+        _lastInteractedNodeIdx = -1;
+        _nodeEditMode = false;
+
+        canvas.renderAll();
+        saveHistory();
+        updateNodeEditButton();
+    }
+
+    // Button click handler
+    if (btnEditPoints) {
+        btnEditPoints.addEventListener('click', function() {
+            if (_nodeEditMode) {
+                exitNodeEditMode();
+            } else {
+                var obj = canvas.getActiveObject();
+                if (obj && canEditNodes(obj)) {
+                    enterNodeEditMode(obj);
+                }
+            }
+        });
+    }
+
+    // Escape key to exit node editing
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && _nodeEditMode) {
+            exitNodeEditMode();
+        }
+        // Delete key removes the last-interacted point (min 3 points)
+        if ((e.key === 'Delete' || e.key === 'Backspace') && _nodeEditMode && _nodeEditPathObj) {
+            if (_nodeEditPathObj.type === 'polygon' || _nodeEditPathObj.type === 'polyline') {
+                if (_lastInteractedNodeIdx >= 0 && _nodeEditPathObj.points.length > 3) {
+                    e.preventDefault();
+                    _nodeEditPathObj.points.splice(_lastInteractedNodeIdx, 1);
+                    _nodeEditPathObj.dirty = true;
+                    var target = _nodeEditTarget;
+                    exitNodeEditMode();
+                    enterNodeEditMode(target);
+                    console.log('[NODE_EDIT] Deleted point at index', _lastInteractedNodeIdx);
+                }
+            }
+        }
     });
-    if (layerToBottom) layerToBottom.addEventListener('click', function() {
-        var obj = canvas.getActiveObject();
-        if (obj) { canvas.sendToBack(obj); updateLayersList(); saveHistory(); }
+
+    // Double-click on canvas to add point on closest edge (alternative method)
+    canvas.on('mouse:dblclick', function(opt) {
+        if (!_nodeEditMode || !_nodeEditPathObj || !_nodeEditWrapper) return;
+        var pathObj = _nodeEditPathObj;
+        if (pathObj.type !== 'polygon' && pathObj.type !== 'polyline') return;
+
+        var pointer = canvas.getPointer(opt.e);
+        var pathPt = _canvasPointToPath(pathObj, _nodeEditWrapper, pointer.x, pointer.y);
+        var points = pathObj.points;
+
+        // Find closest edge segment
+        var bestDist = Infinity, bestIdx = 0;
+        for (var ei = 0; ei < points.length; ei++) {
+            var p1 = points[ei], p2 = points[(ei + 1) % points.length];
+            var dx = p2.x - p1.x, dy = p2.y - p1.y;
+            var len2 = dx * dx + dy * dy;
+            var t = len2 > 0 ? Math.max(0, Math.min(1, ((pathPt.x - p1.x) * dx + (pathPt.y - p1.y) * dy) / len2)) : 0;
+            var projX = p1.x + t * dx, projY = p1.y + t * dy;
+            var dist = Math.sqrt((pathPt.x - projX) * (pathPt.x - projX) + (pathPt.y - projY) * (pathPt.y - projY));
+            if (dist < bestDist) { bestDist = dist; bestIdx = ei; }
+        }
+
+        // Insert point at the click position on the closest edge
+        pathObj.points.splice(bestIdx + 1, 0, { x: pathPt.x, y: pathPt.y });
+        pathObj.dirty = true;
+        console.log('[NODE_EDIT] Double-click added point at index', bestIdx + 1);
+
+        var target = _nodeEditTarget;
+        exitNodeEditMode();
+        enterNodeEditMode(target);
+    });
+
+    // Exit node editing when selection changes
+    canvas.on('before:selection:cleared', function() {
+        if (_nodeEditMode) {
+            exitNodeEditMode();
+        }
+    });
+
+    // Hook into updateProps to show/hide the Edit Points button
+    var _origUpdateProps = updateProps;
+    updateProps = function() {
+        _origUpdateProps();
+        updateNodeEditButton();
+    };
+    // Also hook selection events for button visibility
+    canvas.on('selection:created', updateNodeEditButton);
+    canvas.on('selection:updated', function() {
+        if (_nodeEditMode) exitNodeEditMode();
+        updateNodeEditButton();
     });
 
     // --- Load JSON ---
@@ -2346,7 +3152,7 @@
                             document.fonts.add(loaded);
                             console.log('[FONTS] Loaded custom font:', fontName, 'as', fontInfo.family, 'weight=' + fontInfo.weight, 'style=' + fontInfo.style);
                         }).catch(err => {
-                            console.warn('[FONTS] Failed to load custom font:', fontName, err);
+                            // console.warn('[FONTS] Failed to load custom font:', fontName, err);
                         });
                         // Collect family names for Google Fonts fallback
                         if (fontInfo.family && fontInfo.family !== 'Arial') zipFontFamilies.add(fontInfo.family);
@@ -2553,7 +3359,7 @@
                             document.fonts.add(loaded);
                             console.log('[FONTS] Loaded custom font:', fontName, 'as', fontInfo.family, 'weight=' + fontInfo.weight, 'style=' + fontInfo.style);
                         }).catch(err => {
-                            console.warn('[FONTS] Failed to load custom font:', fontName, err);
+                            // console.warn('[FONTS] Failed to load custom font:', fontName, err);
                         });
                         if (fontInfo.family && fontInfo.family !== 'Arial') zipFontFamilies.add(fontInfo.family);
                     });
@@ -2602,16 +3408,44 @@
                                     const fn = (el.src || '').split('/').pop();
                                     if (imagesMap[fn]) l.src = imagesMap[fn];
                                 } else if (el.type === 'text') {
-                                    l.type = 'text'; l.text = el.text; l.color = el.color;
-                                    l.font = el.font; l.fontSize = el.fontSize; l.textAlign = el.textAlign;
-                                    l.lineHeight = el.lineHeight; l.charSpacing = el.letterSpacing;
+                                    l.type = 'text'; l.text = el.text;
+                                    // Artera schema stores font as object {family, size, weight, style, color, ...}
+                                    // Legacy layer format expects flat fields: font (string), fontSize, color, etc.
+                                    if (el.font && typeof el.font === 'object') {
+                                        l.font = el.font.family || 'Arial';
+                                        l.fontSize = el.font.size || el.fontSize || 20;
+                                        l.weight = el.font.weight || '400';
+                                        l.style = el.font.style || 'normal';
+                                        l.color = el.font.color || el.color || '#000000';
+                                        l.textAlign = el.font.justification || el.textAlign || 'left';
+                                        l.charSpacing = el.font.charSpacing || 0;
+                                        l.lineHeight = el.font.lineHeight || el.lineHeight || 1.16;
+                                        l.auto_scale = el.font.auto_scale || false;
+                                    } else {
+                                        l.font = el.font || el.fontFamily || 'Arial';
+                                        l.fontSize = el.fontSize || 20;
+                                        l.color = el.color || '#000000';
+                                        l.textAlign = el.textAlign || 'left';
+                                        l.lineHeight = el.lineHeight || 1.16;
+                                        l.charSpacing = el.letterSpacing || 0;
+                                    }
+                                    if (el.kind) l.kind = el.kind;
+                                    if (el.textKind) l.textKind = el.textKind;
+                                    if (el.placeholder) l.placeholder = el.placeholder;
                                     if (el.shadow) {
                                         l.shadow = { color: el.shadow.color, blur: el.shadow.blur, x: el.shadow.offsetX, y: el.shadow.offsetY };
                                     }
                                 } else if (['rect','circle','triangle','path','polygon','line','ellipse'].includes(el.type) || el.type === 'shape') {
-                                    l.type = 'shape'; l.shapeType = el.type === 'shape' ? 'rect' : el.type;
+                                    l.type = 'shape';
+                                    // Use el.shapeType if available (e.g. 'polygon'), fall back to el.type
+                                    l.shapeType = el.shapeType || (el.type === 'shape' ? 'rect' : el.type);
                                     l.fill = el.fill || '#000000'; l.stroke = el.stroke;
                                     l.strokeWidth = el.strokeWidth || 0;
+                                    // Pass through polygon points and path SVG for round-trip
+                                    if (el.points) l.points = el.points;
+                                    if (el.svgPath) { l.svgPath = el.svgPath; l.scaleX = el.scaleX; l.scaleY = el.scaleY; }
+                                    if (el.rx) l.rx = el.rx;
+                                    if (el.ry) l.ry = el.ry;
                                 }
                                 return l;
                             })
@@ -2650,6 +3484,11 @@
 
     function normalizePSFont(psFont) {
         if (!psFont) return { family: 'Arial', weight: '400', style: 'normal' };
+        // Guard: if psFont is an object (e.g. Artera schema font object), extract family
+        if (typeof psFont === 'object') {
+            return { family: psFont.family || 'Arial', weight: psFont.weight || '400', style: psFont.style || 'normal' };
+        }
+        if (typeof psFont !== 'string') return { family: 'Arial', weight: '400', style: 'normal' };
         
         let cleanName = psFont.replace(/[-_]/g, ' ');
         let words = cleanName.split(/\s+/);
@@ -2732,7 +3571,7 @@
                                     document.fonts.add(loaded);
                                     console.log('[FONTS] Loaded custom font:', variant.name, 'as', fontInfo.family, 'weight=' + fontInfo.weight, 'style=' + fontInfo.style);
                                 }).catch(function(err) {
-                                    console.warn('[FONTS] Failed to load custom font:', variant.name, err);
+                                    // console.warn('[FONTS] Failed to load custom font:', variant.name, err);
                                 });
                                 customFontsLoaded.push(p);
                             });
@@ -3440,9 +4279,31 @@
                         }
                     );
                 }
-                // ── CUSTOM SHAPE — render from pathData using fabric.Path ────
+                // ── CUSTOM SHAPE — render from svgPath or pathData ────
                 else {
-                    if (layer.pathData && Array.isArray(layer.pathData) && layer.pathData.length > 0) {
+                    // First try our exported svgPath string (from polygon-to-path or path round-trip)
+                    if (layer.svgPath && typeof layer.svgPath === 'string') {
+                        obj = new fabric.Path(layer.svgPath, {
+                            left: layer.x,
+                            top: layer.y,
+                            fill: shapeColor,
+                            stroke: strokeColor,
+                            strokeWidth: strokeWidth,
+                            originX: 'left',
+                            originY: 'top',
+                            scaleX: layer.scaleX || 1,
+                            scaleY: layer.scaleY || 1,
+                            angle: rotation,
+                            opacity: opacity,
+                            shadow: shadow,
+                            visible: visible,
+                            customType: 'shape',
+                            customName: layer.name
+                        });
+                        console.log('[LOAD] Path from svgPath:', layer.name);
+                    }
+                    // Then try PSD-format pathData
+                    else if (layer.pathData && Array.isArray(layer.pathData) && layer.pathData.length > 0) {
                         const svgPath = pathDataToSVG(layer.pathData, layer.x, layer.y);
                         if (svgPath) {
                             obj = new fabric.Path(svgPath, {
@@ -3680,6 +4541,34 @@
                     o.width=w; o.height=h;
                     if (obj.rx) o.rx = obj.rx;
                     if (obj.ry) o.ry = obj.ry;
+
+                    // ── Save polygon points as absolute coordinates for round-trip ──
+                    if ((obj.type === 'polygon' || obj.type === 'polyline') && obj.points && obj.points.length >= 3) {
+                        var polyMatrix = obj.calcTransformMatrix();
+                        var polyOffX = obj.pathOffset ? obj.pathOffset.x : 0;
+                        var polyOffY = obj.pathOffset ? obj.pathOffset.y : 0;
+                        var absPoints = obj.points.map(function(p) {
+                            var lx = p.x - polyOffX;
+                            var ly = p.y - polyOffY;
+                            var abs = fabric.util.transformPoint(new fabric.Point(lx, ly), polyMatrix);
+                            return { x: Math.round(abs.x), y: Math.round(abs.y) };
+                        });
+                        // Recompute bounding box from absolute points
+                        var pMinX = Infinity, pMinY = Infinity, pMaxX = -Infinity, pMaxY = -Infinity;
+                        absPoints.forEach(function(p) { pMinX = Math.min(pMinX, p.x); pMinY = Math.min(pMinY, p.y); pMaxX = Math.max(pMaxX, p.x); pMaxY = Math.max(pMaxY, p.y); });
+                        o.points = absPoints;
+                        o.x = Math.round(pMinX); o.y = Math.round(pMinY);
+                        o.w = Math.round(pMaxX - pMinX); o.h = Math.round(pMaxY - pMinY);
+                        o.rotation = 0; // rotation is baked into point coordinates
+                        console.log('[EXPORT] Polygon points saved:', absPoints.length, 'pts, bbox:', o.x, o.y, o.w, o.h);
+                    }
+                    // ── Save path SVG string for round-trip ──
+                    else if (obj.type === 'path' && obj.path && obj.path.length > 0) {
+                        o.svgPath = fabric.util.joinPath(obj.path);
+                        o.scaleX = obj.scaleX || 1;
+                        o.scaleY = obj.scaleY || 1;
+                        console.log('[EXPORT] Path SVG saved, commands:', obj.path.length);
+                    }
                 }
                 return o;
             }),

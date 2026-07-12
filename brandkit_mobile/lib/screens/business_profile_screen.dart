@@ -13,11 +13,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widgets/multi_select_dropdown.dart';
 import '../widgets/cascading_business_dropdowns.dart';
+
 class BusinessProfileScreen extends StatefulWidget {
   final Map<String, dynamic>? business;
   final bool isNew;
-  
-  const BusinessProfileScreen({super.key, this.business, this.isNew = false});
+  final String? redirectRoute;
+  final dynamic redirectArguments;
+
+  const BusinessProfileScreen({
+    Key? key,
+    this.business,
+    this.isNew = false,
+    this.redirectRoute,
+    this.redirectArguments,
+  }) : super(key: key);
 
   @override
   State<BusinessProfileScreen> createState() => _BusinessProfileScreenState();
@@ -39,6 +48,7 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
 
   File? _selectedImage;
   bool _isLoading = false;
+  bool _sameAsPersonalInfo = false;
 
   Set<TextEditingController> _hiddenEmails = {};
   Set<TextEditingController> _hiddenPhones = {};
@@ -60,6 +70,29 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
   
   String _logoUrl = '';
   String _businessId = '';
+
+  Future<void> _toggleSameAsPersonal(bool? val) async {
+    bool isSame = val ?? false;
+    setState(() {
+      _sameAsPersonalInfo = isSame;
+    });
+    
+    if (isSame) {
+      final prefs = await SharedPreferences.getInstance();
+      final personalEmail = prefs.getString('emailId') ?? '';
+      final personalPhone = prefs.getString('phoneNumber') ?? '';
+      
+      setState(() {
+        _emailCtrl.text = personalEmail;
+        _phoneCtrl.text = personalPhone;
+      });
+    } else {
+      setState(() {
+        _emailCtrl.clear();
+        _phoneCtrl.clear();
+      });
+    }
+  }
 
   Future<List<Map<String, dynamic>>> _fetchProducts(String query) async {
     if (_selectedSubCategoryIds.isEmpty) return [];
@@ -336,7 +369,12 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
         await hc.fetchHomeData();
         
         setState(() => _isLoading = false);
-        Get.back(result: true); // Return true to indicate success
+        
+        if (widget.redirectRoute != null) {
+          Get.offNamed(widget.redirectRoute!, arguments: widget.redirectArguments);
+        } else {
+          Get.back(result: true); // Return true to indicate success
+        }
         Get.snackbar(
           'Success',
           isNewBusiness ? 'Business created successfully' : 'Business updated successfully',
@@ -510,13 +548,30 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
               onChanged: (ids) => setState(() => _selectedProductIds = ids),
             ),
             AppSpacing.gapV16,
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.lightBlue.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.lightBlue.shade200),
+              ),
+              child: CheckboxListTile(
+                title: const Text('Same as personal info (Email & Phone)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                value: _sameAsPersonalInfo,
+                onChanged: _toggleSameAsPersonal,
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                activeColor: AppColors.indigo600,
+                dense: true,
+              ),
+            ),
+            AppSpacing.gapV12,
             _buildDynamicInputFields('Email Address', Icons.email_outlined, _emailCtrl, _extraEmailCtrls, _hiddenEmails, () {
               setState(() => _extraEmailCtrls.add(TextEditingController()));
-            }, keyboardType: TextInputType.emailAddress),
+            }, keyboardType: TextInputType.emailAddress, primaryReadOnly: _sameAsPersonalInfo),
             AppSpacing.gapV16,
             _buildDynamicInputFields('Phone Number', Icons.phone_outlined, _phoneCtrl, _extraPhoneCtrls, _hiddenPhones, () {
               setState(() => _extraPhoneCtrls.add(TextEditingController()));
-            }, keyboardType: TextInputType.phone),
+            }, keyboardType: TextInputType.phone, primaryReadOnly: _sameAsPersonalInfo),
             AppSpacing.gapV16,
             _buildDynamicInputFields('Website', Icons.language, _websiteCtrl, _extraWebsiteCtrls, _hiddenWebsites, () {
               setState(() => _extraWebsiteCtrls.add(TextEditingController()));
@@ -565,7 +620,7 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
     );
   }
 
-  Widget _buildDynamicInputFields(String label, IconData icon, TextEditingController primaryCtrl, List<TextEditingController> extraCtrls, Set<TextEditingController> hiddenSet, VoidCallback onAdd, {TextInputType? keyboardType, int maxLines = 1}) {
+  Widget _buildDynamicInputFields(String label, IconData icon, TextEditingController primaryCtrl, List<TextEditingController> extraCtrls, Set<TextEditingController> hiddenSet, VoidCallback onAdd, {TextInputType? keyboardType, int maxLines = 1, bool primaryReadOnly = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -586,7 +641,7 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
               ),
           ],
         ),
-        _buildSingleInputWithHide(icon, primaryCtrl, hiddenSet, keyboardType: keyboardType, maxLines: maxLines),
+        _buildSingleInputWithHide(icon, primaryCtrl, hiddenSet, keyboardType: keyboardType, maxLines: maxLines, readOnly: primaryReadOnly),
         ...extraCtrls.asMap().entries.map((entry) {
           int idx = entry.key;
           TextEditingController ctrl = entry.value;
@@ -595,7 +650,7 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: _buildSingleInputWithHide(icon, ctrl, hiddenSet, keyboardType: keyboardType, maxLines: maxLines)),
+                Expanded(child: _buildSingleInputWithHide(icon, ctrl, hiddenSet, keyboardType: keyboardType, maxLines: maxLines, readOnly: false)),
                 IconButton(
                   icon: const Icon(Icons.remove_circle, color: Colors.red),
                   onPressed: () {
@@ -614,11 +669,11 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
     );
   }
 
-  Widget _buildSingleInputWithHide(IconData icon, TextEditingController controller, Set<TextEditingController> hiddenSet, {TextInputType? keyboardType, int maxLines = 1}) {
+  Widget _buildSingleInputWithHide(IconData icon, TextEditingController controller, Set<TextEditingController> hiddenSet, {TextInputType? keyboardType, int maxLines = 1, bool readOnly = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSingleInput(icon, controller, keyboardType: keyboardType, maxLines: maxLines),
+        _buildSingleInput(icon, controller, keyboardType: keyboardType, maxLines: maxLines, readOnly: readOnly),
         Row(
           children: [
             Checkbox(
@@ -641,10 +696,10 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
     );
   }
 
-  Widget _buildSingleInput(IconData icon, TextEditingController controller, {TextInputType? keyboardType, int maxLines = 1}) {
+  Widget _buildSingleInput(IconData icon, TextEditingController controller, {TextInputType? keyboardType, int maxLines = 1, bool readOnly = false}) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: readOnly ? Colors.grey[200] : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.gray100),
         boxShadow: [
@@ -659,6 +714,7 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
         controller: controller,
         keyboardType: keyboardType,
         maxLines: maxLines,
+        readOnly: readOnly,
         style: AppTextStyles.bodyMedium,
         decoration: InputDecoration(
           prefixIcon: Padding(

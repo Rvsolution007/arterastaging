@@ -55,9 +55,9 @@
                         <h3 class="auth-title">Create Profile</h3>
                         <p class="auth-subtitle">Register your business in 60 seconds.</p>
                     </div>
-                    <div>
+                    {{-- <div>
                         <a href="{{ route('landing.app_gateway') }}" class="btn-login-redirect">Already Registered? Login</a>
-                    </div>
+                    </div> --}}
                 </div>
 
                 {{-- Google Sign-In Button --}}

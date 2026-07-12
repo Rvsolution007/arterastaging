@@ -1,64 +1,111 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400"></a></p>
+# Artera — AI-Powered Business Poster Maker
 
-<p align="center">
-<a href="https://travis-ci.org/laravel/framework"><img src="https://travis-ci.org/laravel/framework.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A Laravel-based backend + Flutter mobile app for creating marketing posters and social media content.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## ⚠️ Security Warning — Rotate Previously Hardcoded Secrets
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+> **If you cloned this repo before July 2026, the following secrets appeared in git history and MUST be rotated immediately:**
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+| Secret | Where it was | Action required |
+|--------|-------------|-----------------|
+| `arterapixel2026` | `key.properties` (keystore password) | Generate a new keystore and update Play Console |
+| Gmail app password (MAIL_PASSWORD) | `.env` (local only, not committed) | Low risk — rotate if env was ever exposed |
+| RunPod API key | `.env` (local only, not committed) | Rotate at https://runpod.io/console/user/settings |
 
-## Learning Laravel
+> Git history cannot be "fixed" by deleting files — the secret is still in old commits. Rotating the secret is the only safe remediation.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+---
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 2000 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## 🔒 Security Architecture
 
-## Laravel Sponsors
+### Where Secrets Live
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](https://patreon.com/taylorotwell).
+All secrets are stored in environment variables loaded from `.env` (never committed to git).
 
-### Premium Partners
+| Secret Type | Storage Location | Notes |
+|-------------|-----------------|-------|
+| DB credentials | `.env` → `DB_*` vars | Server-side only |
+| Gmail app password | `.env` → `MAIL_PASSWORD` | Use App Password, not account password |
+| Google Cloud / Vertex AI SA | DB (`ai_settings` table, AES-256 encrypted) | Uploaded via Admin UI |
+| Firebase Service Account | DB (`notification_settings` table, AES-256 encrypted) | Uploaded via Admin UI |
+| RunPod API Key | `.env` → `RUNPOD_API_KEY` | Server-side only |
+| Stripe keys | DB (`payment_settings` table) | `stripe_secret_key` is server-side only |
+| WhatsApp Evolution API key | DB (`whatsapp_settings` table) | Server-side only |
+| Android signing keystore password | `key.properties` (gitignored) | Never committed |
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Cubet Techno Labs](https://cubettech.com)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[Many](https://www.many.co.uk)**
-- **[Webdock, Fast VPS Hosting](https://www.webdock.io/en)**
-- **[DevSquad](https://devsquad.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[OP.GG](https://op.gg)**
-- **[WebReinvent](https://webreinvent.com/?utm_source=laravel&utm_medium=github&utm_campaign=patreon-sponsors)**
-- **[Lendio](https://lendio.com)**
+### What Is Safe to Expose Publicly
 
-## Contributing
+- `GOOGLE_ANALYTICS_ID` — designed to be public
+- Stripe **publishable** key — intentionally public
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### What Must Never Be in Frontend / Client Code
 
-## Code of Conduct
+- Stripe **secret** key
+- Google Cloud service account private key
+- Firebase service account private key
+- Any database credentials
+- `RUNPOD_API_KEY`
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+---
 
-## Security Vulnerabilities
+## 🚀 Setup
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### 1. Environment Configuration
+
+```bash
+cp .env.example .env
+php artisan key:generate
+```
+
+Fill in all values in `.env`. See `.env.example` for the full list with descriptions.
+
+### 2. Android Signing Setup
+
+```bash
+cp key.properties.example key.properties
+# Edit key.properties with your real keystore password
+# Place upload-keystore.jks in the project root (do NOT commit it)
+```
+
+### 3. Google Cloud / Vertex AI
+
+1. Create a Service Account in Google Cloud Console with `Vertex AI User` role.
+2. Download the JSON key file.
+3. In the Artera Admin panel → AI Settings → upload the JSON.
+4. The system encrypts it with AES-256-CBC and stores it in the database.
+
+### 4. Firebase (FCM Push Notifications)
+
+1. Download your Firebase service account JSON from the Firebase Console.
+2. In Artera Admin → Notification Settings → upload the JSON.
+3. Same AES-256 encryption applies.
+
+---
+
+## 📁 Gitignored Files
+
+The following sensitive files are excluded from version control:
+
+```
+.env
+.env.production
+key.properties
+upload-keystore.jks
+upload_certificate.pem
+*.jks / *.keystore / *.pem
+storage/app/firebase-service-account.json
+```
+
+---
+
+## 📋 Environment Variables Reference
+
+See [`.env.example`](.env.example) for the full list with descriptions and placeholder values.
+
+---
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Proprietary — Artera Pixel © 2024-2026. All rights reserved.

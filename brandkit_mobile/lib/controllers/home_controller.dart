@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -43,6 +44,10 @@ class HomeController extends GetxController {
   var businessAddress = ''.obs;
   var businessCategoryId = ''.obs;
   var businessId = ''.obs;
+  
+  // User info
+  var userName = ''.obs;
+  var userProfileImage = ''.obs;
   
   // List of all businesses
   var businesses = [].obs;
@@ -156,6 +161,11 @@ class HomeController extends GetxController {
       }
 
       final userId = prefs.getString('userId') ?? '';
+      
+      // Load user info for Profile screen
+      userName.value = prefs.getString('userName') ?? '';
+      userProfileImage.value = prefs.getString('profileImage') ?? '';
+      
       final response = await ApiService.get('/business?userId=$userId');
       debugPrint('[HomeCtrl] Business API status: ${response.statusCode}');
       debugPrint('[HomeCtrl] Business API body: ${response.body}');
@@ -164,11 +174,11 @@ class HomeController extends GetxController {
         
         // Store full list
         if (data is List) {
-          businesses.value = data;
+          businesses.assignAll(data);
         } else if (data['data'] is List) {
-          businesses.value = data['data'];
+          businesses.assignAll(data['data']);
         } else {
-          businesses.value = [data];
+          businesses.assignAll([data]);
         }
 
         // Set default business to the first one (which should be the default)
@@ -211,8 +221,37 @@ class HomeController extends GetxController {
         businessTypeIds.value = (biz['business_type_ids'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
         products.value = biz['products'] as List<dynamic>? ?? [];
       }
+    } catch (e, st) {
+      // Business info fetch failed
+      debugPrint('[HomeCtrl] loadBusinessInfo error: $e');
+      debugPrint('[HomeCtrl] stacktrace: $st');
+    }
+  }
+
+  Future<void> setActiveBusiness(Map<String, dynamic> business) async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString('userId') ?? '';
+    final bizId = business['id']?.toString() ?? '';
+    
+    if (userId.isEmpty || bizId.isEmpty) return;
+
+    isLoading(true);
+    try {
+      final res = await ApiService.post('/set-default-business', {
+        'userId': userId,
+        'bussinessId': bizId,
+      });
+      
+      if (res.statusCode == 200) {
+        // Re-load to update active business info in the app
+        await loadBusinessInfo();
+        await fetchHomeData();
+        Get.snackbar('Success', 'Active business updated', backgroundColor: Colors.green, colorText: Colors.white);
+      }
     } catch (e) {
-      // Business info fetch failed, not critical
+      Get.snackbar('Error', 'Failed to update active business', backgroundColor: Colors.redAccent, colorText: Colors.white);
+    } finally {
+      isLoading(false);
     }
   }
 

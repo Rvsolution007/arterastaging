@@ -675,7 +675,6 @@
                 // Reset the file input so user can re-select same files
                 $(this).val('');
 
-                console.log("Subcategory " + subcatId + " now has " + taskImageStore[subcatId].files.length + " files queued.");
 
                 new PNotify({
                     title: 'Images Added',
@@ -739,10 +738,8 @@
                     }
                 });
 
-                console.log("Submitting form with " + totalFiles + " task images across " + subcatCount + " subcategories.");
                 // Diagnostic: Log all FormData keys
                 for (var key of formData.keys()) {
-                   console.log("FormData Key: " + key);
                 }
 
                 $.ajax({

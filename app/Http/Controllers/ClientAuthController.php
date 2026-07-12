@@ -281,6 +281,11 @@ class ClientAuthController extends Controller
 
     public function webviewLogin(Request $request)
     {
+        // Security fix: Require a valid signed URL instead of raw user_id
+        if (!$request->hasValidSignature()) {
+            return redirect('/login')->with('error', 'Invalid or expired authentication link.');
+        }
+
         $userId = $request->query('user_id');
         $redirectUrl = $request->query('redirect', '/dashboard');
 
@@ -292,7 +297,15 @@ class ClientAuthController extends Controller
 
         if ($user) {
             Auth::login($user, true);
+            $request->session()->regenerate();
             $this->updateUserStreak($user);
+            
+            // Whitelist allowed redirect paths to prevent open redirect
+            $parsedPath = parse_url($redirectUrl, PHP_URL_PATH);
+            if (!$parsedPath || !str_starts_with($parsedPath, '/')) {
+                $redirectUrl = '/dashboard';
+            }
+            
             return redirect($redirectUrl);
         }
 

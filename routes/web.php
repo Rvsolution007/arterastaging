@@ -21,41 +21,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('/festivals-by-date', 'MainController@getFestivalsByDate')->name('festivals.by.date');
 
     // Universal Details & Edit
-    Route::get('/debug/frame-overlay', function() {
-        return view('client.debug_frame_overlay');
-    });
-    Route::get('/debug/get-frame-config/{id}', function($id) {
-        $pf = \App\Models\PosterMaker::find($id);
-        if (!$pf) return response()->json(['error' => 'Frame not found']);
-        
-        $zipName = $pf->zip_name ?? '';
-        if (!$zipName) return response()->json(['error' => 'No ZIP associated']);
 
-        $jsonDir = base_path('uploads/template/' . $zipName . '/json');
-        $config = null;
-        if (is_dir($jsonDir)) {
-            $jsonFiles = glob($jsonDir . '/*.json');
-            if (!empty($jsonFiles)) {
-                $config = json_decode(file_get_contents($jsonFiles[0]));
-            }
-        }
-
-        $skinsDir = base_path('uploads/template/' . $zipName . '/skins');
-        $skinFolder = '';
-        if (is_dir($skinsDir)) {
-            $dirs = array_filter(glob($skinsDir . '/*'), 'is_dir');
-            if (!empty($dirs)) {
-                $skinFolder = basename(reset($dirs));
-            }
-        }
-
-        $skinDirUrl = asset('uploads/template/' . $zipName . '/skins/' . $skinFolder) . '/';
-
-        return response()->json([
-            'config' => $config,
-            'skinDir' => $skinDirUrl
-        ]);
-    });
 
     Route::get('/details/{type}/{id}', 'MainController@universal_details')->name('universal.details');
     Route::get('/edit/{type}/{id}', 'MainController@universal_edit')->name('universal.edit');
@@ -126,14 +92,14 @@ Route::get('/api/web/get-products', 'BusinessRegistrationController@getProducts'
 
 // Shared UI routes
 Route::get('/client/get-sub-categories/{category_id}', 'MainController@getSubCategories')->name('client.get_sub_categories');
-Route::get('/webview-login', 'ClientAuthController@webviewLogin')->name('webview.login');
+Route::get('/webview-login', 'ClientAuthController@webviewLogin')->name('webview.login')->middleware('signed');
 
 // Client Auth Routes (Guest)
 Route::group(['middleware' => ['guest']], function () {
     Route::get('/login', 'ClientAuthController@showLoginForm')->name('client.login');
-    Route::post('/login', 'ClientAuthController@login')->name('client.login.post');
+    Route::post('/login', 'ClientAuthController@login')->name('client.login.post')->middleware('throttle:login');
     Route::get('/register', 'ClientAuthController@showRegistrationForm')->name('client.register');
-    Route::post('/register', 'ClientAuthController@register')->name('client.register.post');
+    Route::post('/register', 'ClientAuthController@register')->name('client.register.post')->middleware('throttle:login');
 });
 Route::post('/logout', 'ClientAuthController@logout')->name('logout');
 
@@ -143,9 +109,9 @@ Route::get('/auth/google/callback', 'ClientAuthController@handleGoogleCallback')
 
 // Forgot Password Routes
 Route::get('/forgot-password', 'ClientAuthController@showForgotForm')->name('password.forgot');
-Route::post('/forgot-password/send-otp', 'ClientAuthController@sendOtp')->name('password.send-otp');
-Route::post('/forgot-password/verify-otp', 'ClientAuthController@verifyOtp')->name('password.verify-otp');
-Route::post('/forgot-password/update', 'ClientAuthController@updatePassword')->name('client.password.update');
+Route::post('/forgot-password/send-otp', 'ClientAuthController@sendOtp')->name('password.send-otp')->middleware('throttle:password-reset');
+Route::post('/forgot-password/verify-otp', 'ClientAuthController@verifyOtp')->name('password.verify-otp')->middleware('throttle:password-reset');
+Route::post('/forgot-password/update', 'ClientAuthController@updatePassword')->name('client.password.update')->middleware('throttle:password-reset');
 
 
 Route::group(['middleware' => ['canInstall']], function () {
@@ -161,19 +127,19 @@ Route::group(['middleware' => ['IsInstalled', 'canUpdate']], function () {
     Route::Post("update-version", 'HomeController@update_version_post');
 });
 
-Route::get('licence-details', 'HomeController@licence_details');
-Route::get('destroy', 'HomeController@destroy_data');
-Route::get('destroydb', 'HomeController@destroy_data_db');
+// Security fix: Route::get('licence-details', 'HomeController@licence_details');
+// Security fix: Route::get('destroy', 'HomeController@destroy_data');
+// Security fix: Route::get('destroydb', 'HomeController@destroy_data_db');
 Route::get("privacy-policy", 'HomeController@privacy_policy');
 Route::get("refund-policy", 'HomeController@refund_policy');
 Route::get("terms-condition", 'HomeController@term_condition');
 Route::get('template', 'HomeController@temp');
-Route::get('update-all-date', 'HomeController@update_date');
+// Security fix: Route::get('update-all-date', 'HomeController@update_date');
 Route::get("account-deletion-policy", 'HomeController@user_account_delete');
 
-Route::get('/invoice/{id}', [App\Http\Controllers\InvoiceController::class, 'show'])->name('invoice.show');
+Route::get('/invoice/{id}', [App\Http\Controllers\InvoiceController::class, 'show'])->name('invoice.show')->middleware('auth');
 
-Route::get('upload-all-image-digitalOcean', 'HomeController@upload_image_digitalOcean');
+// Security fix: Route::get('upload-all-image-digitalOcean', 'HomeController@upload_image_digitalOcean');
 
 // Marketing Landing Pages
 Route::get('/pre-register', 'PreRegistrationController@index')->name('landing.pre_register');

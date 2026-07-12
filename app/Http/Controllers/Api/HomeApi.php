@@ -2619,11 +2619,43 @@ class HomeApi extends Controller
             ], 404);
         } else {
             $user = User::find($request->get("userId"));
+
+                // Security: IDOR protection
+                if (auth('sanctum')->check() && auth('sanctum')->id() != $request->get('userId')) {
+                    \Log::warning('IDOR attempt on addPayment', [
+                        'auth_user' => auth('sanctum')->id(),
+                        'target_user' => $request->get('userId'),
+                        'ip' => $request->ip(),
+                    ]);
+                    return response()->json(['status' => 'Error', 'message' => 'Unauthorized'], 403);
+                }
+
             if(!empty($user))
             {
                 $subscription = Subscription::find($request->get("planId"));
                 if(!empty($subscription))
                 {
+                    // Security fix: Verify payment amount matches plan price
+                    $expectedAmount = $subscription->discount_price > 0 
+                        ? $subscription->discount_price 
+                        : $subscription->plan_price;
+                    
+                    $clientAmount = floatval($request->get("paymentAmount"));
+                    
+                    // Allow small rounding tolerance (1 unit of currency)
+                    if ($expectedAmount > 0 && abs($clientAmount - $expectedAmount) > 1) {
+                        \Log::warning('Payment amount mismatch', [
+                            'userId' => $request->get('userId'),
+                            'planId' => $request->get('planId'),
+                            'clientAmount' => $clientAmount,
+                            'expectedAmount' => $expectedAmount,
+                        ]);
+                        return response()->json([
+                            'status' => 'Error',
+                            'message' => 'Payment amount does not match plan price',
+                        ], 400);
+                    }
+
                     $partner_id = null;
                     $coupon_code_id = null;
                     $partner_commission_amount = 0;
@@ -2648,7 +2680,7 @@ class HomeApi extends Controller
                     $id = Transaction::create([
                         "user_id" => $request->get("userId"),
                         "subscription_id" => $request->get("planId"),
-                        "total_paid" => $request->get("paymentAmount"),
+                        "total_paid" => $expectedAmount > 0 ? $expectedAmount : $request->get("paymentAmount"),
                         "payment_id" => $request->get("paymentId"),
                         "payment_type" => $request->get("paymentType"),
                         "date" => date('Y-m-d'),
@@ -2829,19 +2861,41 @@ class HomeApi extends Controller
 
     public function getPaymentDetails()
     {
+        // Security fix: Only return public keys, never expose secret keys
+        $secretKeyPatterns = ['secret', 'private', 'merchant_key', 'salt', 'webhook_secret'];
         $paymentSetting = PaymentSetting::all();
-
+        $data = [];
         foreach ($paymentSetting as $s) 
         {
-            $data[$this->from_camel_case($s->key_name)] = $s->key_value;
+            $keyLower = strtolower($s->key_name);
+            $isSecret = false;
+            foreach ($secretKeyPatterns as $pattern) {
+                if (str_contains($keyLower, $pattern)) {
+                    $isSecret = true;
+                    break;
+                }
+            }
+            if (!$isSecret) {
+                $data[$this->from_camel_case($s->key_name)] = $s->key_value;
+            }
         }
-
         return $data;   
     }
 
     public function getPaymentHistory(Request $request)
     {
         $userId = $request->get('userId');
+
+        // Security: IDOR protection
+        if (auth('sanctum')->check() && auth('sanctum')->id() != $request->get('userId')) {
+            \Log::warning('IDOR attempt on getPaymentHistory', [
+                'auth_user' => auth('sanctum')->id(),
+                'target_user' => $request->get('userId'),
+                'ip' => $request->ip(),
+            ]);
+            return response()->json(['status' => 'Error', 'message' => 'Unauthorized'], 403);
+        }
+
         if (!$userId) {
             return response()->json(['status' => 'Error', 'message' => 'userId is required'], 400);
         }

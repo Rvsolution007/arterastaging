@@ -20,7 +20,7 @@ class AIImageGenerationController extends Controller
 
     public function generate(Request $request)
     {
-        \Illuminate\Support\Facades\Log::info('AI Generate endpoint hit.', $request->all());
+        \Illuminate\Support\Facades\Log::info('AI Generate endpoint hit.', $request->only(['prompt', 'aspect_ratio', 'template_id']));
         
         $request->validate([
             'prompt' => 'required|string|max:1000',

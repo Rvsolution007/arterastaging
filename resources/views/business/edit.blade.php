@@ -148,6 +148,65 @@
         background: #f1f5f9;
         margin: 2rem 0;
     }
+
+    /* Tabs & Table Styles copied from User Profile */
+    .nav-pills-premium {
+        background: white;
+        padding: 0.5rem;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .nav-pills-premium .nav-link {
+        color: #64748b;
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        transition: all 0.2s ease;
+    }
+
+    .nav-pills-premium .nav-link:hover {
+        background: #f8fafc;
+        color: #334155;
+    }
+
+    .nav-pills-premium .nav-link.active {
+        background: #e0e7ff;
+        color: #4f46e5;
+    }
+
+    .custom-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .custom-table th {
+        background: #f8fafc;
+        color: #64748b;
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        padding: 1rem;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .custom-table td {
+        padding: 1rem;
+        vertical-align: middle;
+        border-bottom: 1px solid #f1f5f9;
+        color: #334155;
+        font-size: 0.95rem;
+    }
+
+    .badge-soft {
+        background: #f1f5f9;
+        color: #475569;
+        padding: 0.35rem 0.75rem;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.8rem;
+    }
 </style>
 @endsection
 
@@ -160,8 +219,35 @@
     </div>
 
     <div class="row">
-        <div class="col-lg-12">
-            <div class="premium-card">
+        <!-- Sidebar Navigation -->
+        <div class="col-lg-3 mb-4">
+            <div class="nav flex-column nav-pills nav-pills-premium shadow-sm mb-4" id="v-pills-tab" role="tablist" aria-orientation="vertical">
+                <a class="nav-link active mb-1" id="v-pills-business-tab" data-toggle="pill" href="#v-pills-business" role="tab"><i class="fa-solid fa-briefcase mr-2"></i> Business Information</a>
+                <a class="nav-link mb-1" id="v-pills-subscription-tab" data-toggle="pill" href="#v-pills-subscription" role="tab"><i class="fa-solid fa-gem mr-2"></i> Subscription</a>
+                <a class="nav-link mb-1" id="v-pills-transactions-tab" data-toggle="pill" href="#v-pills-transactions" role="tab"><i class="fa-solid fa-receipt mr-2"></i> Transactions</a>
+            </div>
+
+            <div class="premium-card p-4">
+                <h6 class="font-weight-bold mb-3 text-muted small text-uppercase">Business Owner</h6>
+                <div class="d-flex align-items-center mb-3">
+                    <div class="mr-3">
+                        <img src="{{ $user_data->profile_pic ? asset('uploads/user/'.$user_data->profile_pic) : asset('assets/images/no-user.jpg') }}" class="rounded-circle shadow-sm" style="width: 48px; height: 48px; object-fit: cover;">
+                    </div>
+                    <div>
+                        <h6 class="mb-0 font-weight-bold">{{ $user_data->name }}</h6>
+                        <small class="text-muted"><a href="{{ url('admin/user/'.$user_data->id) }}">View Profile</a></small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="col-lg-9">
+            <div class="tab-content" id="v-pills-tabContent">
+                
+                <!-- Business Information Tab -->
+                <div class="tab-pane fade show active" id="v-pills-business" role="tabpanel">
+                    <div class="premium-card">
                 <div class="premium-card-header">
                     <h5 class="premium-card-title">Business Information</h5>
                 </div>
@@ -332,9 +418,106 @@
                         @endif
                     </div>
                     {!! Form::close() !!}
+                    </div>
                 </div>
-            </div>
-        </div>
+                </div>
+
+                <!-- Subscription Tab -->
+                <div class="tab-pane fade" id="v-pills-subscription" role="tabpanel">
+                    <div class="premium-card">
+                        <div class="premium-card-header">
+                            <h5 class="premium-card-title">Manage Subscription</h5>
+                        </div>
+                        <div class="premium-card-body">
+                            {!! Form::open(['url' => 'admin/subscription-update','method'=>'POST','files'=>true]) !!}
+                            {!! Form::hidden('id',$user_data->id)!!}
+                            
+                            <div class="row">
+                                <div class="col-md-12 mb-4">
+                                    <label class="form-label-premium">Select Plan</label>
+                                    <select class="form-control-premium" name="plan" required>
+                                        <option value="">Select Plan</option>
+                                        @foreach($subscription as $s)
+                                        <option value="{{$s->id}}" @if($s->id == $user_data->subscription_id) selected @endif>{{$s->plan_name}}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-4">
+                                    <label class="form-label-premium">Start Date</label>
+                                    {!! Form::text('subscription_start_from',($user_data->subscription_start_date)?date('d M, Y',strtotime($user_data->subscription_start_date)):"",['class' => 'form-control-premium datepicker w-100','required',"autocomplete"=>"off"]) !!}
+                                </div>
+                                <div class="col-md-6 mb-4">
+                                    <label class="form-label-premium">Expiry Date</label>
+                                    {!! Form::text('subscription_start_to',($user_data->subscription_end_date)?date('d M, Y',strtotime($user_data->subscription_end_date)):"",['class' => 'form-control-premium datepicker w-100','required',"autocomplete"=>"off"]) !!}
+                                </div>
+                            </div>
+                            <div class="text-right mt-3">
+                                <button type="submit" class="btn-premium"><i class="fa-solid fa-floppy-disk mr-2"></i> Update Plan</button>
+                            </div>
+                            {!! Form::close() !!}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Transaction Tab -->
+                <div class="tab-pane fade" id="v-pills-transactions" role="tabpanel">
+                    <div class="premium-card">
+                        <div class="premium-card-header">
+                            <h5 class="premium-card-title">Billing History</h5>
+                        </div>
+                        <div class="premium-card-body">
+                            <div class="table-responsive">
+                                <table class="custom-table">
+                                    <thead>
+                                        <tr>
+                                            <th># ID</th>
+                                            <th>Plan Name</th>
+                                            <th>Total Paid</th>
+                                            <th>Payment ID</th>
+                                            <th>Payment Type</th>
+                                            <th>Date</th>
+                                            <th>Receipt</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @forelse($transaction as $t)
+                                        <tr>
+                                            <td>#{{$t->id}}</td>
+                                            <td><span class="badge-soft">{{$t->subscription->plan_name ?? 'N/A'}}</span></td>
+                                            <td class="font-weight-bold text-dark">₹{{$t->total_paid}}</td>
+                                            <td>{{$t->payment_id ?? '-'}}</td>
+                                            <td>{{$t->payment_type ?? '-'}}</td>
+                                            <td>{{date('d M, Y',strtotime($t->date))}}</td>
+                                            <td>
+                                                @if($t->payment_receipt)
+                                                    <a href="{{asset('uploads/payment/'.$t->payment_receipt)}}" target="_blank" class="text-primary"><i class="fa-solid fa-file-invoice"></i> View</a>
+                                                @else
+                                                    -
+                                                @endif
+                                            </td>
+                                            <td>
+                                                @if($t->status == "Completed")
+                                                    <span class="badge badge-success px-2 py-1">Completed</span>
+                                                @else
+                                                    <span class="badge badge-warning px-2 py-1">{{$t->status ?? 'Pending'}}</span>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                        @empty
+                                        <tr>
+                                            <td colspan="8" class="text-center text-muted py-4">No transactions found</td>
+                                        </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div> <!-- tab content end -->
+        </div> <!-- col-9 end -->
     </div>
 </div>
 @endsection
@@ -398,6 +581,21 @@
             '</div>';
         $('#' + containerId).append(html);
     }
+
+    $(document).ready(function() {
+        // Initialize datepicker for subscription tab
+        try {
+            if($('.datepicker').length) {
+                $('.datepicker').datepicker({
+                    format: 'dd M, yyyy',
+                    autoclose: true,
+                    todayHighlight: true
+                });
+            }
+        } catch (e) {
+            console.log("Datepicker not loaded: ", e);
+        }
+    });
 
     function imagePreview(fileInput) 
     { 

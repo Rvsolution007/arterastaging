@@ -11,20 +11,38 @@ use Illuminate\Support\Facades\Validator;
 class UserJourneyController extends Controller
 {
     /**
+     * Get the authenticated user ID from the request.
+     * Prioritizes sanctum/session auth over client-supplied userId.
+     */
+    private function resolveUserId(Request $request)
+    {
+        // Security: Prefer authenticated user over request parameter
+        if (auth('sanctum')->check()) {
+            return auth('sanctum')->id();
+        }
+        if (auth()->check()) {
+            return auth()->id();
+        }
+        // Fallback for mobile app compatibility — will be removed once mobile app sends auth tokens
+        return $request->userId;
+    }
+
+    /**
      * Get Onboarding Status
      * Task 14: Smart Onboarding Flow
      */
     public function onboardingStatus(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'userId' => 'required|exists:users,id',
-        ]);
+        $userId = $this->resolveUserId($request);
 
-        if ($validator->fails()) {
-            return response()->json(['status' => 'error', 'message' => $validator->errors()->first()]);
+        if (!$userId) {
+            return response()->json(['status' => 'error', 'message' => 'userId is required']);
         }
 
-        $user = User::find($request->userId);
+        $user = User::find($userId);
+        if (!$user) {
+            return response()->json(['status' => 'error', 'message' => 'User not found'], 404);
+        }
         
         $steps = [
             'profile_photo' => false,
@@ -39,7 +57,7 @@ class UserJourneyController extends Controller
         }
 
         // 2. Business Details
-        $hasBusiness = Business::where('userId', $user->id)->exists();
+        $hasBusiness = Business::where('user_id', $user->id)->exists();
         if ($hasBusiness) {
             $steps['business_details'] = true;
         }
@@ -91,17 +109,20 @@ class UserJourneyController extends Controller
      */
     public function checkEligibility(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'userId' => 'required|exists:users,id',
-            'action' => 'required|string' // e.g., 'download_post'
+        $userId = $this->resolveUserId($request);
+
+        if (!$userId) {
+            return response()->json(['status' => 'error', 'message' => 'userId is required']);
+        }
+
+        $validator = Validator::make(['action' => $request->action], [
+            'action' => 'required|string'
         ]);
 
         if ($validator->fails()) {
             return response()->json(['status' => 'error', 'message' => $validator->errors()->first()]);
         }
 
-        // In a real app, we might check if they have submitted feedback in the last 30 days.
-        // For now, always return true to show the prompt for demonstration.
         return response()->json([
             'status' => 'success',
             'is_eligible' => true,
@@ -115,10 +136,15 @@ class UserJourneyController extends Controller
      */
     public function submitFeedback(Request $request)
     {
+        $userId = $this->resolveUserId($request);
+
+        if (!$userId) {
+            return response()->json(['status' => 'error', 'message' => 'userId is required']);
+        }
+
         $validator = Validator::make($request->all(), [
-            'userId' => 'required|exists:users,id',
             'rating' => 'required|integer|min:1|max:5',
-            'comment' => 'nullable|string'
+            'comment' => 'nullable|string|max:2000' // Security: limit comment length
         ]);
 
         if ($validator->fails()) {
@@ -133,9 +159,9 @@ class UserJourneyController extends Controller
             // Actually create the ticket in DB
             if ($request->comment) {
                 \App\Models\Ticket::create([
-                    'user_id' => $request->userId,
+                    'user_id' => $userId, // Security: Use resolved user ID, not raw request param
                     'subject' => 'Negative App Feedback (' . $request->rating . ' Stars)',
-                    'message' => $request->comment,
+                    'message' => strip_tags($request->comment), // Security: Strip HTML tags
                     'status' => 'Open',
                     'priority' => 'High'
                 ]);

@@ -128,6 +128,12 @@ class _DetailListScreenState extends State<DetailListScreen> {
       return;
     }
     
+    // Skip if no valid native ad ID is provided from the backend (to prevent test ID validator in prod)
+    if (!AdService.hasValidNativeAdId) {
+      debugPrint('[DetailList] Native ad skipped (No valid ID provided).');
+      return;
+    }
+    
     _nativeAd = NativeAd(
       adUnitId: AdService.nativeAdUnitId,
       request: const AdRequest(),

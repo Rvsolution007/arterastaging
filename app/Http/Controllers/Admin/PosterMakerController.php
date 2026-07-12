@@ -520,28 +520,63 @@ class PosterMakerController extends Controller
         $zip = new \ZipArchive();
         if ($zip->open($zipFilePath, \ZipArchive::CREATE) === TRUE) {
             foreach ($frames as $frame) {
-                $exportData[] = $frame->toArray();
+                $frameArr = $frame->toArray();
+                
+                // Fetch EditorTemplate schema if it exists
+                if (str_starts_with($frame->zip_name, 'Template_')) {
+                    $uuid = str_replace(['Template_', '.zip'], '', $frame->zip_name);
+                    $editorTemplate = \App\Models\EditorTemplate::where('uuid', $uuid)->first();
+                    if ($editorTemplate) {
+                        $frameArr['_schema_json'] = $editorTemplate->schema_json;
+                        $frameArr['_legacy_json'] = $editorTemplate->legacy_json;
+                        $frameArr['_editor_uuid'] = $editorTemplate->uuid;
+                    }
+                }
+                $exportData[] = $frameArr;
+                
+                // Add thumbnail to archive
+                $thumbContent = null;
+                $thumbExt = 'webp';
+                if ($frame->post_thumb) {
+                    $thumbExt = pathinfo($frame->post_thumb, PATHINFO_EXTENSION);
+                    if (!$thumbExt) $thumbExt = 'webp';
+                    
+                    if(\App\Models\StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
+                        if (\Illuminate\Support\Facades\Storage::disk('spaces')->exists('uploads/' . $frame->post_thumb)) {
+                            $thumbContent = \Illuminate\Support\Facades\Storage::disk('spaces')->get('uploads/' . $frame->post_thumb);
+                            $zip->addFromString('thumbnails/' . basename($frame->post_thumb), $thumbContent);
+                        }
+                    } else {
+                        $thumbLocalPath = public_path('uploads/' . $frame->post_thumb);
+                        if (file_exists($thumbLocalPath)) {
+                            $thumbContent = file_get_contents($thumbLocalPath);
+                            $zip->addFile($thumbLocalPath, 'thumbnails/' . basename($frame->post_thumb));
+                        }
+                    }
+                }
                 
                 // Add zip to archive
                 $templateZipName = $frame->zip_name . '.zip';
-                
+                $tmpZipPath = public_path('uploads/temp_export_modify_' . time() . '_' . $templateZipName);
+                $hasValidZip = false;
+
                 if(\App\Models\StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
                     if (\Illuminate\Support\Facades\Storage::disk('spaces')->exists('uploads/custom_frames_zips/' . $templateZipName)) {
                         $fileContent = \Illuminate\Support\Facades\Storage::disk('spaces')->get('uploads/custom_frames_zips/' . $templateZipName);
-                        $zip->addFromString('templates/' . $templateZipName, $fileContent);
+                        file_put_contents($tmpZipPath, $fileContent);
+                        $hasValidZip = true;
                     }
                 } else {
                     $localPath = public_path('uploads/custom_frames_zips/' . $templateZipName);
                     if (file_exists($localPath)) {
-                        $zip->addFile($localPath, 'templates/' . $templateZipName);
+                        copy($localPath, $tmpZipPath);
+                        $hasValidZip = true;
                     } else {
                         // Fallback for legacy frames: if zip doesn't exist, check template folder
                         $templateDirPath = public_path('uploads/template/' . $frame->zip_name);
                         if (is_dir($templateDirPath)) {
-                            // Create a temporary zip for the folder to include in export
-                            $tempZipPath = public_path('uploads/temp_export_' . $templateZipName);
                             $tempZip = new \ZipArchive();
-                            if ($tempZip->open($tempZipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === TRUE) {
+                            if ($tempZip->open($tmpZipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === TRUE) {
                                 $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($templateDirPath), \RecursiveIteratorIterator::LEAVES_ONLY);
                                 foreach ($files as $name => $file) {
                                     if (!$file->isDir()) {
@@ -551,12 +586,30 @@ class PosterMakerController extends Controller
                                     }
                                 }
                                 $tempZip->close();
-                                $zip->addFile($tempZipPath, 'templates/' . $templateZipName);
-                                // Note: we can't delete tempZipPath immediately because $zip->addFile needs it until $zip->close().
-                                // We will clean it up later if needed, or leave it to standard tmp cleanup.
+                                $hasValidZip = true;
                             }
                         }
                     }
+                }
+
+                // Inject the preview into the frame's zip if we have thumbnail content
+                if ($hasValidZip && $thumbContent) {
+                    $modifyZip = new \ZipArchive();
+                    if ($modifyZip->open($tmpZipPath) === TRUE) {
+                        // Always inject as preview.webp or preview.png based on extension
+                        $modifyZip->addFromString('preview.' . $thumbExt, $thumbContent);
+                        // Ensure legacy apps that look for exactly preview.png or preview.webp find it
+                        if ($thumbExt !== 'webp') $modifyZip->addFromString('preview.webp', $thumbContent);
+                        $modifyZip->close();
+                    }
+                }
+
+                if ($hasValidZip) {
+                    $zip->addFile($tmpZipPath, 'templates/' . $templateZipName);
+                    // Register the temp file for deletion after ZipArchive is closed using register_shutdown_function
+                    register_shutdown_function(function() use ($tmpZipPath) {
+                        @unlink($tmpZipPath);
+                    });
                 }
             }
             
@@ -628,6 +681,16 @@ class PosterMakerController extends Controller
                                 $innerZip->extractTo($extractPath);
                                 $innerZip->close();
 
+                                // Check for extracted preview image BEFORE DO upload deletes local files
+                                $previewPath = null;
+                                if (file_exists($extractPath . '/preview.webp')) {
+                                    $previewPath = 'template/' . $zipNameWithoutExt . '/preview.webp';
+                                } elseif (file_exists($extractPath . '/preview.png')) {
+                                    $previewPath = 'template/' . $zipNameWithoutExt . '/preview.png';
+                                } elseif (file_exists($extractPath . '/preview.jpg')) {
+                                    $previewPath = 'template/' . $zipNameWithoutExt . '/preview.jpg';
+                                }
+
                                 if(\App\Models\StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
                                     // Upload extracted files to space
                                     $files = \Illuminate\Support\Facades\File::allFiles($extractPath);
@@ -640,14 +703,14 @@ class PosterMakerController extends Controller
                                     // Remove local folder
                                     \Illuminate\Support\Facades\File::deleteDirectory($extractPath);
                                 }
-                            }
+                                }
 
                             // Insert into database
-                            \App\Models\PosterMaker::create([
+                            $posterMaker = \App\Models\PosterMaker::create([
                                 'poster_category_id' => $categoryId,
                                 'template_type' => $frameData['template_type'],
                                 'zip_name' => $frameData['zip_name'],
-                                'post_thumb' => $frameData['post_thumb'],
+                                'post_thumb' => $previewPath ? $previewPath : $frameData['post_thumb'],
                                 'theme' => $frameData['theme'] ?? 'all',
                                 'req_address' => $frameData['req_address'] ?? 0,
                                 'req_email' => $frameData['req_email'] ?? 0,
@@ -655,6 +718,102 @@ class PosterMakerController extends Controller
                                 'req_website' => $frameData['req_website'] ?? 0,
                                 'paid' => $frameData['paid'] ?? 1
                             ]);
+                            
+                            // Restore EditorTemplate schema if included
+                            if (isset($frameData['_schema_json']) && isset($frameData['_editor_uuid'])) {
+                                $uuid = $frameData['_editor_uuid'];
+                                $existingTpl = \App\Models\EditorTemplate::where('uuid', $uuid)->first();
+                                if (!$existingTpl) {
+                                    \App\Models\EditorTemplate::create([
+                                        'uuid' => $uuid,
+                                        'title' => $frameData['zip_name'],
+                                        'canvas_width' => $frameData['_schema_json']['canvas']['width'] ?? 1080,
+                                        'canvas_height' => $frameData['_schema_json']['canvas']['height'] ?? 1080,
+                                        'schema_json' => $frameData['_schema_json'],
+                                        'legacy_json' => $frameData['_legacy_json'] ?? null,
+                                        'status' => 'published',
+                                        'author_id' => auth()->id() ?? 1,
+                                    ]);
+                                }
+                            }
+                            
+                            // Restore thumbnail
+                            if (!empty($frameData['post_thumb'])) {
+                                $thumbSource = $tempDir . '/thumbnails/' . basename($frameData['post_thumb']);
+                                if (file_exists($thumbSource)) {
+                                    if(\App\Models\StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
+                                        \Illuminate\Support\Facades\Storage::disk('spaces')->put('uploads/' . $frameData['post_thumb'], file_get_contents($thumbSource), 'public');
+                                    } else {
+                                        $thumbDest = public_path('uploads/' . $frameData['post_thumb']);
+                                        $thumbDir = dirname($thumbDest);
+                                        if (!file_exists($thumbDir)) mkdir($thumbDir, 0777, true);
+                                        copy($thumbSource, $thumbDest);
+                                    }
+                                }
+                            }
+
+                            // Verify thumbnail actually exists; if not, generate from template skins
+                            $thumbOk = false;
+                            $currentThumb = $posterMaker->post_thumb;
+                            if ($currentThumb) {
+                                if (\App\Models\StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
+                                    $thumbOk = \Illuminate\Support\Facades\Storage::disk('spaces')->exists('uploads/' . $currentThumb);
+                                } else {
+                                    $thumbOk = file_exists(public_path('uploads/' . $currentThumb));
+                                }
+                            }
+
+                            if (!$thumbOk) {
+                                // Try to generate preview from extracted template skin images
+                                $tplFolder = public_path('uploads/template/' . $frameData['zip_name']);
+                                $skinFolder = $tplFolder . '/skins/' . $frameData['zip_name'];
+                                $generatedPreview = null;
+
+                                if (is_dir($skinFolder)) {
+                                    // Find the first non-shape PNG (asset_ files are frame overlays)
+                                    $skinFiles = glob($skinFolder . '/asset_*.png');
+                                    if (empty($skinFiles)) {
+                                        // Fallback to any PNG
+                                        $skinFiles = glob($skinFolder . '/*.png');
+                                    }
+                                    if (!empty($skinFiles)) {
+                                        $sourceImg = $skinFiles[0];
+                                        $previewDest = $tplFolder . '/preview.webp';
+                                        
+                                        // Convert/copy to preview.webp
+                                        if (function_exists('imagecreatefrompng')) {
+                                            $img = @imagecreatefrompng($sourceImg);
+                                            if ($img) {
+                                                imagewebp($img, $previewDest, 80);
+                                                imagedestroy($img);
+                                                $generatedPreview = 'template/' . $frameData['zip_name'] . '/preview.webp';
+                                            }
+                                        }
+                                        
+                                        // Fallback: just copy the PNG as preview
+                                        if (!$generatedPreview) {
+                                            $previewDestPng = $tplFolder . '/preview.png';
+                                            copy($sourceImg, $previewDestPng);
+                                            $generatedPreview = 'template/' . $frameData['zip_name'] . '/preview.png';
+                                        }
+                                    }
+                                }
+
+                                if ($generatedPreview) {
+                                    // Upload to DO if needed
+                                    if (\App\Models\StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
+                                        $localPreview = public_path('uploads/' . $generatedPreview);
+                                        if (file_exists($localPreview)) {
+                                            \Illuminate\Support\Facades\Storage::disk('spaces')->put('uploads/' . $generatedPreview, file_get_contents($localPreview), 'public');
+                                        }
+                                    }
+                                    $posterMaker->post_thumb = $generatedPreview;
+                                    $posterMaker->save();
+                                    \Log::info("[importFrames] Auto-generated preview for {$frameData['zip_name']}: $generatedPreview");
+                                } else {
+                                    \Log::warning("[importFrames] No preview could be generated for {$frameData['zip_name']}");
+                                }
+                            }
                             $importedCount++;
                         }
                     } else {

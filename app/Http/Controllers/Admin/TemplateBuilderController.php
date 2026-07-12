@@ -161,6 +161,29 @@ class TemplateBuilderController extends Controller
                 // Try to load full Artera schema if available for the web builder
                 $uuid = str_replace(['Template_', '.zip'], '', $frame->zip_file_path);
                 $editorTemplate = \App\Models\EditorTemplate::where('uuid', $uuid)->first();
+                
+                // Fallback: if zip_file_path doesn't follow "Template_UUID.zip" format,
+                // try to find the EditorTemplate via PosterMaker's zip_name
+                if (!$editorTemplate) {
+                    $zipBaseName = str_replace('.zip', '', $frame->zip_file_path);
+                    $posterMaker = \App\Models\PosterMaker::where('zip_name', $zipBaseName)->first();
+                    if ($posterMaker && $posterMaker->zip_name && str_starts_with($posterMaker->zip_name, 'Template_')) {
+                        $fallbackUuid = str_replace('Template_', '', $posterMaker->zip_name);
+                        $editorTemplate = \App\Models\EditorTemplate::where('uuid', $fallbackUuid)->first();
+                        if ($editorTemplate) $uuid = $fallbackUuid;
+                    }
+                    // Last resort: normalized fuzzy title matching
+                    // Raw title has spaces ("Untitled design - 1254 x 1254") while
+                    // zip_file_path has underscores ("Untitled_design_-_1254_x_1254.zip")
+                    if (!$editorTemplate) {
+                        $normalizedZipName = strtolower(preg_replace('/[^a-z0-9]/i', '', $zipBaseName));
+                        $editorTemplate = \App\Models\EditorTemplate::whereRaw(
+                            "LOWER(REPLACE(REPLACE(REPLACE(REPLACE(title, ' ', ''), '-', ''), '_', ''), '.', '')) = ?",
+                            [$normalizedZipName]
+                        )->orderByDesc('updated_at')->first();
+                        if ($editorTemplate) $uuid = $editorTemplate->uuid;
+                    }
+                }
                 if ($editorTemplate && is_array($editorTemplate->schema_json)) {
                     $jsonConfig = $editorTemplate->schema_json;
                     if (isset($jsonConfig['elements'])) {
@@ -300,6 +323,81 @@ class TemplateBuilderController extends Controller
         }
 
         if ($jsonConfig) {
+                // Try to load full Artera schema from EditorTemplate (preserves vector shapes)
+                $editorTemplate = null;
+                $editorUuid = null;
+
+                // Method 1: Extract UUID from zip_name if it follows "Template_UUID" format
+                if ($frame->zip_name && str_starts_with($frame->zip_name, 'Template_')) {
+                    $editorUuid = str_replace('Template_', '', $frame->zip_name);
+                    $editorTemplate = \App\Models\EditorTemplate::where('uuid', $editorUuid)->first();
+                }
+
+                // Method 2: Normalized fuzzy title matching
+                if (!$editorTemplate && $frame->zip_name) {
+                    $normalizedZipName = strtolower(preg_replace('/[^a-z0-9]/i', '', $frame->zip_name));
+                    $editorTemplate = \App\Models\EditorTemplate::whereRaw(
+                        "LOWER(REPLACE(REPLACE(REPLACE(REPLACE(title, ' ', ''), '-', ''), '_', ''), '.', '')) = ?",
+                        [$normalizedZipName]
+                    )->orderByDesc('updated_at')->first();
+                    if ($editorTemplate) $editorUuid = $editorTemplate->uuid;
+                }
+
+                // If EditorTemplate found, use its schema_json (vector shapes preserved)
+                // BUT ONLY if the EditorTemplate's asset files actually exist locally.
+                // When a frame is imported from staging but the EditorTemplate assets
+                // directory was never synced, the assets/ files will be missing.
+                // In that case, skip the EditorTemplate and use the original ZIP JSON.
+                if ($editorTemplate && is_array($editorTemplate->schema_json)) {
+                    $schemaCandidate = $editorTemplate->schema_json;
+                    $hasAllAssets = true;
+                    
+                    if (isset($schemaCandidate['elements'])) {
+                        foreach ($schemaCandidate['elements'] as $el) {
+                            if (isset($el['src']) && strpos($el['src'], 'assets/') === 0) {
+                                $assetPath = public_path('uploads/editor/templates/' . $editorUuid . '/' . $el['src']);
+                                if (!file_exists($assetPath)) {
+                                    $hasAllAssets = false;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if ($hasAllAssets) {
+                        // All assets exist locally — use EditorTemplate schema (preserves vector shapes)
+                        $jsonConfig = $schemaCandidate;
+                        if (isset($jsonConfig['elements'])) {
+                            foreach ($jsonConfig['elements'] as &$el) {
+                                if (isset($el['src']) && strpos($el['src'], 'assets/') === 0) {
+                                    $el['src'] = asset('uploads/editor/templates/' . $editorUuid . '/' . $el['src']);
+                                }
+                            }
+                            unset($el);
+                        }
+                    } else {
+                        // Assets missing locally (e.g. imported from staging) — use original ZIP JSON
+                        \Log::info('[loadFrameZip] EditorTemplate assets missing locally for frame #' . $id . ', using ZIP JSON instead');
+                    }
+                }
+                // Extract and load fonts from schema
+                $schemaFonts = [];
+                array_walk_recursive($jsonConfig, function($value, $key) use (&$schemaFonts) {
+                    if ($key === 'font' || $key === 'fontFamily' || $key === 'family') {
+                        $schemaFonts[] = $value;
+                    }
+                });
+                $schemaFonts = array_unique($schemaFonts);
+                foreach ($schemaFonts as $fontName) {
+                    if (!isset($fonts[$fontName])) {
+                        $normalizedFontName = str_replace([' ', '-', '_'], '', strtolower($fontName));
+                        $fontDb = \App\Models\Font::whereRaw("LOWER(REPLACE(REPLACE(REPLACE(name, ' ', ''), '-', ''), '_', '')) = ?", [$normalizedFontName])->first();
+                        if ($fontDb) {
+                            $fonts[$fontName] = asset($fontDb->file_path);
+                        }
+                    }
+                }
+
                 // Return frame settings alongside zip content
                 $frameData = [
                     'poster_category_id' => $frame->poster_category_id,
@@ -675,6 +773,24 @@ class TemplateBuilderController extends Controller
                     $existingTemplate = \App\Models\EditorTemplate::where('uuid', $oldUuid)->first();
                     if ($existingTemplate) {
                         $uuid = $oldUuid;
+                    }
+                }
+                // Fallback: try matching by title if UUID extraction failed
+                if (!$existingTemplate) {
+                    // First try exact match with the raw title from the form
+                    $existingTemplate = \App\Models\EditorTemplate::where('title', $request->input('title'))
+                        ->orderByDesc('updated_at')
+                        ->first();
+                    // Then try normalized fuzzy match against zip_name
+                    if (!$existingTemplate) {
+                        $normalizedZipName = strtolower(preg_replace('/[^a-z0-9]/i', '', $existingFrame->zip_name));
+                        $existingTemplate = \App\Models\EditorTemplate::whereRaw(
+                            "LOWER(REPLACE(REPLACE(REPLACE(REPLACE(title, ' ', ''), '-', ''), '_', ''), '.', '')) = ?",
+                            [$normalizedZipName]
+                        )->orderByDesc('updated_at')->first();
+                    }
+                    if ($existingTemplate) {
+                        $uuid = $existingTemplate->uuid;
                     }
                 }
             }

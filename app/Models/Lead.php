@@ -8,5 +8,11 @@ use Illuminate\Database\Eloquent\Model;
 class Lead extends Model
 {
     use HasFactory;
-    protected $guarded = [];
+    // Security fix: replaced $guarded = [] with explicit $fillable
+    protected $fillable = [
+        'name',
+        'email',
+        'industry',
+        'source',
+    ];
 }

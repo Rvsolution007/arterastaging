@@ -83,14 +83,101 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
   /// Key = layer name, Value = rendered height in design pixels at initial load.
   Map<String, double> _origHeights = {};
 
+  /// Caches exact intrinsic dimensions of logos once fetched to perform Smart Area Scaling.
+  Map<String, Size> _logoDimensions = {};
+
+  /// Keeps track of which logos we've already initiated a fetch for.
+  Set<String> _fetchedLogoIds = {};
+
   /// Whether post-frame measurement has completed at least once.
   bool _hasMeasured = false;
 
   @override
   void initState() {
     super.initState();
+    _fetchLogoDimensions();
     _schedulePostFrameMeasurement();
     _startRevealTimer();
+  }
+
+  void _fetchLogoDimensions() {
+    final layers = widget.config['layers'];
+    if (layers == null) return;
+    
+    final mappings = (widget.aiData != null && widget.aiData!['_image_mappings'] != null)
+        ? widget.aiData!['_image_mappings'] as Map<String, dynamic>
+        : <String, dynamic>{};
+
+    for (var layer in layers) {
+      final String name = (layer['name'] ?? layer['id'] ?? '').toString().toLowerCase();
+      final bool isLogo = layer['_businessKey'] == 'logo' || name.contains('logo');
+      if (!isLogo) continue;
+
+      final String layerId = layer['id'].toString();
+      if (_fetchedLogoIds.contains(layerId)) continue;
+      
+      _fetchedLogoIds.add(layerId);
+
+      String cleanLName = name.replaceAll(RegExp(r'[\s\-_]'), '');
+      String? mappedUrl;
+      
+      if (mappings[name] != null) {
+        mappedUrl = mappings[name];
+      } else {
+        for (var key in mappings.keys) {
+          if (cleanLName == key.replaceAll(RegExp(r'[\s\-_]'), '').toLowerCase()) {
+            mappedUrl = mappings[key];
+            break;
+          }
+        }
+      }
+      
+      if (mappedUrl == null && (cleanLName == 'image1' || cleanLName == 'mainimage')) {
+        mappedUrl = mappings['image1'] ?? mappings['main_image'] ?? mappings['image 1'];
+      }
+      
+      // If AI didn't map a logo, fallback to the template's embedded src
+      if (mappedUrl == null || mappedUrl.isEmpty) {
+        if (layer['src'] != null && layer['src'].toString().isNotEmpty) {
+          mappedUrl = layer['src'].toString();
+        }
+      }
+      
+      if (mappedUrl != null && mappedUrl.isNotEmpty) {
+         _resolveImageSize(layerId, mappedUrl);
+      }
+    }
+  }
+
+  void _resolveImageSize(String layerId, String url) {
+    try {
+      ImageProvider provider;
+      if (url.startsWith('data:image')) {
+        final bytes = base64Decode(url.split(',').last);
+        provider = MemoryImage(bytes);
+      } else {
+        provider = url.startsWith('http') 
+            ? NetworkImage(url) as ImageProvider
+            : FileImage(File(url));
+      }
+      
+      provider.resolve(const ImageConfiguration()).addListener(
+        ImageStreamListener((ImageInfo info, bool _) {
+          if (mounted) {
+            setState(() {
+              _logoDimensions[layerId] = Size(
+                info.image.width.toDouble(),
+                info.image.height.toDouble()
+              );
+            });
+          }
+        }, onError: (dynamic exception, StackTrace? stackTrace) {
+          debugPrint('⚠️ Error resolving logo dimensions for $layerId: $exception');
+        }),
+      );
+    } catch (e) {
+      debugPrint('⚠️ Exception resolving logo dimensions for $layerId: $e');
+    }
   }
 
   void _startRevealTimer() {
@@ -524,6 +611,9 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     debugPrint('║ hasMeasured: $_hasMeasured, '
         'shifts: ${_measuredShifts.length}');
     debugPrint('╚══════════════════════════════════════════════');
+    
+    // Always call this so if controller injects layers later, we catch them
+    _fetchLogoDimensions();
 
     // Sort layers by z_index for Stack rendering order
     final List<Map<String, dynamic>> sortedLayers = layers
@@ -601,6 +691,78 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     // ══════════════════════════════════════════════════════════════
     final List<Widget> stackChildren = [];
     for (var layer in adjusted) {
+      // --- SMART AREA SCALING FOR LOGOS ---
+      final String name = (layer['name'] ?? layer['id'] ?? '').toString().toLowerCase();
+      final bool isLogo = layer['_businessKey'] == 'logo' || name.contains('logo');
+      final String layerId = layer['id'].toString();
+      
+      if (isLogo && _logoDimensions.containsKey(layerId)) {
+        final Size trueSize = _logoDimensions[layerId]!;
+        final double rawW = safeDouble(layer['w'] ?? layer['width'] ?? 0);
+        final double rawH = safeDouble(layer['h'] ?? layer['height'] ?? 0);
+        final double rawX = safeDouble(layer['x'] ?? layer['left'] ?? 0);
+        final double rawY = safeDouble(layer['y'] ?? layer['top'] ?? 0);
+        
+        if (rawW > 0 && rawH > 0 && trueSize.width > 0 && trueSize.height > 0) {
+          final double targetArea = rawW * rawH;
+          final double trueRatio = trueSize.width / trueSize.height;
+          
+          double newH = math.sqrt(targetArea / trueRatio);
+          double newW = newH * trueRatio;
+          
+          final double canvasWidth = safeDouble(widget.config['width'] ?? 1080);
+          final double canvasHeight = safeDouble(widget.config['height'] ?? 1080);
+          
+          if (newW > canvasWidth * 0.8) {
+            newW = canvasWidth * 0.8;
+            newH = newW / trueRatio;
+          }
+          if (newH > canvasHeight * 0.8) {
+            newH = canvasHeight * 0.8;
+            newW = newH * trueRatio;
+          }
+
+          double newX = rawX;
+          if (rawX > canvasWidth * 0.6) {
+            newX = rawX - (newW - rawW);
+          } else if (rawX > canvasWidth * 0.4) {
+            newX = rawX - (newW - rawW) / 2;
+          }
+
+          // ONLY center vertically inside the original placeholder bounding box
+          double newY = rawY + (rawH - newH) / 2;
+          
+          layer['w'] = newW;
+          layer['h'] = newH;
+          layer['x'] = newX;
+          layer['y'] = newY;
+          layer['width'] = newW;
+          layer['height'] = newH;
+          layer['left'] = newX;
+          layer['top'] = newY;
+          layer['_smart_scaled'] = true;
+
+          // If the logo has a mask, the mask shape dictates the bounding box. We MUST scale the mask shape too!
+          if (layer['mask_layer_id'] != null && layer['mask_layer_id'].toString().isNotEmpty) {
+            final maskIdStr = layer['mask_layer_id'].toString();
+            for (var mLayer in adjusted) {
+              final mName = (mLayer['name'] ?? mLayer['id'] ?? '').toString();
+              if (mName.isNotEmpty && (mName == maskIdStr || mLayer['id'].toString() == maskIdStr)) {
+                mLayer['w'] = newW;
+                mLayer['h'] = newH;
+                mLayer['x'] = newX;
+                mLayer['y'] = newY;
+                mLayer['width'] = newW;
+                mLayer['height'] = newH;
+                mLayer['left'] = newX;
+                mLayer['top'] = newY;
+                mLayer['_smart_scaled'] = true;
+              }
+            }
+          }
+        }
+      }
+
       stackChildren.add(_buildLayer(layer, scale));
     }
 

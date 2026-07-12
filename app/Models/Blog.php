@@ -8,5 +8,12 @@ use Illuminate\Database\Eloquent\Model;
 class Blog extends Model
 {
     use HasFactory;
-    protected $guarded = [];
+    // Security fix: replaced $guarded = [] with explicit $fillable
+    protected $fillable = [
+        'title',
+        'slug',
+        'content',
+        'meta_keywords',
+        'status',
+    ];
 }

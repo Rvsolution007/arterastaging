@@ -5,6 +5,39 @@
 
     RewriteEngine On
 
+    # ========================================
+    # SECURITY: Block access to sensitive files
+    # ========================================
+
+    # Block .env files (contains secrets, API keys, DB credentials)
+    RewriteRule ^\.env - [F,L]
+    RewriteRule ^\.env\..* - [F,L]
+
+    # Block .git directory (source code exposure)
+    RewriteRule ^\.git - [F,L]
+
+    # Block database dumps
+    RewriteRule \.sql$ - [F,L]
+
+    # Block signing keys and certificates
+    RewriteRule \.(jks|keystore|p12|pem)$ - [F,L]
+
+    # Block composer executable
+    RewriteRule ^composer\.phar$ - [F,L]
+
+    # Block key.properties (Android signing credentials)
+    RewriteRule ^key\.properties - [F,L]
+
+    # Block utility/debug PHP scripts in the root (check_*, dump_*, test_*, fix_*, etc.)
+    RewriteCond %{REQUEST_URI} ^/Artera/(check_|dump_|test_|fix_|tail_|clear_|compare_|compress_|convert|extract_|fetch_|fill_|generate_|get_|import_|insert_|inspect_|list_|migrate_|patch_|rename_|render_|replace_|restore_|seed_|shift_|update_|watermark_) [OR]
+    RewriteCond %{REQUEST_URI} ^/Artera/(opcache-reset|analyze_duplicates|dedup_master|change_brand_id)\.php$
+    RewriteRule \.php$ - [F,L]
+
+    # Block .htaccess itself
+    RewriteRule ^\.htaccess$ - [F,L]
+
+    # ========================================
+
     # Force HTTPS (for staging/production behind proxy or direct SSL)
     RewriteCond %{HTTPS} !=on
     RewriteCond %{HTTP:X-Forwarded-Proto} !https
@@ -27,17 +60,22 @@
     RewriteRule ^ index.php [L]
 </IfModule>
 
-php_value post_max_size 2000M
-php_value upload_max_filesize 2500M
-php_value max_execution_time 6000000
-php_value max_input_time 6000000
-php_value memory_limit 2500M
+# ========================================
+# SECURITY: Sane PHP resource limits
+# ========================================
+# Previous values were dangerously high (2.5GB upload, 69-day execution)
+# Increase these only for specific scripts that need it, not globally
+php_value post_max_size 100M
+php_value upload_max_filesize 100M
+php_value max_execution_time 300
+php_value max_input_time 120
+php_value memory_limit 512M
 
 <IfModule mod_headers.c>
-    # Allow CORS for static assets
+    # Allow CORS for static assets (fonts, images, media)
     <FilesMatch "\.(jpeg|jpg|png|gif|svg|webp|mp4|json|ttf|otf|woff|woff2)$">
         Header set Access-Control-Allow-Origin "*"
-        Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
-        Header set Access-Control-Allow-Headers "*"
+        Header set Access-Control-Allow-Methods "GET, OPTIONS"
+        Header set Access-Control-Allow-Headers "Origin, Accept, Content-Type"
     </FilesMatch>
 </IfModule>

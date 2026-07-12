@@ -382,34 +382,46 @@
                 <!-- Business Tab -->
                 <div class="tab-pane fade" id="v-pills-business" role="tabpanel">
                     <div class="premium-card">
-                        <div class="premium-card-header">
-                            <h5 class="premium-card-title">Registered Businesses</h5>
-                            <a href="{{ url('admin/user-business/'.$data->id) }}" class="btn btn-sm btn-outline-primary px-3" style="border-radius: 8px;"><i class="fa-solid fa-plus mr-1"></i> Add Business</a>
+                        <div class="premium-card-header d-flex justify-content-between align-items-center">
+                            <h5 class="premium-card-title mb-0">Registered Businesses</h5>
+                            <a href="{{ url('admin/user-business/'.$data->id) }}" class="btn btn-sm btn-premium px-3" style="border-radius: 8px;"><i class="fa-solid fa-plus mr-1"></i> Add Business</a>
                         </div>
-                        <div class="premium-card-body">
+                        <div class="premium-card-body bg-light">
                             <div class="row">
                                 @forelse($business as $b)
-                                <div class="col-md-6">
-                                    <div class="business-mini-card">
-                                        <img class="rounded shadow-sm mr-3" src="@if($b->logo) @if(App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean'){{\Storage::disk('spaces')->url('uploads/'.$b->logo)}} @else {{asset('uploads/'.$b->logo)}} @endif @else {{asset('assets/images/user-noimage.png')}} @endif" width="55" height="55" style="object-fit: cover;">
-                                        <div class="flex-grow-1">
-                                            <h6 class="font-weight-bold mb-1 text-dark">{{ $b->name }}</h6>
-                                            <div class="d-flex align-items-center justify-content-between">
-                                                <div class="btn-group">
-                                                    <a href="{{url('admin/business/'.$b->id) }}" class="text-primary mr-3"><i class="fa fa-eye"></i></a>
-                                                    <a href="{{url('admin/business/'.$b->id.'/edit') }}" class="text-success mr-3"><i class="fa fa-edit"></i></a>
-                                                    <a href="#" class="text-danger" data-id="{{$b->id}}" data-toggle="modal" data-target="#myModal"><i class="fa fa-trash"></i></a>
+                                <div class="col-md-6 mb-3">
+                                    <div class="business-mini-card bg-white shadow-sm h-100" style="border-radius: 16px; border: 1px solid #e2e8f0; transition: transform 0.2s, box-shadow 0.2s;">
+                                        <div class="d-flex p-3 align-items-center">
+                                            <div class="mr-3 position-relative">
+                                                <img class="rounded-circle shadow-sm" src="@if($b->logo) @if(App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean'){{\Storage::disk('spaces')->url('uploads/'.$b->logo)}} @else {{asset('uploads/'.$b->logo)}} @endif @else {{asset('assets/images/user-noimage.png')}} @endif" width="60" height="60" style="object-fit: cover; border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <h6 class="font-weight-bold mb-1 text-dark">{{ $b->name }}</h6>
+                                                <small class="text-muted d-block mb-2"><i class="fa fa-phone mr-1"></i> {{ $b->mobile_no ?? 'N/A' }}</small>
+                                                <div class="d-flex align-items-center justify-content-between mt-2">
+                                                    <div class="btn-group">
+                                                        <a href="{{url('admin/business/'.$b->id) }}" class="btn btn-sm btn-light text-primary mr-2" style="border-radius: 6px;"><i class="fa fa-eye"></i></a>
+                                                        <a href="{{url('admin/business/'.$b->id.'/edit') }}" class="btn btn-sm btn-light text-success mr-2" style="border-radius: 6px;"><i class="fa fa-edit"></i></a>
+                                                        <a href="#" class="btn btn-sm btn-light text-danger" style="border-radius: 6px;" data-id="{{$b->id}}" data-toggle="modal" data-target="#myModal"><i class="fa fa-trash"></i></a>
+                                                        <form id="form_{{$b->id}}" action="{{url('admin/business/'.$b->id)}}" method="post" style="display:none">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                        </form>
+                                                    </div>
+                                                    <label class="switch my-auto">
+                                                        <input type="checkbox" name="status" data-id="{{$b->id}}" value="1" class="status" @if($b->status==1) checked @endif>
+                                                        <span class="slider"></span>
+                                                    </label>
                                                 </div>
-                                                <label class="switch my-auto">
-                                                    <input type="checkbox" name="status" data-id="{{$b->id}}" value="1" class="status" @if($b->status==1) checked @endif>
-                                                    <span class="slider"></span>
-                                                </label>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                                 @empty
-                                <div class="col-12 text-center py-5 text-muted">No businesses found for this user.</div>
+                                <div class="col-12 text-center py-5 text-muted">
+                                    <div class="mb-3"><i class="fa-solid fa-briefcase fa-3x text-light"></i></div>
+                                    No businesses found for this user.
+                                </div>
                                 @endforelse
                             </div>
                         </div>
@@ -437,11 +449,11 @@
                                 </div>
                                 <div class="col-md-6 mb-4">
                                     <label class="form-label-premium">Start Date</label>
-                                    {!! Form::text('subscription_start_from',($data->subscription_start_date)?date('d M, y',strtotime($data->subscription_start_date)):"",['class' => 'form-control-premium datepicker w-100','required',"autocomplete"=>"off"]) !!}
+                                    {!! Form::text('subscription_start_from',($data->subscription_start_date)?date('d M, Y',strtotime($data->subscription_start_date)):"",['class' => 'form-control-premium datepicker w-100','required',"autocomplete"=>"off"]) !!}
                                 </div>
                                 <div class="col-md-6 mb-4">
                                     <label class="form-label-premium">Expiry Date</label>
-                                    {!! Form::text('subscription_start_to',($data->subscription_end_date)?date('d M, y',strtotime($data->subscription_end_date)):"",['class' => 'form-control-premium datepicker w-100','required',"autocomplete"=>"off"]) !!}
+                                    {!! Form::text('subscription_start_to',($data->subscription_end_date)?date('d M, Y',strtotime($data->subscription_end_date)):"",['class' => 'form-control-premium datepicker w-100','required',"autocomplete"=>"off"]) !!}
                                 </div>
                             </div>
                             <div class="text-right mt-3">
@@ -466,18 +478,42 @@
                                             <th># ID</th>
                                             <th>Plan Name</th>
                                             <th>Total Paid</th>
+                                            <th>Payment ID</th>
+                                            <th>Payment Type</th>
                                             <th>Date</th>
+                                            <th>Receipt</th>
+                                            <th>Status</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        @foreach($transaction as $t)
+                                        @forelse($transaction as $t)
                                         <tr>
                                             <td>#{{$t->id}}</td>
                                             <td><span class="badge-soft">{{$t->subscription->plan_name ?? 'N/A'}}</span></td>
                                             <td class="font-weight-bold text-dark">₹{{$t->total_paid}}</td>
+                                            <td>{{$t->payment_id ?? '-'}}</td>
+                                            <td>{{$t->payment_type ?? '-'}}</td>
                                             <td>{{date('d M, Y',strtotime($t->date))}}</td>
+                                            <td>
+                                                @if($t->payment_receipt)
+                                                    <a href="{{asset('uploads/payment/'.$t->payment_receipt)}}" target="_blank" class="text-primary"><i class="fa-solid fa-file-invoice"></i> View</a>
+                                                @else
+                                                    -
+                                                @endif
+                                            </td>
+                                            <td>
+                                                @if($t->status == "Completed")
+                                                    <span class="badge badge-success px-2 py-1">Completed</span>
+                                                @else
+                                                    <span class="badge badge-warning px-2 py-1">{{$t->status ?? 'Pending'}}</span>
+                                                @endif
+                                            </td>
                                         </tr>
-                                        @endforeach
+                                        @empty
+                                        <tr>
+                                            <td colspan="8" class="text-center text-muted py-4">No transactions found</td>
+                                        </tr>
+                                        @endforelse
                                     </tbody>
                                 </table>
                             </div>
@@ -597,12 +633,30 @@
 @section('script')
 <script type="text/javascript">
     $(document).ready(function() {
+        // Initialize datepicker
+        $('.datepicker').datepicker({
+            format: 'dd M, yyyy', // Format that matches the output in the input value
+            autoclose: true,
+            todayHighlight: true
+        });
+
         // Handle direct linking to tabs if needed
         var url = window.location.href;
         if (url.indexOf("#") != -1) {
             var activeTab = url.substring(url.indexOf("#") + 1);
             $('#v-pills-tab a[href="#' + activeTab + '"]').tab('show');
         }
+
+        // Delete Business Logic
+        $('#myModal').on('show.bs.modal', function(e) {
+            var id = e.relatedTarget.dataset.id;
+            $("#del_btn").attr("data-submit", id);
+        });
+
+        $("#del_btn").on("click", function() {
+            var id = $(this).attr("data-submit");
+            $("#form_" + id).submit();
+        });
 
         $(".status").change(function(){
             var checked = $(this).is(':checked');

@@ -64,6 +64,26 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme('https');
         }
         
+        // ==========================================
+        // SECURITY: Verify Critical Environment Variables
+        // ==========================================
+        $requiredConfigVars = [
+            'app.key', 
+            'database.default', 
+            'database.connections.mysql.host', 
+            'database.connections.mysql.port', 
+            'database.connections.mysql.database', 
+            'database.connections.mysql.username'
+        ];
+        foreach ($requiredConfigVars as $var) {
+            if (empty(config($var))) {
+                // throw new \Exception("Critical Configuration Variable Missing: $var. The application refuses to start.");
+                // Log error instead of crashing to prevent issues when clearing cache
+                \Log::error("Critical Configuration Variable Missing: $var");
+            }
+        }
+
+        
         Paginator::useBootstrapFour();
         Schema::defaultStringLength(191);
         

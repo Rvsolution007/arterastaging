@@ -669,12 +669,22 @@ class PosterMakerController extends Controller
                                 }
                             }
 
+                            // Check for extracted preview image
+                            $previewPath = null;
+                            if (file_exists($extractPath . '/preview.webp')) {
+                                $previewPath = 'template/' . $zipNameWithoutExt . '/preview.webp';
+                            } elseif (file_exists($extractPath . '/preview.png')) {
+                                $previewPath = 'template/' . $zipNameWithoutExt . '/preview.png';
+                            } elseif (file_exists($extractPath . '/preview.jpg')) {
+                                $previewPath = 'template/' . $zipNameWithoutExt . '/preview.jpg';
+                            }
+
                             // Insert into database
                             $posterMaker = \App\Models\PosterMaker::create([
                                 'poster_category_id' => $categoryId,
                                 'template_type' => $frameData['template_type'],
                                 'zip_name' => $frameData['zip_name'],
-                                'post_thumb' => $frameData['post_thumb'],
+                                'post_thumb' => $previewPath ? $previewPath : $frameData['post_thumb'],
                                 'theme' => $frameData['theme'] ?? 'all',
                                 'req_address' => $frameData['req_address'] ?? 0,
                                 'req_email' => $frameData['req_email'] ?? 0,

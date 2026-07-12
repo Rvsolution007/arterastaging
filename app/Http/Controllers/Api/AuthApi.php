@@ -718,8 +718,15 @@ class AuthApi extends Controller
                                 }
                                 else
                                 {
-                                    if ($request->file("image") && $request->file('image')->isValid()) {
-                                        $this->upload_image($request->file("image"),"image", $request->id);
+                                    if ($request->hasFile("image")) {
+                                        if ($request->file('image')->isValid()) {
+                                            $this->upload_image($request->file("image"),"image", $request->id);
+                                        } else {
+                                            return response()->json([
+                                                'status' => "Error",
+                                                'message' => "Profile image upload failed. It might be too large.",
+                                            ], 200);
+                                        }
                                     }
                                 }
 
@@ -876,8 +883,15 @@ class AuthApi extends Controller
                                 }
                                 else
                                 {
-                                    if ($request->file("image") && $request->file('image')->isValid()) {
-                                        $this->upload_image($request->file("image"),"image", $request->id);
+                                    if ($request->hasFile("image")) {
+                                        if ($request->file('image')->isValid()) {
+                                            $this->upload_image($request->file("image"),"image", $request->id);
+                                        } else {
+                                            return response()->json([
+                                                'status' => "Error",
+                                                'message' => "Profile image upload failed. It might be too large.",
+                                            ], 200);
+                                        }
                                     }
                                 }
                                 
@@ -950,6 +964,9 @@ class AuthApi extends Controller
     private function upload_image($file,$field,$id)
     {
         $destinationPath = public_path('uploads');
+        if (!file_exists($destinationPath)) {
+            mkdir($destinationPath, 0777, true);
+        }
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
         $file->move($destinationPath, $fileName);

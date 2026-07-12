@@ -535,7 +535,12 @@ class PosterMakerController extends Controller
                 $exportData[] = $frameArr;
                 
                 // Add thumbnail to archive
+                $thumbContent = null;
+                $thumbExt = 'webp';
                 if ($frame->post_thumb) {
+                    $thumbExt = pathinfo($frame->post_thumb, PATHINFO_EXTENSION);
+                    if (!$thumbExt) $thumbExt = 'webp';
+                    
                     if(\App\Models\StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
                         if (\Illuminate\Support\Facades\Storage::disk('spaces')->exists('uploads/' . $frame->post_thumb)) {
                             $thumbContent = \Illuminate\Support\Facades\Storage::disk('spaces')->get('uploads/' . $frame->post_thumb);
@@ -544,6 +549,7 @@ class PosterMakerController extends Controller
                     } else {
                         $thumbLocalPath = public_path('uploads/' . $frame->post_thumb);
                         if (file_exists($thumbLocalPath)) {
+                            $thumbContent = file_get_contents($thumbLocalPath);
                             $zip->addFile($thumbLocalPath, 'thumbnails/' . basename($frame->post_thumb));
                         }
                     }
@@ -551,24 +557,26 @@ class PosterMakerController extends Controller
                 
                 // Add zip to archive
                 $templateZipName = $frame->zip_name . '.zip';
-                
+                $tmpZipPath = public_path('uploads/temp_export_modify_' . time() . '_' . $templateZipName);
+                $hasValidZip = false;
+
                 if(\App\Models\StorageSetting::getStorageSetting("storage") == "DigitalOcean") {
                     if (\Illuminate\Support\Facades\Storage::disk('spaces')->exists('uploads/custom_frames_zips/' . $templateZipName)) {
                         $fileContent = \Illuminate\Support\Facades\Storage::disk('spaces')->get('uploads/custom_frames_zips/' . $templateZipName);
-                        $zip->addFromString('templates/' . $templateZipName, $fileContent);
+                        file_put_contents($tmpZipPath, $fileContent);
+                        $hasValidZip = true;
                     }
                 } else {
                     $localPath = public_path('uploads/custom_frames_zips/' . $templateZipName);
                     if (file_exists($localPath)) {
-                        $zip->addFile($localPath, 'templates/' . $templateZipName);
+                        copy($localPath, $tmpZipPath);
+                        $hasValidZip = true;
                     } else {
                         // Fallback for legacy frames: if zip doesn't exist, check template folder
                         $templateDirPath = public_path('uploads/template/' . $frame->zip_name);
                         if (is_dir($templateDirPath)) {
-                            // Create a temporary zip for the folder to include in export
-                            $tempZipPath = public_path('uploads/temp_export_' . $templateZipName);
                             $tempZip = new \ZipArchive();
-                            if ($tempZip->open($tempZipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === TRUE) {
+                            if ($tempZip->open($tmpZipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === TRUE) {
                                 $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($templateDirPath), \RecursiveIteratorIterator::LEAVES_ONLY);
                                 foreach ($files as $name => $file) {
                                     if (!$file->isDir()) {
@@ -578,12 +586,30 @@ class PosterMakerController extends Controller
                                     }
                                 }
                                 $tempZip->close();
-                                $zip->addFile($tempZipPath, 'templates/' . $templateZipName);
-                                // Note: we can't delete tempZipPath immediately because $zip->addFile needs it until $zip->close().
-                                // We will clean it up later if needed, or leave it to standard tmp cleanup.
+                                $hasValidZip = true;
                             }
                         }
                     }
+                }
+
+                // Inject the preview into the frame's zip if we have thumbnail content
+                if ($hasValidZip && $thumbContent) {
+                    $modifyZip = new \ZipArchive();
+                    if ($modifyZip->open($tmpZipPath) === TRUE) {
+                        // Always inject as preview.webp or preview.png based on extension
+                        $modifyZip->addFromString('preview.' . $thumbExt, $thumbContent);
+                        // Ensure legacy apps that look for exactly preview.png or preview.webp find it
+                        if ($thumbExt !== 'webp') $modifyZip->addFromString('preview.webp', $thumbContent);
+                        $modifyZip->close();
+                    }
+                }
+
+                if ($hasValidZip) {
+                    $zip->addFile($tmpZipPath, 'templates/' . $templateZipName);
+                    // Register the temp file for deletion after ZipArchive is closed using register_shutdown_function
+                    register_shutdown_function(function() use ($tmpZipPath) {
+                        @unlink($tmpZipPath);
+                    });
                 }
             }
             

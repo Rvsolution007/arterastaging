@@ -1596,8 +1596,9 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     // OVERRIDE the baked-in color. Fabric.js default fill is rgb(0,0,0) which turns everything black.
     // Only apply tint_color for non-shape icons (contact/social icons that need dynamic coloring).
     final bool isRasterizedShape = (layer['is_shape'] == true || layer['is_shape'] == 1) && pathType == 'TEMPLATE_ASSET';
+    final bool skipRasterTint = isRasterizedShape && ((widget.config['render_version'] ?? 1) as int) < 2 && layer['tint_color'] == null;
     
-    if (layer['tint_color'] != null) {
+    if (layer['tint_color'] != null && !skipRasterTint) {
       String tintStr = layer['tint_color'].toString();
       tintColor = _parseColor(tintStr, fallback: const Color(0xFFFFFFFF));
       gradientColors = _parseGradient(tintStr);
@@ -1613,8 +1614,8 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         // Gradient fill from web editor
         debugPrint('[TINT] "$lname" has gradient fill object');
       }
-    } else if (isRasterizedShape) {
-      debugPrint('[TINT] "$lname" SKIPPED — rasterized shape, color baked in PNG');
+    } else if (skipRasterTint) {
+      debugPrint('[TINT] "$lname" SKIPPED — rasterized shape v1, color baked in PNG');
     }
 
     String gradientDir = (layer['gradient_direction'] ?? 'vertical').toString();

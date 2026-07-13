@@ -20,7 +20,7 @@
     console.log('[TEMPLATE_BUILDER] v3.0 loaded — fill control + vector paths + complete effects');
     // ── Render Version: ALL rendering logic is versioned. Current code = version 1. ──
     // ── Future rendering changes MUST increment this and add version-gated code paths. ──
-    const CURRENT_RENDER_VERSION = 1;
+    const CURRENT_RENDER_VERSION = 2;
     try {
     
     // Fix fabric.js alphabetical warning globally
@@ -1429,13 +1429,42 @@
 
     if (inputIsColorizableShape) inputIsColorizableShape.addEventListener('change', function() {
         const objs = canvas.getActiveObjects();
+        const isChecked = this.checked;
         if (objs.length) {
+            let filtersChanged = false;
             objs.forEach(obj => {
                 if (obj.type === 'image') {
-                    obj.is_shape = this.checked;
-                    obj.customType = this.checked ? 'shape' : 'image';
+                    obj.is_shape = isChecked;
+                    obj.customType = isChecked ? 'shape' : 'image';
+                    
+                    if (isChecked && obj._element && (!obj.filters || !obj.filters.some(f => f && f.type === 'BlendColor'))) {
+                        try {
+                            const tempCanvas = document.createElement('canvas');
+                            tempCanvas.width = 1; tempCanvas.height = 1;
+                            const ctx = tempCanvas.getContext('2d');
+                            ctx.drawImage(obj._element, 0, 0, 1, 1);
+                            const data = ctx.getImageData(0, 0, 1, 1).data;
+                            if (data[3] > 0) { 
+                                const hex = '#' + [data[0], data[1], data[2]].map(x => x.toString(16).padStart(2, '0')).join('');
+                                obj.set('fill', hex);
+                            } else {
+                                obj.set('fill', '#6366f1');
+                            }
+                        } catch(e) { 
+                            obj.set('fill', '#6366f1');
+                            console.warn('Could not guess color:', e); 
+                        }
+                    } else if (!isChecked && obj.filters) {
+                        const originalLength = obj.filters.length;
+                        obj.filters = obj.filters.filter(f => !(f && f.type === 'BlendColor'));
+                        if (obj.filters.length !== originalLength) {
+                            obj.applyFilters();
+                            filtersChanged = true;
+                        }
+                    }
                 }
             });
+            if (filtersChanged) canvas.renderAll();
             updateProps();
             saveHistory();
         }
@@ -1784,21 +1813,35 @@
                 
                 item.addEventListener('click', function() {
                     const addSvgUrl = `https://api.iconify.design/${iconName.replace(':', '/')}.svg?color=%23333333`;
-                    fabric.loadSVGFromURL(addSvgUrl, function(objects, options) {
-                        const obj = fabric.util.groupSVGElements(objects, options);
-                        obj.set({
-                            left: 150,
-                            top: 150,
-                            scaleX: 2,
-                            scaleY: 2,
-                            customType: 'icon',
-                            customName: 'Icon'
+                    // Fetch SVG as text first, then use loadSVGFromString to avoid CORS tainted canvas
+                    fetch(addSvgUrl)
+                        .then(function(response) { return response.text(); })
+                        .then(function(svgText) {
+                            fabric.loadSVGFromString(svgText, function(objects, options) {
+                                if (!objects || objects.length === 0) {
+                                    console.error('[ICON] Failed to parse SVG for:', iconName);
+                                    return;
+                                }
+                                const obj = fabric.util.groupSVGElements(objects, options);
+                                obj.set({
+                                    left: 150,
+                                    top: 150,
+                                    scaleX: 2,
+                                    scaleY: 2,
+                                    customType: 'icon',
+                                    customName: 'Icon',
+                                    fill: '#333333'
+                                });
+                                canvas.add(obj);
+                                canvas.setActiveObject(obj);
+                                updateLayersList();
+                                saveHistory();
+                                console.log('[ICON] Added icon:', iconName, 'type:', obj.type);
+                            });
+                        })
+                        .catch(function(err) {
+                            console.error('[ICON] Failed to fetch SVG:', iconName, err);
                         });
-                        canvas.add(obj);
-                        canvas.setActiveObject(obj);
-                        updateLayersList();
-                        saveHistory();
-                    });
                 });
                 iconsGrid.appendChild(item);
             });
@@ -3136,7 +3179,12 @@
                                     rotation: el.rotation, opacity: el.opacity, z_index: el.z_index,
                                     is_background: el.is_background, is_placeholder: el.is_placeholder, is_slot: el.is_slot, mask_layer_id: el.mask_layer_id
                                 };
-                                if (el.type === 'image') l.src = el.src;
+                                if (el.type === 'image') {
+                                    l.src = el.src;
+                                    if (el.tint_color) l.tint_color = el.tint_color;
+                                    if (el.is_shape) l.is_shape = el.is_shape;
+                                    if (el._originalType) l._originalType = el._originalType;
+                                }
                                 else if (el.type === 'text' || el.type === 'i-text' || el.type === 'textbox') {
                                     l.type = 'text';
                                     l.text = el.text;
@@ -3338,7 +3386,9 @@
                                 if (el.type === 'image') {
                                     l.src = el.src;
                                     if (el.is_shape || /shape|rect|circle|triangle|polygon|ellipse|path/i.test(el.name)) l.is_shape = true;
-                                    console.log('[LOAD] Layer ' + idx + ' "' + el.name + '" → image' + (l.is_shape ? ' (rasterized shape)' : '') + ', src=' + (el.src||'').substring(0,60));
+                                    if (el.tint_color) l.tint_color = el.tint_color;
+                                    if (el._originalType) l._originalType = el._originalType;
+                                    console.log('[LOAD] Layer ' + idx + ' "' + el.name + '" → image' + (l.is_shape ? ' (rasterized shape)' : '') + ', tint_color=' + (l.tint_color||'none') + ', src=' + (el.src||'').substring(0,60));
                                 } else if (el.type === 'text' || el.type === 'i-text' || el.type === 'textbox') {
                                     l.type = 'text';
                                     l.text = el.text;
@@ -3507,6 +3557,13 @@
                                     l.type = 'image'; l.src = el.src;
                                     const fn = (el.src || '').split('/').pop();
                                     if (imagesMap[fn]) l.src = imagesMap[fn];
+                                    // Carry over shape/icon metadata so _doRender can restore tint
+                                    if (el.tint_color) l.tint_color = el.tint_color;
+                                    if (el.is_shape) l.is_shape = el.is_shape;
+                                    if (el._originalType) l._originalType = el._originalType;
+                                    if (el.is_background) l.is_background = el.is_background;
+                                    if (el.is_placeholder) l.is_placeholder = el.is_placeholder;
+                                    if (el.is_slot) l.is_slot = el.is_slot;
                                 } else if (el.type === 'text') {
                                     l.type = 'text'; l.text = el.text;
                                     // Artera schema stores font as object {family, size, weight, style, color, ...}
@@ -4056,7 +4113,8 @@
                 layer.type = 'image';
                 layer.is_shape = false; // Bypass shape vector logic
                 // But we still want them to act like shapes in the UI
-                layer._originalType = 'shape'; 
+                // Preserve _originalType from JSON if already set (e.g., 'icon'), else default to 'shape'
+                if (!layer._originalType) layer._originalType = 'shape'; 
             }
 
             // ─────────────────────────────────────────────────────────────────
@@ -4098,12 +4156,16 @@
                         fabric.Image.fromURL(imgSrc, function(img) {
                             if (!img || !img.width) { console.warn('[DEBUG] Image FAILED for "' + layer.name + '" - img:', img, 'width:', img ? img.width : 'null'); showImgPlaceholder(); return; }
                             console.log('[DEBUG] Image LOADED for "' + layer.name + '" - ' + img.width + 'x' + img.height);
+                            // Determine the correct customType to restore
+                            var restoredCustomType = 'image';
+                            if (layer._originalType === 'shape' || layer._originalType === 'icon') restoredCustomType = layer._originalType;
+                            else if (layer.is_shape) restoredCustomType = 'shape';
                             img.set({
                                 left: layer.x, top: layer.y,
                                 originX: 'left', originY: 'top',
                                 angle: rotation, opacity: opacity,
                                 shadow: shadow,
-                                customType: layer._originalType === 'shape' ? 'shape' : 'image',
+                                customType: restoredCustomType,
                                 customName: layer.name,
                                 is_background: layer.is_background,
                                 is_placeholder: layer.is_placeholder,
@@ -4113,15 +4175,17 @@
                                 z_index: layer.z_index || idx
                             });
                             img.set({ scaleX: layer.w / img.width, scaleY: layer.h / img.height });
-                            // Restore is_shape flag so color picker works
-                            if (layer.is_shape) {
+                            // Restore is_shape flag so color picker + export works
+                            if (layer.is_shape || layer._originalType === 'shape' || layer._originalType === 'icon') {
                                 img.is_shape = true;
                             }
+                            console.log("--> _doRender image layer:", layer.name, "tint_color:", layer.tint_color, "blendColor type:", typeof fabric.Image.filters.BlendColor, "is_shape:", layer.is_shape);
                             // Restore tint_color (saved fill color) for image-converted shapes
                             if (layer.tint_color && typeof fabric.Image.filters.BlendColor !== 'undefined') {
                                 img.set('fill', layer.tint_color);
                                 img.filters = [new fabric.Image.filters.BlendColor({ color: layer.tint_color, mode: 'tint', alpha: 1 })];
                                 img.applyFilters();
+                                console.log('[LOAD] Applied tint_color=' + layer.tint_color + ' to "' + layer.name + '"');
                             }
                             canvas.add(img);
                             if (typeof sortCanvasLayers === 'function') {
@@ -4649,11 +4713,60 @@
 
                 let o = { id:'el_'+z, name:obj.customName||(obj.type==='image'?'layer_'+z:'text_'+z), type:(obj.type==='i-text'||obj.type==='textbox')?'text':((obj.customType==='shape' && obj.type!=='image')?'shape':obj.type),
                     x:x, y:y, w:w, h:h, rotation:obj.angle||0, opacity:obj.opacity??1, z_index:z, locked:!obj.selectable, visible:obj.visible!==false };
-                if (obj.type === 'image') { 
-                    o.src=obj.getSrc(); o.is_background=obj.is_background||false; o.is_placeholder=obj.is_placeholder||false; o.is_slot=obj.is_slot||false; 
-                    if(obj.customType==='shape' || obj.customType==='icon') o.is_shape=true; 
+                if (obj.type === 'image' || obj.customType === 'icon' || (obj.customType === 'shape' && obj.type === 'group')) { 
+                    o.type = 'image';
+                    let isShapeRaster = (obj.customType === 'shape' || obj.customType === 'icon' || obj.is_shape);
+                    try { 
+                        if (obj.type === 'image' && !isShapeRaster) {
+                            o.src = obj.getSrc();
+                        } else {
+                            let origFill = obj.fill;
+                            let oldFilters = obj.filters ? [...obj.filters] : [];
+                            console.log('[EXPORT] Shape "' + (obj.customName||obj.type) + '": type=' + obj.type + ' customType=' + obj.customType + ' is_shape=' + obj.is_shape + ' fill=' + origFill + ' filters=' + oldFilters.length);
+                            
+                            let childFills = [];
+                            if (obj.type === 'group' && typeof obj.getObjects === 'function') {
+                                obj.getObjects().forEach(c => { childFills.push(c.fill); if (c.set) c.set('fill', '#FFFFFF'); });
+                            } else if (obj.set) {
+                                obj.set('fill', '#FFFFFF');
+                            }
+                            if (!origFill && childFills.length > 0) {
+                                origFill = childFills[0];
+                                obj.fill = origFill;
+                            }
+                            if (obj.filters) {
+                                obj.filters = [];
+                                if (obj.applyFilters) obj.applyFilters();
+                            }
+                            // Force cache invalidation so toDataURL captures the white (untinted) version
+                            obj.dirty = true;
+                            if (obj._cacheCanvas) obj._cacheCanvas = null;
+                            
+                            o.src = obj.toDataURL({format: 'png', multiplier: 2}); 
+                            console.log('[EXPORT] Shape "' + (obj.customName||obj.type) + '" rasterized: src length=' + (o.src||'').length + ' starts=' + (o.src||'').substring(0,30));
+                            
+                            if (obj.type === 'group' && typeof obj.getObjects === 'function') {
+                                obj.getObjects().forEach((c, idx) => { if (c.set) c.set('fill', childFills[idx]); });
+                            } else if (obj.set) {
+                                obj.set('fill', origFill);
+                            }
+                            if (oldFilters.length > 0) {
+                                obj.filters = oldFilters;
+                                if (obj.applyFilters) obj.applyFilters();
+                            }
+                            // Restore cache state after export
+                            obj.dirty = true;
+                        }
+                    } catch(e) { console.error('Failed rasterizing shape:', e); }
+                    
+                    o.is_background=obj.is_background||false; o.is_placeholder=obj.is_placeholder||false; o.is_slot=obj.is_slot||false; 
+                    if(isShapeRaster) o.is_shape=true; 
                     if(obj.mask_layer_id) o.mask_layer_id = obj.mask_layer_id;
-                    if((obj.customType==='shape' || obj.customType==='icon') && obj.fill && typeof obj.fill === 'string') o.tint_color = obj.fill;
+                    // Save _originalType so icons keep their identity through save/load
+                    if(obj.customType === 'icon') o._originalType = 'icon';
+                    else if(isShapeRaster) o._originalType = 'shape';
+                    if(isShapeRaster && obj.fill && typeof obj.fill === 'string') o.tint_color = obj.fill;
+                    if(isShapeRaster) console.log('[EXPORT] Schema element "' + o.name + '": is_shape=' + o.is_shape + ' tint_color=' + o.tint_color + ' _originalType=' + (o._originalType||'') + ' src_len=' + (o.src||'').length);
                 }
                 else if (obj.type==='text'||obj.type==='i-text'||obj.type==='textbox') {
                     o.text=obj.text; o.font={family:obj.fontFamily,size:fontSize,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,color:obj.fill,justification:obj.textAlign||'left',auto_scale:obj.auto_scale||false,charSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16};
@@ -4738,17 +4851,51 @@
             }
 
             if (obj.type==='image') {
-                let imgData = {name:obj.customName||'layer_'+z,type:'image',src:obj.getSrc(),x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,is_background:obj.is_background||false,is_placeholder:obj.is_placeholder||false,is_slot:obj.is_slot||false, image_type: obj.image_type||'', is_shape: obj.customType === 'shape' || obj.customType === 'icon'};
+                let imgData = {name:obj.customName||'layer_'+z,type:'image',src:obj.getSrc(),x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,is_background:obj.is_background||false,is_placeholder:obj.is_placeholder||false,is_slot:obj.is_slot||false, image_type: obj.image_type||'', is_shape: obj.customType === 'shape' || obj.customType === 'icon' || obj.is_shape === true};
                 if (obj.mask_layer_id) imgData.mask_layer_id = obj.mask_layer_id;
-                if ((obj.customType==='shape' || obj.customType==='icon') && obj.fill && typeof obj.fill === 'string') imgData.tint_color = obj.fill;
+                if ((obj.customType==='shape' || obj.customType==='icon' || obj.is_shape) && obj.fill && typeof obj.fill === 'string') imgData.tint_color = obj.fill;
                 j.layers.push(imgData);
             }
             else if (obj.type==='i-text'||obj.type==='text'||obj.type==='textbox') j.layers.push({name:obj.customName||'text_'+z,type:'text',kind: (obj.type==='textbox'?'Paragraph':'Point'),textKind: (obj.type==='textbox'?'paragraph':'point'),text:obj.text,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,color:obj.fill,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,size:fontSize,font_size:fontSize,font:obj.fontFamily,font_name:obj.fontFamily,justification:obj.textAlign||'left',letterSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16,ai_role:obj.ai_role||null,ai_max_chars:obj.ai_max_chars||null});
-            else if (obj.customType==='shape' || obj.customType==='icon' || ['rect','circle','triangle','path','polygon','line'].includes(obj.type)) {
+            else if (obj.customType==='shape' || obj.customType==='icon' || obj.is_shape || ['rect','circle','triangle','path','polygon','line'].includes(obj.type)) {
                 try {
+                    let origFill = obj.fill;
+                    let oldFilters = obj.filters ? [...obj.filters] : [];
+                    
+                    let childFills = [];
+                    if (obj.type === 'group' && typeof obj.getObjects === 'function') {
+                        obj.getObjects().forEach(c => { childFills.push(c.fill); if (c.set) c.set('fill', '#FFFFFF'); });
+                    } else if (obj.set) {
+                        obj.set('fill', '#FFFFFF');
+                    }
+                    if (!origFill && childFills.length > 0) {
+                        origFill = childFills[0];
+                        obj.fill = origFill;
+                    }
+                    if (obj.filters) {
+                        obj.filters = [];
+                        if (obj.applyFilters) obj.applyFilters();
+                    }
+                    // Force cache invalidation so toDataURL captures the white (untinted) version
+                    obj.dirty = true;
+                    if (obj._cacheCanvas) obj._cacheCanvas = null;
+
                     const dataUrl = obj.toDataURL({format: 'png', multiplier: 2});
+                    
+                    if (obj.type === 'group' && typeof obj.getObjects === 'function') {
+                        obj.getObjects().forEach((c, idx) => { if (c.set) c.set('fill', childFills[idx]); });
+                    } else if (obj.set) {
+                        obj.set('fill', origFill);
+                    }
+                    if (oldFilters.length > 0) {
+                        obj.filters = oldFilters;
+                        if (obj.applyFilters) obj.applyFilters();
+                    }
+                    // Restore cache state
+                    obj.dirty = true;
+
                     let shapeData = {name:obj.customName||'shape_'+z, type:'image', src:dataUrl, x:x, y:y, w:w, h:h, width:w, height:h, z_index:z, is_background:false, is_slot:false, image_type: '', is_shape: true};
-                    if (obj.fill && typeof obj.fill === 'string') shapeData.tint_color = obj.fill;
+                    if (origFill && typeof origFill === 'string') shapeData.tint_color = origFill;
                     j.layers.push(shapeData);
                 } catch(e) { console.error('Failed to rasterize shape for legacy json:', e); }
             }

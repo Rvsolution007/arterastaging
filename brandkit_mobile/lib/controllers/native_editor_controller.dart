@@ -1344,7 +1344,7 @@ class NativeEditorController extends GetxController {
     bool isIcon = layer['type'] == 'image' && (
                   ['phone', 'email', 'website', 'address', 'social'].contains(layer['_businessKey']) ||
                   ['phone', 'email', 'website', 'address', 'call', 'mobile', 'contact', 'whatsapp', 'tel',
-                   'mail', 'web', 'url', 'location', 'icon', 'facebook', 'instagram', 'twitter', 'youtube',
+                   'mail', 'web', 'url', 'location', 'facebook', 'instagram', 'twitter', 'youtube',
                    'social', 'linkedin'].any((key) => lname.contains(key))
                   );
 

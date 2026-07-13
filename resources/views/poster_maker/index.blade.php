@@ -252,27 +252,8 @@
 @section('content')
 <div class="analytics-container">
     <div class="row align-items-center mb-4">
-        <div class="col-md-5">
+        <div class="col-12">
             <h4 class="page-title mb-0"><i class="fa-solid fa-layer-group mr-2 text-primary"></i> Custom Frames</h4>
-        </div>
-        <div class="col-md-7 text-right">
-            <button type="button" id="bulkDeleteBtn" class="btn-action-danger mr-2" style="display: none;">
-                <i class="fa-solid fa-trash mr-1"></i> Delete Selected (<span id="selectedCount">0</span>)
-            </button>
-            
-            <div class="dropdown d-inline-block mr-2">
-                <button class="btn-action-primary dropdown-toggle" type="button" id="importExportDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="background: #fff; border: 1px solid #e2e8f0; color: #475569;">
-                    <i class="fa-solid fa-ellipsis-vertical mr-1"></i> Manage
-                </button>
-                <div class="dropdown-menu dropdown-menu-right" aria-labelledby="importExportDropdown" style="border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);">
-                    <a class="dropdown-item" href="#" id="exportSelectedBtn" style="padding: 10px 20px; font-weight: 500; color: #1e293b;"><i class="fa-solid fa-download" style="color: #6366f1; width: 20px;"></i> Export Selected</a>
-                    <a class="dropdown-item" href="{{ route('admin.poster_maker.export') }}" style="padding: 10px 20px; font-weight: 500; color: #1e293b;"><i class="fa-solid fa-download" style="color: #6366f1; width: 20px;"></i> Export All</a>
-                    <a class="dropdown-item" href="#" data-toggle="modal" data-target="#importFramesModal" style="padding: 10px 20px; font-weight: 500; color: #1e293b;"><i class="fa-solid fa-upload" style="color: #10b981; width: 20px;"></i> Import Frames</a>
-                </div>
-            </div>
-            <a href="{{ route('template_builder.index', ['mode' => 'frame']) }}" class="btn-action-primary">
-                <i class="fa-solid fa-plus mr-1"></i> Add New Frame
-            </a>
         </div>
     </div>
 
@@ -286,37 +267,57 @@
     </div>
     @endif
 
-    <div class="table-panel mb-4 p-4">
+    <div class="table-panel mb-4 p-3 p-md-4">
         <form method="GET" action="{{ route('Frame.index') }}">
-            <div class="row">
-                <div class="col-md-2">
-                    <div class="form-group mb-0">
-                        <label style="font-weight: 600; color: #475569; font-size: 12px; text-transform: uppercase;">ADDRESS QTY</label>
-                        <input type="number" name="req_address" class="form-control" placeholder="Any" value="{{ $req_address ?? '' }}" style="border-radius: 8px;">
+            <div class="d-flex flex-wrap align-items-end justify-content-between" style="gap: 15px;">
+                
+                <!-- Left side: Filter Inputs -->
+                <div class="d-flex flex-wrap align-items-end" style="gap: 10px; flex-grow: 1;">
+                    <div style="min-width: 100px; flex-grow: 1; max-width: 140px;">
+                        <label style="font-weight: 600; color: #475569; font-size: 11px; text-transform: uppercase; margin-bottom: 6px;">ADDRESS QTY</label>
+                        <input type="number" name="req_address" class="form-control" placeholder="Any" value="{{ $req_address ?? '' }}" style="border-radius: 8px; height: 38px;">
+                    </div>
+                    <div style="min-width: 100px; flex-grow: 1; max-width: 140px;">
+                        <label style="font-weight: 600; color: #475569; font-size: 11px; text-transform: uppercase; margin-bottom: 6px;">EMAIL QTY</label>
+                        <input type="number" name="req_email" class="form-control" placeholder="Any" value="{{ $req_email ?? '' }}" style="border-radius: 8px; height: 38px;">
+                    </div>
+                    <div style="min-width: 100px; flex-grow: 1; max-width: 140px;">
+                        <label style="font-weight: 600; color: #475569; font-size: 11px; text-transform: uppercase; margin-bottom: 6px;">PHONE QTY</label>
+                        <input type="number" name="req_phone" class="form-control" placeholder="Any" value="{{ $req_phone ?? '' }}" style="border-radius: 8px; height: 38px;">
+                    </div>
+                    <div style="min-width: 100px; flex-grow: 1; max-width: 140px;">
+                        <label style="font-weight: 600; color: #475569; font-size: 11px; text-transform: uppercase; margin-bottom: 6px;">WEBSITE QTY</label>
+                        <input type="number" name="req_website" class="form-control" placeholder="Any" value="{{ $req_website ?? '' }}" style="border-radius: 8px; height: 38px;">
+                    </div>
+
+                    <div class="d-flex" style="gap: 10px; flex-wrap: wrap;">
+                        <button type="submit" class="btn-action-primary" style="height: 38px; display: flex; align-items: center; padding: 0 16px;"><i class="fa-solid fa-filter mr-1"></i> Filter</button>
+                        <a href="{{ route('Frame.index') }}" class="btn btn-secondary" style="border-radius: 8px; font-weight: 600; font-size: 0.875rem; height: 38px; display: flex; align-items: center; padding: 0 16px;"><i class="fa-solid fa-xmark mr-1"></i> Clear</a>
                     </div>
                 </div>
-                <div class="col-md-2">
-                    <div class="form-group mb-0">
-                        <label style="font-weight: 600; color: #475569; font-size: 12px; text-transform: uppercase;">EMAIL QTY</label>
-                        <input type="number" name="req_email" class="form-control" placeholder="Any" value="{{ $req_email ?? '' }}" style="border-radius: 8px;">
+
+                <!-- Right side: Actions -->
+                <div class="d-flex flex-wrap align-items-center justify-content-sm-start justify-content-md-end" style="gap: 10px; flex-grow: 1;">
+                    <button type="button" id="bulkDeleteBtn" class="btn-action-danger" style="display: none; height: 38px; align-items: center; padding: 0 16px;">
+                        <i class="fa-solid fa-trash mr-1"></i> Delete (<span id="selectedCount">0</span>)
+                    </button>
+                    
+                    <div class="dropdown d-inline-block">
+                        <button class="btn-action-primary dropdown-toggle" type="button" id="importExportDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="background: #fff; border: 1px solid #e2e8f0; color: #475569; height: 38px; display: flex; align-items: center; padding: 0 16px;">
+                            <i class="fa-solid fa-ellipsis-vertical mr-1"></i> Manage
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-right" aria-labelledby="importExportDropdown" style="border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);">
+                            <a class="dropdown-item" href="#" id="exportSelectedBtn" style="padding: 10px 20px; font-weight: 500; color: #1e293b;"><i class="fa-solid fa-download" style="color: #6366f1; width: 20px;"></i> Export Selected</a>
+                            <a class="dropdown-item" href="{{ route('admin.poster_maker.export') }}" style="padding: 10px 20px; font-weight: 500; color: #1e293b;"><i class="fa-solid fa-download" style="color: #6366f1; width: 20px;"></i> Export All</a>
+                            <a class="dropdown-item" href="#" data-toggle="modal" data-target="#importFramesModal" style="padding: 10px 20px; font-weight: 500; color: #1e293b;"><i class="fa-solid fa-upload" style="color: #10b981; width: 20px;"></i> Import Frames</a>
+                        </div>
                     </div>
+                    
+                    <a href="{{ route('template_builder.index', ['mode' => 'frame']) }}" class="btn-action-primary" style="height: 38px; display: flex; align-items: center; padding: 0 16px;">
+                        <i class="fa-solid fa-plus mr-1"></i> Add Frame
+                    </a>
                 </div>
-                <div class="col-md-2">
-                    <div class="form-group mb-0">
-                        <label style="font-weight: 600; color: #475569; font-size: 12px; text-transform: uppercase;">PHONE QTY</label>
-                        <input type="number" name="req_phone" class="form-control" placeholder="Any" value="{{ $req_phone ?? '' }}" style="border-radius: 8px;">
-                    </div>
-                </div>
-                <div class="col-md-2">
-                    <div class="form-group mb-0">
-                        <label style="font-weight: 600; color: #475569; font-size: 12px; text-transform: uppercase;">WEBSITE QTY</label>
-                        <input type="number" name="req_website" class="form-control" placeholder="Any" value="{{ $req_website ?? '' }}" style="border-radius: 8px;">
-                    </div>
-                </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <button type="submit" class="btn-action-primary mr-2" style="height: 38px; display: flex; align-items: center;"><i class="fa-solid fa-filter mr-1"></i> Filter</button>
-                    <a href="{{ route('Frame.index') }}" class="btn btn-secondary" style="border-radius: 8px; font-weight: 600; font-size: 0.875rem; height: 38px; display: flex; align-items: center;"><i class="fa-solid fa-xmark mr-1"></i> Clear</a>
-                </div>
+
             </div>
         </form>
     </div>

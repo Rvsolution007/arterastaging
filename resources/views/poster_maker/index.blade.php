@@ -286,6 +286,41 @@
     </div>
     @endif
 
+    <div class="table-panel mb-4 p-4">
+        <form method="GET" action="{{ route('Frame.index') }}">
+            <div class="row">
+                <div class="col-md-2">
+                    <div class="form-group mb-0">
+                        <label style="font-weight: 600; color: #475569; font-size: 12px; text-transform: uppercase;">ADDRESS QTY</label>
+                        <input type="number" name="req_address" class="form-control" placeholder="Any" value="{{ $req_address ?? '' }}" style="border-radius: 8px;">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group mb-0">
+                        <label style="font-weight: 600; color: #475569; font-size: 12px; text-transform: uppercase;">EMAIL QTY</label>
+                        <input type="number" name="req_email" class="form-control" placeholder="Any" value="{{ $req_email ?? '' }}" style="border-radius: 8px;">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group mb-0">
+                        <label style="font-weight: 600; color: #475569; font-size: 12px; text-transform: uppercase;">PHONE QTY</label>
+                        <input type="number" name="req_phone" class="form-control" placeholder="Any" value="{{ $req_phone ?? '' }}" style="border-radius: 8px;">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group mb-0">
+                        <label style="font-weight: 600; color: #475569; font-size: 12px; text-transform: uppercase;">WEBSITE QTY</label>
+                        <input type="number" name="req_website" class="form-control" placeholder="Any" value="{{ $req_website ?? '' }}" style="border-radius: 8px;">
+                    </div>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn-action-primary mr-2" style="height: 38px; display: flex; align-items: center;"><i class="fa-solid fa-filter mr-1"></i> Filter</button>
+                    <a href="{{ route('Frame.index') }}" class="btn btn-secondary" style="border-radius: 8px; font-weight: 600; font-size: 0.875rem; height: 38px; display: flex; align-items: center;"><i class="fa-solid fa-xmark mr-1"></i> Clear</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
     <div class="row">
         <div class="col-12">
             <div class="table-panel">

@@ -3150,6 +3150,16 @@
                                     l.fill = el.fill;
                                     l.stroke = el.stroke;
                                     l.strokeWidth = el.strokeWidth;
+                                    if (el.points) l.points = el.points;
+                                    if (el.svgPath) { l.svgPath = el.svgPath; l.scaleX = el.scaleX; l.scaleY = el.scaleY; }
+                                    if (el.rx) l.rx = el.rx;
+                                    if (el.ry) l.ry = el.ry;
+                                    if (el.text) {
+                                        l.text = el.text;
+                                        l.font_name = el.font ? el.font.family : (el.fontFamily || 'FontAwesome');
+                                        l.size = el.font ? el.font.size : (el.fontSize || el.size || 20);
+                                    }
+                                    if (el.src) l.src = el.src;
                                 }
                                 return l;
                             })
@@ -3536,6 +3546,14 @@
                                     if (el.svgPath) { l.svgPath = el.svgPath; l.scaleX = el.scaleX; l.scaleY = el.scaleY; }
                                     if (el.rx) l.rx = el.rx;
                                     if (el.ry) l.ry = el.ry;
+                                    // Fix: pass through text and font properties for FontAwesome fallback
+                                    if (el.text) {
+                                        l.text = el.text;
+                                        l.font_name = el.font ? el.font.family : (el.fontFamily || 'FontAwesome');
+                                        l.size = el.font ? el.font.size : (el.fontSize || el.size || 20);
+                                    }
+                                    // Fix: pass through src for shapes that were image-based
+                                    if (el.src) l.src = el.src;
                                 }
                                 return l;
                             })

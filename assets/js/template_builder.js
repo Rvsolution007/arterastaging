@@ -4121,6 +4121,28 @@
             // TEXT LAYER
             // ─────────────────────────────────────────────────────────────────
             } else if (layer.type === 'text' || layer.type === 'i-text' || layer.type === 'textbox') {
+                // ── Flatten nested font object (Artera Schema format) ──
+                // When re-loading a saved Artera frame, font properties are nested under
+                // layer.font = { size, family, weight, style, color, justification, ... }.
+                // Flatten them to top-level so the rest of the parsing works uniformly
+                // with both PSD-imported (flat) and Artera-saved (nested) JSON formats.
+                if (layer.font && typeof layer.font === 'object') {
+                    const f = layer.font;
+                    if (f.size != null && !layer.size)                          layer.size = f.size;
+                    if (f.family && layer.font_name == null)                    layer.font_name = f.family;
+                    if (f.weight && !layer.weight)                              layer.weight = f.weight;
+                    if (f.style && !layer.style)                                layer.style = f.style;
+                    if (f.color && !layer.color && !layer.fill)                 layer.color = f.color;
+                    if (f.justification && !layer.justification)                layer.justification = f.justification;
+                    if (f.charSpacing != null && layer.letterSpacing == null)    layer.letterSpacing = f.charSpacing;
+                    if (f.wordSpacing != null && layer.wordSpacing == null)      layer.wordSpacing = f.wordSpacing;
+                    if (f.lineHeight != null && layer.lineHeight == null)        layer.lineHeight = f.lineHeight;
+                    if (f.auto_scale != null && layer.auto_scale == null)        layer.auto_scale = f.auto_scale;
+                    // Replace the font object with the family string for normalizePSFont()
+                    layer.font = f.family || layer.font_name;
+                    console.log('[FLATTEN] Flattened font object for "' + layer.name + '": size=' + layer.size + ', justification=' + layer.justification + ', font=' + layer.font);
+                }
+
                 // Font size: PSD stores in points, Fabric uses px. 1pt = 1.333px @ 96dpi.
                 // But our JSX already outputs size in px from the descriptor (getDouble returns px).
                 // Use size directly. Fallback: derive from layer height.

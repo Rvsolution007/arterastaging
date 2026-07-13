@@ -19,9 +19,30 @@ class PosterMakerController extends Controller
         $this->middleware('permission:PosterMaker');
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $index['data'] = PosterMaker::orderBy('id', 'DESC')->paginate(12);
+        $query = PosterMaker::query();
+
+        if ($request->has('req_address') && $request->req_address !== null) {
+            $query->where('req_address', $request->req_address);
+        }
+        if ($request->has('req_email') && $request->req_email !== null) {
+            $query->where('req_email', $request->req_email);
+        }
+        if ($request->has('req_phone') && $request->req_phone !== null) {
+            $query->where('req_phone', $request->req_phone);
+        }
+        if ($request->has('req_website') && $request->req_website !== null) {
+            $query->where('req_website', $request->req_website);
+        }
+
+        $index['data'] = $query->orderBy('id', 'DESC')->paginate(12)->withQueryString();
+        
+        $index['req_address'] = $request->req_address;
+        $index['req_email'] = $request->req_email;
+        $index['req_phone'] = $request->req_phone;
+        $index['req_website'] = $request->req_website;
+
         return view("poster_maker.index", $index);
     }
 

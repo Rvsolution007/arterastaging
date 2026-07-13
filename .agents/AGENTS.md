@@ -180,3 +180,42 @@ The copy and paste logic in the web template builder is **LOCKED**. This include
 **Password**: `Brijesh@1415`
 
 This rule applies to ALL conversations, ALL agents, and ALL subagents working on this project.
+
+## 🔒 Render Version Logic Lock
+
+**CRITICAL RULE - MUST FOLLOW EVERY TIME:**
+
+ALL rendering logic is versioned using a `render_version` system. The current version is tracked by:
+- `CURRENT_RENDER_VERSION` constant in `assets/js/template_builder.js` (web editor)
+- `render_version` field in template/frame JSON (both schema and legacy formats)
+- `renderVersion` variable in `editor_canvas_widget.dart` `build()` method (native app)
+- `templateConfig['render_version']` in `native_editor_controller.dart` (native app)
+
+**Rules for ALL rendering changes:**
+
+1. **NEVER modify version 1 rendering logic for feature/behavior changes.** Version 1 code paths must remain frozen.
+2. **Bug fixes CAN be applied directly** to any version's code path (e.g., fixing a wrong calculation that affects all frames).
+3. **For NEW rendering features or behavior changes:**
+   - Increment `CURRENT_RENDER_VERSION` in `template_builder.js`
+   - Add new code inside `if (renderVersion >= N)` blocks in both web and native editors
+   - Keep ALL previous version code paths untouched
+4. **Every frame JSON carries its `render_version`** — export/import preserves it automatically.
+5. **Default missing `render_version` to 1** — legacy frames without the field are treated as version 1.
+6. **Cross-server compatibility** — local, staging, and production MUST use the same version numbering system.
+
+**Key files in the versioning system:**
+- `assets/js/template_builder.js`: `CURRENT_RENDER_VERSION`, `exportArteraSchema()`, `exportLegacyJson()`, `_doRender()`
+- `app/Http/Controllers/Admin/TemplateBuilderController.php`: `saveFrame()`, `loadZip()`, `loadFrameZip()`
+- `app/Http/Controllers/Api/HomeApi.php`: API JSON serving
+- `brandkit_mobile/lib/widgets/editor_canvas_widget.dart`: `build()` method
+- `brandkit_mobile/lib/controllers/native_editor_controller.dart`: `initConfig()` method
+
+**Before making ANY changes to rendering logic, you MUST:**
+1. Ask the user for the render version lock password
+2. Wait for the correct password before proceeding
+3. If the password is incorrect, refuse to make changes
+4. If the password is not provided, refuse to make changes
+
+**Password**: `Brijesh@1415`
+
+This rule applies to ALL conversations, ALL agents, and ALL subagents working on this project.

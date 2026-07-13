@@ -71,6 +71,10 @@ class TemplateBuilderController extends Controller
             $zip->close();
 
             if ($jsonConfig) {
+                // Default render_version to 1 for legacy frames without versioning
+                if (!isset($jsonConfig['render_version'])) {
+                    $jsonConfig['render_version'] = 1;
+                }
                 $this->_injectSystemFonts($fonts, $jsonConfig);
                 return response()->json(['success' => true, 'config' => $jsonConfig, 'images' => $images, 'fonts' => $fonts]);
             }
@@ -158,6 +162,10 @@ class TemplateBuilderController extends Controller
             $zip->close();
 
             if ($jsonConfig) {
+                // Default render_version to 1 for legacy frames without versioning
+                if (!isset($jsonConfig['render_version'])) {
+                    $jsonConfig['render_version'] = 1;
+                }
                 // Try to load full Artera schema if available for the web builder
                 $uuid = str_replace(['Template_', '.zip'], '', $frame->zip_file_path);
                 $editorTemplate = \App\Models\EditorTemplate::where('uuid', $uuid)->first();
@@ -323,6 +331,10 @@ class TemplateBuilderController extends Controller
         }
 
         if ($jsonConfig) {
+                // Default render_version to 1 for legacy frames without versioning
+                if (!isset($jsonConfig['render_version'])) {
+                    $jsonConfig['render_version'] = 1;
+                }
                 // Try to load full Artera schema from EditorTemplate (preserves vector shapes)
                 $editorTemplate = null;
                 $editorUuid = null;
@@ -760,6 +772,14 @@ class TemplateBuilderController extends Controller
 
         $schemaJson = is_string($request->input('schema_json')) ? json_decode($request->input('schema_json'), true) : $request->input('schema_json');
         $legacyJson = is_string($request->input('legacy_json')) ? json_decode($request->input('legacy_json', '[]'), true) : $request->input('legacy_json', []);
+
+        // Ensure render_version is preserved (default to 1 if missing)
+        if (is_array($schemaJson) && !isset($schemaJson['render_version'])) {
+            $schemaJson['render_version'] = 1;
+        }
+        if (is_array($legacyJson) && !isset($legacyJson['render_version'])) {
+            $legacyJson['render_version'] = 1;
+        }
 
         $existingFrame = null;
         $existingTemplate = null;

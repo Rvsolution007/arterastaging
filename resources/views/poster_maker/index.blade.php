@@ -217,38 +217,6 @@
 </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/1.1.3/sweetalert.min.css">
 @endsection
-
-<!-- Import Frames Modal -->
-<div id="importFramesModal" class="modal fade" role="dialog" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content" style="border-radius: 12px; border: none; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
-      <div class="modal-header" style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-radius: 12px 12px 0 0;">
-        <h4 class="modal-title" style="font-weight: 600; color: #1e293b;">Import Frames</h4>
-        <button type="button" class="close" data-dismiss="modal" style="color: #64748b;">&times;</button>
-      </div>
-      <form action="{{ route('admin.poster_maker.import') }}" method="POST" enctype="multipart/form-data">
-        @csrf
-        <div class="modal-body" style="padding: 1.5rem;">
-          <div class="form-group">
-            <label style="font-weight: 600; color: #475569;">Upload Exported ZIP File</label>
-            <div class="cf-file-upload" onclick="document.getElementById('import_file').click()" style="border: 2px dashed #cbd5e1; border-radius: 12px; padding: 2rem; text-align: center; cursor: pointer; transition: all 0.2s ease; background: #f8fafc;">
-              <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2.5rem; color: #94a3b8; margin-bottom: 1rem;"></i>
-              <p style="font-weight: 500; color: #475569; margin-bottom: 0.25rem;">Click to select the exported zip file</p>
-              <p style="font-size: 0.75rem; color: #94a3b8;">Must contain data.json and templates folder</p>
-              <input type="file" id="import_file" name="import_file" accept=".zip" required onchange="document.getElementById('import_file_name').innerText = this.files[0] ? this.files[0].name : '';" style="display: none;">
-            </div>
-            <p id="import_file_name" style="margin-top: 10px; font-weight: 600; text-align: center; color: #6366f1;"></p>
-          </div>
-        </div>
-        <div class="modal-footer" style="border-top: 1px solid #e2e8f0;">
-          <button type="button" class="btn btn-secondary" data-dismiss="modal" style="border-radius: 8px;">Cancel</button>
-          <button type="submit" class="btn btn-primary" style="border-radius: 8px; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); border: none;" onclick="this.innerHTML='<i class=\'fa-solid fa-spinner fa-spin\'></i> Importing...'; this.style.opacity='0.8';"><i class="fa-solid fa-download"></i> Import</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-
 @section('content')
 <div class="analytics-container">
     <div class="row align-items-center mb-4">
@@ -267,7 +235,7 @@
     </div>
     @endif
 
-    <div class="table-panel mb-4 p-3 p-md-4">
+    <div class="filter-panel mb-4 p-3 p-md-4" style="background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
         <form method="GET" action="{{ route('Frame.index') }}">
             <div class="d-flex flex-wrap align-items-end justify-content-between" style="gap: 15px;">
                 
@@ -620,4 +588,36 @@
 
     });
 </script>
+
+<!-- Import Frames Modal -->
+<div id="importFramesModal" class="modal fade" role="dialog" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content" style="border-radius: 12px; border: none; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+      <div class="modal-header" style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-radius: 12px 12px 0 0;">
+        <h4 class="modal-title" style="font-weight: 600; color: #1e293b;">Import Frames</h4>
+        <button type="button" class="close" data-dismiss="modal" style="color: #64748b;">&times;</button>
+      </div>
+      <form action="{{ route('admin.poster_maker.import') }}" method="POST" enctype="multipart/form-data">
+        @csrf
+        <div class="modal-body" style="padding: 1.5rem;">
+          <div class="form-group">
+            <label style="font-weight: 600; color: #475569;">Upload Exported ZIP File</label>
+            <div class="cf-file-upload" onclick="document.getElementById('import_file').click()" style="border: 2px dashed #cbd5e1; border-radius: 12px; padding: 2rem; text-align: center; cursor: pointer; transition: all 0.2s ease; background: #f8fafc;">
+              <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2.5rem; color: #94a3b8; margin-bottom: 1rem;"></i>
+              <p style="font-weight: 500; color: #475569; margin-bottom: 0.25rem;">Click to select the exported zip file</p>
+              <p style="font-size: 0.75rem; color: #94a3b8;">Must contain data.json and templates folder</p>
+              <input type="file" id="import_file" name="import_file" accept=".zip" required onchange="document.getElementById('import_file_name').innerText = this.files[0] ? this.files[0].name : '';" style="display: none;">
+            </div>
+            <p id="import_file_name" style="margin-top: 10px; font-weight: 600; text-align: center; color: #6366f1;"></p>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-top: 1px solid #e2e8f0;">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal" style="border-radius: 8px;">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="border-radius: 8px; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); border: none;" onclick="this.innerHTML='<i class=\'fa-solid fa-spinner fa-spin\'></i> Importing...'; this.style.opacity='0.8';"><i class="fa-solid fa-download"></i> Import</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 @endsection

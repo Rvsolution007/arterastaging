@@ -1,6 +1,7 @@
 import 'package:brandkit_mobile/utils/string_extensions.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:brandkit_mobile/config/app_config.dart';
 import '../utils/app_colors.dart';
 import '../controllers/auth_controller.dart';
 import '../utils/app_text_styles.dart';
@@ -207,7 +208,13 @@ class _MoreScreenState extends State<MoreScreen> {
               subtitle: 'digital_business_card_bio_link'.trFormat,
               iconColor: Colors.blue.shade500,
               iconBgColor: Colors.transparent,
-              onTap: () => Get.to(() => MiniWebsiteDashboardScreen()),
+              onTap: () {
+                if (AppConfig.isProduction) {
+                  Get.snackbar('Coming Soon', 'This feature will be available soon!', snackPosition: SnackPosition.BOTTOM);
+                } else {
+                  Get.to(() => MiniWebsiteDashboardScreen());
+                }
+              },
             ),
           ],
         ),

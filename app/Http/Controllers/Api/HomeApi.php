@@ -506,6 +506,15 @@ class HomeApi extends Controller
                         }
                         return "";
                     });
+
+                    // Default render_version to 1 for legacy frames without versioning
+                    if (!empty($json_data)) {
+                        $tmpParsed = json_decode($json_data, true);
+                        if ($tmpParsed && !isset($tmpParsed['render_version'])) {
+                            $tmpParsed['render_version'] = 1;
+                            $json_data = json_encode($tmpParsed);
+                        }
+                    }
                 }
 
                 $preview_img = "";

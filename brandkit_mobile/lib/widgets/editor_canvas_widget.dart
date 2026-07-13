@@ -602,6 +602,10 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
 
     final List<dynamic> layers = widget.config['layers'] ?? [];
 
+    // ── Read render version from config (default to 1 for legacy frames) ──
+    // Future rendering changes will use: if (renderVersion >= 2) { ... }
+    final int renderVersion = (widget.config['render_version'] ?? 1) as int;
+
     // ══ DIAGNOSTICS ══
     debugPrint('╔══════════════════════════════════════════════');
     debugPrint('║ EditorCanvasWidget: ${layers.length} layers, '
@@ -758,6 +762,30 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
                 mLayer['top'] = newY;
                 mLayer['_smart_scaled'] = true;
               }
+            }
+          }
+
+          // FIX: Also scale the background plate if it exists, so it wraps the dynamically sized logo
+          for (var pLayer in adjusted) {
+            if (pLayer['name'] == '_logo_bg_plate') {
+              double paddingX = 10.0;
+              double paddingBottom = 10.0;
+              double paddingTop = 20.0;
+              
+              double plateX = newX - paddingX;
+              double plateY = newY - paddingTop;
+              double plateW = newW + (paddingX * 2);
+              double plateH = newH + paddingTop + paddingBottom;
+
+              pLayer['w'] = plateW;
+              pLayer['h'] = plateH;
+              pLayer['x'] = plateX;
+              pLayer['y'] = plateY;
+              pLayer['width'] = plateW;
+              pLayer['height'] = plateH;
+              pLayer['left'] = plateX;
+              pLayer['top'] = plateY;
+              pLayer['_smart_scaled'] = true;
             }
           }
         }

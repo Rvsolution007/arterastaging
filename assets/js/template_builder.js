@@ -18,6 +18,9 @@
         console.error = function() { if (!_shouldSuppress(arguments)) _err.apply(console, arguments); };
     })();
     console.log('[TEMPLATE_BUILDER] v3.0 loaded — fill control + vector paths + complete effects');
+    // ── Render Version: ALL rendering logic is versioned. Current code = version 1. ──
+    // ── Future rendering changes MUST increment this and add version-gated code paths. ──
+    const CURRENT_RENDER_VERSION = 1;
     try {
     
     // Fix fabric.js alphabetical warning globally
@@ -3147,6 +3150,16 @@
                                     l.fill = el.fill;
                                     l.stroke = el.stroke;
                                     l.strokeWidth = el.strokeWidth;
+                                    if (el.points) l.points = el.points;
+                                    if (el.svgPath) { l.svgPath = el.svgPath; l.scaleX = el.scaleX; l.scaleY = el.scaleY; }
+                                    if (el.rx) l.rx = el.rx;
+                                    if (el.ry) l.ry = el.ry;
+                                    if (el.text) {
+                                        l.text = el.text;
+                                        l.font_name = el.font ? el.font.family : (el.fontFamily || 'FontAwesome');
+                                        l.size = el.font ? el.font.size : (el.fontSize || el.size || 20);
+                                    }
+                                    if (el.src) l.src = el.src;
                                 }
                                 return l;
                             })
@@ -3492,21 +3505,29 @@
                                     // Legacy layer format expects flat fields: font (string), fontSize, color, etc.
                                     if (el.font && typeof el.font === 'object') {
                                         l.font = el.font.family || 'Arial';
+                                        l.font_name = el.font.family || 'Arial';
                                         l.fontSize = el.font.size || el.fontSize || 20;
+                                        l.size = l.fontSize;
                                         l.weight = el.font.weight || '400';
                                         l.style = el.font.style || 'normal';
                                         l.color = el.font.color || el.color || '#000000';
                                         l.textAlign = el.font.justification || el.textAlign || 'left';
+                                        l.justification = l.textAlign;
                                         l.charSpacing = el.font.charSpacing || 0;
+                                        l.letterSpacing = l.charSpacing;
                                         l.lineHeight = el.font.lineHeight || el.lineHeight || 1.16;
                                         l.auto_scale = el.font.auto_scale || false;
                                     } else {
                                         l.font = el.font || el.fontFamily || 'Arial';
+                                        l.font_name = l.font;
                                         l.fontSize = el.fontSize || 20;
+                                        l.size = l.fontSize;
                                         l.color = el.color || '#000000';
                                         l.textAlign = el.textAlign || 'left';
+                                        l.justification = l.textAlign;
                                         l.lineHeight = el.lineHeight || 1.16;
                                         l.charSpacing = el.letterSpacing || 0;
+                                        l.letterSpacing = l.charSpacing;
                                     }
                                     if (el.kind) l.kind = el.kind;
                                     if (el.textKind) l.textKind = el.textKind;
@@ -3525,6 +3546,14 @@
                                     if (el.svgPath) { l.svgPath = el.svgPath; l.scaleX = el.scaleX; l.scaleY = el.scaleY; }
                                     if (el.rx) l.rx = el.rx;
                                     if (el.ry) l.ry = el.ry;
+                                    // Fix: pass through text and font properties for FontAwesome fallback
+                                    if (el.text) {
+                                        l.text = el.text;
+                                        l.font_name = el.font ? el.font.family : (el.fontFamily || 'FontAwesome');
+                                        l.size = el.font ? el.font.size : (el.fontSize || el.size || 20);
+                                    }
+                                    // Fix: pass through src for shapes that were image-based
+                                    if (el.src) l.src = el.src;
                                 }
                                 return l;
                             })
@@ -3797,8 +3826,9 @@
     }
 
     function _doRender(config, images) {
-
-        console.log('[DEBUG] _doRender called. images map keys:', images ? Object.keys(images).length + ' keys: ' + Object.keys(images).slice(0,5).join(', ') : 'NO IMAGES MAP');
+        // ── Read render version from config (default to 1 for legacy frames) ──
+        const renderVersion = config.render_version || 1;
+        console.log('[DEBUG] _doRender called. render_version:', renderVersion, '| images map keys:', images ? Object.keys(images).length + ' keys: ' + Object.keys(images).slice(0,5).join(', ') : 'NO IMAGES MAP');
         canvas.clear();
         templateImages = images;
         
@@ -4117,6 +4147,28 @@
             // TEXT LAYER
             // ─────────────────────────────────────────────────────────────────
             } else if (layer.type === 'text' || layer.type === 'i-text' || layer.type === 'textbox') {
+                // ── Flatten nested font object (Artera Schema format) ──
+                // When re-loading a saved Artera frame, font properties are nested under
+                // layer.font = { size, family, weight, style, color, justification, ... }.
+                // Flatten them to top-level so the rest of the parsing works uniformly
+                // with both PSD-imported (flat) and Artera-saved (nested) JSON formats.
+                if (layer.font && typeof layer.font === 'object') {
+                    const f = layer.font;
+                    if (f.size != null && !layer.size)                          layer.size = f.size;
+                    if (f.family && layer.font_name == null)                    layer.font_name = f.family;
+                    if (f.weight && !layer.weight)                              layer.weight = f.weight;
+                    if (f.style && !layer.style)                                layer.style = f.style;
+                    if (f.color && !layer.color && !layer.fill)                 layer.color = f.color;
+                    if (f.justification && !layer.justification)                layer.justification = f.justification;
+                    if (f.charSpacing != null && layer.letterSpacing == null)    layer.letterSpacing = f.charSpacing;
+                    if (f.wordSpacing != null && layer.wordSpacing == null)      layer.wordSpacing = f.wordSpacing;
+                    if (f.lineHeight != null && layer.lineHeight == null)        layer.lineHeight = f.lineHeight;
+                    if (f.auto_scale != null && layer.auto_scale == null)        layer.auto_scale = f.auto_scale;
+                    // Replace the font object with the family string for normalizePSFont()
+                    layer.font = f.family || layer.font_name;
+                    console.log('[FLATTEN] Flattened font object for "' + layer.name + '": size=' + layer.size + ', justification=' + layer.justification + ', font=' + layer.font);
+                }
+
                 // Font size: PSD stores in points, Fabric uses px. 1pt = 1.333px @ 96dpi.
                 // But our JSX already outputs size in px from the descriptor (getDouble returns px).
                 // Use size directly. Fallback: derive from layer height.
@@ -4564,7 +4616,7 @@
     // --- Export Schemas ---
     function exportArteraSchema(objects, title) {
         return {
-            schema_version: 1, template_id: 'tpl_' + Date.now(),
+            schema_version: 1, render_version: CURRENT_RENDER_VERSION, template_id: 'tpl_' + Date.now(),
             canvas: { width: baseWidth, height: baseHeight, background_color: canvas.backgroundColor || '#FFFFFF' },
             elements: objects.map((obj, i) => {
                 const z = i+1;
@@ -4656,7 +4708,7 @@
     }
 
     function exportLegacyJson(objects, title) {
-        const j = { name: title.replace(/\s+/g,'_'), info:{width:baseWidth,height:baseHeight}, layers:[] };
+        const j = { name: title.replace(/\s+/g,'_'), render_version: CURRENT_RENDER_VERSION, info:{width:baseWidth,height:baseHeight}, layers:[] };
         objects.forEach((obj,i) => {
             const z=i+1;
             let w = Math.round(obj.width*obj.scaleX);

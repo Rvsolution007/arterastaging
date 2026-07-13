@@ -3495,21 +3495,29 @@
                                     // Legacy layer format expects flat fields: font (string), fontSize, color, etc.
                                     if (el.font && typeof el.font === 'object') {
                                         l.font = el.font.family || 'Arial';
+                                        l.font_name = el.font.family || 'Arial';
                                         l.fontSize = el.font.size || el.fontSize || 20;
+                                        l.size = l.fontSize;
                                         l.weight = el.font.weight || '400';
                                         l.style = el.font.style || 'normal';
                                         l.color = el.font.color || el.color || '#000000';
                                         l.textAlign = el.font.justification || el.textAlign || 'left';
+                                        l.justification = l.textAlign;
                                         l.charSpacing = el.font.charSpacing || 0;
+                                        l.letterSpacing = l.charSpacing;
                                         l.lineHeight = el.font.lineHeight || el.lineHeight || 1.16;
                                         l.auto_scale = el.font.auto_scale || false;
                                     } else {
                                         l.font = el.font || el.fontFamily || 'Arial';
+                                        l.font_name = l.font;
                                         l.fontSize = el.fontSize || 20;
+                                        l.size = l.fontSize;
                                         l.color = el.color || '#000000';
                                         l.textAlign = el.textAlign || 'left';
+                                        l.justification = l.textAlign;
                                         l.lineHeight = el.lineHeight || 1.16;
                                         l.charSpacing = el.letterSpacing || 0;
+                                        l.letterSpacing = l.charSpacing;
                                     }
                                     if (el.kind) l.kind = el.kind;
                                     if (el.textKind) l.textKind = el.textKind;

@@ -602,6 +602,10 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
 
     final List<dynamic> layers = widget.config['layers'] ?? [];
 
+    // ── Read render version from config (default to 1 for legacy frames) ──
+    // Future rendering changes will use: if (renderVersion >= 2) { ... }
+    final int renderVersion = (widget.config['render_version'] ?? 1) as int;
+
     // ══ DIAGNOSTICS ══
     debugPrint('╔══════════════════════════════════════════════');
     debugPrint('║ EditorCanvasWidget: ${layers.length} layers, '

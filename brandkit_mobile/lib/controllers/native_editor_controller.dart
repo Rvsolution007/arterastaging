@@ -125,6 +125,9 @@ class NativeEditorController extends GetxController {
     baseImgUrl = baseImg;
     templateConfig['type'] = editorType;
 
+    // Default render_version to 1 for legacy frames without versioning
+    templateConfig['render_version'] ??= 1;
+
     if (editorType == 'business_custom_frame') {
       _injectDynamicBusinessFrame();
     }

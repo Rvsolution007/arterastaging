@@ -18,6 +18,9 @@
         console.error = function() { if (!_shouldSuppress(arguments)) _err.apply(console, arguments); };
     })();
     console.log('[TEMPLATE_BUILDER] v3.0 loaded — fill control + vector paths + complete effects');
+    // ── Render Version: ALL rendering logic is versioned. Current code = version 1. ──
+    // ── Future rendering changes MUST increment this and add version-gated code paths. ──
+    const CURRENT_RENDER_VERSION = 1;
     try {
     
     // Fix fabric.js alphabetical warning globally
@@ -3797,8 +3800,9 @@
     }
 
     function _doRender(config, images) {
-
-        console.log('[DEBUG] _doRender called. images map keys:', images ? Object.keys(images).length + ' keys: ' + Object.keys(images).slice(0,5).join(', ') : 'NO IMAGES MAP');
+        // ── Read render version from config (default to 1 for legacy frames) ──
+        const renderVersion = config.render_version || 1;
+        console.log('[DEBUG] _doRender called. render_version:', renderVersion, '| images map keys:', images ? Object.keys(images).length + ' keys: ' + Object.keys(images).slice(0,5).join(', ') : 'NO IMAGES MAP');
         canvas.clear();
         templateImages = images;
         
@@ -4564,7 +4568,7 @@
     // --- Export Schemas ---
     function exportArteraSchema(objects, title) {
         return {
-            schema_version: 1, template_id: 'tpl_' + Date.now(),
+            schema_version: 1, render_version: CURRENT_RENDER_VERSION, template_id: 'tpl_' + Date.now(),
             canvas: { width: baseWidth, height: baseHeight, background_color: canvas.backgroundColor || '#FFFFFF' },
             elements: objects.map((obj, i) => {
                 const z = i+1;
@@ -4656,7 +4660,7 @@
     }
 
     function exportLegacyJson(objects, title) {
-        const j = { name: title.replace(/\s+/g,'_'), info:{width:baseWidth,height:baseHeight}, layers:[] };
+        const j = { name: title.replace(/\s+/g,'_'), render_version: CURRENT_RENDER_VERSION, info:{width:baseWidth,height:baseHeight}, layers:[] };
         objects.forEach((obj,i) => {
             const z=i+1;
             let w = Math.round(obj.width*obj.scaleX);

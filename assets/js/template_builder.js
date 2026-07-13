@@ -781,7 +781,11 @@
                 }
             } else {
                 const rawFill = obj.fill || '#6366f1';
-                const hexFill = (typeof rawFill === 'string' && rawFill.startsWith('#') && rawFill.length >= 7) ? rawFill.substring(0,7) : '#6366f1';
+                let hexFill = '#6366f1';
+                if (typeof rawFill === 'string') {
+                    if (rawFill.startsWith('#') && rawFill.length >= 7) hexFill = rawFill.substring(0,7);
+                    else try { hexFill = '#' + new fabric.Color(rawFill).toHex(); } catch(e) { hexFill = rawFill; }
+                }
                 if (inputFillColor) {
                     if (inputFillColor.jscolor) {
                         inputFillColor.jscolor.fromString(hexFill);
@@ -792,7 +796,11 @@
             }
 
             const rawStroke = obj.stroke || '#000000';
-            const hexStroke = (typeof rawStroke === 'string' && rawStroke.startsWith('#') && rawStroke.length >= 7) ? rawStroke.substring(0,7) : '#000000';
+            let hexStroke = '#000000';
+            if (typeof rawStroke === 'string') {
+                if (rawStroke.startsWith('#') && rawStroke.length >= 7) hexStroke = rawStroke.substring(0,7);
+                else try { hexStroke = '#' + new fabric.Color(rawStroke).toHex(); } catch(e) { hexStroke = rawStroke; }
+            }
             if (inputStrokeColor) {
                 if (inputStrokeColor.jscolor) {
                     inputStrokeColor.jscolor.fromString(hexStroke);

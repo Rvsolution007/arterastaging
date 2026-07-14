@@ -168,6 +168,14 @@ Route::
 
             Route::resource('inquiry', 'InquiryController');
 
+            Route::get('Frame/version-control', 'PosterMakerController@versionControl')->name('admin.poster_maker.version_control');
+            Route::post('Frame/bulk-migrate-version', 'PosterMakerController@bulkMigrateVersion')->name('admin.poster_maker.bulk_migrate');
+            Route::post('Frame/auto-compensate', 'PosterMakerController@autoCompensate')->name('admin.poster_maker.auto_compensate');
+
+            Route::get('regression-test-log', 'RegressionTestController@index')->name('admin.regression_tests.index');
+            Route::post('regression-test-run', 'RegressionTestController@runTests')->name('admin.regression_tests.run');
+            Route::get('benchmark-frames', 'RegressionTestController@benchmarks')->name('admin.regression_tests.benchmarks');
+            Route::post('benchmark-toggle', 'RegressionTestController@toggleBenchmark')->name('admin.regression_tests.toggle_benchmark');
             Route::resource('Frame', 'PosterMakerController');
             Route::post('Frame/bulk-delete', 'PosterMakerController@bulkDelete')->name('admin.poster_maker.bulk_delete');
             Route::post('Frame/duplicate', 'PosterMakerController@duplicate')->name('admin.poster_maker.duplicate');

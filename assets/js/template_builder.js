@@ -20,7 +20,7 @@
     console.log('[TEMPLATE_BUILDER] v3.0 loaded — fill control + vector paths + complete effects');
     // ── Render Version: ALL rendering logic is versioned. Current code = version 1. ──
     // ── Future rendering changes MUST increment this and add version-gated code paths. ──
-    const CURRENT_RENDER_VERSION = 2;
+    const CURRENT_RENDER_VERSION = 4;
     try {
     
     // Fix fabric.js alphabetical warning globally
@@ -394,6 +394,35 @@
     if (gradStart) gradStart.addEventListener('input', applyGradient);
     if (gradEnd) gradEnd.addEventListener('input', applyGradient);
 
+    // ── Helper: Convert any CSS color string to #rrggbb hex ──
+    // HTML <input type="color"> only accepts #rrggbb format.
+    // Fabric.js sometimes stores fill as rgb()/rgba() which breaks the picker.
+    function toHex(color) {
+        if (!color || typeof color !== 'string') return '#000000';
+        color = color.trim();
+        // Already hex
+        if (/^#[0-9a-fA-F]{6}$/.test(color)) return color;
+        if (/^#[0-9a-fA-F]{3}$/.test(color)) {
+            return '#' + color[1]+color[1] + color[2]+color[2] + color[3]+color[3];
+        }
+        // rgb(r,g,b) or rgba(r,g,b,a)
+        var m = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+        if (m) {
+            var r = parseInt(m[1]).toString(16).padStart(2,'0');
+            var g = parseInt(m[2]).toString(16).padStart(2,'0');
+            var b = parseInt(m[3]).toString(16).padStart(2,'0');
+            return '#' + r + g + b;
+        }
+        // Use a temporary canvas to resolve named colors
+        try {
+            var ctx = document.createElement('canvas').getContext('2d');
+            ctx.fillStyle = color;
+            var resolved = ctx.fillStyle; // browsers return #rrggbb
+            if (/^#[0-9a-fA-F]{6}$/.test(resolved)) return resolved;
+        } catch(e) {}
+        return '#000000';
+    }
+
     let templateImages = {};
 
     // --- Properties Panel References ---
@@ -698,7 +727,14 @@
             if (shapeProps) shapeProps.style.display = 'none';
             if (inputText) inputText.value = obj.text;
             if (inputFontSize) inputFontSize.value = Math.round(obj.fontSize * Math.abs(obj.scaleY || 1));
-            if (inputColor) inputColor.value = obj.fill || '#000000';
+            if (inputColor) {
+                var hexColor = toHex(obj.fill || '#000000');
+                inputColor.value = hexColor;
+                // JSColor v2: update the swatch/picker to match the new value
+                if (inputColor.jscolor) {
+                    inputColor.jscolor.fromString(hexColor);
+                }
+            }
             if (inputFontFamily) inputFontFamily.value = obj.fontFamily || 'Arial';
             
             // Bold/Italic button state
@@ -1832,6 +1868,10 @@
                                     customName: 'Icon',
                                     fill: '#333333'
                                 });
+                                // ── Non-Destructive Metadata (Phase 1A) ──
+                                obj._iconName = iconName;
+                                obj._iconProvider = 'iconify';
+                                obj._originalSvgMarkup = svgText;
                                 canvas.add(obj);
                                 canvas.setActiveObject(obj);
                                 updateLayersList();
@@ -4002,6 +4042,11 @@
                     }
                 });
                 canvas.requestRenderAll();
+
+                // Store original JSON for diff comparison (read-only copy)
+                // Use the passed config which holds the raw loaded JSON, or canvas.toJSON if needed
+                window._originalLoadedJson = JSON.parse(JSON.stringify(config));
+                window._originalRenderVersion = window._originalLoadedJson.render_version || 1;
             }
         }
 
@@ -4138,7 +4183,9 @@
                         is_placeholder: layer.is_placeholder,
                         is_slot: layer.is_slot,
                         mask_layer_id: layer.mask_layer_id,
-                        visible: visible
+                        visible: visible,
+                        is_image_placeholder: true,
+                        _src: layer.src || layer._fallback_src || ''
                     });
                     canvas.add(ph);
                     if (typeof sortCanvasLayers === 'function') {
@@ -4175,6 +4222,14 @@
                                 z_index: layer.z_index || idx
                             });
                             img.set({ scaleX: layer.w / img.width, scaleY: layer.h / img.height });
+                            
+                            // ── Non-Destructive Metadata (Phase 1A) ──
+                            if (layer._source_meta) {
+                                img._iconName = layer._source_meta.iconName;
+                                img._iconProvider = layer._source_meta.provider;
+                                img._originalSvgMarkup = layer._source_meta.originalSvg;
+                            }
+
                             // Restore is_shape flag so color picker + export works
                             if (layer.is_shape || layer._originalType === 'shape' || layer._originalType === 'icon') {
                                 img.is_shape = true;
@@ -4187,6 +4242,12 @@
                                 img.applyFilters();
                                 console.log('[LOAD] Applied tint_color=' + layer.tint_color + ' to "' + layer.name + '"');
                             }
+                            // Remove any temporary placeholder rectangle added before actual image load
+                            canvas.getObjects().forEach(function(o) {
+                                if (o.is_image_placeholder && o.customName === layer.name) {
+                                    canvas.remove(o);
+                                }
+                            });
                             canvas.add(img);
                             if (typeof sortCanvasLayers === 'function') {
                                 try { sortCanvasLayers(); } catch(e) { console.error('[SORT ERROR]', e); }
@@ -4692,10 +4753,20 @@
             canvas: { width: baseWidth, height: baseHeight, background_color: canvas.backgroundColor || '#FFFFFF' },
             elements: objects.map((obj, i) => {
                 const z = i+1;
-                let w = Math.round(obj.width*obj.scaleX);
-                let h = Math.round(obj.height*obj.scaleY);
-                let x = Math.round(obj.left);
-                let y = Math.round(obj.top);
+                let w = Math.round(obj.width * (obj.scaleX || 1));
+                let h = Math.round(obj.height * (obj.scaleY || 1));
+                
+                // --- Phase 2 Math Fix (Text box width) ---
+                if ((obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') && w === 0) {
+                    w = Math.round(obj.getScaledWidth() || obj.width || 100);
+                    h = Math.round(obj.getScaledHeight() || obj.height || 50);
+                }
+
+                // Fabric returns absolute left/top when using setCoords()
+                obj.setCoords();
+                let aCoords = obj.aCoords;
+                let x = Math.round(aCoords ? aCoords.tl.x : obj.left);
+                let y = Math.round(aCoords ? aCoords.tl.y : obj.top);
                 let fontSize = obj.fontSize;
 
                 if (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
@@ -4712,12 +4783,14 @@
                 }
 
                 let o = { id:'el_'+z, name:obj.customName||(obj.type==='image'?'layer_'+z:'text_'+z), type:(obj.type==='i-text'||obj.type==='textbox')?'text':((obj.customType==='shape' && obj.type!=='image')?'shape':obj.type),
-                    x:x, y:y, w:w, h:h, rotation:obj.angle||0, opacity:obj.opacity??1, z_index:z, locked:!obj.selectable, visible:obj.visible!==false };
-                if (obj.type === 'image' || obj.customType === 'icon' || (obj.customType === 'shape' && obj.type === 'group')) { 
+                    x:x, y:y, w:w, h:h, width:w, height:h, scaleX:1, scaleY:1, originX:'left', originY:'top', rotation:obj.angle||0, opacity:obj.opacity??1, z_index:z, locked:!obj.selectable, visible:obj.visible!==false };
+                if (obj.type === 'image' || obj.customType === 'icon' || (obj.customType === 'shape' && obj.type === 'group') || (obj.customType === 'image' && obj.is_image_placeholder)) { 
                     o.type = 'image';
                     let isShapeRaster = (obj.customType === 'shape' || obj.customType === 'icon' || obj.is_shape);
                     try { 
-                        if (obj.type === 'image' && !isShapeRaster) {
+                        if (obj.is_image_placeholder) {
+                            o.src = obj._src || '';
+                        } else if (obj.type === 'image' && !isShapeRaster) {
                             o.src = obj.getSrc();
                         } else {
                             let origFill = obj.fill;
@@ -4726,35 +4799,36 @@
                             
                             let childFills = [];
                             if (obj.type === 'group' && typeof obj.getObjects === 'function') {
-                                obj.getObjects().forEach(c => { childFills.push(c.fill); if (c.set) c.set('fill', '#FFFFFF'); });
-                            } else if (obj.set) {
-                                obj.set('fill', '#FFFFFF');
+                                obj.getObjects().forEach(c => { 
+                                    let clr = (c.fill && c.fill !== 'none') ? c.fill : c.stroke;
+                                    if (clr && clr !== 'none') childFills.push(clr);
+                                });
                             }
                             if (!origFill && childFills.length > 0) {
                                 origFill = childFills[0];
+                                obj.fill = origFill; // Temporarily set so tint_color extraction catches it
+                            }
+                            if (!origFill && obj.stroke && obj.stroke !== 'none') {
+                                origFill = obj.stroke;
                                 obj.fill = origFill;
                             }
-                            if (obj.filters) {
+                            
+                            if (obj.filters && obj.filters.length > 0) {
                                 obj.filters = [];
                                 if (obj.applyFilters) obj.applyFilters();
+                                obj.dirty = true;
+                                if (obj._cacheCanvas) obj._cacheCanvas = null;
                             }
-                            // Force cache invalidation so toDataURL captures the white (untinted) version
-                            obj.dirty = true;
-                            if (obj._cacheCanvas) obj._cacheCanvas = null;
                             
                             o.src = obj.toDataURL({format: 'png', multiplier: 2}); 
                             console.log('[EXPORT] Shape "' + (obj.customName||obj.type) + '" rasterized: src length=' + (o.src||'').length + ' starts=' + (o.src||'').substring(0,30));
                             
-                            if (obj.type === 'group' && typeof obj.getObjects === 'function') {
-                                obj.getObjects().forEach((c, idx) => { if (c.set) c.set('fill', childFills[idx]); });
-                            } else if (obj.set) {
-                                obj.set('fill', origFill);
-                            }
                             if (oldFilters.length > 0) {
                                 obj.filters = oldFilters;
                                 if (obj.applyFilters) obj.applyFilters();
+                                obj.dirty = true;
                             }
-                            // Restore cache state after export
+                            // Restore cache state after export if needed
                             obj.dirty = true;
                         }
                     } catch(e) { console.error('Failed rasterizing shape:', e); }
@@ -4766,6 +4840,22 @@
                     if(obj.customType === 'icon') o._originalType = 'icon';
                     else if(isShapeRaster) o._originalType = 'shape';
                     if(isShapeRaster && obj.fill && typeof obj.fill === 'string') o.tint_color = obj.fill;
+                    
+                    // ── Non-Destructive Metadata (Phase 1A) ──
+                    if (obj.customType === 'icon') {
+                        o._source_meta = {
+                            type: 'icon',
+                            iconName: obj._iconName || null,
+                            provider: obj._iconProvider || 'iconify',
+                            originalSvg: obj._originalSvgMarkup || null
+                        };
+                    } else if (obj.customType === 'shape' && obj.type === 'group') {
+                        o._source_meta = {
+                            type: 'shape_group',
+                            childCount: (typeof obj.getObjects === 'function') ? obj.getObjects().length : 0
+                        };
+                    }
+
                     if(isShapeRaster) console.log('[EXPORT] Schema element "' + o.name + '": is_shape=' + o.is_shape + ' tint_color=' + o.tint_color + ' _originalType=' + (o._originalType||'') + ' src_len=' + (o.src||'').length);
                 }
                 else if (obj.type==='text'||obj.type==='i-text'||obj.type==='textbox') {
@@ -4773,7 +4863,7 @@
                     o.placeholder=obj.customType==='placeholder'?{field_type:obj.placeholderKey,required:true}:null;
                     o.kind = (obj.type === 'textbox') ? 'Paragraph' : 'Point';
                     o.textKind = (obj.type === 'textbox') ? 'paragraph' : 'point';
-                } else if (obj.customType==='shape' || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type)) {
+                } else if (!obj.is_image_placeholder && obj.customType !== 'image' && (obj.customType==='shape' || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type))) {
                     o.type = 'shape';
                     o.shapeType = obj.type; // e.g. 'rect', 'ellipse'
                     
@@ -4832,10 +4922,20 @@
         const j = { name: title.replace(/\s+/g,'_'), render_version: CURRENT_RENDER_VERSION, info:{width:baseWidth,height:baseHeight}, layers:[] };
         objects.forEach((obj,i) => {
             const z=i+1;
-            let w = Math.round(obj.width*obj.scaleX);
-            let h = Math.round(obj.height*obj.scaleY);
-            let x = Math.round(obj.left);
-            let y = Math.round(obj.top);
+            let w = Math.round(obj.width * (obj.scaleX || 1));
+            let h = Math.round(obj.height * (obj.scaleY || 1));
+            
+            // --- Phase 2 Math Fix (Text box width) ---
+            if ((obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') && w === 0) {
+                w = Math.round(obj.getScaledWidth() || obj.width || 100);
+                h = Math.round(obj.getScaledHeight() || obj.height || 50);
+            }
+
+            // Fabric returns absolute left/top when using setCoords()
+            obj.setCoords();
+            let aCoords = obj.aCoords;
+            let x = Math.round(aCoords ? aCoords.tl.x : obj.left);
+            let y = Math.round(aCoords ? aCoords.tl.y : obj.top);
             let fontSize = obj.fontSize;
 
             if (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
@@ -4850,57 +4950,254 @@
                 y = Math.round(obj.top + yOffset);
             }
 
-            if (obj.type==='image') {
-                let imgData = {name:obj.customName||'layer_'+z,type:'image',src:obj.getSrc(),x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,is_background:obj.is_background||false,is_placeholder:obj.is_placeholder||false,is_slot:obj.is_slot||false, image_type: obj.image_type||'', is_shape: obj.customType === 'shape' || obj.customType === 'icon' || obj.is_shape === true};
+            if (obj.type==='image' || (obj.customType === 'image' && obj.is_image_placeholder)) {
+                let srcToUse = obj.is_image_placeholder ? (obj._src || '') : obj.getSrc();
+                let imgData = {name:obj.customName||'layer_'+z,type:'image',src:srcToUse,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,is_background:obj.is_background||false,is_placeholder:obj.is_placeholder||false,is_slot:obj.is_slot||false, image_type: obj.image_type||'', is_shape: obj.customType === 'shape' || obj.customType === 'icon' || obj.is_shape === true};
                 if (obj.mask_layer_id) imgData.mask_layer_id = obj.mask_layer_id;
                 if ((obj.customType==='shape' || obj.customType==='icon' || obj.is_shape) && obj.fill && typeof obj.fill === 'string') imgData.tint_color = obj.fill;
                 j.layers.push(imgData);
             }
-            else if (obj.type==='i-text'||obj.type==='text'||obj.type==='textbox') j.layers.push({name:obj.customName||'text_'+z,type:'text',kind: (obj.type==='textbox'?'Paragraph':'Point'),textKind: (obj.type==='textbox'?'paragraph':'point'),text:obj.text,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,color:obj.fill,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,size:fontSize,font_size:fontSize,font:obj.fontFamily,font_name:obj.fontFamily,justification:obj.textAlign||'left',letterSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16,ai_role:obj.ai_role||null,ai_max_chars:obj.ai_max_chars||null});
-            else if (obj.customType==='shape' || obj.customType==='icon' || obj.is_shape || ['rect','circle','triangle','path','polygon','line'].includes(obj.type)) {
+            else if (obj.type==='i-text'||obj.type==='text'||obj.type==='textbox') j.layers.push({name:obj.customName||'text_'+z,type:'text',kind: (obj.type==='textbox'?'Paragraph':'Point'),textKind: (obj.type==='textbox'?'paragraph':'point'),text:obj.text,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,color:obj.fill,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,size:fontSize,font_size:fontSize,font:obj.fontFamily,font_name:obj.fontFamily,justification:obj.textAlign||'left',letterSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16,opacity:obj.opacity??1,rotation:obj.angle||0,visible:obj.visible!==false,ai_role:obj.ai_role||null,ai_max_chars:obj.ai_max_chars||null});
+            else if (!obj.is_image_placeholder && obj.customType !== 'image' && (obj.customType==='shape' || obj.customType==='icon' || obj.is_shape || ['rect','circle','triangle','path','polygon','line'].includes(obj.type))) {
+                // ══════════════════════════════════════════════════════════════════
+                // RENDER VERSION 4: Save shapes/icons as VECTOR DATA, not PNG
+                // This preserves exact color, border radius, shape type, and icon name.
+                // A _fallback_src PNG is kept for backward compatibility.
+                // ══════════════════════════════════════════════════════════════════
+
+                // ── Determine the exact fill color ──
+                let fillColor = null;
+                if (obj.fill && typeof obj.fill === 'string' && obj.fill !== 'none') {
+                    fillColor = toHex(obj.fill);
+                } else if (obj.fill && typeof obj.fill === 'object' && obj.fill.type === 'linear') {
+                    fillColor = JSON.parse(JSON.stringify(obj.fill));
+                }
+                // Fallback: check child objects in groups
+                if (!fillColor && obj.type === 'group' && typeof obj.getObjects === 'function') {
+                    obj.getObjects().forEach(function(c) {
+                        var clr = (c.fill && c.fill !== 'none') ? c.fill : c.stroke;
+                        if (clr && clr !== 'none' && !fillColor) fillColor = toHex(clr);
+                    });
+                }
+                if (!fillColor && obj.stroke && obj.stroke !== 'none') {
+                    fillColor = toHex(obj.stroke);
+                }
+
+                // ── Build vector layer data ──
+                var vectorData = {
+                    name: obj.customName || 'shape_' + z,
+                    type: 'shape',
+                    shapeType: obj.type,
+                    x: x, y: y, w: w, h: h,
+                    width: w, height: h,
+                    z_index: z,
+                    fill: fillColor,
+                    stroke: (obj.stroke && obj.stroke !== 'none') ? toHex(obj.stroke) : null,
+                    strokeWidth: obj.strokeWidth || 0,
+                    rx: obj.rx || 0,
+                    ry: obj.ry || 0,
+                    opacity: obj.opacity ?? 1,
+                    rotation: obj.angle || 0,
+                    is_background: obj.is_background || false,
+                    is_slot: obj.is_slot || false,
+                    is_shape: true,
+                    visible: obj.visible !== false
+                };
+
+                // ── Icon-specific metadata ──
+                if (obj.customType === 'icon') {
+                    vectorData.type = 'icon';
+                    vectorData.iconName = obj._iconName || null;
+                    vectorData.iconProvider = obj._iconProvider || 'iconify';
+                    vectorData.color = fillColor;
+                }
+
+                // ── Polygon points (for star, custom shapes) ──
+                if ((obj.type === 'polygon' || obj.type === 'polyline') && obj.points && obj.points.length >= 3) {
+                    var polyMatrix = obj.calcTransformMatrix();
+                    var polyOffX = obj.pathOffset ? obj.pathOffset.x : 0;
+                    var polyOffY = obj.pathOffset ? obj.pathOffset.y : 0;
+                    vectorData.points = obj.points.map(function(p) {
+                        var lx = p.x - polyOffX;
+                        var ly = p.y - polyOffY;
+                        var abs = fabric.util.transformPoint(new fabric.Point(lx, ly), polyMatrix);
+                        return { x: Math.round(abs.x), y: Math.round(abs.y) };
+                    });
+                }
+
+                // ── SVG path data (for custom shapes) ──
+                if (obj.type === 'path' && obj.path && obj.path.length > 0) {
+                    vectorData.svgPath = fabric.util.joinPath(obj.path);
+                }
+
+                // ── Clipping mask ──
+                if (obj.mask_layer_id) vectorData.mask_layer_id = obj.mask_layer_id;
+
+                // ── BACKWARD COMPAT: Also save a rasterized PNG as _fallback_src ──
+                // Old native app versions (render_version < 4) will use this PNG.
                 try {
-                    let origFill = obj.fill;
-                    let oldFilters = obj.filters ? [...obj.filters] : [];
-                    
-                    let childFills = [];
-                    if (obj.type === 'group' && typeof obj.getObjects === 'function') {
-                        obj.getObjects().forEach(c => { childFills.push(c.fill); if (c.set) c.set('fill', '#FFFFFF'); });
-                    } else if (obj.set) {
-                        obj.set('fill', '#FFFFFF');
-                    }
-                    if (!origFill && childFills.length > 0) {
-                        origFill = childFills[0];
-                        obj.fill = origFill;
-                    }
-                    if (obj.filters) {
+                    var oldFilters = obj.filters ? obj.filters.slice() : [];
+                    if (obj.filters && obj.filters.length > 0) {
                         obj.filters = [];
                         if (obj.applyFilters) obj.applyFilters();
+                        obj.dirty = true;
+                        if (obj._cacheCanvas) obj._cacheCanvas = null;
                     }
-                    // Force cache invalidation so toDataURL captures the white (untinted) version
-                    obj.dirty = true;
-                    if (obj._cacheCanvas) obj._cacheCanvas = null;
-
-                    const dataUrl = obj.toDataURL({format: 'png', multiplier: 2});
-                    
-                    if (obj.type === 'group' && typeof obj.getObjects === 'function') {
-                        obj.getObjects().forEach((c, idx) => { if (c.set) c.set('fill', childFills[idx]); });
-                    } else if (obj.set) {
-                        obj.set('fill', origFill);
-                    }
+                    vectorData._fallback_src = obj.toDataURL({format: 'png', multiplier: 2});
                     if (oldFilters.length > 0) {
                         obj.filters = oldFilters;
                         if (obj.applyFilters) obj.applyFilters();
+                        obj.dirty = true;
                     }
-                    // Restore cache state
                     obj.dirty = true;
+                } catch(e) { console.warn('[EXPORT_V4] Fallback raster failed:', e); }
 
-                    let shapeData = {name:obj.customName||'shape_'+z, type:'image', src:dataUrl, x:x, y:y, w:w, h:h, width:w, height:h, z_index:z, is_background:false, is_slot:false, image_type: '', is_shape: true};
-                    if (origFill && typeof origFill === 'string') shapeData.tint_color = origFill;
-                    j.layers.push(shapeData);
-                } catch(e) { console.error('Failed to rasterize shape for legacy json:', e); }
+                console.log('[EXPORT_V4] Vector shape:', vectorData.name, 'type:', vectorData.shapeType,
+                    'fill:', vectorData.fill, 'icon:', vectorData.iconName);
+
+                j.layers.push(vectorData);
             }
         });
         return j;
+    }
+
+    /**
+     * Compare old JSON (loaded version) vs new JSON (about to save).
+     * Returns an array of diffs per layer.
+     *
+     * @param {Object} oldJson - The JSON that was loaded when template opened
+     * @param {Object} newJson - The JSON that exportArteraSchema() just generated
+     * @returns {Array<{layerName, property, oldValue, newValue, type}>}
+     */
+    function computeVersionDiff(oldJson, newJson) {
+        const diffs = [];
+        const oldVersion = oldJson.render_version || 1;
+        const newVersion = newJson.render_version || CURRENT_RENDER_VERSION;
+
+        // Add version change itself
+        if (oldVersion !== newVersion) {
+            diffs.push({
+                layerName: '(Template)',
+                property: 'render_version',
+                oldValue: 'V' + oldVersion,
+                newValue: 'V' + newVersion,
+                type: 'version_upgrade',
+            });
+        }
+
+        // Build layer maps by name
+        const oldLayers = {};
+        const newLayers = {};
+        (oldJson.layers || oldJson.objects || []).forEach(l => {
+            oldLayers[l.name || l.id || 'unknown'] = l;
+        });
+        (newJson.layers || newJson.objects || []).forEach(l => {
+            newLayers[l.name || l.id || 'unknown'] = l;
+        });
+
+        // Compare properties for each layer
+        const propsToCompare = ['x', 'y', 'w', 'h', 'width', 'height', 'fontSize', 'font_size',
+            'size', 'type', 'fill', 'color', 'font_color', 'fontFamily', 'font_name',
+            'scaleX', 'scaleY', 'rx', 'ry', 'stroke', 'strokeWidth', 'shapeType'];
+
+        const allLayerNames = new Set([...Object.keys(oldLayers), ...Object.keys(newLayers)]);
+
+        allLayerNames.forEach(name => {
+            const oldL = oldLayers[name];
+            const newL = newLayers[name];
+
+            if (!oldL && newL) {
+                diffs.push({
+                    layerName: name,
+                    property: '(entire layer)',
+                    oldValue: '—',
+                    newValue: 'NEW (added by V' + newVersion + ')',
+                    type: 'layer_added',
+                });
+                return;
+            }
+
+            if (oldL && !newL) {
+                diffs.push({
+                    layerName: name,
+                    property: '(entire layer)',
+                    oldValue: 'Existed in V' + oldVersion,
+                    newValue: 'REMOVED',
+                    type: 'layer_removed',
+                });
+                return;
+            }
+
+            // Both exist — compare properties
+            propsToCompare.forEach(prop => {
+                const ov = oldL[prop];
+                const nv = newL[prop];
+                if (ov !== undefined || nv !== undefined) {
+                    // Normalize for comparison
+                    const ovStr = JSON.stringify(ov ?? null);
+                    const nvStr = JSON.stringify(nv ?? null);
+                    if (ovStr !== nvStr) {
+                        diffs.push({
+                            layerName: name,
+                            property: prop,
+                            oldValue: ov ?? '—',
+                            newValue: nv ?? '—',
+                            type: typeof ov === 'number' && typeof nv === 'number' ? 'numeric_shift' : 'value_change',
+                        });
+                    }
+                }
+            });
+
+            // Check type upgrade (e.g., raster PNG → vector shape)
+            if (oldL.type === 'image' && (newL.type === 'shape' || newL.type === 'rect')) {
+                diffs.push({
+                    layerName: name,
+                    property: 'type',
+                    oldValue: 'Raster PNG (' + (oldL.src ? (oldL.src.length > 30 ? oldL.src.substring(0,30) + '...' : oldL.src) : 'no src') + ')',
+                    newValue: 'Vector Shape (fill: ' + (newL.fill || newL.color || '?') + ')',
+                    type: 'type_upgrade',
+                });
+            }
+        });
+
+        return diffs;
+    }
+
+    function validateBeforePublish(schemaJson, legacyJson) {
+        const errors = [];
+
+        // 1. Check for NaN in coordinates
+        const checkNaN = (elements, format) => {
+            (elements || []).forEach((el, i) => {
+                if (isNaN(el.x) || isNaN(el.y) || isNaN(el.w) || isNaN(el.h)) {
+                    errors.push(`[${format}] Layer "${el.name}" (index ${i}) has NaN coordinates: x=${el.x}, y=${el.y}, w=${el.w}, h=${el.h}`);
+                }
+                if (el.w === 0 && el.h === 0 && el.type === 'image') {
+                    errors.push(`[${format}] Image layer "${el.name}" has zero dimensions`);
+                }
+            });
+        };
+
+        checkNaN(schemaJson.elements, 'Schema');
+        checkNaN(legacyJson.layers, 'Legacy');
+
+        // 2. Check image sources are not empty
+        const checkImages = (elements, format) => {
+            (elements || []).forEach((el, i) => {
+                if (el.type === 'image' && (!el.src || el.src.length < 50)) {
+                    errors.push(`[${format}] Image "${el.name}" has empty or broken src (length: ${(el.src||'').length})`);
+                }
+            });
+        };
+
+        checkImages(schemaJson.elements, 'Schema');
+        checkImages(legacyJson.layers, 'Legacy');
+
+        // 3. Check render_version exists
+        if (!schemaJson.render_version) errors.push('Schema is missing render_version');
+        if (!legacyJson.render_version) errors.push('Legacy is missing render_version');
+
+        return errors;
     }
 
     // --- Publish ---
@@ -4931,13 +5228,46 @@
         const schemaData = exportArteraSchema(objects, title);
         const legacyData = exportLegacyJson(objects, title);
 
+        // Check if version upgrade happened
+        if (window._originalRenderVersion < CURRENT_RENDER_VERSION) {
+            // Compute diff
+            const diffs = computeVersionDiff(window._originalLoadedJson || {}, legacyData);
+
+            if (diffs.length > 0) {
+                // Show diff modal instead of direct save
+                if (typeof showDiffReviewModal === 'function') {
+                    showDiffReviewModal(diffs, schemaData, legacyData, fd, btnSave);
+                    return;
+                } else {
+                    console.warn('[PUBLISH] showDiffReviewModal not found, proceeding with direct save.');
+                }
+            }
+        }
+
+        // No version change or no diffs — proceed with normal save
+        doSaveFrame(schemaData, legacyData, fd, btnSave);
+    });
+
+    // Make doSaveFrame globally accessible for the modal to call
+    window.doSaveFrame = function(schemaData, legacyData, fd, btnSave) {
+        // ── Phase 1B: Pre-Publish Validation ──
+        const validationErrors = validateBeforePublish(schemaData, legacyData);
+        if (validationErrors.length > 0) {
+            console.error('[PUBLISH BLOCKED]', validationErrors);
+            alert('⚠️ Publish blocked! Found ' + validationErrors.length + ' issue(s):\n\n' + validationErrors.join('\n'));
+            btnSave.disabled = false;
+            btnSave.innerHTML = '<i class="fa fa-save"></i> Publish';
+            return;
+        }
+
+        const objects = canvas.getObjects();
         // Debug: log every element being published
         console.log('[PUBLISH] Canvas objects count:', objects.length);
         objects.forEach((obj, i) => {
             const t = obj.type;
             const ct = obj.customType || '';
             const n = obj.customName || obj.type;
-            console.log('[PUBLISH] Object ' + i + ': type=' + t + ' customType=' + ct + ' name="' + n + '" w=' + Math.round(obj.width*obj.scaleX) + ' h=' + Math.round(obj.height*obj.scaleY));
+            console.log('[PUBLISH] Object ' + i + ': type=' + t + ' customType=' + ct + ' name="' + n + '" w=' + Math.round(obj.width*(obj.scaleX||1)) + ' h=' + Math.round(obj.height*(obj.scaleY||1)));
         });
         console.log('[PUBLISH] Schema elements:', schemaData.elements.length, '| Legacy layers:', legacyData.layers.length);
 
@@ -4985,7 +5315,7 @@
         });
 
         currentScale = updateCanvasZoom();
-    });
+    };
 
     } catch (err) {
         alert("CRITICAL JS ERROR: " + err.message + "\nStack: " + err.stack);

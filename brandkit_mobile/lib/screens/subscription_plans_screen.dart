@@ -679,7 +679,7 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
                 // ── Action Button ──
                 GestureDetector(
                   onTap: isCurrentPlan ? null : () async {
-                    bool isUpgrade = sc.hasActivePlan;
+                    bool isUpgrade = sc.hasPaidActivePlan;
                     Map<String, dynamic>? upgradePreview;
                     
                     if (isUpgrade) {

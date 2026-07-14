@@ -69,6 +69,18 @@
         <div class="row">
             <div class="col-12">
                 <div class="form-group row">
+                    {!! Form::label('subscription_id','Valid for Package', ['class' => 'col-sm-2 col-form-label']) !!}
+                    <div class="col-sm-4">
+                        {!! Form::select('subscription_id', ['' => 'All Packages'] + $subscriptions, $couponCode->subscription_id, ['class' => 'form-control']) !!}
+                        <small class="text-muted">If selected, this coupon can only be applied to this specific subscription package.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="form-group row">
                     {!! Form::label('is_first_time_only','First Time Purchase Only?', ['class' => 'col-sm-2 col-form-label']) !!}
                     <div class="col-sm-4">
                         <label class="cl-switch cl-switch-blue mt-2">

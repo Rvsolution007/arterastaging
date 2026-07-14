@@ -5,13 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class CouponCode extends Model
+class TemplateRevision extends Model
 {
     use HasFactory;
 
-    protected $table = "coupon_code";
-
     protected $fillable = [
-        'code','discount','status','limit','subscription_id'
+        'frame_id',
+        'revision_number',
+        'file_path',
+        'schema_json'
     ];
 }

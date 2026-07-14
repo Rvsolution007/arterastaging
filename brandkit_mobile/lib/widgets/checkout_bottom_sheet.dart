@@ -102,7 +102,8 @@ class _CheckoutBottomSheetState extends State<CheckoutBottomSheet> {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('userId') ?? '';
       
-      final res = await ApiService.applyCoupon(userId, code);
+      final planId = widget.plan['id'].toString();
+      final res = await ApiService.applyCoupon(userId, code, planId);
       debugPrint('[Coupon] Response status: ${res.statusCode}, body: ${res.body}');
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
@@ -193,11 +194,14 @@ class _CheckoutBottomSheetState extends State<CheckoutBottomSheet> {
 
       final res = await ApiService.createPayment(body);
       if (res.statusCode == 200) {
-        Get.back(); // Close sheet
-        Get.snackbar('Success', 'Subscription Activated!', backgroundColor: Colors.green, colorText: Colors.white);
+        // Refresh limits first
+        await Get.find<SubscriptionController>().refreshFromApi();
         
-        // Refresh limits
-        Get.find<SubscriptionController>().refreshFromApi();
+        // Redirect to Home/Dashboard
+        Get.offAllNamed('/DashboardScreen');
+        
+        // Show success message
+        Get.snackbar('Success', 'Subscription Activated!', backgroundColor: Colors.green, colorText: Colors.white, duration: const Duration(seconds: 4));
       } else {
         Get.snackbar('Error', 'Failed to save transaction.', backgroundColor: Colors.red, colorText: Colors.white);
       }

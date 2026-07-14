@@ -133,7 +133,7 @@ The logic for handling Free vs Paid templates, Base Limits, and Ad Limits (Ad Re
 - Backend 	rackActivity logic in AuthApi.php that consumes base limits or ad reward slots.
 - Base Limit vs Ad Limit evaluation logic in User.php (getAdState, getPostAdFlow, getAdConfigPayload, consumeAdReward).
 - Mobile app template access logic in detail_list_screen.dart (specifically the checking of isPaid, free vs pro access rules, and c.baseLimit/c.maxAdUses checks).
-- handlePostAccess and handlePremiumDownloadAd in d_controller.dart.
+- handlePostAccess and handlePremiumDownloadAd in  d_controller.dart.
 - Any code parsing isPaid or max_ad_uses from API payloads.
 
 **Before making ANY changes to subscription plan limits or ad logic, you MUST:**
@@ -217,5 +217,54 @@ ALL rendering logic is versioned using a `render_version` system. The current ve
 4. If the password is not provided, refuse to make changes
 
 **Password**: `Brijesh@1415`
+
+This rule applies to ALL conversations, ALL agents, and ALL subagents working on this project.
+
+## 📏 Cross-Platform Rendering Normalization Rules (Web vs Native)
+
+**CRITICAL RULE - MUST FOLLOW EVERY TIME:**
+
+To prevent the "Whack-a-Mole" alignment/sizing bugs between the Web Editor (Fabric.js) and the Native App (Flutter Stack), ANY future rendering features or fixes must adhere to the **Strict Export Contract**:
+
+1. **No Editor-Specific Internals:** Never export raw editor properties like `scaleX`, `scaleY`, `originX`, or `originY` for the Native App to interpret.
+2. **Bake Dimensions:** Always multiply `width * scaleX` during the Web Editor export phase. The JSON must contain the absolute, pre-calculated `width` and `height`.
+3. **Normalize Origins:** Always convert an object's coordinates to Absolute Top-Left before saving. Flutter must strictly read normalized data, preventing drift.
+4. **Strict Text Boundaries:** Never use auto-width text across platforms. Text must be exported with an exact fixed bounding box. Flutter must use `FittedBox` to constrain the text strictly within the web-calculated boundaries.
+5. **Use Render Versioning:** Any new logic that alters how coordinates or sizes are exported MUST trigger an increment of `CURRENT_RENDER_VERSION`. Old templates must safely fallback to the old calculation logic in Flutter.
+
+## 🧬 Versioned Function Isolation Rule (Anti-Regression Architecture)
+
+**CRITICAL RULE - MUST FOLLOW EVERY TIME:**
+
+When making rendering changes for a NEW `render_version`, you MUST follow **Versioned Function Isolation** to prevent regression bugs. This means: **NEVER modify an existing rendering helper function's core logic. Instead, create a NEW version-specific copy.**
+
+**The Pattern:**
+```
+// ❌ WRONG — Modifying existing function (causes regression in old versions)
+Widget _buildText(layer, scale) {
+    finalY = layer['y'] * scale - newOffsetV5;  // Old V4 frames will break!
+}
+
+// ✅ CORRECT — Create version-specific function, old function stays frozen
+Widget _buildTextV5(layer, scale) { ... }  // New logic for V5+
+Widget _buildTextV4(layer, scale) { ... }  // Original V4 logic, FROZEN
+
+// Router function dispatches by version:
+Widget _buildText(layer, scale) {
+    if (renderVersion >= 5) return _buildTextV5(layer, scale);
+    return _buildTextV4(layer, scale);
+}
+```
+
+**Rules:**
+1. **For NEW render_version features:** Create `_functionNameVN()` (e.g., `_buildTextV5`, `_buildImageLayerV5`). The original function becomes a **version router** that dispatches to the correct version-specific implementation.
+2. **For BUG FIXES within an existing version:** You MAY fix bugs directly in the existing version-specific function (e.g., fix a math error in `_buildTextV4`) — but ONLY if the fix is intended to apply to that specific version's frames.
+3. **For SHARED UTILITY CHANGES** (e.g., `_parseColor`, `safeDouble`, `_parseGradient`): These are version-independent utilities. You MAY modify them, but you MUST verify that ALL existing render versions still produce identical output after your change (use Golden Snapshot regression test).
+4. **Code Size Management:** As versions accumulate, older version-specific functions that are no longer needed (e.g., all V1/V2 frames have been migrated to V4+) can be **deprecated and removed** — but ONLY after confirming zero frames remain on that version in the database via Version Control Dashboard.
+
+**This rule applies to these rendering files:**
+- `brandkit_mobile/lib/widgets/editor_canvas_widget.dart`: `_buildText`, `_buildImageLayer`, `_buildVectorShape`, `_buildIconLayer`, `build()` method
+- `brandkit_mobile/lib/widgets/interactive_layer.dart`: `build()` method, position/size calculations
+- `assets/js/template_builder.js`: `_doRender()`, `exportArteraSchema()`, `exportLegacyJson()`
 
 This rule applies to ALL conversations, ALL agents, and ALL subagents working on this project.

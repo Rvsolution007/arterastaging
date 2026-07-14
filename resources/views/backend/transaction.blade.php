@@ -50,9 +50,21 @@
               <td>{{$row->subscription->plan_name}}</td>
               <td>{{$row->total_paid}}</td>
               <td>{{$row->payment_id}}</td>
-              <td>{{$row->payment_type}}</td>
+              <td>
+                @if($row->coupon_code_id && ($row->payment_type == 'Free' || $row->payment_type == '0' || $row->total_paid == 0))
+                  [{{ ucfirst(strtolower($row->payment_type == '0' ? 'Free' : $row->payment_type)) }}] - Coupon Applied
+                @else
+                  {{$row->payment_type}}
+                @endif
+              </td>
               <td>{{date('d M, y',strtotime($row->date))}}</td>
-              <td>@if($row->payment_receipt)<a href="{{asset('uploads/payment/'.$row->payment_receipt)}}" target="_blank" class="text-primary">view</a>@endif</td>
+              <td>
+                @if($row->payment_receipt)
+                  <a href="{{asset('uploads/payment/'.$row->payment_receipt)}}" target="_blank" class="text-primary">View Receipt</a>
+                @else
+                  -
+                @endif
+              </td>
               @if($row->status == "Completed")
                 <td>{{$row->status}}</td>
               @else
@@ -63,8 +75,9 @@
                 @endif
               @endif
               <td class="align-middle">
+                <a href="{{route('invoice.show', $row->id)}}" target="_blank" class="btn btn-sm btn-info" style="margin-right: 5px;"><i class="fa fa-file-pdf-o"></i> View Invoice</a>
                 @if($row->status != "Completed")
-                <a data-id="{{$row->id}}" data-toggle="modal" data-target="#myModal"><button type="button" class="btn btn-danger ml-2"><span aria-hidden="true" class="fa fa-trash"></span></button></a>
+                <a data-id="{{$row->id}}" data-toggle="modal" data-target="#myModal"><button type="button" class="btn btn-sm btn-danger ml-1"><span aria-hidden="true" class="fa fa-trash"></span></button></a>
                 @endif
                 {!! Form::open(['url' => 'admin/transaction-delete','method'=>'POST','class'=>'form-horizontal','id'=>'form_'.$row->id]) !!}
                 {!! Form::hidden("id",$row->id) !!}

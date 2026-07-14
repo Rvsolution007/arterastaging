@@ -871,4 +871,110 @@ function filterFrames() {
     }
 }
 </script>
+
+<!-- Version Diff Review Modal -->
+<div id="diffReviewModal" class="modal fade" tabindex="-1" style="display:none; z-index: 9999;">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content" style="background:#1a1a2e; color:#e0e0e0; border:1px solid #333;">
+            <div class="modal-header" style="border-bottom:1px solid #333;">
+                <h5 class="modal-title" style="font-family:'Poppins',sans-serif;">
+                    <i class="fas fa-code-compare"></i> Version Upgrade Review
+                </h5>
+                <button type="button" class="btn-close btn-close-white" onclick="closeDiffModal()"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info" style="background:#162447; border:1px solid #1f4068; color:#c7d5e0;">
+                    <strong>Version Upgrade:</strong> <span id="diffVersionLabel">V1 → V4</span>
+                    <br><small>Review the changes below before publishing.</small>
+                </div>
+                <table class="table table-sm" style="color:#e0e0e0;">
+                    <thead>
+                        <tr style="border-bottom:2px solid #444;">
+                            <th>Layer</th>
+                            <th>Property</th>
+                            <th>Old Value</th>
+                            <th>New Value</th>
+                            <th>Type</th>
+                        </tr>
+                    </thead>
+                    <tbody id="diffTableBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer" style="border-top:1px solid #333;">
+                <button class="btn btn-outline-secondary" onclick="closeDiffModal()">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button class="btn btn-success" onclick="approveAndPublish()">
+                    <i class="fas fa-check-circle"></i> Approve & Publish
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showDiffReviewModal(diffs, newSchema, newLegacy, fd, btnSave) {
+    window._pendingSchema = newSchema;
+    window._pendingLegacy = newLegacy;
+    window._pendingFd = fd;
+    window._pendingBtnSave = btnSave;
+
+    const tbody = document.getElementById('diffTableBody');
+    tbody.innerHTML = '';
+
+    document.getElementById('diffVersionLabel').textContent =
+        'V' + (window._originalRenderVersion) + ' → V' + CURRENT_RENDER_VERSION;
+
+    diffs.forEach(d => {
+        const tr = document.createElement('tr');
+        let typeClass = '';
+        let typeIcon = '';
+        if (d.type === 'version_upgrade') { typeClass = 'color:#4fc3f7'; typeIcon = '🔄'; }
+        else if (d.type === 'numeric_shift') { typeClass = 'color:#ffb74d'; typeIcon = '📐'; }
+        else if (d.type === 'type_upgrade') { typeClass = 'color:#81c784'; typeIcon = '⬆️'; }
+        else if (d.type === 'layer_added') { typeClass = 'color:#66bb6a'; typeIcon = '➕'; }
+        else if (d.type === 'layer_removed') { typeClass = 'color:#ef5350'; typeIcon = '➖'; }
+        else { typeClass = 'color:#90a4ae'; typeIcon = '✏️'; }
+
+        tr.innerHTML = `
+            <td style="font-weight:600;">${d.layerName}</td>
+            <td><code style="background:#2a2a4a;padding:2px 6px;border-radius:3px;">${d.property}</code></td>
+            <td style="color:#ef5350;">${formatDiffValue(d.oldValue)}</td>
+            <td style="color:#66bb6a;">${formatDiffValue(d.newValue)}</td>
+            <td style="${typeClass}">${typeIcon} ${d.type.replace('_', ' ')}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    $('#diffReviewModal').modal('show');
+}
+
+function formatDiffValue(val) {
+    if (val === null || val === undefined) return '—';
+    if (typeof val === 'number') return Math.round(val * 100) / 100;
+    if (typeof val === 'object') return JSON.stringify(val).substring(0, 50);
+    return String(val).substring(0, 50);
+}
+
+function closeDiffModal() {
+    $('#diffReviewModal').modal('hide');
+    if (window._pendingBtnSave) {
+        window._pendingBtnSave.disabled = false;
+        window._pendingBtnSave.innerHTML = '<i class="fa fa-save"></i> Publish';
+    }
+    window._pendingSchema = null;
+    window._pendingLegacy = null;
+    window._pendingFd = null;
+    window._pendingBtnSave = null;
+}
+
+function approveAndPublish() {
+    $('#diffReviewModal').modal('hide');
+    if (window.doSaveFrame) {
+        window.doSaveFrame(window._pendingSchema, window._pendingLegacy, window._pendingFd, window._pendingBtnSave);
+    }
+}
+</script>
 @endsection

@@ -201,7 +201,9 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
     if (useHc) {
       hf = hc.hiddenFrameFields;
     } else if (!widget.isNew && biz['hidden_frame_fields'] != null) {
-      hf = Map<String, dynamic>.from(biz['hidden_frame_fields']);
+      if (biz['hidden_frame_fields'] is Map) {
+        hf = Map<String, dynamic>.from(biz['hidden_frame_fields']);
+      }
     }
 
     List<dynamic> hEmails = hf['emails'] ?? [];

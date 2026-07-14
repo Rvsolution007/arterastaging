@@ -65,12 +65,26 @@ class _BillingHistoryScreenState extends State<BillingHistoryScreen> {
   }
 
   Future<void> _downloadInvoice(String url) async {
-    final uri = Uri.parse(url);
+    String finalUrl = url;
+    if (finalUrl.contains('localhost') || finalUrl.contains('127.0.0.1')) {
+      final uri = Uri.parse(finalUrl);
+      final apiUri = Uri.parse(ApiService.baseUrl);
+      finalUrl = finalUrl.replaceFirst('${uri.scheme}://${uri.host}', '${apiUri.scheme}://${apiUri.host}');
+      if (apiUri.hasPort && !finalUrl.contains(':${apiUri.port}')) {
+        finalUrl = finalUrl.replaceFirst(apiUri.host, '${apiUri.host}:${apiUri.port}');
+      }
+    }
+    
+    final uri = Uri.parse(finalUrl);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
-      Get.snackbar('Error', 'Could not open invoice URL',
-          backgroundColor: AppColors.red500, colorText: Colors.white);
+      try {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } catch (e) {
+        Get.snackbar('Error', 'Could not open invoice URL',
+            backgroundColor: AppColors.red500, colorText: Colors.white);
+      }
     }
   }
 
@@ -182,7 +196,14 @@ class _BillingHistoryScreenState extends State<BillingHistoryScreen> {
                 children: [
                   Icon(Icons.calendar_today, size: 16, color: AppColors.gray500),
                   AppSpacing.gapH8,
-                  Text(t['date'] ?? '', style: TextStyle(color: AppColors.gray600, fontSize: 14)),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (t['start_date'] != null) Text('Start: ${t['start_date']}', style: TextStyle(color: AppColors.gray600, fontSize: 13)),
+                      if (t['end_date'] != null) Text('End: ${t['end_date']}', style: TextStyle(color: AppColors.gray600, fontSize: 13)),
+                      if (t['start_date'] == null && t['end_date'] == null) Text(t['date'] ?? '', style: TextStyle(color: AppColors.gray600, fontSize: 14)),
+                    ],
+                  ),
                   const Spacer(),
                   Text(
                     '₹${t['total_paid']}',

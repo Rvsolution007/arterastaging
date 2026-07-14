@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import '../config/app_config.dart';
 import '../controllers/native_editor_controller.dart';
 import '../services/api_service.dart';
@@ -59,9 +60,43 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
   // --- Layer interaction state for deselect-on-background-tap ---
   String _selectedBeforeTap = '';
 
+  /// Checks that all network images in the template are cached and ready for export.
+  /// Returns true if all assets are loaded, false if any are still loading.
+  Future<bool> _checkAssetsReady(Map<String, dynamic> config) async {
+      final layers = config['layers'] as List<dynamic>? ?? [];
+      for (var layer in layers) {
+          if (layer['type'] == 'image' && layer['src'] != null) {
+              String src = layer['src'].toString();
+              if (src.startsWith('http')) {
+                  // Check if the image is in the cache
+                  try {
+                      final fileInfo = await DefaultCacheManager().getFileFromCache(src);
+                      if (fileInfo == null) {
+                          // Image not cached yet — try downloading it
+                          debugPrint('[EXPORT_CHECK] Image not cached, downloading: $src');
+                          await DefaultCacheManager().downloadFile(src);
+                      }
+                  } catch (e) {
+                      debugPrint('[EXPORT_CHECK] Failed to verify asset: $src — $e');
+                      return false;
+                  }
+              }
+          }
+      }
+      return true;
+  }
+
   Future<void> _exportAndSave() async {
     controller.selectedLayerId.value = '';
     await Future.delayed(const Duration(milliseconds: 100));
+
+    final assetsReady = await _checkAssetsReady(controller.templateConfig);
+    if (!assetsReady) {
+        Get.snackbar('Loading...', 'Some images are still downloading. Please wait a moment.',
+            snackPosition: SnackPosition.BOTTOM);
+        return;
+    }
+
     try {
       final boundary = _canvasKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) return;

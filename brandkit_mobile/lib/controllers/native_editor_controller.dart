@@ -12,6 +12,7 @@ import 'dart:ui' as ui;
 import '../config/app_config.dart';
 
 import '../services/api_service.dart';
+import '../utils/template_json_cache.dart';
 
 import '../controllers/home_controller.dart';
 
@@ -71,6 +72,36 @@ class NativeEditorController extends GetxController {
     } finally {
       isLoadingFrames.value = false;
     }
+  }
+
+  Future<Map<String, dynamic>?> fetchTemplateJson(String zipName) async {
+    try {
+      final cachedTs = await TemplateJsonCache.getTimestamp(zipName);
+      String url = '/api/template/$zipName';
+      if (cachedTs != null) {
+        url += '?last_updated=$cachedTs';
+      }
+
+      final response = await ApiService.get(url);
+
+      if (response.statusCode == 304) {
+        final cached = await TemplateJsonCache.getCached(zipName);
+        if (cached != null) {
+          return jsonDecode(cached);
+        }
+      }
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true && data['json'] != null) {
+          await TemplateJsonCache.save(zipName, jsonEncode(data['json']), data['updated_at']);
+          return data['json'];
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetchTemplateJson: $e');
+    }
+    return null;
   }
 
   List<dynamic> get filteredFrames {
@@ -304,15 +335,18 @@ class NativeEditorController extends GetxController {
       if (!isBg && (layer['type'] == 'image' || layer['type'] == 'rect' || layer['type'] == 'shape')) {
         bool isContactIcon = ['phone', 'email', 'website', 'address', 'social'].any((e) => layerName.contains(e));
         if (!isContactIcon || layer['type'] != 'image') {
-          double pw = safeDouble((layer['w'] ?? layer['width'] ?? 0) as num);
-          double ph = safeDouble((layer['h'] ?? layer['height'] ?? 0) as num);
-          if (pw > 50 && ph > 10) {
-            shapeLayers.add({
-              'x': safeDouble((layer['x'] ?? 0) as num),
-              'y': safeDouble((layer['y'] ?? 0) as num),
-              'w': pw,
-              'h': ph,
-            });
+          double rawW = safeDouble((layer['w'] ?? layer['width'] ?? 0) as num);
+          double rawH = safeDouble((layer['h'] ?? layer['height'] ?? 0) as num);
+          bool isShapeMarked = layer['is_shape'] == true;
+          if (layer['type'] != 'image' || rawW > 200 || rawH > 200 || isShapeMarked) {
+            if (rawW > 20 && rawH > 10) {
+              shapeLayers.add({
+                'x': safeDouble((layer['x'] ?? 0) as num),
+                'y': safeDouble((layer['y'] ?? 0) as num),
+                'w': rawW,
+                'h': rawH,
+              });
+            }
           }
         }
       }
@@ -716,6 +750,16 @@ class NativeEditorController extends GetxController {
           } catch(e) {}
         }
       }
+      
+      // 3. Fallback to API if not in config and we have a zip_name
+      if (rawNewLayers == null && newFrameJson['zip_name'] != null) {
+        final fetchedJson = await fetchTemplateJson(newFrameJson['zip_name']);
+        if (fetchedJson != null) {
+          newFrameJson['config'] = fetchedJson; // save it so we don't fetch again unnecessarily
+          rawNewLayers = fetchedJson['layers'];
+        }
+      }
+
       if (rawNewLayers == null) rawNewLayers = [];
 
       final newLayers = jsonDecode(jsonEncode(rawNewLayers)) as List<dynamic>;
@@ -853,6 +897,8 @@ class NativeEditorController extends GetxController {
 
             if (srcStr.startsWith('data:') || srcStr.startsWith('http')) {
               newLayer['src'] = srcStr;
+            } else if (srcStr.startsWith('/')) {
+              newLayer['src'] = '$base${srcStr.substring(1)}';
             } else if (srcStr.startsWith('../')) {
               newLayer['src'] = '$frameBaseUrl${srcStr.replaceFirst('../', '')}';
             } else if (srcStr.startsWith('uploads/')) {
@@ -970,12 +1016,13 @@ class NativeEditorController extends GetxController {
         if (newLayer['type'] == 'image' || newLayer['type'] == 'rect' || newLayer['type'] == 'shape') {
           if (newLayer['is_background'] != true && !(newLayer['is_background'] == null && ['image1', 'main_image', 'bg', 'background', '_frame_bg'].contains(layerName))) {
             if (newLayer['type'] != 'image' || !['phone', 'email', 'website', 'address', 'social'].any((e) => layerName.contains(e))) {
-              if (newLayer['type'] != 'image' || rawW > 200 || rawH > 200) {
+              bool isShapeMarked = newLayer['is_shape'] == true;
+              if (newLayer['type'] != 'image' || rawW > 200 || rawH > 200 || isShapeMarked) {
                double px = safeDouble((newLayer['x'] ?? 0) as num);
                double py = safeDouble((newLayer['y'] ?? 0) as num);
                double pw = safeDouble((newLayer['w'] ?? newLayer['width'] ?? 0) as num);
                double ph = safeDouble((newLayer['h'] ?? newLayer['height'] ?? 0) as num);
-               if (pw > 50 && ph > 10) {
+               if (pw > 20 && ph > 10) {
                  shapeLayers.add({'x': px, 'y': py, 'w': pw, 'h': ph});
                }
               }
@@ -1061,6 +1108,21 @@ class NativeEditorController extends GetxController {
       var finalLayersList = uniqueLayers.reversed.toList();
       _deduplicateLayerNames(finalLayersList);
       templateConfig['layers'] = finalLayersList;
+
+      int newRenderVersion = 1;
+      if (newFrameJson['render_version'] != null) {
+        newRenderVersion = (newFrameJson['render_version'] is int) ? newFrameJson['render_version'] : safeDouble(newFrameJson['render_version'] as num).toInt();
+      } else if (configJson != null && configJson['render_version'] != null) {
+        newRenderVersion = (configJson['render_version'] is int) ? configJson['render_version'] : safeDouble(configJson['render_version'] as num).toInt();
+      } else if (newFrameJson['info'] != null && newFrameJson['info'] is Map && newFrameJson['info']['render_version'] != null) {
+        newRenderVersion = (newFrameJson['info']['render_version'] is int) ? newFrameJson['info']['render_version'] : safeDouble(newFrameJson['info']['render_version'] as num).toInt();
+      }
+      if (newRenderVersion > (templateConfig['render_version'] as int? ?? 1)) {
+        templateConfig['render_version'] = newRenderVersion;
+      } else if (newFrameJson['render_version'] != null || (configJson != null && configJson['render_version'] != null)) {
+        templateConfig['render_version'] = newRenderVersion;
+      }
+
       templateConfig.refresh();
       _pushHistory();
 
@@ -1344,7 +1406,7 @@ class NativeEditorController extends GetxController {
     bool isIcon = layer['type'] == 'image' && (
                   ['phone', 'email', 'website', 'address', 'social'].contains(layer['_businessKey']) ||
                   ['phone', 'email', 'website', 'address', 'call', 'mobile', 'contact', 'whatsapp', 'tel',
-                   'mail', 'web', 'url', 'location', 'facebook', 'instagram', 'twitter', 'youtube',
+                   'mail', 'web', 'url', 'location', 'icon', 'facebook', 'instagram', 'twitter', 'youtube',
                    'social', 'linkedin'].any((key) => lname.contains(key))
                   );
 

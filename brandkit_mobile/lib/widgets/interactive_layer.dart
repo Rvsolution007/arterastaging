@@ -12,6 +12,7 @@ class InteractiveLayer extends StatefulWidget {
   final Widget child;
   final double scale;
   final Map<String, dynamic> layerConfig;
+  final int renderVersion;
 
   const InteractiveLayer({
     super.key,
@@ -19,6 +20,7 @@ class InteractiveLayer extends StatefulWidget {
     required this.child,
     required this.scale,
     required this.layerConfig,
+    this.renderVersion = 1,
   });
 
   @override
@@ -67,6 +69,10 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
 
       final double layerScaleX = safeDouble(widget.layerConfig['scaleX'] ?? 1.0);
       final double layerScaleY = safeDouble(widget.layerConfig['scaleY'] ?? 1.0);
+
+      if (widget.renderVersion >= 3 && (layerScaleX != 1.0 || layerScaleY != 1.0)) {
+          debugPrint('⚠️ [V3] Layer "${widget.layerName}" has scaleX=$layerScaleX, scaleY=$layerScaleY — expected 1.0 for baked dimensions');
+      }
 
       final double w = rawW * layerScaleX * widget.scale;
       final double h = rawH * layerScaleY * widget.scale;

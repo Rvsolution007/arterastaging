@@ -1,14 +1,1 @@
-<?php
-$zips = glob('public/uploads/custom_frames_zips/*.zip');
-if (count($zips) > 0) {
-    $zip = new ZipArchive();
-    if ($zip->open($zips[0]) === true) {
-        for ($i = 0; $i < $zip->numFiles; $i++) {
-            $name = $zip->getNameIndex($i);
-            if (substr($name, -5) === '.json') {
-                echo $zip->getFromIndex($i);
-                break;
-            }
-        }
-    }
-} else { echo 'No zip found'; }
+<?php require 'vendor/autoload.php'; $app = require_once 'bootstrap/app.php'; $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class); $kernel->bootstrap(); $t = \App\Models\EditorTemplate::orderByDesc('updated_at')->first(); $res = array_filter($t->schema_json['elements'] ?? [], function($el) { return $el['type'] === 'image' && isset($el['tint_color']); }); echo json_encode($res, JSON_PRETTY_PRINT);

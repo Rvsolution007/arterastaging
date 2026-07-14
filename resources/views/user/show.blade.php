@@ -449,11 +449,11 @@
                                 </div>
                                 <div class="col-md-6 mb-4">
                                     <label class="form-label-premium">Start Date</label>
-                                    {!! Form::text('subscription_start_from',($data->subscription_start_date)?date('d M, Y',strtotime($data->subscription_start_date)):"",['class' => 'form-control-premium datepicker w-100','required',"autocomplete"=>"off"]) !!}
+                                    {!! Form::date('subscription_start_from',($data->subscription_start_date)?date('Y-m-d',strtotime($data->subscription_start_date)):"",['class' => 'form-control-premium w-100','required',"autocomplete"=>"off"]) !!}
                                 </div>
                                 <div class="col-md-6 mb-4">
                                     <label class="form-label-premium">Expiry Date</label>
-                                    {!! Form::text('subscription_start_to',($data->subscription_end_date)?date('d M, Y',strtotime($data->subscription_end_date)):"",['class' => 'form-control-premium datepicker w-100','required',"autocomplete"=>"off"]) !!}
+                                    {!! Form::date('subscription_start_to',($data->subscription_end_date)?date('Y-m-d',strtotime($data->subscription_end_date)):"",['class' => 'form-control-premium w-100','required',"autocomplete"=>"off"]) !!}
                                 </div>
                             </div>
                             <div class="text-right mt-3">

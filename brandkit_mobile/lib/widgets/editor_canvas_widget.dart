@@ -91,6 +91,61 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
 
   /// Whether post-frame measurement has completed at least once.
   bool _hasMeasured = false;
+  String _activeMaskShapeId = '';
+
+  bool _goldenCaptured = false;
+
+  void _captureNativeGolden(List<Widget> children, double scale, int renderVersion) {
+      // Debounce — only send once
+      _goldenCaptured = true;
+      widget.config['_golden_sent'] = true;
+
+      // Build native_computed map from current layer data
+      final layers = widget.config['layers'] as List<dynamic>? ?? [];
+      final Map<String, Map<String, dynamic>> nativeComputed = {};
+
+      for (var layer in layers) {
+          final name = (layer['name'] ?? layer['id'] ?? '').toString();
+          if (name.isEmpty) continue;
+
+          final double x = safeDouble(layer['x'] ?? 0);
+          final double y = safeDouble(layer['y'] ?? 0);
+          final double w = safeDouble(layer['w'] ?? layer['width'] ?? 0);
+          final double h = safeDouble(layer['h'] ?? layer['height'] ?? 0);
+
+          nativeComputed[name] = {
+              'finalX': (x * scale).roundToDouble(),
+              'finalY': (y * scale).roundToDouble(),
+              'finalW': (w * scale).roundToDouble(),
+              'finalH': (h * scale).roundToDouble(),
+              'type': layer['type'] ?? 'unknown',
+          };
+
+          // For text layers, also capture computed font size
+          if (layer['type'] == 'text') {
+              final double rawSize = safeDouble(layer['fontSize'] ?? layer['font_size'] ?? layer['size'] ?? 16);
+              final double ppiScale = safeDouble(widget.config['info']?['ppi'] ?? 72) / 72.0;
+              final double layerScaleY = safeDouble(layer['scaleY'] ?? 1);
+              nativeComputed[name]!['finalFontSize'] = (rawSize * ppiScale * layerScaleY * scale).roundToDouble();
+          }
+      }
+
+      // Get frame info
+      final frameId = widget.config['info']?['id'] ?? widget.config['id'];
+      final zipName = widget.config['info']?['zip_name'] ?? widget.config['zip_name'] ?? '';
+
+      if (frameId != null && zipName.toString().isNotEmpty) {
+          // Send to server (fire and forget — don't block render)
+          ApiService.post('/golden-render/capture-native', {
+              'frame_id': frameId,
+              'zip_name': zipName,
+              'render_version': renderVersion,
+              'native_computed': nativeComputed,
+          }).catchError((e) {
+              debugPrint('[GOLDEN] Error sending native golden: $e');
+          });
+      }
+  }
 
   @override
   void initState() {
@@ -672,6 +727,9 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
           final bool candIsShape = candidate['is_shape'] == true || candidate['is_shape'] == 1;
           if (!candIsShape) continue;
           
+          // NEW: Skip shapes with tint_color — they are decorative icons/shapes, not PSD masks
+          if (candidate['tint_color'] != null) continue;
+          
           final double cx = safeDouble(candidate['x'] ?? 0);
           final double cy = safeDouble(candidate['y'] ?? 0);
           final double cw = safeDouble(candidate['w'] ?? candidate['width'] ?? 0);
@@ -791,7 +849,13 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         }
       }
 
-      stackChildren.add(_buildLayer(layer, scale));
+      stackChildren.add(_buildLayer(layer, scale, renderVersion));
+    }
+
+    // === GOLDEN SNAPSHOT: Capture native computed values (once per frame) ===
+    // Only run this in non-edit mode (preview/initial load), not on every rebuild
+    if (!_goldenCaptured && widget.config['_golden_sent'] != true) {
+        _captureNativeGolden(stackChildren, scale, renderVersion);
     }
 
     return AnimatedOpacity(
@@ -813,7 +877,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     );
   }
 
-  Widget _buildLayer(Map<String, dynamic> layer, double scale) {
+  Widget _buildLayer(Map<String, dynamic> layer, double scale, int renderVersion) {
     final String name =
         (layer['name'] ?? layer['id'] ?? '').toString().toLowerCase();
     final String rawName =
@@ -845,6 +909,10 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     if (isUsedAsMask) {
       debugPrint('[LAYER_HIDE] Hiding "$name" — used as mask shape by another layer');
       return const SizedBox.shrink();
+    }
+
+    if ((layer['is_shape'] == true || layer['is_shape'] == 1) && layer['tint_color'] != null) {
+      debugPrint('[LAYER_DIAG] Processing decorated shape/icon (has tint_color): "$name"');
     }
 
     // ══ FULL LAYER DIAGNOSTICS ══
@@ -923,14 +991,15 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       final double currentY = safeDouble(effectiveLayer['y'] ?? 0);
       final String textKind = (effectiveLayer['kind'] ?? '').toString().toLowerCase();
       
-      // The Web Editor exports JSON with an artificial +0.12 * fontSize Y-offset for ALL text (Point & Paragraph).
-      // Flutter's Text widget with height: 1.16 introduces internal leading (~0.08 * fontSize visual padding at the top).
-      // InteractiveLayer ALREADY subtracts 0.12 for 'point' text (due to a locked legacy rule).
-      // So for 'point', we only need to compensate the remaining 0.08 (Flutter padding).
-      // For 'paragraph', we must subtract the full 0.20 (0.12 JSON + 0.08 padding).
-      final double offsetMultiplier = (textKind == 'point') ? 0.08 : 0.20;
-      final double yAdjustment = fontSize * offsetMultiplier;
-      effectiveLayer['y'] = currentY - yAdjustment;
+      // ── Y-Offset: Only apply legacy adjustment for versions < 3 ──
+      // Version 3+ has the correct Y pre-baked by the web editor
+      if (renderVersion < 3) {
+        final double offsetMultiplier = (textKind == 'point') ? 0.08 : 0.20;
+        final double yAdjustment = fontSize * offsetMultiplier;
+        effectiveLayer['y'] = currentY - yAdjustment;
+      } else {
+        effectiveLayer['y'] = currentY;
+      }
 
       // ══ COMPREHENSIVE TEXT DIAGNOSTICS ══
       debugPrint('┌─────────────────────────────────────────────────────────');
@@ -949,8 +1018,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       debugPrint('│   json.scaleX=${layer['scaleX']}  json.scaleY=${layer['scaleY']}');
       debugPrint('│   ── COMPUTED VALUES ──');
       debugPrint('│   rawSize=$rawSize  docPPI=$docPPI  ppiScale=$ppiScale  fontSize(design)=$fontSize');
-      debugPrint('│   textKind=$textKind  offsetMultiplier=$offsetMultiplier');
-      debugPrint('│   yAdjustment=$yAdjustment');
+      debugPrint('│   textKind=$textKind');
       debugPrint('│   original_Y=$currentY  adjusted_Y=${effectiveLayer['y']}');
       debugPrint('│   ── INTERACTIVE_LAYER WILL COMPUTE ──');
       debugPrint('│   scale=$scale');
@@ -983,7 +1051,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       final key =
           _textKeys.putIfAbsent(uniqueKeyName, () => GlobalKey());
       content = KeyedSubtree(key: key, child: content);
-    } else if (type == 'image' || type == 'shape' || type == 'rect') {
+    } else if (type == 'image') {
       // ══ IMAGE/SHAPE DIAGNOSTICS ══
       debugPrint('┌─────────────────────────────────────────────────────────');
       debugPrint('│ [IMG_DIAG] name="${effectiveLayer['name']}"  type=$type');
@@ -998,6 +1066,14 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       debugPrint('└─────────────────────────────────────────────────────────');
       content =
           _buildImageLayer(effectiveLayer, name, scale, nativeW, nativeH);
+    } else if (type == 'shape' || type == 'rect') {
+      // ── RENDER V4: Native vector shape rendering ──
+      if (renderVersion >= 4) {
+        content = _buildVectorShape(effectiveLayer, name, scale, nativeW, nativeH);
+      } else {
+        // V1-V3: Treat shape as image (old rasterized PNG behavior)
+        content = _buildImageLayer(effectiveLayer, name, scale, nativeW, nativeH);
+      }
     } else if (type == 'icon') {
       content =
           _buildIconLayer(effectiveLayer, name, scale, nativeW, nativeH);
@@ -1017,6 +1093,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       layerName: rawName,
       layerConfig: effectiveLayer,
       scale: scale,
+      renderVersion: renderVersion,
       child: content,
     );
   }
@@ -1459,7 +1536,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
 
   Widget _buildImageLayer(Map<String, dynamic> layer, String lname,
       double scale, double nativeW, double nativeH) {
-    String src = layer['src'] ?? '';
+    String src = layer['src'] ?? layer['_fallback_src'] ?? '';
     String? mappedImg;
 
     // Map AI injected images
@@ -1540,6 +1617,11 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         pathType = 'BASE_IMG';
       } else {
         finalUrl = _resolveAssetUrl(src);
+      }
+      
+      // Add cache buster to invalidate old transparent PNGs in memory cache
+      if (finalUrl.startsWith('http') && !finalUrl.contains('?')) {
+        finalUrl = '$finalUrl?v=2';
       }
       
       final bool isShape = layer['is_shape'] == true;
@@ -1626,7 +1708,8 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     // an ellipse-shaped layer (API_INJECTED, BASE_IMG, AI_MAPPED). Template asset PNGs
     // (TEMPLATE_ASSET) already have their shape baked into the alpha channel —
     // clipping them with ClipOval would distort/cut them in half.
-    final bool isShapeLayer = layer['is_shape'] == true || layer['is_shape'] == 1;
+    final bool isIcon = ['facebook', 'instagram', 'twitter', 'youtube', 'linkedin', 'icon', 'social', 'mail', 'location'].any((k) => _lowName.contains(k));
+    final bool isShapeLayer = layer['is_shape'] == true || layer['is_shape'] == 1 || isIcon;
     final bool hasInjectedImage = (pathType == 'API_INJECTED' || pathType == 'BASE_IMG' || pathType == 'AI_MAPPED');
     bool clipOval = !isShapeLayer && hasInjectedImage && (_lowName.contains('ellipse') || _lowName.contains('circle') || _lowName.contains('round'));
     
@@ -1654,8 +1737,8 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         gradientColors: gradientColors, gradientDir: gradientDir, 
         isLocal: isLocal, flipX: flipX, clipOval: false);
       
-      if (maskShapeLayer.isNotEmpty && maskShapeLayer['src'] != null) {
-        final String maskSrc = maskShapeLayer['src'] ?? '';
+      if (maskShapeLayer.isNotEmpty && (maskShapeLayer['src'] != null || maskShapeLayer['_fallback_src'] != null)) {
+        final String maskSrc = maskShapeLayer['src'] ?? maskShapeLayer['_fallback_src'] ?? '';
         final String maskUrl = _resolveAssetUrl(maskSrc);
         
         debugPrint('[MASK_DIAG] maskSrc="$maskSrc" → maskUrl="$maskUrl"');
@@ -1670,7 +1753,6 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       }
       debugPrint('[MASK_DIAG] ═══════════════════════════════════════');
     }
-    
     return imgWidget;
   }
 
@@ -1835,6 +1917,212 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     return imgWidget;
   }
 
+  /// ── RENDER V4: Renders shapes natively without PNG ──
+  /// Supports: rect, ellipse/circle, triangle, line, icon
+  /// Fallback: For complex shapes (polygon, path), uses _fallback_src PNG
+  Widget _buildVectorShape(Map<String, dynamic> layer, String lname,
+      double scale, double nativeW, double nativeH) {
+    
+    final String shapeType = (layer['shapeType'] ?? 'rect').toString().toLowerCase();
+    
+    // If it's an icon shape, delegate to _buildIconLayer
+    if (shapeType == 'icon' || layer['iconName'] != null) {
+      return _buildIconLayer(layer, lname, scale, nativeW, nativeH);
+    }
+
+    final double w = nativeW * scale;
+    final double h = nativeH * scale;
+    final double opacity = safeDouble(layer['opacity'] ?? 1.0);
+    final double rotation = safeDouble(layer['rotation'] ?? 0);
+    
+    // ── Parse Fill Color ──
+    Color fillColor = Colors.transparent;
+    List<Color>? gradientColors;
+    Gradient? gradient;
+    
+    final dynamic fillVal = layer['fill'];
+    if (fillVal is String && fillVal.isNotEmpty && fillVal != 'none') {
+      fillColor = _parseColor(fillVal, fallback: Colors.transparent);
+      gradientColors = _parseGradient(fillVal);
+    } else if (fillVal is Map) {
+      // Fabric.js gradient object
+      gradient = _fabricGradientToFlutter(fillVal, w, h);
+    }
+    
+    // ── Parse Stroke ──
+    Color strokeColor = Colors.transparent;
+    double strokeWidth = 0;
+    if (layer['stroke'] != null && layer['stroke'].toString() != 'null' && layer['stroke'].toString() != 'none') {
+      strokeColor = _parseColor(layer['stroke'].toString());
+      strokeWidth = safeDouble(layer['strokeWidth'] ?? 0) * scale;
+    }
+    
+    // ── Parse Border Radius ──
+    double rx = safeDouble(layer['rx'] ?? 0) * scale;
+    double ry = safeDouble(layer['ry'] ?? 0) * scale;
+    
+    Widget shapeWidget;
+    
+    // ═══════════════════════════════════════════════════════
+    // RECT / ROUNDED RECT
+    // ═══════════════════════════════════════════════════════
+    if (shapeType == 'rect' || shapeType == 'rectangle') {
+      shapeWidget = Container(
+        width: w,
+        height: h,
+        decoration: BoxDecoration(
+          color: gradient == null ? fillColor : null,
+          gradient: gradient,
+          borderRadius: (rx > 0 || ry > 0)
+              ? BorderRadius.all(Radius.elliptical(rx, ry))
+              : null,
+          border: strokeWidth > 0
+              ? Border.all(color: strokeColor, width: strokeWidth)
+              : null,
+        ),
+      );
+    }
+    // ═══════════════════════════════════════════════════════
+    // ELLIPSE / CIRCLE
+    // ═══════════════════════════════════════════════════════
+    else if (shapeType == 'ellipse' || shapeType == 'circle') {
+      shapeWidget = Container(
+        width: w,
+        height: h,
+        decoration: BoxDecoration(
+          color: gradient == null ? fillColor : null,
+          gradient: gradient,
+          shape: (w == h) ? BoxShape.circle : BoxShape.rectangle,
+          borderRadius: (w != h)
+              ? BorderRadius.all(Radius.elliptical(w / 2, h / 2))
+              : null,
+          border: strokeWidth > 0
+              ? Border.all(color: strokeColor, width: strokeWidth)
+              : null,
+        ),
+      );
+    }
+    // ═══════════════════════════════════════════════════════
+    // TRIANGLE
+    // ═══════════════════════════════════════════════════════
+    else if (shapeType == 'triangle') {
+      shapeWidget = SizedBox(
+        width: w,
+        height: h,
+        child: CustomPaint(
+          painter: _TrianglePainter(
+            fillColor: fillColor,
+            strokeColor: strokeColor,
+            strokeWidth: strokeWidth,
+            gradient: gradient,
+          ),
+        ),
+      );
+    }
+    // ═══════════════════════════════════════════════════════
+    // LINE
+    // ═══════════════════════════════════════════════════════
+    else if (shapeType == 'line') {
+      shapeWidget = SizedBox(
+        width: w,
+        height: h.clamp(1.0, double.infinity),
+        child: CustomPaint(
+          painter: _LinePainter(
+            color: strokeColor != Colors.transparent ? strokeColor : fillColor,
+            strokeWidth: strokeWidth > 0 ? strokeWidth : 1.0 * scale,
+          ),
+        ),
+      );
+    }
+    // ═══════════════════════════════════════════════════════
+    // COMPLEX SHAPES (polygon, path) — use fallback PNG
+    // ═══════════════════════════════════════════════════════
+    else {
+      final String fallbackSrc = layer['_fallback_src'] ?? layer['src'] ?? '';
+      if (fallbackSrc.isNotEmpty) {
+        return _buildImageLayer(layer, lname, scale, nativeW, nativeH);
+      }
+      shapeWidget = Container(width: w, height: h, color: fillColor);
+    }
+    
+    // ── Apply Gradient via ShaderMask if fill is string gradient ──
+    if (gradientColors != null && gradientColors.length >= 2 && gradient == null) {
+      String gradientDir = (layer['gradient_direction'] ?? 'vertical').toString();
+      Alignment begin = Alignment.topCenter;
+      Alignment end = Alignment.bottomCenter;
+      if (gradientDir.contains('horizontal') || gradientDir.contains('left')) {
+        begin = Alignment.centerLeft;
+        end = Alignment.centerRight;
+      }
+      shapeWidget = ShaderMask(
+        blendMode: BlendMode.srcIn,
+        shaderCallback: (bounds) => LinearGradient(
+          begin: begin, end: end, colors: gradientColors!,
+        ).createShader(bounds),
+        child: shapeWidget,
+      );
+    }
+    
+    // ── Apply Opacity ──
+    if (opacity < 1.0 && opacity >= 0.0) {
+      shapeWidget = Opacity(opacity: opacity, child: shapeWidget);
+    }
+    
+    // ── Apply Rotation ──
+    if (rotation != 0) {
+      shapeWidget = Transform.rotate(
+        angle: rotation * 3.1415926535897932 / 180,
+        child: shapeWidget,
+      );
+    }
+    
+    return shapeWidget;
+  }
+
+  /// Convert Fabric.js gradient object to Flutter Gradient
+  Gradient? _fabricGradientToFlutter(Map<dynamic, dynamic> gradObj, double w, double h) {
+    try {
+      final coords = gradObj['coords'] as Map?;
+      final colorStops = gradObj['colorStops'] as List?;
+      if (coords == null || colorStops == null || colorStops.isEmpty) return null;
+
+      final colors = colorStops.map((stop) {
+        if (stop is Map) {
+          return _parseColor(stop['color']?.toString() ?? '#000000');
+        }
+        return const Color(0xFF000000);
+      }).toList();
+
+      final stops = colorStops.map((stop) {
+        if (stop is Map) {
+          return safeDouble(stop['offset'] ?? 0);
+        }
+        return 0.0;
+      }).toList();
+
+      final x1 = safeDouble(coords['x1'] ?? 0);
+      final y1 = safeDouble(coords['y1'] ?? 0);
+      final x2 = safeDouble(coords['x2'] ?? 0);
+      final y2 = safeDouble(coords['y2'] ?? 0);
+
+      return LinearGradient(
+        begin: Alignment(
+          (x1 / (w > 0 ? w : 1)) * 2 - 1,
+          (y1 / (h > 0 ? h : 1)) * 2 - 1,
+        ),
+        end: Alignment(
+          (x2 / (w > 0 ? w : 1)) * 2 - 1,
+          (y2 / (h > 0 ? h : 1)) * 2 - 1,
+        ),
+        colors: colors,
+        stops: stops.length == colors.length ? stops : null,
+      );
+    } catch (e) {
+      debugPrint('[GRADIENT] Failed to parse Fabric gradient: $e');
+      return null;
+    }
+  }
+
   Widget _buildIconLayer(Map<String, dynamic> layer, String lname,
       double scale, double nativeW, double nativeH) {
     final String iconName = layer['iconName'] ?? '';
@@ -1968,6 +2256,78 @@ class _TextShiftSource {
     this.shrinkableGap = 0,
     this.appliedCompression = 0,
   });
+}
+
+/// Triangle painter for CustomPaint
+class _TrianglePainter extends CustomPainter {
+  final Color fillColor;
+  final Color strokeColor;
+  final double strokeWidth;
+  final Gradient? gradient;
+
+  _TrianglePainter({
+    required this.fillColor,
+    required this.strokeColor,
+    required this.strokeWidth,
+    this.gradient,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(size.width / 2, 0)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+
+    final fillPaint = Paint()..style = PaintingStyle.fill;
+    if (gradient != null) {
+      fillPaint.shader = gradient!.createShader(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+      );
+    } else {
+      fillPaint.color = fillColor;
+    }
+    canvas.drawPath(path, fillPaint);
+
+    if (strokeWidth > 0) {
+      final strokePaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..color = strokeColor
+        ..strokeWidth = strokeWidth;
+      canvas.drawPath(path, strokePaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TrianglePainter old) =>
+      old.fillColor != fillColor || old.strokeColor != strokeColor || 
+      old.strokeWidth != strokeWidth;
+}
+
+/// Line painter for CustomPaint
+class _LinePainter extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+
+  _LinePainter({required this.color, required this.strokeWidth});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(
+      Offset(0, size.height / 2),
+      Offset(size.width, size.height / 2),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _LinePainter old) =>
+      old.color != color || old.strokeWidth != strokeWidth;
 }
 
 class CustomImageMaskWidget extends StatefulWidget {

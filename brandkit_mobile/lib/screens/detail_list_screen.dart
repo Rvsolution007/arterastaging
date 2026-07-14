@@ -13,6 +13,7 @@ import '../controllers/ad_controller.dart';
 import '../controllers/auth_controller.dart';
 import '../controllers/subscription_controller.dart';
 import '../utils/app_colors.dart';
+import '../utils/template_json_cache.dart';
 import 'editor_screen.dart';
 import 'package:http/http.dart' as http;
 import 'package:gal/gal.dart';
@@ -204,6 +205,9 @@ class _DetailListScreenState extends State<DetailListScreen> {
           itemImage = data['itemImage'] ?? '';
           selectedIndex = 0;
         });
+
+        // Background prefetch for hybrid renderer
+        _prefetchTemplates(frames);
       } else {
         debugPrint('Failed to fetch frames: ${response.statusCode} ${response.body}');
       }
@@ -211,6 +215,37 @@ class _DetailListScreenState extends State<DetailListScreen> {
       debugPrint('Error fetching frames: $e');
     } finally {
       setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _prefetchTemplates(List<dynamic> fetchedFrames) async {
+    try {
+      List<int> idsToFetch = [];
+      for (var f in fetchedFrames) {
+        if (f['frameId'] != null) {
+          idsToFetch.add(int.parse(f['frameId'].toString()));
+        }
+      }
+      if (idsToFetch.isEmpty) return;
+
+      final idsStr = idsToFetch.take(20).join(',');
+      final response = await ApiService.get('/templates/batch?ids=$idsStr');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true && data['templates'] != null) {
+          for (var tpl in data['templates']) {
+            if (tpl['zip_name'] != null && tpl['json'] != null) {
+              await TemplateJsonCache.save(
+                tpl['zip_name'],
+                jsonEncode(tpl['json']),
+                tpl['updated_at'],
+              );
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error prefetching templates: $e');
     }
   }
 

@@ -64,6 +64,130 @@ use Illuminate\Support\Facades\Cache;
 
 class HomeApi extends Controller
 {
+    /**
+     * Resolve template JSON from the fastest available source.
+     * Priority: 1) Redis Cache 2) DB layers_json/schema_json  3) Disk file
+     *
+     * @param  string      $zipName  The zip_name identifier (e.g. "Template_abc123")
+     * @param  int|null    $frameId  Optional PosterMaker ID for DB lookup
+     * @return string|null Raw JSON string, or null if not found
+     */
+    private function resolveTemplateJson(string $zipName, ?int $frameId = null): ?string
+    {
+        $cacheKey = "template_json:{$zipName}";
+        $cacheTTL = 3600; // 1 hour
+
+        // === SOURCE 1: Redis Cache (fastest — 5ms) ===
+        $cached = \Cache::get($cacheKey);
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        // === SOURCE 2: DB Column (fast — 20-50ms) ===
+        $jsonData = null;
+
+        if ($frameId) {
+            $poster = \App\Models\PosterMaker::find($frameId);
+            if ($poster && !empty($poster->layers_json)) {
+                $jsonData = is_array($poster->layers_json)
+                    ? json_encode($poster->layers_json, JSON_UNESCAPED_SLASHES)
+                    : $poster->layers_json;
+            }
+        }
+
+        if ($jsonData === null) {
+            $editorTemplate = \App\Models\EditorTemplate::where('uuid', $zipName)->first();
+            if ($editorTemplate && !empty($editorTemplate->legacy_json)) {
+                $jsonData = is_array($editorTemplate->legacy_json)
+                    ? json_encode($editorTemplate->legacy_json, JSON_UNESCAPED_SLASHES)
+                    : $editorTemplate->legacy_json;
+            }
+        }
+
+        // === SOURCE 3: Disk File (slowest fallback — 100-200ms) ===
+        if ($jsonData === null) {
+            $jsonDir = public_path('uploads/template/' . $zipName . '/json/');
+            if (is_dir($jsonDir)) {
+                $files = scandir($jsonDir, 1);
+                foreach ($files as $f) {
+                    if ($f !== '.' && $f !== '..') {
+                        $jsonData = file_get_contents($jsonDir . $f);
+                        break;
+                    }
+                }
+            }
+        }
+
+        if ($jsonData === null) return null;
+
+        // Ensure render_version exists
+        $jsonData = $this->ensureRenderVersion($jsonData);
+
+        // Store in Redis for next request
+        \Cache::put($cacheKey, $jsonData, $cacheTTL);
+
+        return $jsonData;
+    }
+
+    /**
+     * Ensure every JSON payload has a render_version field (default to 1).
+     * This prevents the mobile app from receiving JSON without version info.
+     */
+    private function ensureRenderVersion(string $jsonData): string
+    {
+        $parsed = json_decode($jsonData, true);
+        if ($parsed && !isset($parsed['render_version'])) {
+            $parsed['render_version'] = 1;
+            return json_encode($parsed, JSON_UNESCAPED_SLASHES);
+        }
+        return $jsonData;
+    }
+
+    /**
+     * Build the full CDN/server base URL for template assets (images, skins).
+     * Used by the mobile app to construct full image URLs from relative paths.
+     *
+     * @param  string $zipName The template zip_name
+     * @return string Full base URL ending with /
+     */
+    private function getTemplateBaseUrl(string $zipName): string
+    {
+        $storage = \App\Models\StorageSetting::getStorageSetting('storage');
+        if ($storage === 'DigitalOcean') {
+            return \Storage::disk('spaces')->url('uploads/template/' . $zipName) . '/';
+        }
+        // Local storage
+        return str_replace(
+            'public/uploads',
+            'uploads',
+            asset('uploads/template/' . $zipName)
+        ) . '/';
+    }
+
+    /**
+     * Check if client's cached version is still fresh.
+     * Returns HTTP 304 (Not Modified) if no update needed.
+     *
+     * Usage: Call at the start of any API endpoint that returns template data.
+     */
+    private function checkConditionalRequest(Request $request, string $zipName): ?\Illuminate\Http\Response
+    {
+        $clientTimestamp = $request->query('last_updated');
+        if (!$clientTimestamp) return null;
+
+        // Check if template has been updated since client's version
+        $poster = \App\Models\PosterMaker::where('zip_name', $zipName)->first();
+        if (!$poster) return null;
+
+        $serverTimestamp = $poster->updated_at?->toIso8601String();
+
+        if ($serverTimestamp && $clientTimestamp === $serverTimestamp) {
+            return response('', 304); // Not Modified — client has latest version
+        }
+
+        return null; // Modified — send full response
+    }
+
     public function getHomeData()
     {
         $limit = 20;
@@ -254,24 +378,7 @@ class HomeApi extends Controller
                     if($cc->zip_name)
                     {
                         // === OPTIMIZATION: Cache template JSON per zip_name ===
-                        $zip_name_key = $cc->zip_name;
-                        $json_data = Cache::remember("template_json:{$zip_name_key}", 3600, function () use ($cc, $isDigitalOcean) {
-                            if($isDigitalOcean)
-                            {
-                                $file = Storage::disk('spaces')->allFiles('uploads/template/'.$cc->zip_name.'/json/');
-                                return file_get_contents(Storage::disk('spaces')->url($file[0]));
-                            }
-                            else
-                            {
-                                if (is_dir('./uploads/template/'.$cc->zip_name.'/json/')) {
-                                    $file = scandir('./uploads/template/'.$cc->zip_name.'/json/', 1);
-                                    if (isset($file[0]) && $file[0] != '.' && $file[0] != '..') {
-                                        return file_get_contents(asset('uploads/template/'.$cc->zip_name.'/json/'.$file[0]));
-                                    }
-                                }
-                                return "";
-                            }
-                        });
+                        $json_data = $this->resolveTemplateJson($cc->zip_name) ?? '';
                     }
 
                     $frame_data[] = array(
@@ -288,6 +395,9 @@ class HomeApi extends Controller
                         "aspect_ratio" => $cc->aspect_ratio,
                         "name" => ($cc->zip_name)?$cc->zip_name:"",
                         "json" => ($cc->zip_name)?$json_data:"",
+                        "templateBaseUrl" => ($cc->zip_name)?$this->getTemplateBaseUrl($cc->zip_name):"",
+                        "render_version" => $cc->render_version ?? 1,
+                        "updated_at" => $cc->updated_at?->toIso8601String() ?? null,
                     );
                 }
             }
@@ -486,35 +596,7 @@ class HomeApi extends Controller
 
                 if($zip_name)
                 {
-                    // === OPTIMIZATION: Cache template JSON per zip_name ===
-                    $json_data = Cache::remember("template_json:{$zip_name}", 3600, function () use ($zip_name, $isDigitalOcean) {
-                        if($isDigitalOcean)
-                        {
-                            $file = Storage::disk('spaces')->allFiles('uploads/template/'.$zip_name.'/json/');
-                            if(!empty($file)) {
-                                return file_get_contents(Storage::disk('spaces')->url($file[0]));
-                            }
-                        }
-                        else
-                        {
-                            if(is_dir('./uploads/template/'.$zip_name.'/json/')) {
-                                $file = scandir('./uploads/template/'.$zip_name.'/json/', 1);
-                                if(isset($file[0]) && $file[0] != '.' && $file[0] != '..') {
-                                    return file_get_contents(public_path('uploads/template/'.$zip_name.'/json/'.$file[0]));
-                                }
-                            }
-                        }
-                        return "";
-                    });
-
-                    // Default render_version to 1 for legacy frames without versioning
-                    if (!empty($json_data)) {
-                        $tmpParsed = json_decode($json_data, true);
-                        if ($tmpParsed && !isset($tmpParsed['render_version'])) {
-                            $tmpParsed['render_version'] = 1;
-                            $json_data = json_encode($tmpParsed);
-                        }
-                    }
+                    $json_data = $this->resolveTemplateJson($zip_name, $frame->id) ?? '';
                 }
 
                 $preview_img = "";
@@ -613,6 +695,9 @@ class HomeApi extends Controller
                     "aspect_ratio" => $frame->aspect_ratio ?? "1:1",
                     "name" => ($zip_name)?$zip_name:"",
                     "json" => ($zip_name)?$json_data:"",
+                    "render_version" => $frame->render_version ?? 1,
+                    "updated_at" => $frame->updated_at?->toIso8601String() ?? null,
+                    "tags" => $frame->tags ?? [],
                     "created_at" => $frame->created_at ? $frame->created_at->toISOString() : null,
                 );
             }
@@ -682,25 +767,7 @@ class HomeApi extends Controller
 
             if($zip_name)
             {
-                $json_data = Cache::remember("template_json:{$zip_name}", 3600, function () use ($zip_name, $isDigitalOcean) {
-                    if($isDigitalOcean)
-                    {
-                        $file = Storage::disk('spaces')->allFiles('uploads/template/'.$zip_name.'/json/');
-                        if(!empty($file)) {
-                            return file_get_contents(Storage::disk('spaces')->url($file[0]));
-                        }
-                    }
-                    else
-                    {
-                        if(is_dir('./uploads/template/'.$zip_name.'/json/')) {
-                            $file = scandir('./uploads/template/'.$zip_name.'/json/', 1);
-                            if(isset($file[0]) && $file[0] != '.' && $file[0] != '..') {
-                                return file_get_contents(public_path('uploads/template/'.$zip_name.'/json/'.$file[0]));
-                            }
-                        }
-                    }
-                    return "";
-                });
+                $json_data = $this->resolveTemplateJson($zip_name, $frame->id) ?? '';
             }
 
             $preview_img = "";
@@ -780,6 +847,9 @@ class HomeApi extends Controller
                 "aspect_ratio" => $frame->aspect_ratio ?? "1:1",
                 "name" => ($zip_name)?$zip_name:"",
                 "json" => ($zip_name)?$json_data:"",
+                "templateBaseUrl" => ($zip_name)?$this->getTemplateBaseUrl($zip_name):"",
+                "render_version" => $frame->render_version ?? 1,
+                "updated_at" => $frame->updated_at?->toIso8601String() ?? null,
                 "tags" => $frame->tags ?? [],
                 "created_at" => $frame->created_at ? $frame->created_at->toISOString() : null,
             );
@@ -1275,20 +1345,7 @@ class HomeApi extends Controller
             {
                 if($c->zip_name)
                 {
-                    if(StorageSetting::getStorageSetting('storage') == 'DigitalOcean')
-                    {
-                        $file = Storage::disk('spaces')->allFiles('uploads/template/'.$c->zip_name.'/json/');
-                        $json_data = file_get_contents(Storage::disk('spaces')->url($file[0]));
-                    }
-                    else
-                    {
-                        if (is_dir('./uploads/template/'.$c->zip_name.'/json/')) {
-                            $file = scandir('./uploads/template/'.$c->zip_name.'/json/', 1);
-                            if (isset($file[0]) && $file[0] != '.' && $file[0] != '..') {
-                                $json_data = file_get_contents(asset('uploads/template/'.$c->zip_name.'/json/'.$file[0]));
-                            }
-                        }
-                    }
+                    $json_data = $this->resolveTemplateJson($c->zip_name) ?? '';
                 }
 
                 $image_val = ($c->frame_image)?((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$c->frame_image):asset('uploads/'.$c->frame_image)):"";
@@ -1316,6 +1373,9 @@ class HomeApi extends Controller
                     "aspect_ratio" => $c->aspect_ratio,
                     "name" => ($c->zip_name)?$c->zip_name:"",
                     "json" => ($c->zip_name)?$json_data:"",
+                    "templateBaseUrl" => ($c->zip_name)?$this->getTemplateBaseUrl($c->zip_name):"",
+                    "render_version" => $c->render_version ?? 1,
+                    "updated_at" => $c->updated_at?->toIso8601String() ?? null,
                 );
             }
         }
@@ -2651,6 +2711,32 @@ class HomeApi extends Controller
                     
                     $clientAmount = floatval($request->get("paymentAmount"));
                     
+                    $partner_id = null;
+                    $coupon_code_id = null;
+                    $partner_commission_amount = 0;
+                    $partner_commission_status = 'pending';
+
+                    if($request->get("code") != "")
+                    {
+                        $couponCode = \App\Models\CouponCode::where('code', $request->get("code"))->first();
+                        if ($couponCode) {
+                            $coupon_code_id = $couponCode->id;
+                            
+                            // Apply coupon discount to expected amount before validation
+                            $discountAmount = ($expectedAmount * $couponCode->discount) / 100;
+                            $expectedAmount = max(0, $expectedAmount - $discountAmount);
+
+                            if ($couponCode->partner_id) {
+                                $partner = User::find($couponCode->partner_id);
+                                if ($partner && $partner->is_partner) {
+                                    $partner_id = $partner->id;
+                                    $percent = $partner->partner_commission_percent ?? \App\Models\ReferralSystem::getReferralSystem('partner_default_commission_percent') ?? 20;
+                                    $partner_commission_amount = ($request->get("paymentAmount") * $percent) / 100;
+                                }
+                            }
+                        }
+                    }
+                    
                     // Allow small rounding tolerance (1 unit of currency)
                     if ($expectedAmount > 0 && abs($clientAmount - $expectedAmount) > 1) {
                         \Log::warning('Payment amount mismatch', [
@@ -2663,27 +2749,6 @@ class HomeApi extends Controller
                             'status' => 'Error',
                             'message' => 'Payment amount does not match plan price',
                         ], 400);
-                    }
-
-                    $partner_id = null;
-                    $coupon_code_id = null;
-                    $partner_commission_amount = 0;
-                    $partner_commission_status = 'pending';
-
-                    if($request->get("code") != "")
-                    {
-                        $couponCode = \App\Models\CouponCode::where('code', $request->get("code"))->first();
-                        if ($couponCode) {
-                            $coupon_code_id = $couponCode->id;
-                            if ($couponCode->partner_id) {
-                                $partner = User::find($couponCode->partner_id);
-                                if ($partner && $partner->is_partner) {
-                                    $partner_id = $partner->id;
-                                    $percent = $partner->partner_commission_percent ?? \App\Models\ReferralSystem::getReferralSystem('partner_default_commission_percent') ?? 20;
-                                    $partner_commission_amount = ($request->get("paymentAmount") * $percent) / 100;
-                                }
-                            }
-                        }
                     }
 
                     $id = Transaction::create([
@@ -2913,15 +2978,29 @@ class HomeApi extends Controller
         $data = [];
 
         foreach ($transactions as $t) {
+            $endDate = null;
+            if ($t->subscription && $t->date) {
+                $duration = $t->subscription->duration;
+                $durationType = $t->subscription->duration_type;
+                $endDate = \Carbon\Carbon::parse($t->date)->add($duration, strtolower($durationType))->format('Y-m-d');
+            }
+
+            $paymentType = $t->payment_type;
+            if ($t->coupon_code_id && ($t->payment_type == 'Free' || $t->payment_type == '0' || $t->total_paid == 0)) {
+                $paymentType = '[' . ucfirst(strtolower($t->payment_type == '0' ? 'Free' : $t->payment_type)) . '] - Coupon Applied';
+            }
+
             $data[] = [
                 'id' => $t->id,
                 'plan_name' => $t->subscription ? $t->subscription->plan_name : 'Unknown Plan',
                 'total_paid' => $t->total_paid,
                 'payment_id' => $t->payment_id,
-                'payment_type' => $t->payment_type,
+                'payment_type' => $paymentType,
                 'date' => $t->date,
+                'start_date' => $t->date,
+                'end_date' => $endDate,
                 'status' => $t->status ?? 'success',
-                'invoice_url' => url('/invoice/' . $t->id)
+                'invoice_url' => \Illuminate\Support\Facades\URL::signedRoute('invoice.show', ['id' => $t->id])
             ];
         }
 
@@ -2976,6 +3055,15 @@ class HomeApi extends Controller
                                 return response()->json([
                                     'status' => "Error",
                                     'message' => "This coupon is valid for first-time purchases only!",
+                                ], 404);
+                            }
+                        }
+
+                        if (!empty($coupon->subscription_id) && !empty($request->planId)) {
+                            if ($coupon->subscription_id != $request->planId) {
+                                return response()->json([
+                                    'status' => "Error",
+                                    'message' => "This coupon code is only valid for a specific package.",
                                 ], 404);
                             }
                         }
@@ -3222,22 +3310,7 @@ class HomeApi extends Controller
 
                 if($zip_name)
                 {
-                    if(StorageSetting::getStorageSetting('storage') == 'DigitalOcean')
-                    {
-                        $file = Storage::disk('spaces')->allFiles('uploads/template/'.$zip_name.'/json/');
-                        if(!empty($file)) {
-                            $json_data = file_get_contents(Storage::disk('spaces')->url($file[0]));
-                        }
-                    }
-                    else
-                    {
-                        if(is_dir('./uploads/template/'.$zip_name.'/json/')) {
-                            $file = scandir('./uploads/template/'.$zip_name.'/json/', 1);
-                            if(isset($file[0]) && $file[0] != '.' && $file[0] != '..') {
-                                $json_data = file_get_contents(asset('uploads/template/'.$zip_name.'/json/'.$file[0]));
-                            }
-                        }
-                    }
+                    $json_data = $this->resolveTemplateJson($zip_name, $f->id) ?? '';
                 }
 
                 $preview_img = "";
@@ -3315,6 +3388,9 @@ class HomeApi extends Controller
                     "aspect_ratio" => $f->aspect_ratio ?? "1:1",
                     "name" => ($zip_name)?$zip_name:"",
                     "json" => ($zip_name)?$json_data:"",
+                    "templateBaseUrl" => ($zip_name)?$this->getTemplateBaseUrl($zip_name):"",
+                    "render_version" => $f->render_version ?? 1,
+                    "updated_at" => $f->updated_at?->toIso8601String() ?? null,
                 );
             }
             return $data;
@@ -3383,19 +3459,7 @@ class HomeApi extends Controller
         if ($frame) {
             $zip_name = pathinfo($frame->zip_file_path, PATHINFO_FILENAME);
             if ($zip_name) {
-                if (\App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean') {
-                    $file = \Illuminate\Support\Facades\Storage::disk('spaces')->allFiles('uploads/template/'.$zip_name.'/json/');
-                    if (!empty($file)) {
-                        $jsonData = file_get_contents(\Illuminate\Support\Facades\Storage::disk('spaces')->url($file[0]));
-                    }
-                } else {
-                    if (is_dir('./uploads/template/'.$zip_name.'/json/')) {
-                        $file = scandir('./uploads/template/'.$zip_name.'/json/', 1);
-                        if (isset($file[0]) && $file[0] != '.' && $file[0] != '..') {
-                            $jsonData = file_get_contents(asset('uploads/template/'.$zip_name.'/json/'.$file[0]));
-                        }
-                    }
-                }
+                $jsonData = $this->resolveTemplateJson($zip_name, $frameId) ?? '';
             }
 
             // Inject AI content into template JSON layers
@@ -3620,22 +3684,7 @@ class HomeApi extends Controller
 
                 if($zip_name)
                 {
-                    if(StorageSetting::getStorageSetting('storage') == 'DigitalOcean')
-                    {
-                        $file = Storage::disk('spaces')->allFiles('uploads/template/'.$zip_name.'/json/');
-                        if(!empty($file)) {
-                            $json_data = file_get_contents(Storage::disk('spaces')->url($file[0]));
-                        }
-                    }
-                    else
-                    {
-                        if(is_dir('./uploads/template/'.$zip_name.'/json/')) {
-                            $file = scandir('./uploads/template/'.$zip_name.'/json/', 1);
-                            if(isset($file[0]) && $file[0] != '.' && $file[0] != '..') {
-                                $json_data = file_get_contents(asset('uploads/template/'.$zip_name.'/json/'.$file[0]));
-                            }
-                        }
-                    }
+                    $json_data = $this->resolveTemplateJson($zip_name, $f->id) ?? '';
                 }
 
                 $preview_img = "";
@@ -3712,6 +3761,9 @@ class HomeApi extends Controller
                     "aspect_ratio" => $f->aspect_ratio ?? "1:1",
                     "name" => ($zip_name)?$zip_name:"",
                     "json" => ($zip_name)?$json_data:"",
+                    "templateBaseUrl" => ($zip_name)?$this->getTemplateBaseUrl($zip_name):"",
+                    "render_version" => $f->render_version ?? 1,
+                    "updated_at" => $f->updated_at?->toIso8601String() ?? null,
                 );
             }
         }
@@ -3983,19 +4035,12 @@ class HomeApi extends Controller
         {
             foreach($poster as $p)
             {
-                if(StorageSetting::getStorageSetting('storage') == 'DigitalOcean')
-                {
-                    $file = Storage::disk('spaces')->allFiles('uploads/template/'.$p->zip_name.'/json/');
-                    $json_data = file_get_contents(Storage::disk('spaces')->url($file[0]));
-                }
-                else
-                {
-                    if (is_dir('./uploads/template/'.$p->zip_name.'/json/')) {
-                        $file = scandir('./uploads/template/'.$p->zip_name.'/json/', 1);
-                        if (isset($file[0]) && $file[0] != '.' && $file[0] != '..') {
-                            $json_data = file_get_contents(asset('uploads/template/'.$p->zip_name.'/json/'.$file[0]));
-                        }
-                    }
+                // ── RENDER V4: Prefer DB-stored layers_json over disk file I/O ──
+                // layers_json is a column on the same poster_maker row (already loaded, ZERO extra queries)
+                if (!empty($p->layers_json)) {
+                    $json_data = is_string($p->layers_json) ? $p->layers_json : json_encode($p->layers_json);
+                } else {
+                    $json_data = $this->resolveTemplateJson($p->zip_name, $p->id) ?? '';
                 }
 
                 $data[] = array(
@@ -4010,6 +4055,9 @@ class HomeApi extends Controller
                     "req_phone" => $p->req_phone ?? 0,
                     "req_website" => $p->req_website ?? 0,
                     "json" => $json_data,
+                    "templateBaseUrl" => ($p->zip_name)?$this->getTemplateBaseUrl($p->zip_name):"",
+                    "render_version" => $p->render_version ?? 1,
+                    "updated_at" => $p->updated_at?->toIso8601String() ?? null,
                 );
             }
 
@@ -4259,19 +4307,7 @@ class HomeApi extends Controller
                 $zip_name = $cc->zip_name ?? '';
                 $json_data = '';
                 if ($zip_name) {
-                    if (StorageSetting::getStorageSetting('storage') == 'DigitalOcean') {
-                        $file = Storage::disk('spaces')->allFiles('uploads/template/'.$zip_name.'/json/');
-                        if (!empty($file)) {
-                            $json_data = file_get_contents(Storage::disk('spaces')->url($file[0]));
-                        }
-                    } else {
-                        if (is_dir('./uploads/template/'.$zip_name.'/json/')) {
-                            $file = scandir('./uploads/template/'.$zip_name.'/json/', 1);
-                            if (isset($file[0]) && $file[0] != '.' && $file[0] != '..') {
-                                $json_data = file_get_contents(asset('uploads/template/'.$zip_name.'/json/'.$file[0]));
-                            }
-                        }
-                    }
+                    $json_data = $this->resolveTemplateJson($zip_name) ?? '';
                 }
                 $image_val = ($cc->frame_image) ? ((StorageSetting::getStorageSetting('storage') == 'DigitalOcean') ? Storage::disk('spaces')->url('uploads/'.$cc->frame_image) : asset('uploads/'.$cc->frame_image)) : '';
                 if(empty($image_val) && $zip_name) {
@@ -4297,6 +4333,9 @@ class HomeApi extends Controller
                     'aspectRatio' => $cc->aspect_ratio,
                     'zipName' => $zip_name,
                     'json' => $json_data,
+                    'templateBaseUrl' => ($zip_name)?$this->getTemplateBaseUrl($zip_name):"",
+                    'render_version' => $cc->render_version ?? 1,
+                    'updated_at' => $cc->updated_at?->toIso8601String() ?? null,
                 ];
             }
         } elseif ($type == 'business_custom') {
@@ -4336,6 +4375,9 @@ class HomeApi extends Controller
                     'imageType' => 'square',
                     'aspectRatio' => '1:1',
                     'zipName' => $zip_name,
+                    'templateBaseUrl' => ($zip_name)?$this->getTemplateBaseUrl($zip_name):"",
+                    'render_version' => $frame->render_version ?? 1,
+                    'updated_at' => $frame->updated_at?->toIso8601String() ?? null,
                 ];
             }
             $item_name = 'Custom Templates';
@@ -4713,6 +4755,108 @@ class HomeApi extends Controller
                 'name' => $req->requested_name,
                 'status' => $req->status,
             ]
+        ]);
+    }
+
+    /**
+     * Capture native computed values from the Flutter app after first render.
+     * Called once per frame per version from the native editor.
+     *
+     * POST /api/golden-render/capture-native
+     * Body: { frame_id, zip_name, render_version, native_computed: { layerName: { finalX, finalY, ... } } }
+     */
+    public function captureNativeGolden(Request $request)
+    {
+        $request->validate([
+            'frame_id' => 'required|integer',
+            'zip_name' => 'required|string',
+            'render_version' => 'required|integer',
+            'native_computed' => 'required|array',
+        ]);
+
+        // Only capture if no native_computed exists yet for this frame+version
+        $existing = \App\Models\GoldenRender::where('frame_id', $request->frame_id)
+            ->where('render_version', $request->render_version)
+            ->first();
+
+        if ($existing && !empty($existing->native_computed)) {
+            return response()->json(['success' => true, 'message' => 'Native golden already captured']);
+        }
+
+        \App\Models\GoldenRender::capture(
+            $request->frame_id,
+            $request->zip_name,
+            $request->render_version,
+            [
+                'native_computed' => $request->native_computed,
+                'source' => $existing ? $existing->source : 'native_auto',
+            ]
+        );
+
+        return response()->json(['success' => true, 'message' => 'Native golden captured']);
+    }
+
+    /**
+     * Batch fetch template JSON for multiple templates in a single request.
+     * Supports up to 20 templates per request.
+     *
+     * GET /api/templates/batch?zip_names=Name1,Name2,Name3
+     * GET /api/templates/batch?ids=1,2,3
+     */
+    public function batchTemplates(Request $request)
+    {
+        $maxBatch = 20;
+
+        // Accept either zip_names or ids
+        $zipNames = $request->query('zip_names')
+            ? explode(',', $request->query('zip_names'))
+            : [];
+        $ids = $request->query('ids')
+            ? array_map('intval', explode(',', $request->query('ids')))
+            : [];
+
+        // Limit batch size
+        $zipNames = array_slice($zipNames, 0, $maxBatch);
+        $ids = array_slice($ids, 0, $maxBatch);
+
+        $results = [];
+
+        // Fetch by IDs
+        if (!empty($ids)) {
+            $frames = \App\Models\PosterMaker::whereIn('id', $ids)->get();
+            foreach ($frames as $frame) {
+                $jsonData = $this->resolveTemplateJson($frame->zip_name, $frame->id);
+                $results[] = [
+                    'id' => $frame->id,
+                    'zip_name' => $frame->zip_name,
+                    'render_version' => $frame->render_version ?? 1,
+                    'json' => $jsonData,
+                    'templateBaseUrl' => $this->getTemplateBaseUrl($frame->zip_name),
+                    'updated_at' => $frame->updated_at?->toIso8601String(),
+                ];
+            }
+        }
+
+        // Fetch by zip_names
+        if (!empty($zipNames)) {
+            $frames = \App\Models\PosterMaker::whereIn('zip_name', $zipNames)->get();
+            foreach ($frames as $frame) {
+                $jsonData = $this->resolveTemplateJson($frame->zip_name, $frame->id);
+                $results[] = [
+                    'id' => $frame->id,
+                    'zip_name' => $frame->zip_name,
+                    'render_version' => $frame->render_version ?? 1,
+                    'json' => $jsonData,
+                    'templateBaseUrl' => $this->getTemplateBaseUrl($frame->zip_name),
+                    'updated_at' => $frame->updated_at?->toIso8601String(),
+                ];
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'count' => count($results),
+            'templates' => $results,
         ]);
     }
 }

@@ -163,9 +163,10 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
         config = widget.frameData['json'];
       }
     }
-    
+
     // Fallback for festival / category posts that only have an image and no JSON
-    if (config.isEmpty) {
+    // NOTE: full_url injection must happen AFTER this check to avoid making config non-empty
+    if (config.isEmpty || (config['layers'] == null && config['info'] == null)) {
       final imgUrl = widget.designUrl.isNotEmpty ? widget.designUrl : widget.frameData['image'] ?? '';
       config = {
         'info': {
@@ -188,8 +189,37 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
       };
     }
 
-    // Safely extract templateBaseUrl from preview image URL if missing
+    // Inject full_url for URL resolution in initConfig (AFTER fallback config creation)
+    if (widget.frameData['image'] != null && config['full_url'] == null) {
+      config['full_url'] = widget.frameData['image'];
+    }
+
+    // Safely extract templateBaseUrl if missing or if derived from root/preview image
     String templateBaseUrl = widget.frameData['templateBaseUrl'] ?? '';
+    if (templateBaseUrl.isEmpty || !templateBaseUrl.contains('/uploads/template/')) {
+      String zipName = (widget.frameData['zip_name'] ?? config['zip_name'] ?? config['path'] ?? '').toString().replaceAll('/', '').trim();
+      if (zipName.isEmpty && config['layers'] is List) {
+        final reg = RegExp(r'(?:\.\./)?skins/([^/]+)/');
+        for (var layer in (config['layers'] as List)) {
+          if (layer is Map) {
+            for (var urlField in ['src', '_fallback_src']) {
+              if (layer[urlField] != null) {
+                final match = reg.firstMatch(layer[urlField].toString());
+                if (match != null && match.group(1) != null) {
+                  zipName = match.group(1)!.trim();
+                  break;
+                }
+              }
+            }
+          }
+          if (zipName.isNotEmpty) break;
+        }
+      }
+      if (zipName.isNotEmpty) {
+        final rootUrl = AppConfig.baseUrl.replaceAll('/123456', '');
+        templateBaseUrl = '$rootUrl/uploads/template/$zipName/';
+      }
+    }
     if (templateBaseUrl.isEmpty && widget.frameData['image'] != null) {
       final imgUrl = widget.frameData['image'] as String;
       if (imgUrl.isNotEmpty) {
@@ -929,15 +959,20 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                                 final Map<String, dynamic> config = configObj is String ? jsonDecode(configObj) : Map<String, dynamic>.from(configObj);
                                 // Resolve relative src paths using full_url as base
                                 final String fullUrl = (frame['full_url'] ?? '').toString();
+                                if (fullUrl.isNotEmpty) {
+                                  config['full_url'] = fullUrl;
+                                }
                                 if (fullUrl.isNotEmpty && config['layers'] != null) {
                                   final skinBase = fullUrl.substring(0, fullUrl.lastIndexOf('/') + 1);
                                   final tplBase = skinBase.replaceAll(RegExp(r'skins/[^/]+/$'), '');
                                   for (var layer in (config['layers'] as List)) {
-                                    if (layer['src'] != null) {
-                                      String src = layer['src'].toString();
-                                      if (src.startsWith('../') || src.startsWith('./') || !src.startsWith('http')) {
-                                        src = src.replaceAll('../', '');
-                                        layer['src'] = tplBase + src;
+                                    for (String urlField in ['src', '_fallback_src']) {
+                                      if (layer[urlField] != null) {
+                                        String src = layer[urlField].toString();
+                                        if (src.startsWith('../') || src.startsWith('./') || !src.startsWith('http')) {
+                                          src = src.replaceAll('../', '');
+                                          layer[urlField] = tplBase + src;
+                                        }
                                       }
                                     }
                                   }

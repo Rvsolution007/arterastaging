@@ -197,11 +197,13 @@ ALL rendering logic is versioned using a `render_version` system. The current ve
 2. **Bug fixes CAN be applied directly** to any version's code path (e.g., fixing a wrong calculation that affects all frames).
 3. **For NEW rendering features or behavior changes:**
    - Increment `CURRENT_RENDER_VERSION` in `template_builder.js`
+   - Update `$currentMaxVersion` in `PosterMakerController.php` (inside `versionControl()` method) to expose the new version in the dashboard dropdowns
    - Add new code inside `if (renderVersion >= N)` blocks in both web and native editors
    - Keep ALL previous version code paths untouched
 4. **Every frame JSON carries its `render_version`** — export/import preserves it automatically.
 5. **Default missing `render_version` to 1** — legacy frames without the field are treated as version 1.
 6. **Cross-server compatibility** — local, staging, and production MUST use the same version numbering system.
+7. **NEVER automatically upgrade render_version during frame publish/save.** The `render_version` of an existing template/frame MUST be preserved as-is. Version upgrades MUST only be explicitly performed by the admin through the Version Control Dashboard (`/admin/Frame/version-control`). New templates/frames default to version 4.
 
 **Key files in the versioning system:**
 - `assets/js/template_builder.js`: `CURRENT_RENDER_VERSION`, `exportArteraSchema()`, `exportLegacyJson()`, `_doRender()`

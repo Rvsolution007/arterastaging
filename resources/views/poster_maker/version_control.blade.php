@@ -140,15 +140,27 @@
     </div>
 
     <!-- Filter Form -->
-    <div class="table-panel p-3 mb-4 d-flex align-items-center">
-        <form action="{{ route('admin.poster_maker.version_control') }}" method="GET" class="d-flex align-items-center mb-0 w-100">
+    <div class="table-panel p-3 mb-4 d-flex align-items-center justify-content-between">
+        <form action="{{ route('admin.poster_maker.version_control') }}" method="GET" class="d-flex align-items-center mb-0 w-100" id="filterForm">
             <label class="mr-3 mb-0" style="font-weight: 600; color: #475569;">Filter by Version:</label>
-            <select name="version" class="form-control" style="width: 200px; border-radius: 8px;" onchange="this.form.submit()">
+            <select name="version" class="form-control mr-4" style="width: 200px; border-radius: 8px;" onchange="document.getElementById('filterForm').submit()">
                 <option value="">All Versions</option>
-                @foreach($versions as $v)
-                    <option value="{{ $v }}" {{ $selectedVersion == $v ? 'selected' : '' }}>Version {{ $v }}</option>
-                @endforeach
+                @for($i = 1; $i <= $currentMaxVersion; $i++)
+                    <option value="{{ $i }}" {{ isset($selectedVersion) && $selectedVersion == $i ? 'selected' : '' }}>Version {{ $i }}</option>
+                @endfor
             </select>
+            
+            <label class="mr-3 mb-0" style="font-weight: 600; color: #475569;">Search Zip Name:</label>
+            <div class="input-group" style="width: 300px;">
+                <input type="text" name="search" class="form-control" placeholder="Search frame..." value="{{ $searchQuery ?? '' }}" style="border-radius: 8px 0 0 8px;">
+                <div class="input-group-append">
+                    <button class="btn btn-primary" type="submit" style="border-radius: 0 8px 8px 0;"><i class="fa fa-search"></i></button>
+                </div>
+            </div>
+            
+            @if(isset($searchQuery) && $searchQuery !== '' || isset($selectedVersion) && $selectedVersion !== '')
+                <a href="{{ route('admin.poster_maker.version_control') }}" class="btn btn-outline-secondary ml-3" style="border-radius: 8px;">Clear</a>
+            @endif
         </form>
     </div>
 
@@ -244,44 +256,49 @@
 </div>
 
 <!-- Migration Result Modal -->
-<div id="migrationResultModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0;
-    background:rgba(0,0,0,0.7); z-index:9999; overflow-y:auto; padding:40px;">
-    <div style="max-width:900px; margin:0 auto; background:#1a1a2e; border-radius:16px;
-        border:1px solid #333; font-family:'Poppins',sans-serif; color:#e0e0e0;">
+<div id="migrationResultModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); z-index:9999; padding:40px; align-items:center; justify-content:center; overflow-y:auto;">
+    <div style="width:100%; max-width:950px; background:#1e293b; border-radius:16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); border:1px solid #334155; font-family:'Poppins',sans-serif; color:#f8fafc; display:flex; flex-direction:column; max-height:90vh;">
 
         <!-- Header -->
-        <div style="padding:20px 24px; border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center;">
-            <h4 style="margin:0;">
-                <i class="fas fa-code-compare" style="color:#4fc3f7;"></i>
+        <div style="padding:24px 32px; border-bottom:1px solid #334155; display:flex; justify-content:space-between; align-items:center; background:#0f172a; border-radius:16px 16px 0 0; flex-shrink:0;">
+            <h4 style="margin:0; font-weight:600; font-size:1.25rem; display:flex; align-items:center; gap:10px;">
+                <i class="fas fa-code-compare" style="color:#38bdf8;"></i>
                 Version Migration Report
             </h4>
-            <button onclick="closeMigrationModal()" style="background:none; border:none; color:#999; font-size:20px; cursor:pointer;">✖</button>
+            <button onclick="closeMigrationModal()" style="background:none; border:none; color:#94a3b8; font-size:24px; cursor:pointer; transition:color 0.2s;" onmouseover="this.style.color='#f1f5f9'" onmouseout="this.style.color='#94a3b8'">✖</button>
         </div>
 
         <!-- Summary Bar -->
-        <div id="migrationSummary" style="padding:16px 24px; background:#162447; border-bottom:1px solid #333;">
+        <div id="migrationSummary" style="padding:20px 32px; background:#1e293b; border-bottom:1px solid #334155; flex-shrink:0;">
             <!-- Populated by JS -->
         </div>
 
-        <!-- Auto-Committed Section -->
-        <div id="autoCommittedSection" style="padding:16px 24px; border-bottom:1px solid #222;">
-            <h5 style="color:#66bb6a;">✅ Auto-Committed (<span id="autoCount">0</span>)</h5>
-            <div id="autoCommittedList"><!-- Populated by JS --></div>
-        </div>
+        <!-- Content Area -->
+        <div style="padding:10px 32px; overflow-y:auto; flex-grow:1;">
+            <!-- Auto-Committed Section -->
+            <div id="autoCommittedSection" style="padding:16px 0; border-bottom:1px solid #334155;">
+                <h5 style="color:#22c55e; font-weight:600; font-size:1.1rem; margin-bottom:16px;">
+                    <i class="fas fa-check-circle mr-2"></i> Auto-Committed (<span id="autoCount">0</span>)
+                </h5>
+                <div id="autoCommittedList"><!-- Populated by JS --></div>
+            </div>
 
-        <!-- Needs Review Section -->
-        <div id="needsReviewSection" style="padding:16px 24px;">
-            <h5 style="color:#ffb74d;">⚠️ Needs Review (<span id="reviewCount">0</span>)</h5>
-            <div id="reviewFramesList"><!-- Populated by JS --></div>
+            <!-- Needs Review Section -->
+            <div id="needsReviewSection" style="padding:24px 0 16px;">
+                <h5 style="color:#f59e0b; font-weight:600; font-size:1.1rem; margin-bottom:16px;">
+                    <i class="fas fa-exclamation-triangle mr-2"></i> Needs Review (<span id="reviewCount">0</span>)
+                </h5>
+                <div id="reviewFramesList"><!-- Populated by JS --></div>
+            </div>
         </div>
 
         <!-- Footer -->
-        <div style="padding:16px 24px; border-top:1px solid #333; text-align:right;">
-            <button onclick="approveAllReviewed()" class="btn btn-success" id="btnApproveAll" style="display:none;">
-                <i class="fas fa-check-double"></i> Approve & Commit All Reviewed
+        <div style="padding:24px 32px; background:#0f172a; border-top:1px solid #334155; display:flex; justify-content:flex-end; gap:12px; border-radius:0 0 16px 16px; flex-shrink:0;">
+            <button onclick="approveAllReviewed()" class="btn" id="btnApproveAll" style="display:none; background:#10b981; color:white; border:none; padding:10px 24px; border-radius:8px; font-weight:500; font-family:'Poppins'; transition:all 0.2s;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'">
+                <i class="fas fa-check-double mr-2"></i> Approve & Commit All
             </button>
-            <button onclick="closeMigrationModal()" class="btn btn-outline-secondary">
-                <i class="fas fa-times"></i> Close
+            <button onclick="closeMigrationModal()" class="btn" style="background:transparent; border:1px solid #475569; color:#f1f5f9; padding:10px 24px; border-radius:8px; font-weight:500; font-family:'Poppins'; transition:all 0.2s;" onmouseover="this.style.background='#334155'" onmouseout="this.style.background='transparent'">
+                Close
             </button>
         </div>
     </div>
@@ -291,11 +308,15 @@
 @section('script')
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const pwd = prompt('Enter Version Control password:');
-        if (pwd !== 'Brijesh@1415') {
-            alert('Access Denied.');
-            window.location.href = "{{ route('Frame.index') }}";
-            return;
+        if (sessionStorage.getItem('vc_auth') !== 'true') {
+            const pwd = prompt('Enter Version Control password:');
+            if (pwd !== 'Brijesh@1415') {
+                alert('Access Denied.');
+                window.location.href = "{{ route('Frame.index') }}";
+                return;
+            } else {
+                sessionStorage.setItem('vc_auth', 'true');
+            }
         }
 
         const selectAll = document.getElementById('selectAll');
@@ -377,11 +398,23 @@
     function showMigrationResult(data) {
         // Summary
         document.getElementById('migrationSummary').innerHTML = `
-            <div style="display:flex; gap:24px; flex-wrap:wrap;">
-                <div><strong>Total Frames:</strong> ${data.total}</div>
-                <div style="color:#66bb6a;"><strong>Auto-Committed:</strong> ${data.auto_committed}</div>
-                <div style="color:#ffb74d;"><strong>Needs Review:</strong> ${data.needs_review}</div>
-                <div style="color:#ef5350;"><strong>Errors:</strong> ${data.errors?.length || 0}</div>
+            <div style="display:flex; gap:40px; flex-wrap:wrap; font-size:15px; align-items:center;">
+                <div style="display:flex; flex-direction:column;">
+                    <span style="color:#94a3b8; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Total Frames</span>
+                    <strong style="font-size:1.3rem; color:#f1f5f9; font-weight:600;">${data.total}</strong>
+                </div>
+                <div style="display:flex; flex-direction:column;">
+                    <span style="color:#22c55e; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Auto-Committed</span>
+                    <strong style="font-size:1.3rem; color:#4ade80; font-weight:600;">${data.auto_committed}</strong>
+                </div>
+                <div style="display:flex; flex-direction:column;">
+                    <span style="color:#f59e0b; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Needs Review</span>
+                    <strong style="font-size:1.3rem; color:#fbbf24; font-weight:600;">${data.needs_review}</strong>
+                </div>
+                <div style="display:flex; flex-direction:column;">
+                    <span style="color:#ef4444; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Errors</span>
+                    <strong style="font-size:1.3rem; color:#f87171; font-weight:600;">${data.errors?.length || 0}</strong>
+                </div>
             </div>
         `;
 
@@ -391,9 +424,9 @@
         autoList.innerHTML = '';
         (data.auto_committed_frames || []).forEach(f => {
             autoList.innerHTML += `
-                <div style="padding:8px; margin:4px 0; background:#1b3a2a; border-radius:8px; font-size:13px;">
-                    ✅ <strong>${f.zip_name || f.name || 'Frame #' + f.frame_id}</strong>
-                    — ${f.status} ${f.max_diff_px ? '(max drift: ' + f.max_diff_px + 'px)' : ''}
+                <div style="padding:14px 18px; margin-bottom:10px; background:rgba(34, 197, 94, 0.08); border:1px solid rgba(34, 197, 94, 0.2); border-left:4px solid #22c55e; border-radius:8px; font-size:14px; color:#f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                    <div><i class="fas fa-check text-success mr-2"></i> <strong>${f.zip_name || f.name || 'Frame #' + f.frame_id}</strong></div>
+                    <span style="color:#94a3b8; font-size:13px;">${f.max_diff_px ? '(max drift: ' + f.max_diff_px + 'px)' : ''}</span>
                 </div>
             `;
         });
@@ -412,44 +445,55 @@
             let mismatchRows = '';
             const allMismatches = [...(f.web_mismatches || []), ...(f.native_mismatches || [])];
             allMismatches.forEach(m => {
-                const color = m.severity === 'major' ? '#ef5350' : '#ffb74d';
-                const autoTag = m.auto_compensatable ? '<span style="color:#4fc3f7; font-size:11px;">[Auto-Fix Available]</span>' : '';
+                const color = m.severity === 'major' ? '#ef4444' : '#f59e0b';
+                const autoTag = m.auto_compensatable ? '<span style="background:rgba(56,189,248,0.1); color:#38bdf8; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:500; border:1px solid rgba(56,189,248,0.2);">Auto-Fix Available</span>' : '';
                 mismatchRows += `
-                    <tr>
-                        <td style="color:#90caf9;">${m.engine.toUpperCase()}</td>
-                        <td><strong>${m.layer}</strong></td>
-                        <td><code>${m.property}</code></td>
-                        <td style="color:#ef5350;">${m.golden_value}</td>
-                        <td style="color:#66bb6a;">${m.new_value}</td>
-                        <td style="color:${color};"><strong>${m.diff > 0 ? '+' : ''}${m.diff}px</strong></td>
-                        <td>${autoTag}</td>
+                    <tr style="border-bottom:1px solid rgba(255,255,255,0.05); transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+                        <td style="padding:12px 14px; color:#94a3b8; font-weight:500; font-size:13px;">${m.engine.toUpperCase()}</td>
+                        <td style="padding:12px 14px; color:#e2e8f0; font-weight:500; font-size:13px;">${m.layer}</td>
+                        <td style="padding:12px 14px;"><code style="background:rgba(0,0,0,0.3); color:#cbd5e1; padding:4px 8px; border-radius:6px; font-size:12px; font-family:monospace;">${m.property}</code></td>
+                        <td style="padding:12px 14px; color:#f87171; font-weight:500; font-size:13px;">${m.golden_value}</td>
+                        <td style="padding:12px 14px; color:#4ade80; font-weight:500; font-size:13px;">${m.new_value}</td>
+                        <td style="padding:12px 14px; color:${color}; font-weight:600; font-size:13px;">${m.diff > 0 ? '+' : ''}${m.diff}px</td>
+                        <td style="padding:12px 14px; text-align:right;">${autoTag}</td>
                     </tr>
                 `;
             });
 
             reviewList.innerHTML += `
-                <div style="margin:12px 0; background:#2a1a1a; border:1px solid #4a2020; border-radius:12px; overflow:hidden;">
-                    <div style="padding:12px 16px; background:#3a1a1a; display:flex; justify-content:space-between; align-items:center;">
-                        <span>
-                            ⚠️ <strong>${f.zip_name || 'Frame #' + f.frame_id}</strong>
-                            — V${f.current_version} → V${f.target_version}
-                            <span style="color:#ef5350; font-size:12px;">(Max drift: ${f.max_diff_px}px)</span>
-                        </span>
-                        <div>
-                            <button onclick="autoCompensateFrame(${idx})" class="btn btn-sm btn-outline-info" title="Auto-fix linear properties">
-                                🔄 Auto-Compensate
+                <div style="margin-bottom:24px; background:#0f172a; border:1px solid #334155; border-radius:12px; overflow:hidden; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1);">
+                    <div style="padding:16px 20px; background:rgba(245, 158, 11, 0.05); border-bottom:1px solid #334155; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+                        <div style="display:flex; flex-direction:column;">
+                            <span style="font-size:15px; color:#f8fafc; display:flex; align-items:center;">
+                                <i class="fas fa-exclamation-triangle text-warning mr-2"></i> 
+                                <strong style="font-weight:600; letter-spacing:0.5px;">${f.zip_name || 'Frame #' + f.frame_id}</strong>
+                                <span style="color:#94a3b8; margin:0 12px;">—</span>
+                                <span style="color:#e2e8f0; font-weight:500; background:rgba(255,255,255,0.05); padding:4px 10px; border-radius:6px; border:1px solid rgba(255,255,255,0.1);">
+                                    V${f.current_version} <i class="fas fa-arrow-right mx-2 text-muted" style="font-size:11px;"></i> V${f.target_version}
+                                </span>
+                            </span>
+                            <span style="color:#ef4444; font-size:12px; margin-top:6px; margin-left:26px; font-weight:500;"><i class="fas fa-ruler-vertical mr-1"></i> Max drift: ${f.max_diff_px}px</span>
+                        </div>
+                        <div style="display:flex; gap:12px;">
+                            <button onclick="autoCompensateFrame(${idx})" class="btn" style="background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.3); color:#38bdf8; font-family:'Poppins'; font-weight:500; font-size:13px; padding:8px 16px; border-radius:8px; transition:all 0.2s; box-shadow:0 2px 4px rgba(0,0,0,0.1);" onmouseover="this.style.background='rgba(56,189,248,0.2)'; this.style.borderColor='rgba(56,189,248,0.5)';" onmouseout="this.style.background='rgba(56,189,248,0.1)'; this.style.borderColor='rgba(56,189,248,0.3)';" title="Auto-fix linear properties">
+                                <i class="fas fa-sync-alt mr-1"></i> Auto-Compensate
                             </button>
-                            <button onclick="approveFrame(${idx})" class="btn btn-sm btn-outline-success">
-                                ✅ Approve
+                            <button onclick="approveFrame(${idx})" class="btn" style="background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); color:#4ade80; font-family:'Poppins'; font-weight:500; font-size:13px; padding:8px 16px; border-radius:8px; transition:all 0.2s; box-shadow:0 2px 4px rgba(0,0,0,0.1);" onmouseover="this.style.background='rgba(34,197,94,0.2)'; this.style.borderColor='rgba(34,197,94,0.5)';" onmouseout="this.style.background='rgba(34,197,94,0.1)'; this.style.borderColor='rgba(34,197,94,0.3)';">
+                                <i class="fas fa-check mr-1"></i> Approve
                             </button>
                         </div>
                     </div>
-                    <div style="padding:0 16px 12px;">
-                        <table style="width:100%; font-size:12px; color:#ccc;">
+                    <div style="padding:0; overflow-x:auto;">
+                        <table style="width:100%; border-collapse:collapse; min-width:600px;">
                             <thead>
-                                <tr style="border-bottom:1px solid #444;">
-                                    <th>Engine</th><th>Layer</th><th>Property</th>
-                                    <th>Golden</th><th>New</th><th>Diff</th><th></th>
+                                <tr style="background:rgba(255,255,255,0.03); text-transform:uppercase; font-size:11px; letter-spacing:0.5px; color:#94a3b8;">
+                                    <th style="padding:14px 14px; text-align:left; font-weight:600; border-bottom:1px solid #334155;">Engine</th>
+                                    <th style="padding:14px 14px; text-align:left; font-weight:600; border-bottom:1px solid #334155;">Layer</th>
+                                    <th style="padding:14px 14px; text-align:left; font-weight:600; border-bottom:1px solid #334155;">Property</th>
+                                    <th style="padding:14px 14px; text-align:left; font-weight:600; border-bottom:1px solid #334155;">Golden</th>
+                                    <th style="padding:14px 14px; text-align:left; font-weight:600; border-bottom:1px solid #334155;">New</th>
+                                    <th style="padding:14px 14px; text-align:left; font-weight:600; border-bottom:1px solid #334155;">Diff</th>
+                                    <th style="padding:14px 14px; border-bottom:1px solid #334155;"></th>
                                 </tr>
                             </thead>
                             <tbody>${mismatchRows}</tbody>
@@ -459,7 +503,8 @@
             `;
         });
 
-        document.getElementById('migrationResultModal').style.display = 'block';
+        const modal = document.getElementById('migrationResultModal');
+        modal.style.display = 'flex';
     }
 
     function closeMigrationModal() {

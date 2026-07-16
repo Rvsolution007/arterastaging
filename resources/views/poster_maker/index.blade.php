@@ -629,6 +629,7 @@
 function enterVersionControl() {
     var pwd = prompt('Enter Version Control password:');
     if (pwd === 'Brijesh@1415') {
+        sessionStorage.setItem('vc_auth', 'true');
         window.location.href = "{{ route('admin.poster_maker.version_control') }}";
     } else if (pwd !== null) {
         alert('Wrong password!');

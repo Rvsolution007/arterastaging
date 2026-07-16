@@ -80,8 +80,8 @@
                         <tr>
                             <td style="font-weight: 600;">{{ $frame->id }}</td>
                             <td style="font-weight: 500;">{{ $frame->zip_name }}</td>
-                            <td>
-                                <img src="{{ url('uploads/template/'.$frame->zip_name.'/thumbnail/'.$frame->zip_name.'.webp') }}" alt="thumbnail" class="frame-thumbnail">
+                            <td class="align-middle">
+                                <img src="{{ asset('uploads/template/'.$frame->zip_name.'/preview.webp') }}" alt="thumbnail" class="frame-thumbnail">
                             </td>
                             <td><span class="aim-badge aim-badge-secondary">v{{ $frame->render_version ?? 1 }}</span></td>
                             <td>

@@ -767,7 +767,7 @@ class HomeApi extends Controller
 
             if($zip_name)
             {
-                $json_data = $this->resolveTemplateJson($zip_name, $frame->id) ?? '';
+                $json_data = $this->resolveTemplateJson($zip_name) ?? '';
             }
 
             $preview_img = "";

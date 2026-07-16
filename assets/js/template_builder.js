@@ -20,7 +20,8 @@
     console.log('[TEMPLATE_BUILDER] v3.0 loaded — fill control + vector paths + complete effects');
     // ── Render Version: ALL rendering logic is versioned. Current code = version 1. ──
     // ── Future rendering changes MUST increment this and add version-gated code paths. ──
-    const CURRENT_RENDER_VERSION = 4;
+    window.CURRENT_RENDER_VERSION = 5;
+    const CURRENT_RENDER_VERSION = window.CURRENT_RENDER_VERSION;
     try {
     
     // Fix fabric.js alphabetical warning globally
@@ -1527,12 +1528,27 @@
         if(obj) { canvas.remove(obj); canvas.discardActiveObject(); updateLayersList(); saveHistory(); }
     });
 
+    // --- UNIQUE LAYER NAME GENERATOR ---
+    // Ensures every layer gets a unique sequential name (Text_1, Text_2, Icon_1, Icon_2, etc.)
+    // This prevents diff engine confusion and JSON layer conflicts in the native editor.
+    function getNextLayerName(baseName) {
+        const existingNames = canvas.getObjects().map(o => o.customName || o.placeholderKey || '');
+        let counter = 1;
+        let candidate = baseName + '_' + counter;
+        while (existingNames.includes(candidate)) {
+            counter++;
+            candidate = baseName + '_' + counter;
+        }
+        return candidate;
+    }
+
     // --- ADD TEXT ---
     const addTextBtn = $('add-text');
     if (addTextBtn) addTextBtn.addEventListener('click', function() {
         const text = new fabric.Textbox('Double click to edit', {
             left: 100, top: 100, fontSize: 60, fill: '#000000', fontFamily: 'Arial', customType: 'text',
-            textBaseline: 'alphabetic'
+            textBaseline: 'alphabetic',
+            customName: getNextLayerName('Text')
         });
         canvas.add(text);
         canvas.setActiveObject(text);
@@ -1680,6 +1696,7 @@
                 break;
         }
         if (shape) {
+            shape.set('customName', getNextLayerName(type.charAt(0).toUpperCase() + type.slice(1)));
             canvas.add(shape);
             canvas.setActiveObject(shape);
             updateLayersList();
@@ -1707,7 +1724,7 @@
                         left: 150,
                         top: 150,
                         customType: 'shape',
-                        customName: 'Custom Shape'
+                        customName: getNextLayerName('Custom_Shape')
                     });
                     
                     // Automatically color all internal paths to black by default for easier recoloring,
@@ -1812,7 +1829,7 @@
                         left: 150,
                         top: 150,
                         customType: 'shape',
-                        customName: shape.name
+                        customName: getNextLayerName(shape.name || 'Shape')
                     });
                     if (obj.isSameColor && obj.isSameColor() || obj.paths) {
                          obj.set({ fill: '#000000' });
@@ -1865,7 +1882,7 @@
                                     scaleX: 2,
                                     scaleY: 2,
                                     customType: 'icon',
-                                    customName: 'Icon',
+                                    customName: getNextLayerName('Icon'),
                                     fill: '#333333'
                                 });
                                 // ── Non-Destructive Metadata (Phase 1A) ──
@@ -3325,6 +3342,9 @@
                     canvas.clear();
                     
                     const jsonObj = data.config;
+                    window._originalLoadedJson = JSON.parse(JSON.stringify(jsonObj));
+                    window._originalRenderVersion = window._originalLoadedJson.render_version || 1;
+                    console.log('[VERSION_SYNC] Loaded template render_version:', window._originalRenderVersion);
                     const imagesMap = data.images || {};
                     const fontsMap = data.fonts || {};
 
@@ -3415,6 +3435,7 @@
                         console.log('[DEBUG] Detected: Artera Schema JSON from ZIP, elements:', jsonObj.elements.length);
                         const shapeTypes = ['rect','circle','triangle','path','polygon','line','ellipse'];
                         const legacyConfig = {
+                            render_version: jsonObj.render_version,
                             info: { width: jsonObj.canvas.width, height: jsonObj.canvas.height },
                             layers: jsonObj.elements.map((el, idx) => {
                                 let l = {
@@ -3535,6 +3556,9 @@
                     canvas.clear();
                     
                     const jsonObj = data.config;
+                    window._originalLoadedJson = JSON.parse(JSON.stringify(jsonObj));
+                    window._originalRenderVersion = window._originalLoadedJson.render_version || 1;
+                    console.log('[VERSION_SYNC] Loaded frame render_version:', window._originalRenderVersion);
                     const imagesMap = data.images || {};
                     const fontsMap = data.fonts || {};
 
@@ -3581,6 +3605,7 @@
                         });
                     } else if (jsonObj.elements) {
                         const legacyConfig = {
+                            render_version: jsonObj.render_version,
                             width: jsonObj.canvas.width || 1080,
                             height: jsonObj.canvas.height || 1080,
                             layers: jsonObj.elements.map((el, idx) => {
@@ -4047,6 +4072,7 @@
                 // Use the passed config which holds the raw loaded JSON, or canvas.toJSON if needed
                 window._originalLoadedJson = JSON.parse(JSON.stringify(config));
                 window._originalRenderVersion = window._originalLoadedJson.render_version || 1;
+                console.log('[VERSION_SYNC] Loaded template render_version:', window._originalRenderVersion);
             }
         }
 
@@ -4748,8 +4774,9 @@
 
     // --- Export Schemas ---
     function exportArteraSchema(objects, title) {
+        const targetRenderVer = window._originalRenderVersion || 4;
         return {
-            schema_version: 1, render_version: CURRENT_RENDER_VERSION, template_id: 'tpl_' + Date.now(),
+            schema_version: 1, render_version: targetRenderVer, template_id: 'tpl_' + Date.now(),
             canvas: { width: baseWidth, height: baseHeight, background_color: canvas.backgroundColor || '#FFFFFF' },
             elements: objects.map((obj, i) => {
                 const z = i+1;
@@ -4919,7 +4946,8 @@
     }
 
     function exportLegacyJson(objects, title) {
-        const j = { name: title.replace(/\s+/g,'_'), render_version: CURRENT_RENDER_VERSION, info:{width:baseWidth,height:baseHeight}, layers:[] };
+        const targetRenderVer = window._originalRenderVersion || 4;
+        const j = { name: title.replace(/\s+/g,'_'), render_version: targetRenderVer, info:{width:baseWidth,height:baseHeight}, layers:[] };
         objects.forEach((obj,i) => {
             const z=i+1;
             let w = Math.round(obj.width * (obj.scaleX || 1));
@@ -4952,12 +4980,12 @@
 
             if (obj.type==='image' || (obj.customType === 'image' && obj.is_image_placeholder)) {
                 let srcToUse = obj.is_image_placeholder ? (obj._src || '') : obj.getSrc();
-                let imgData = {name:obj.customName||'layer_'+z,type:'image',src:srcToUse,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,is_background:obj.is_background||false,is_placeholder:obj.is_placeholder||false,is_slot:obj.is_slot||false, image_type: obj.image_type||'', is_shape: obj.customType === 'shape' || obj.customType === 'icon' || obj.is_shape === true};
+                let imgData = {name:obj.customName||'layer_'+z,type:'image',src:srcToUse,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,is_background:obj.is_background||false,is_placeholder:obj.is_placeholder||false,is_slot:obj.is_slot||false, image_type: obj.image_type||'', is_shape: obj.customType === 'shape' || obj.customType === 'icon' || obj.is_shape === true, flipX:obj.flipX||false, flipY:obj.flipY||false, opacity:obj.opacity??1};
                 if (obj.mask_layer_id) imgData.mask_layer_id = obj.mask_layer_id;
                 if ((obj.customType==='shape' || obj.customType==='icon' || obj.is_shape) && obj.fill && typeof obj.fill === 'string') imgData.tint_color = obj.fill;
                 j.layers.push(imgData);
             }
-            else if (obj.type==='i-text'||obj.type==='text'||obj.type==='textbox') j.layers.push({name:obj.customName||'text_'+z,type:'text',kind: (obj.type==='textbox'?'Paragraph':'Point'),textKind: (obj.type==='textbox'?'paragraph':'point'),text:obj.text,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,color:obj.fill,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,size:fontSize,font_size:fontSize,font:obj.fontFamily,font_name:obj.fontFamily,justification:obj.textAlign||'left',letterSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16,opacity:obj.opacity??1,rotation:obj.angle||0,visible:obj.visible!==false,ai_role:obj.ai_role||null,ai_max_chars:obj.ai_max_chars||null});
+            else if (obj.type==='i-text'||obj.type==='text'||obj.type==='textbox') j.layers.push({name:obj.customName||'text_'+z,type:'text',kind: (obj.type==='textbox'?'Paragraph':'Point'),textKind: (obj.type==='textbox'?'paragraph':'point'),text:obj.text,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,color:obj.fill,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,size:fontSize,font_size:fontSize,font:obj.fontFamily,font_name:obj.fontFamily,justification:obj.textAlign||'left',letterSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16,opacity:obj.opacity??1,rotation:obj.angle||0,visible:obj.visible!==false,flipX:obj.flipX||false,flipY:obj.flipY||false,ai_role:obj.ai_role||null,ai_max_chars:obj.ai_max_chars||null});
             else if (!obj.is_image_placeholder && obj.customType !== 'image' && (obj.customType==='shape' || obj.customType==='icon' || obj.is_shape || ['rect','circle','triangle','path','polygon','line'].includes(obj.type))) {
                 // ══════════════════════════════════════════════════════════════════
                 // RENDER VERSION 4: Save shapes/icons as VECTOR DATA, not PNG
@@ -5071,34 +5099,41 @@
      */
     function computeVersionDiff(oldJson, newJson) {
         const diffs = [];
-        const oldVersion = oldJson.render_version || 1;
-        const newVersion = newJson.render_version || CURRENT_RENDER_VERSION;
-
-        // Add version change itself
-        if (oldVersion !== newVersion) {
-            diffs.push({
-                layerName: '(Template)',
-                property: 'render_version',
-                oldValue: 'V' + oldVersion,
-                newValue: 'V' + newVersion,
-                type: 'version_upgrade',
-            });
-        }
 
         // Build layer maps by name
         const oldLayers = {};
         const newLayers = {};
-        (oldJson.layers || oldJson.objects || []).forEach(l => {
+        (oldJson.layers || oldJson.elements || oldJson.objects || []).forEach(l => {
             oldLayers[l.name || l.id || 'unknown'] = l;
         });
-        (newJson.layers || newJson.objects || []).forEach(l => {
+        (newJson.layers || newJson.elements || newJson.objects || []).forEach(l => {
             newLayers[l.name || l.id || 'unknown'] = l;
         });
 
         // Compare properties for each layer
-        const propsToCompare = ['x', 'y', 'w', 'h', 'width', 'height', 'fontSize', 'font_size',
-            'size', 'type', 'fill', 'color', 'font_color', 'fontFamily', 'font_name',
-            'scaleX', 'scaleY', 'rx', 'ry', 'stroke', 'strokeWidth', 'shapeType'];
+        const propsToCompare = [
+            { key: 'width', aliases: ['w', 'width'] },
+            { key: 'height', aliases: ['h', 'height'] },
+            { key: 'x', aliases: ['x', 'left'] },
+            { key: 'y', aliases: ['y', 'top'] },
+            { key: 'fontSize', aliases: ['fontSize', 'font_size', 'size'] },
+            { key: 'color', aliases: ['fill', 'color', 'font_color'] },
+            { key: 'stroke', aliases: ['stroke', 'strokeColor'] },
+            { key: 'fontFamily', aliases: ['fontFamily', 'font_name', 'font'] },
+            { key: 'fontWeight', aliases: ['fontWeight', 'weight'] },
+            { key: 'fontStyle', aliases: ['fontStyle', 'style'] },
+            { key: 'textAlign', aliases: ['textAlign', 'justification'] },
+            { key: 'text', aliases: ['text', 'textContent'] },
+            { key: 'charSpacing', aliases: ['charSpacing', 'letterSpacing'] },
+            { key: 'wordSpacing', aliases: ['wordSpacing'] },
+            { key: 'lineHeight', aliases: ['lineHeight'] },
+            { key: 'opacity', aliases: ['opacity'] },
+            { key: 'flipX', aliases: ['flipX'] },
+            { key: 'flipY', aliases: ['flipY'] },
+            { key: 'type', aliases: ['type'] },
+            { key: 'scaleX', aliases: ['scaleX'] },
+            { key: 'scaleY', aliases: ['scaleY'] }
+        ];
 
         const allLayerNames = new Set([...Object.keys(oldLayers), ...Object.keys(newLayers)]);
 
@@ -5106,58 +5141,97 @@
             const oldL = oldLayers[name];
             const newL = newLayers[name];
 
+            // Track newly ADDED layers (exist in new but not old)
             if (!oldL && newL) {
                 diffs.push({
                     layerName: name,
-                    property: '(entire layer)',
+                    property: '(layer)',
                     oldValue: '—',
-                    newValue: 'NEW (added by V' + newVersion + ')',
-                    type: 'layer_added',
+                    newValue: newL.type || 'unknown',
+                    type: 'layer added'
                 });
                 return;
             }
 
+            // Track REMOVED layers (exist in old but not new)
             if (oldL && !newL) {
                 diffs.push({
                     layerName: name,
-                    property: '(entire layer)',
-                    oldValue: 'Existed in V' + oldVersion,
-                    newValue: 'REMOVED',
-                    type: 'layer_removed',
+                    property: '(layer)',
+                    oldValue: oldL.type || 'unknown',
+                    newValue: '—',
+                    type: 'layer removed'
                 });
                 return;
             }
 
-            // Both exist — compare properties
-            propsToCompare.forEach(prop => {
-                const ov = oldL[prop];
-                const nv = newL[prop];
-                if (ov !== undefined || nv !== undefined) {
-                    // Normalize for comparison
-                    const ovStr = JSON.stringify(ov ?? null);
-                    const nvStr = JSON.stringify(nv ?? null);
+            propsToCompare.forEach(propDef => {
+                let oldVal = undefined;
+                let newVal = undefined;
+
+                propDef.aliases.forEach(alias => {
+                    if (oldL[alias] !== undefined && oldVal === undefined) oldVal = oldL[alias];
+                    if (newL[alias] !== undefined && newVal === undefined) newVal = newL[alias];
+                });
+
+                // --- ARTERA SCHEMA NESTED FONT FIX ---
+                // In Artera Schema, text properties are nested inside the 'font' object
+                if (propDef.key === 'fontFamily') {
+                    if (oldL.font && typeof oldL.font === 'object') oldVal = oldL.font.family;
+                    if (newL.font && typeof newL.font === 'object') newVal = newL.font.family;
+                    // Fallback if it picked up the raw font object instead of string
+                    if (typeof oldVal === 'object') oldVal = oldVal.family || oldVal.fontFamily;
+                    if (typeof newVal === 'object') newVal = newVal.family || newVal.fontFamily;
+                }
+                if (propDef.key === 'fontSize') {
+                    if (oldL.font && typeof oldL.font === 'object') oldVal = oldL.font.size;
+                    if (newL.font && typeof newL.font === 'object') newVal = newL.font.size;
+                }
+                if (propDef.key === 'fontWeight') {
+                    if (oldL.font && typeof oldL.font === 'object') oldVal = oldL.font.weight;
+                    if (newL.font && typeof newL.font === 'object') newVal = newL.font.weight;
+                }
+                if (propDef.key === 'fontStyle') {
+                    if (oldL.font && typeof oldL.font === 'object') oldVal = oldL.font.style;
+                    if (newL.font && typeof newL.font === 'object') newVal = newL.font.style;
+                }
+                if (propDef.key === 'color') {
+                    if (oldL.font && typeof oldL.font === 'object') oldVal = oldL.font.color;
+                    if (newL.font && typeof newL.font === 'object') newVal = newL.font.color;
+                }
+                if (propDef.key === 'textAlign') {
+                    if (oldL.font && typeof oldL.font === 'object') oldVal = oldL.font.justification;
+                    if (newL.font && typeof newL.font === 'object') newVal = newL.font.justification;
+                }
+                if (propDef.key === 'charSpacing') {
+                    if (oldL.font && typeof oldL.font === 'object') oldVal = oldL.font.charSpacing;
+                    if (newL.font && typeof newL.font === 'object') newVal = newL.font.charSpacing;
+                }
+                if (propDef.key === 'wordSpacing') {
+                    if (oldL.font && typeof oldL.font === 'object') oldVal = oldL.font.wordSpacing;
+                    if (newL.font && typeof newL.font === 'object') newVal = newL.font.wordSpacing;
+                }
+                if (propDef.key === 'lineHeight') {
+                    if (oldL.font && typeof oldL.font === 'object') oldVal = oldL.font.lineHeight;
+                    if (newL.font && typeof newL.font === 'object') newVal = newL.font.lineHeight;
+                }
+
+                // Only report if BOTH exist and are different (avoids spam when upgrading schema formats)
+                if (oldVal !== undefined && newVal !== undefined) {
+                    const ovStr = String(oldVal);
+                    const nvStr = String(newVal);
+                    
                     if (ovStr !== nvStr) {
                         diffs.push({
                             layerName: name,
-                            property: prop,
-                            oldValue: ov ?? '—',
-                            newValue: nv ?? '—',
-                            type: typeof ov === 'number' && typeof nv === 'number' ? 'numeric_shift' : 'value_change',
+                            property: propDef.key,
+                            oldValue: oldVal,
+                            newValue: newVal,
+                            type: 'value change'
                         });
                     }
                 }
             });
-
-            // Check type upgrade (e.g., raster PNG → vector shape)
-            if (oldL.type === 'image' && (newL.type === 'shape' || newL.type === 'rect')) {
-                diffs.push({
-                    layerName: name,
-                    property: 'type',
-                    oldValue: 'Raster PNG (' + (oldL.src ? (oldL.src.length > 30 ? oldL.src.substring(0,30) + '...' : oldL.src) : 'no src') + ')',
-                    newValue: 'Vector Shape (fill: ' + (newL.fill || newL.color || '?') + ')',
-                    type: 'type_upgrade',
-                });
-            }
         });
 
         return diffs;
@@ -5228,19 +5302,18 @@
         const schemaData = exportArteraSchema(objects, title);
         const legacyData = exportLegacyJson(objects, title);
 
-        // Check if version upgrade happened
-        if (window._originalRenderVersion < CURRENT_RENDER_VERSION) {
-            // Compute diff
-            const diffs = computeVersionDiff(window._originalLoadedJson || {}, legacyData);
+        // Compute diff (only for existing templates — new templates skip diff popup)
+        const diffs = window.editing_frame_id
+            ? computeVersionDiff(window._originalLoadedJson || {}, schemaData)
+            : [];
 
-            if (diffs.length > 0) {
-                // Show diff modal instead of direct save
-                if (typeof showDiffReviewModal === 'function') {
-                    showDiffReviewModal(diffs, schemaData, legacyData, fd, btnSave);
-                    return;
-                } else {
-                    console.warn('[PUBLISH] showDiffReviewModal not found, proceeding with direct save.');
-                }
+        if (diffs.length > 0) {
+            // Show diff modal instead of direct save
+            if (typeof showDiffReviewModal === 'function') {
+                showDiffReviewModal(diffs, schemaData, legacyData, fd, btnSave);
+                return;
+            } else {
+                console.warn('[PUBLISH] showDiffReviewModal not found, proceeding with direct save.');
             }
         }
 

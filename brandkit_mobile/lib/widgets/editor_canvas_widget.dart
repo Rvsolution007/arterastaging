@@ -14,12 +14,14 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'interactive_layer.dart';
 
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:get/get.dart';
 
 import '../controllers/native_editor_controller.dart';
+import '../services/api_service.dart';
 
 
 /// Renders a JSON-based AI Post configuration into native Flutter widgets.
@@ -889,6 +891,8 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         name == 'background' ||
         name.contains('background'))));
 
+    debugPrint('🔴 [DIAGNOSIS-LAYER] name="$name" type="$type" isShape=${layer['is_shape']} isFrameLayer=$isFrameLayer isBackground=$isBackground');
+    
     // ── FIX: Hide layer when is_background is explicitly false and name suggests background ──
     if (!isFrameLayer && layer['is_background'] == false &&
         (name.contains('background') || name == 'bg' || name == 'image1')) {
@@ -997,6 +1001,8 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         final double offsetMultiplier = (textKind == 'point') ? 0.08 : 0.20;
         final double yAdjustment = fontSize * offsetMultiplier;
         effectiveLayer['y'] = currentY - yAdjustment;
+      } else if (renderVersion >= 5) {
+        effectiveLayer['y'] = currentY - 5.0;
       } else {
         effectiveLayer['y'] = currentY;
       }
@@ -1354,11 +1360,26 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
                                         (isFrameLayer && !hasExplicitNewlines) ||
                                         noSpaces;
 
+    bool fitsOnSingleLine = false;
+    final double tpW = safeDouble(layer['w'] ?? layer['width'] ?? 0);
+    if (tpW > 0 && textValue.isNotEmpty) {
+      final tp = TextPainter(
+        textDirection: TextDirection.ltr,
+        textScaler: TextScaler.noScaling,
+        maxLines: 1,
+      );
+      tp.text = TextSpan(text: textValue, style: textStyle);
+      tp.layout();
+      if (tp.width <= tpW * 1.1) {
+        fitsOnSingleLine = true;
+      }
+    }
+
     bool isSingleLine;
     if (textKind == 'point') {
       // Explicitly marked as Point Text by web editor — never wraps, scales down
       isSingleLine = true;
-    } else if (isKnownSingleLineField || (!hasExplicitNewlines && ratio <= 2.2)) {
+    } else if (isKnownSingleLineField || (!hasExplicitNewlines && (ratio <= 2.2 || fitsOnSingleLine))) {
       // Even if marked as 'paragraph' (Textbox for alignment), fields like email/phone/web/name,
       // frame layers, or boxes without explicit newlines must NEVER wrap to multiple lines; they must scale down via FittedBox!
       isSingleLine = true;
@@ -1455,6 +1476,24 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
   Color _parseColor(String colorStr, {Color fallback = const Color(0xFF000000)}) {
     if (colorStr.isEmpty) return fallback;
     
+    // Handle rgb(r,g,b) format
+    if (colorStr.startsWith('rgb') && !colorStr.startsWith('rgba')) {
+      try {
+        final parts = colorStr
+            .replaceAll(RegExp(r'[a-zA-Z\(\)]'), '')
+            .split(',');
+        if (parts.length >= 3) {
+          return Color.fromARGB(
+            255,
+            int.parse(parts[0].trim()),
+            int.parse(parts[1].trim()),
+            int.parse(parts[2].trim()),
+          );
+        }
+      } catch (_) {}
+      return fallback;
+    }
+    
     // Handle rgba(r,g,b,a) format
     if (colorStr.startsWith('rgba')) {
       try {
@@ -1511,25 +1550,79 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
   /// Matches the web editor logic: skinDir + filename
   String _resolveAssetUrl(String src) {
     if (src.isEmpty) return '';
-    if (src.startsWith('http')) return src;
     if (src.startsWith('data:')) return src;
 
-    // Web editor logic: take just the filename and prepend skinDir
-    // src is like "../skins/Frame_Square_101/BG.png"
-    // We need: templateBaseUrl + /skins/Frame_Square_101/BG.png
-    String resolved;
-    if (src.startsWith('../')) {
-      // Remove the leading ../ and combine with templateBaseUrl
-      resolved = '${widget.templateBaseUrl}/${src.replaceFirst('../', '')}';
-    } else if (src.contains('/')) {
-      // Has path separators, might be skins/SkinName/file.png
-      resolved = '${widget.templateBaseUrl}/$src';
-    } else {
-      // Just a filename — put it in skins directory
-      resolved = '${widget.templateBaseUrl}/skins/$src';
+    String baseUrl = widget.templateBaseUrl;
+    if ((baseUrl.isEmpty || !baseUrl.contains('/uploads/template/')) && Get.isRegistered<NativeEditorController>()) {
+      final ctrl = Get.find<NativeEditorController>();
+      if (ctrl.templateBaseUrl.contains('/uploads/template/')) {
+        baseUrl = ctrl.templateBaseUrl;
+      }
+    }
+    if (!baseUrl.endsWith('/')) {
+      baseUrl += '/';
     }
 
-    // Normalize path to handle multiple ../../ segments
+    String zipName = (widget.config['zip_name'] ?? widget.config['path'] ?? '').toString().replaceAll('/', '').trim();
+    if (zipName.isEmpty) {
+      final reg = RegExp(r'(?:\.\./)?skins/([^/]+)/');
+      final match = reg.firstMatch(src);
+      if (match != null && match.group(1) != null) {
+        zipName = match.group(1)!.trim();
+      } else if (widget.config['layers'] is List) {
+        for (var l in (widget.config['layers'] as List)) {
+          if (l is Map) {
+            for (var f in ['src', '_fallback_src']) {
+              if (l[f] != null) {
+                final m = reg.firstMatch(l[f].toString());
+                if (m != null && m.group(1) != null) {
+                  zipName = m.group(1)!.trim();
+                  break;
+                }
+              }
+            }
+          }
+          if (zipName.isNotEmpty) break;
+        }
+      }
+    }
+
+    if (zipName.isNotEmpty && !baseUrl.contains('/uploads/template/$zipName')) {
+      final rootUrl = ApiService.baseUrl.replaceAll('/123456', '');
+      baseUrl = '$rootUrl/uploads/template/$zipName/';
+    }
+
+    if (src.startsWith('http')) {
+      if (src.contains('/skins/skins/')) {
+        src = src.replaceAll('/skins/skins/', '/skins/');
+      }
+      if (zipName.isNotEmpty && src.contains('/uploads/skins/$zipName/')) {
+        src = src.replaceAll('/uploads/skins/$zipName/', '/uploads/template/$zipName/skins/$zipName/');
+      }
+      return src;
+    }
+
+    String resolved;
+    if (src.startsWith('../')) {
+      resolved = '$baseUrl${src.replaceFirst('../', '')}';
+    } else if (src.startsWith('skins/')) {
+      resolved = '$baseUrl$src';
+    } else if (src.startsWith('uploads/')) {
+      final rootUrl = ApiService.baseUrl.replaceAll('/123456', '');
+      resolved = '$rootUrl/$src';
+    } else if (src.startsWith('/')) {
+      final rootUrl = ApiService.baseUrl.replaceAll('/123456', '');
+      resolved = '$rootUrl${src.substring(1)}';
+    } else if (src.contains('/')) {
+      resolved = '$baseUrl$src';
+    } else {
+      if (zipName.isNotEmpty) {
+        resolved = '${baseUrl}skins/$zipName/$src';
+      } else {
+        resolved = '${baseUrl}skins/$src';
+      }
+    }
+
     final uri = Uri.parse(resolved).normalizePath();
     return uri.toString();
   }
@@ -1812,6 +1905,8 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
           return const SizedBox.shrink();
         }
 
+        debugPrint('🔴 [DIAGNOSIS-IMAGE] name="$url"');
+
         if (isSmall) {
           // ── SMALL ASSET PATH ──
           imgWidget = Image.network(
@@ -1924,6 +2019,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       double scale, double nativeW, double nativeH) {
     
     final String shapeType = (layer['shapeType'] ?? 'rect').toString().toLowerCase();
+    debugPrint('🔴 [DIAGNOSIS-SHAPE] name="$lname" shapeType="$shapeType" fallback=${layer['_fallback_src'] != null}');
     
     // If it's an icon shape, delegate to _buildIconLayer
     if (shapeType == 'icon' || layer['iconName'] != null) {
@@ -2134,8 +2230,27 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     FaIconData? iconData = _getFontAwesomeIcon(iconName);
 
     if (iconData == null) {
-      // Fallback to image if icon is not found in library
-      return _buildImageLayer(layer, lname, scale, nativeW, nativeH);
+      // 2. Fetch SVG from Iconify API and render with flutter_svg
+      final String tintColor = (layer['color'] ?? layer['tint_color'] ?? '#333333').toString().replaceAll('#', '');
+      final String svgUrl = 'https://api.iconify.design/${iconName.replaceAll(':', '/')}.svg?color=%23$tintColor';
+      
+      double size = (safeDouble(layer['size']) ?? (nativeH > 0 ? nativeH : 24.0)) * scale;
+      
+      Widget svgWidget = SvgPicture.network(
+        svgUrl,
+        width: size,
+        height: size,
+        placeholderBuilder: (context) {
+          // While loading or if failed, try _fallback_src PNG
+          return _buildImageLayer(layer, lname, scale, nativeW, nativeH);
+        },
+      );
+      
+      if (layer['opacity'] != null) {
+        svgWidget = Opacity(opacity: safeDouble(layer['opacity']), child: svgWidget);
+      }
+      
+      return Center(child: svgWidget);
     }
 
     String colorStr = layer['color'] ?? '#000000';
@@ -2182,55 +2297,166 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     return Center(child: iconWidget);
   }
 
-  FaIconData? _getFontAwesomeIcon(String name) {
-    switch (name.toLowerCase()) {
-      case 'circlecheck':
-      case 'check-circle':
-      case 'check_circle':
-        return FontAwesomeIcons.solidCircleCheck;
-      case 'phone':
-      case 'call':
-        return FontAwesomeIcons.phone;
-      case 'email':
-      case 'envelope':
-        return FontAwesomeIcons.envelope;
-      case 'globe':
-      case 'website':
-      case 'web':
-        return FontAwesomeIcons.globe;
-      case 'address':
-      case 'location':
-      case 'locationdot':
-      case 'location-dot':
-      case 'mapmarker':
-      case 'map-marker':
-      case 'map-marker-alt':
-      case 'map-pin':
-      case 'mappin':
-      case 'pin':
-      case 'address-book':
-      case 'addressbook':
-      case 'address-card':
-      case 'addresscard':
-      case 'building':
-      case 'office':
-        return FontAwesomeIcons.locationDot;
-      case 'whatsapp':
-        return FontAwesomeIcons.whatsapp;
-      case 'facebook':
-        return FontAwesomeIcons.facebook;
-      case 'instagram':
-        return FontAwesomeIcons.instagram;
-      case 'twitter':
-      case 'x':
-        return FontAwesomeIcons.xTwitter;
-      case 'youtube':
-        return FontAwesomeIcons.youtube;
-      case 'linkedin':
-        return FontAwesomeIcons.linkedin;
-      default:
-        return null; // Triggers fallback
+  FaIconData? _getFontAwesomeIcon(String rawName) {
+    if (rawName.isEmpty) return null;
+
+    // 1. Strip Iconify provider prefixes (e.g., 'mdi-light:phone' -> 'phone')
+    String name = rawName.toLowerCase();
+    if (name.contains(':')) {
+      name = name.split(':').last;
     }
+
+    // 2. Smart Keyword Matching
+    if (name.contains('phone') || name.contains('call') || name.contains('mobile') || name.contains('cellphone') || name.contains('telephone')) {
+      return FontAwesomeIcons.phone;
+    } else if (name.contains('email') || name.contains('mail') || name.contains('envelope')) {
+      return FontAwesomeIcons.envelope;
+    } else if (name.contains('globe') || name.contains('web') || name.contains('internet') || name.contains('url')) {
+      return FontAwesomeIcons.globe;
+    } else if (name.contains('location') || name.contains('map') || name.contains('pin') || name.contains('address') || name.contains('building') || name.contains('office') || name.contains('marker')) {
+      return FontAwesomeIcons.locationDot;
+    } else if (name.contains('whatsapp')) {
+      return FontAwesomeIcons.whatsapp;
+    } else if (name.contains('facebook') || name == 'fb') {
+      return FontAwesomeIcons.facebook;
+    } else if (name.contains('instagram') || name == 'insta') {
+      return FontAwesomeIcons.instagram;
+    } else if (name.contains('twitter') || name == 'x-twitter' || name == 'x') {
+      return FontAwesomeIcons.xTwitter;
+    } else if (name.contains('youtube') || name == 'yt') {
+      return FontAwesomeIcons.youtube;
+    } else if (name.contains('linkedin')) {
+      return FontAwesomeIcons.linkedin;
+    } else if (name.contains('check')) {
+      return FontAwesomeIcons.solidCircleCheck;
+    } else if (name.contains('home') || name.contains('house')) {
+      return FontAwesomeIcons.house;
+    } else if (name.contains('star')) {
+      return FontAwesomeIcons.star;
+    } else if (name.contains('heart')) {
+      return FontAwesomeIcons.heart;
+    } else if (name.contains('user') || name.contains('account') || name.contains('person')) {
+      return FontAwesomeIcons.user;
+    } else if (name.contains('camera')) {
+      return FontAwesomeIcons.camera;
+    } else if (name.contains('search') || name.contains('magnify')) {
+      return FontAwesomeIcons.magnifyingGlass;
+    } else if (name.contains('bell') || name.contains('notification')) {
+      return FontAwesomeIcons.bell;
+    } else if (name.contains('cog') || name.contains('setting') || name.contains('gear')) {
+      return FontAwesomeIcons.gear;
+    } else if (name.contains('calendar') || name.contains('date')) {
+      return FontAwesomeIcons.calendar;
+    } else if (name.contains('clock') || name.contains('time')) {
+      return FontAwesomeIcons.clock;
+    } else if (name.contains('cart') || name.contains('shop')) {
+      return FontAwesomeIcons.cartShopping;
+    } else if (name.contains('bookmark')) {
+      return FontAwesomeIcons.bookmark;
+    } else if (name.contains('share')) {
+      return FontAwesomeIcons.shareNodes;
+    } else if (name.contains('download')) {
+      return FontAwesomeIcons.download;
+    } else if (name.contains('upload')) {
+      return FontAwesomeIcons.upload;
+    } else if (name.contains('print')) {
+      return FontAwesomeIcons.print;
+    } else if (name.contains('image') || name.contains('photo') || name.contains('picture')) {
+      return FontAwesomeIcons.image;
+    } else if (name.contains('video') || name.contains('play')) {
+      return FontAwesomeIcons.play;
+    } else if (name.contains('music') || name.contains('audio')) {
+      return FontAwesomeIcons.music;
+    } else if (name.contains('lock') || name.contains('secure')) {
+      return FontAwesomeIcons.lock;
+    } else if (name.contains('key')) {
+      return FontAwesomeIcons.key;
+    } else if (name.contains('wifi')) {
+      return FontAwesomeIcons.wifi;
+    } else if (name.contains('bluetooth')) {
+      return FontAwesomeIcons.bluetooth;
+    } else if (name.contains('battery')) {
+      return FontAwesomeIcons.batteryFull;
+    } else if (name.contains('cloud')) {
+      return FontAwesomeIcons.cloud;
+    } else if (name.contains('sun') || name.contains('bright')) {
+      return FontAwesomeIcons.sun;
+    } else if (name.contains('moon') || name.contains('dark')) {
+      return FontAwesomeIcons.moon;
+    } else if (name.contains('trash') || name.contains('delete') || name.contains('bin')) {
+      return FontAwesomeIcons.trash;
+    } else if (name.contains('edit') || name.contains('pencil') || name.contains('pen')) {
+      return FontAwesomeIcons.pen;
+    } else if (name.contains('plus') || name.contains('add')) {
+      return FontAwesomeIcons.plus;
+    } else if (name.contains('minus') || name.contains('remove')) {
+      return FontAwesomeIcons.minus;
+    } else if (name.contains('close') || name.contains('times') || name.contains('x')) {
+      return FontAwesomeIcons.xmark;
+    } else if (name.contains('arrow-right') || name.contains('forward')) {
+      return FontAwesomeIcons.arrowRight;
+    } else if (name.contains('arrow-left') || name.contains('back')) {
+      return FontAwesomeIcons.arrowLeft;
+    } else if (name.contains('info')) {
+      return FontAwesomeIcons.circleInfo;
+    } else if (name.contains('question') || name.contains('help')) {
+      return FontAwesomeIcons.circleQuestion;
+    } else if (name.contains('warning') || name.contains('alert')) {
+      return FontAwesomeIcons.triangleExclamation;
+    } else if (name.contains('comment') || name.contains('chat') || name.contains('message')) {
+      return FontAwesomeIcons.comment;
+    } else if (name.contains('gift') || name.contains('present')) {
+      return FontAwesomeIcons.gift;
+    } else if (name.contains('tag') || name.contains('label')) {
+      return FontAwesomeIcons.tag;
+    } else if (name.contains('flag')) {
+      return FontAwesomeIcons.flag;
+    } else if (name.contains('link') || name.contains('chain')) {
+      return FontAwesomeIcons.link;
+    } else if (name.contains('file') || name.contains('document')) {
+      return FontAwesomeIcons.file;
+    } else if (name.contains('folder')) {
+      return FontAwesomeIcons.folder;
+    } else if (name.contains('code')) {
+      return FontAwesomeIcons.code;
+    } else if (name.contains('trophy') || name.contains('award')) {
+      return FontAwesomeIcons.trophy;
+    } else if (name.contains('crown') || name.contains('king')) {
+      return FontAwesomeIcons.crown;
+    } else if (name.contains('thumbs-up') || name.contains('like')) {
+      return FontAwesomeIcons.thumbsUp;
+    } else if (name.contains('fire') || name.contains('hot') || name.contains('flame')) {
+      return FontAwesomeIcons.fire;
+    } else if (name.contains('bolt') || name.contains('lightning') || name.contains('thunder')) {
+      return FontAwesomeIcons.bolt;
+    } else if (name.contains('rocket') || name.contains('launch')) {
+      return FontAwesomeIcons.rocket;
+    } else if (name.contains('diamond') || name.contains('gem')) {
+      return FontAwesomeIcons.gem;
+    } else if (name.contains('pinterest')) {
+      return FontAwesomeIcons.pinterest;
+    } else if (name.contains('telegram')) {
+      return FontAwesomeIcons.telegram;
+    } else if (name.contains('snapchat')) {
+      return FontAwesomeIcons.snapchat;
+    } else if (name.contains('tiktok')) {
+      return FontAwesomeIcons.tiktok;
+    } else if (name.contains('reddit')) {
+      return FontAwesomeIcons.reddit;
+    } else if (name.contains('github')) {
+      return FontAwesomeIcons.github;
+    } else if (name.contains('google')) {
+      return FontAwesomeIcons.google;
+    } else if (name.contains('apple')) {
+      return FontAwesomeIcons.apple;
+    } else if (name.contains('android')) {
+      return FontAwesomeIcons.android;
+    } else if (name.contains('windows')) {
+      return FontAwesomeIcons.windows;
+    }
+
+    // 3. Unrecognized icon fallback
+    return null;
   }
 }
 

@@ -878,13 +878,13 @@ function filterFrames() {
         <div class="modal-content" style="background:#1a1a2e; color:#e0e0e0; border:1px solid #333;">
             <div class="modal-header" style="border-bottom:1px solid #333;">
                 <h5 class="modal-title" style="font-family:'Poppins',sans-serif;">
-                    <i class="fas fa-code-compare"></i> Version Upgrade Review
+                    <i class="fas fa-code-compare"></i> Review Frame Changes
                 </h5>
                 <button type="button" class="btn-close btn-close-white" onclick="closeDiffModal()"></button>
             </div>
             <div class="modal-body">
                 <div class="alert alert-info" style="background:#162447; border:1px solid #1f4068; color:#c7d5e0;">
-                    <strong>Version Upgrade:</strong> <span id="diffVersionLabel">V1 → V4</span>
+                    <strong>Review Changes:</strong> <span id="diffVersionLabel"></span>
                     <br><small>Review the changes below before publishing.</small>
                 </div>
                 <table class="table table-sm" style="color:#e0e0e0;">
@@ -915,7 +915,7 @@ function filterFrames() {
 </div>
 
 <script>
-function showDiffReviewModal(diffs, newSchema, newLegacy, fd, btnSave) {
+function showDiffReviewModal(diffs, newSchema, newLegacy, fd, btnSave, currentRenderVersion) {
     window._pendingSchema = newSchema;
     window._pendingLegacy = newLegacy;
     window._pendingFd = fd;
@@ -925,7 +925,7 @@ function showDiffReviewModal(diffs, newSchema, newLegacy, fd, btnSave) {
     tbody.innerHTML = '';
 
     document.getElementById('diffVersionLabel').textContent =
-        'V' + (window._originalRenderVersion) + ' → V' + CURRENT_RENDER_VERSION;
+        'V' + (window._originalRenderVersion || 1);
 
     diffs.forEach(d => {
         const tr = document.createElement('tr');

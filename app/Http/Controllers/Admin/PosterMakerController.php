@@ -867,6 +867,11 @@ class PosterMakerController extends Controller
             $query->where('render_version', $request->version);
         }
 
+        // Search filter
+        if ($request->has('search') && $request->search !== null && $request->search !== '') {
+            $query->where('zip_name', 'like', '%' . $request->search . '%');
+        }
+
         $data = $query->orderBy('id', 'DESC')->paginate(50)->withQueryString();
 
         // Get distinct versions for filter dropdown
@@ -876,13 +881,14 @@ class PosterMakerController extends Controller
             ->pluck('render_version');
 
         // Current max version (from the JS constant)
-        $currentMaxVersion = 3;
+        $currentMaxVersion = 5;
 
         return view('poster_maker.version_control', [
             'data' => $data,
             'versions' => $versions,
             'currentMaxVersion' => $currentMaxVersion,
             'selectedVersion' => $request->version,
+            'searchQuery' => $request->search,
         ]);
     }
 
@@ -911,8 +917,8 @@ class PosterMakerController extends Controller
                 $targetVersionInt = ($targetVersion !== 'none') ? (int)$targetVersion : $currentVersion;
 
                 // Skip if already at target version
-                if ($currentVersion >= $targetVersionInt) {
-                    $autoCommitted[] = ['id' => $id, 'name' => $frame->zip_name, 'status' => 'ALREADY_LATEST'];
+                if ($currentVersion === $targetVersionInt) {
+                    $autoCommitted[] = ['id' => $id, 'name' => $frame->zip_name, 'status' => 'ALREADY_SAME'];
                     continue;
                 }
 
@@ -932,6 +938,7 @@ class PosterMakerController extends Controller
                 // Run Dual Engine Validation
                 $result = $validator->validate($id, $json, $currentVersion, $targetVersionInt);
                 $result['zip_name'] = $frame->zip_name;
+
                 $validationResults[] = $result;
 
                 if ($result['status'] === 'MATCH' || $result['status'] === 'MINOR_DRIFT') {

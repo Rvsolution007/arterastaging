@@ -193,22 +193,43 @@
         color: #fff;
         box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3);
     }
+    
+    /* Brain Pulse Animation */
+    @keyframes brainPulse {
+        0% { transform: scale(1); opacity: 0.85; color: #6366f1; }
+        50% { transform: scale(1.2); opacity: 1; color: #4f46e5; }
+        100% { transform: scale(1); opacity: 0.85; color: #6366f1; }
+    }
+    .brain-pulse-icon {
+        display: inline-block;
+        animation: brainPulse 2s infinite ease-in-out;
+        font-size: 1.15rem;
+    }
 </style>
 @endsection
 
 @section('content')
 <div class="analytics-container">
     
-    <!-- Header Section -->
+    <!-- Header Section with Integrated Filters & Status -->
     <div class="row align-items-center mb-4">
-        <div class="col-md-8">
+        <div class="col-lg-5 col-md-12 mb-3 mb-lg-0">
             <h4 class="page-title mb-1"><i class="fa-solid fa-rocket mr-2 text-primary" style="color: #6366f1;"></i> AI Growth OS</h4>
             <p class="page-subtitle mb-0">The unified decision engine for ArtEra Growth</p>
         </div>
-        <div class="col-md-4 text-right">
-            <div class="d-inline-flex align-items-center bg-white px-3 py-2 rounded shadow-sm border" style="border-color: #e2e8f0;">
-                <img src="{{ asset('assets/images/ai-brain.gif') }}" alt="AI Active" width="24" class="mr-2 rounded-circle shadow-sm">
-                <span style="font-size: 0.85rem; font-weight: 700; color: #475569; letter-spacing: 0.5px;">AI ENGINE ACTIVE</span>
+        <div class="col-lg-7 col-md-12 d-flex flex-wrap align-items-center justify-content-lg-end justify-content-start" style="gap: 0.75rem;">
+            <!-- Date Filter (Compact & Elegant UI) -->
+            <div class="d-inline-flex align-items-center bg-white px-3 py-2 rounded shadow-sm border" style="border-color: #e2e8f0; gap: 0.5rem; height: 38px;">
+                <span class="font-weight-bold text-dark" style="font-size: 0.8rem; letter-spacing: 0.5px;"><i class="fa-solid fa-calendar-days text-primary mr-1" style="color: #6366f1;"></i> DATE RANGE:</span>
+                <input type="date" id="start_date" class="form-control form-control-sm border-0 bg-light px-2" style="width: 130px; font-weight: 600; font-size: 0.8rem; color: #475569; height: 26px; border-radius: 6px;" value="{{ \Carbon\Carbon::now()->subDays(30)->format('Y-m-d') }}" onchange="onDateFilterChange()">
+                <span class="text-muted" style="font-size: 0.8rem; font-weight: 600;">to</span>
+                <input type="date" id="end_date" class="form-control form-control-sm border-0 bg-light px-2" style="width: 130px; font-weight: 600; font-size: 0.8rem; color: #475569; height: 26px; border-radius: 6px;" value="{{ \Carbon\Carbon::now()->format('Y-m-d') }}" onchange="onDateFilterChange()">
+            </div>
+
+            <!-- AI Engine Active Badge with Pulsing Brain Icon -->
+            <div class="d-inline-flex align-items-center bg-white px-3 py-2 rounded shadow-sm border" style="border-color: #e2e8f0; height: 38px;">
+                <i class="fa-solid fa-brain mr-2 brain-pulse-icon"></i>
+                <span style="font-size: 0.8rem; font-weight: 700; color: #475569; letter-spacing: 0.5px;">AI ENGINE ACTIVE</span>
             </div>
         </div>
     </div>
@@ -541,13 +562,31 @@
 
 @section('script')
 <script>
+    let activeTab = 'ceo';
+
     $(document).ready(function() {
         loadTab('ceo');
+        $('#start_date, #end_date').on('change', function() {
+            onDateFilterChange();
+        });
     });
 
+    function onDateFilterChange() {
+        console.log('Date range changed, reloading active tab: ' + activeTab);
+        loadTab(activeTab);
+    }
+
     function loadTab(tabName) {
+        activeTab = tabName;
+        let startDate = $('#start_date').val();
+        let endDate = $('#end_date').val();
+        let params = {
+            start_date: startDate,
+            end_date: endDate
+        };
+
         if(tabName === 'ceo') {
-            $.get("{{ route('admin.growth_os.dashboard') }}", function(data) {
+            $.get("{{ route('admin.growth_os.dashboard') }}", params, function(data) {
                 if(data.status === 'success') {
                     $('#score_growth').text(data.scores.overall_growth + '/100');
                     $('#score_content').text(data.scores.content + '/100');
@@ -574,7 +613,7 @@
             });
         }
         else if (tabName === 'acquisition') {
-            $.get("{{ route('admin.growth_os.acquisition') }}", function(data) {
+            $.get("{{ route('admin.growth_os.acquisition') }}", params, function(data) {
                 if(data.status === 'success') {
                     $('#acq_metrics').html(`
                         <div class="col-md-3 mb-4">
@@ -585,7 +624,7 @@
                         </div>
                         <div class="col-md-3 mb-4">
                             <div class="kpi-card">
-                                <div class="kpi-title"><i class="fas fa-calendar text-primary"></i> Last 30 Days</div>
+                                <div class="kpi-title"><i class="fas fa-calendar text-primary"></i> Filtered Range Installs</div>
                                 <div class="kpi-value font-math text-primary">${data.installs.last_30_days}</div>
                             </div>
                         </div>
@@ -606,7 +645,7 @@
             });
         }
         else if (tabName === 'engagement') {
-            $.get("{{ route('admin.growth_os.engagement') }}", function(data) {
+            $.get("{{ route('admin.growth_os.engagement') }}", params, function(data) {
                 if(data.status === 'success') {
                     $('#eng_metrics').html(`
                         <div class="col-md-3 mb-4">
@@ -638,7 +677,7 @@
             });
         }
         else if (tabName === 'planner') {
-            $.get("{{ route('admin.growth_os.planner') }}", function(data) {
+            $.get("{{ route('admin.growth_os.planner') }}", params, function(data) {
                 if(data.status === 'success') {
                     
                     // 1. Upcoming Festivals
@@ -659,7 +698,7 @@
                                     <td>${plan.suggested_templates}</td>
                                     <td>${statusBadge}</td>
                                 </tr>
-                            `);
+                             `);
                         });
                     }
 
@@ -682,7 +721,7 @@
                                     <td>${plan.suggested_templates}</td>
                                     <td>${statusBadge}</td>
                                 </tr>
-                            `);
+                             `);
                         });
                     }
 
@@ -704,14 +743,14 @@
                                     <td>${plan.suggested_templates}</td>
                                     <td>${statusBadge}</td>
                                 </tr>
-                            `);
+                             `);
                         });
                     }
                 }
             });
         }
         else if (tabName === 'marketing') {
-            $.get("{{ route('admin.growth_os.marketing') }}", function(data) {
+            $.get("{{ route('admin.growth_os.marketing') }}", params, function(data) {
                 if(data.status === 'success') {
                     $('#marketing_tbody').empty();
                     if(data.notifications.length === 0) {
@@ -731,14 +770,14 @@
                                     <td>${statusBadge}</td>
                                     <td><button class="btn btn-sm" style="background:#6366f1; color:white;">Review</button></td>
                                 </tr>
-                            `);
+                             `);
                         });
                     }
                 }
             });
         }
         else if (tabName === 'aso') {
-            $.get("{{ route('admin.growth_os.aso') }}", function(data) {
+            $.get("{{ route('admin.growth_os.aso') }}", params, function(data) {
                 if(data.status === 'success') {
                     // Reviews
                     $('#aso_reviews_tbody').empty();
@@ -760,7 +799,7 @@
                                     </td>
                                     <td><button class="btn btn-sm btn-outline-primary">Approve</button></td>
                                 </tr>
-                            `);
+                             `);
                         });
                     }
 
@@ -770,7 +809,7 @@
                         $('#aso_keywords_tbody').append('<tr><td colspan="4" class="text-center">No keywords found.</td></tr>');
                     } else {
                         data.keywords.forEach(kw => {
-                            let diff = kw.previous_rank - kw.current_rank; // if prev 5 and curr 3, diff is +2
+                            let diff = kw.previous_rank - kw.current_rank;
                             let diffHtml = diff > 0 
                                 ? `<span class="text-success"><i class="fas fa-arrow-up"></i> ${diff}</span>` 
                                 : (diff < 0 ? `<span class="text-danger"><i class="fas fa-arrow-down"></i> ${Math.abs(diff)}</span>` : '<span class="text-secondary">-</span>');
@@ -782,14 +821,14 @@
                                     <td class="font-weight-bold">#${kw.current_rank}</td>
                                     <td>${diffHtml}</td>
                                 </tr>
-                            `);
+                             `);
                         });
                     }
                 }
             });
         }
         else if (tabName === 'content') {
-            $.get("{{ route('admin.growth_os.content') }}", function(data) {
+            $.get("{{ route('admin.growth_os.content') }}", params, function(data) {
                 if(data.status === 'success') {
                     let html = '';
                     data.top_templates.forEach(t => {

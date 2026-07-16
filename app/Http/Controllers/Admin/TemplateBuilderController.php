@@ -162,10 +162,8 @@ class TemplateBuilderController extends Controller
             $zip->close();
 
             if ($jsonConfig) {
-                // Default render_version to 1 for legacy frames without versioning
-                if (!isset($jsonConfig['render_version'])) {
-                    $jsonConfig['render_version'] = 1;
-                }
+                // Always sync render_version with the database value if available
+                $jsonConfig['render_version'] = (int) ($frame->render_version ?? $jsonConfig['render_version'] ?? 1);
                 // Try to load full Artera schema if available for the web builder
                 $uuid = str_replace(['Template_', '.zip'], '', $frame->zip_file_path);
                 $editorTemplate = \App\Models\EditorTemplate::where('uuid', $uuid)->first();
@@ -240,6 +238,7 @@ class TemplateBuilderController extends Controller
                     $this->_injectSystemFonts($fonts, $jsonConfig);
                 }
 
+                $jsonConfig['render_version'] = (int) ($frame->render_version ?? $jsonConfig['render_version'] ?? 1);
                 return response()->json([
                     'success' => true, 
                     'config' => $jsonConfig, 
@@ -331,10 +330,8 @@ class TemplateBuilderController extends Controller
         }
 
         if ($jsonConfig) {
-                // Default render_version to 1 for legacy frames without versioning
-                if (!isset($jsonConfig['render_version'])) {
-                    $jsonConfig['render_version'] = 1;
-                }
+                // Always sync render_version with the database value if available
+                $jsonConfig['render_version'] = (int) ($frame->render_version ?? $jsonConfig['render_version'] ?? 1);
                 // Try to load full Artera schema from EditorTemplate (preserves vector shapes)
                 $editorTemplate = null;
                 $editorUuid = null;
@@ -421,6 +418,7 @@ class TemplateBuilderController extends Controller
                     'req_website' => $frame->req_website,
                 ];
 
+                $jsonConfig['render_version'] = (int) ($frame->render_version ?? $jsonConfig['render_version'] ?? 1);
                 $this->_injectSystemFonts($fonts, $jsonConfig);
                 return response()->json([
                     'success' => true, 
@@ -519,10 +517,25 @@ class TemplateBuilderController extends Controller
             }
         }
 
-        // Process legacy_json for base64 shapes and old HTTP images
+        // Process legacy_json for base64 shapes, icons, and old HTTP images
         if (isset($legacyJson['layers'])) {
             foreach ($legacyJson['layers'] as &$legacyLayer) {
-                if ($legacyLayer['type'] === 'image' && isset($legacyLayer['src'])) {
+                // Extract Shapes and Icons
+                if (($legacyLayer['type'] === 'shape' || $legacyLayer['type'] === 'icon') 
+                    && isset($legacyLayer['_fallback_src']) 
+                    && str_starts_with($legacyLayer['_fallback_src'], 'data:image')) {
+                    $parts = explode(';base64,', $legacyLayer['_fallback_src']);
+                    if (count($parts) === 2) {
+                        $data = base64_decode($parts[1]);
+                        if ($data !== false) {
+                            $filename = uniqid('shape_') . '.png';
+                            file_put_contents($assetsDir . '/' . $filename, $data);
+                            $legacyLayer['_fallback_src'] = '../skins/' . $uuid . '/' . $filename;
+                        }
+                    }
+                }
+                // Extract Images
+                elseif ($legacyLayer['type'] === 'image' && isset($legacyLayer['src'])) {
                     $src = $legacyLayer['src'];
                     if (strpos($src, 'data:image') === 0) {
                         $image_parts = explode(";base64,", $src);
@@ -729,6 +742,7 @@ class TemplateBuilderController extends Controller
         if (!$existingFrame) {
             $frame->original_zip_name = $templateName . '.zip';
         }
+        $frame->render_version = $template->legacy_json['render_version'] ?? 4;
         // Map ai_roles and ai_fields from EditorTemplate->schema_json back to BusinessCustomFrame->json_rules
         // This ensures the mobile app's legacy AI generation can read the AI constraints
         $jsonRules = ['layers' => [], 'ai_global_rule' => ''];
@@ -1134,7 +1148,7 @@ class TemplateBuilderController extends Controller
 
         // === GOLDEN SNAPSHOT: Capture Web Computed Values ===
         $webComputed = [];
-        $schemaObjects = $schemaJson['objects'] ?? $schemaJson['layers'] ?? [];
+        $schemaObjects = $schemaJson['objects'] ?? $schemaJson['layers'] ?? $schemaJson['elements'] ?? $legacyJson['layers'] ?? [];
         foreach ($schemaObjects as $obj) {
             $layerName = $obj['name'] ?? $obj['id'] ?? 'unknown';
             $webComputed[$layerName] = [

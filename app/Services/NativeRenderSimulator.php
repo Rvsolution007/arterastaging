@@ -52,7 +52,7 @@ class NativeRenderSimulator
 
             // Position
             $finalX = $x * $scale;
-            $finalY = $y * $scale;
+            $finalY = ($type === 'text' && $targetVersion >= 5) ? ($y - 5.0) * $scale : $y * $scale;
 
             // Dimensions (interactive_layer.dart Lines 77-84)
             $finalW = $w * $layerScaleX * $scale;

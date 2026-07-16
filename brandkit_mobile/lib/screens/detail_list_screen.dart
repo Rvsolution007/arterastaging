@@ -240,6 +240,14 @@ class _DetailListScreenState extends State<DetailListScreen> {
                 jsonEncode(tpl['json']),
                 tpl['updated_at'],
               );
+              for (var f in fetchedFrames) {
+                if (f is Map && f['frameId']?.toString() == tpl['id']?.toString()) {
+                  f['zip_name'] = tpl['zip_name'];
+                  f['templateBaseUrl'] = tpl['templateBaseUrl'];
+                  f['json'] = tpl['json'];
+                  f['render_version'] = tpl['render_version'];
+                }
+              }
             }
           }
         }

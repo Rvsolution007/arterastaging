@@ -164,6 +164,96 @@ class NativeEditorController extends GetxController {
     }
 
     if (templateConfig['layers'] != null) {
+      String base = ApiService.baseUrl;
+      Uri baseUri = Uri.parse(base);
+      List<String> segments = baseUri.pathSegments.toList();
+      if (segments.isNotEmpty) {
+        segments.removeLast(); // Remove API segment (e.g., '123456')
+      }
+      base = baseUri.replace(pathSegments: segments).toString();
+      if (!base.endsWith('/')) {
+        base += '/';
+      }
+
+      // Use templateBaseUrl (derived from preview image) as primary frame base,
+      // falling back to API base only if templateBaseUrl was not provided.
+      // This ensures ../skins/ paths resolve to uploads/template/FrameName/skins/
+      String frameBaseUrl = templateBaseUrl.isNotEmpty ? templateBaseUrl : base;
+      if (!frameBaseUrl.endsWith('/')) {
+        frameBaseUrl += '/';
+      }
+      final String fullUrl = (initialConfig['full_url'] ?? '').toString();
+      if (fullUrl.isNotEmpty) {
+        int skinsIndex = fullUrl.indexOf('/skins/');
+        if (skinsIndex != -1) {
+          frameBaseUrl = fullUrl.substring(0, skinsIndex) + '/';
+        }
+      }
+
+      // Self-heal frameBaseUrl if it does not contain /uploads/template/
+      String zipName = (initialConfig['zip_name'] ?? initialConfig['path'] ?? templateConfig['zip_name'] ?? templateConfig['path'] ?? '').toString().replaceAll('/', '').trim();
+      if (zipName.isEmpty && templateConfig['layers'] is List) {
+        final reg = RegExp(r'(?:\.\./)?skins/([^/]+)/');
+        for (var layer in (templateConfig['layers'] as List)) {
+          if (layer is Map) {
+            for (var urlField in ['src', '_fallback_src']) {
+              if (layer[urlField] != null) {
+                final match = reg.firstMatch(layer[urlField].toString());
+                if (match != null && match.group(1) != null) {
+                  zipName = match.group(1)!.trim();
+                  break;
+                }
+              }
+            }
+          }
+          if (zipName.isNotEmpty) break;
+        }
+      }
+
+      if (zipName.isNotEmpty && !frameBaseUrl.contains('/uploads/template/$zipName')) {
+        frameBaseUrl = '${base}uploads/template/$zipName/';
+        this.templateBaseUrl = frameBaseUrl;
+      } else if (this.templateBaseUrl.isEmpty || !this.templateBaseUrl.contains('/uploads/template/')) {
+        this.templateBaseUrl = frameBaseUrl;
+      }
+
+      for (var layer in (templateConfig['layers'] as List)) {
+        if (layer is Map<String, dynamic>) {
+          for (var urlField in ['src', '_fallback_src']) {
+            if (layer[urlField] != null && layer[urlField].toString().isNotEmpty) {
+              String srcStr = layer[urlField].toString();
+              if (srcStr.startsWith('data:') || srcStr.startsWith('http')) {
+                if (srcStr.contains('/skins/skins/')) {
+                  srcStr = srcStr.replaceAll('/skins/skins/', '/skins/');
+                  layer[urlField] = srcStr;
+                }
+                if (zipName.isNotEmpty && srcStr.contains('/uploads/skins/$zipName/')) {
+                  srcStr = srcStr.replaceAll('/uploads/skins/$zipName/', '/uploads/template/$zipName/skins/$zipName/');
+                  layer[urlField] = srcStr;
+                }
+              } else if (srcStr.startsWith('/')) {
+                layer[urlField] = '$base${srcStr.substring(1)}';
+              } else if (srcStr.startsWith('../')) {
+                layer[urlField] = '$frameBaseUrl${srcStr.replaceFirst('../', '')}';
+              } else if (srcStr.startsWith('skins/')) {
+                layer[urlField] = '$frameBaseUrl$srcStr';
+              } else if (srcStr.startsWith('uploads/')) {
+                layer[urlField] = '$base$srcStr';
+              } else {
+                if (zipName.isNotEmpty) {
+                  layer[urlField] = '${frameBaseUrl}skins/$zipName/$srcStr';
+                } else {
+                  layer[urlField] = '${frameBaseUrl}skins/$srcStr';
+                }
+              }
+              if (layer[urlField] != null && !layer[urlField].toString().startsWith('data:')) {
+                layer[urlField] = layer[urlField].toString().replaceAll(' ', '-').replaceAll('%20', '-');
+              }
+            }
+          }
+        }
+      }
+
       _deduplicateLayerNames(templateConfig['layers']);
     }
 
@@ -763,6 +853,10 @@ class NativeEditorController extends GetxController {
       if (rawNewLayers == null) rawNewLayers = [];
 
       final newLayers = jsonDecode(jsonEncode(rawNewLayers)) as List<dynamic>;
+      debugPrint('🔴 [DIAGNOSIS] loadNewFrame newLayers count: ${newLayers.length}');
+      for (var l in newLayers) {
+        debugPrint('🔴 [DIAGNOSIS] newLayer: ${l['name']} type=${l['type']}');
+      }
       
       Map<String, String> userTexts = {};
       for (var l in currentLayers) {
@@ -878,41 +972,51 @@ class NativeEditorController extends GetxController {
 
         newLayer['_is_frame_layer'] = true;
 
-        if (newLayer['type'] == 'image' && newLayer['src'] != null) {
-          String srcStr = newLayer['src'].toString();
-          if (!srcStr.startsWith('http') && !srcStr.startsWith('data:')) {
-            String base = ApiService.baseUrl.replaceAll('/api', '');
-            if (!base.endsWith('/')) {
-              base += '/';
-            }
-            
-            String frameBaseUrl = base;
-            if (newFrameJson['full_url'] != null) {
-              String fullUrl = newFrameJson['full_url'].toString();
-              int skinsIndex = fullUrl.indexOf('/skins/');
-              if (skinsIndex != -1) {
-                frameBaseUrl = fullUrl.substring(0, skinsIndex) + '/';
+        for (String urlField in ['src', '_fallback_src']) {
+          if (newLayer[urlField] != null && newLayer[urlField].toString().isNotEmpty) {
+            String srcStr = newLayer[urlField].toString();
+            if (!srcStr.startsWith('http') && !srcStr.startsWith('data:')) {
+              String base = ApiService.baseUrl;
+              Uri baseUri = Uri.parse(base);
+              List<String> segments = baseUri.pathSegments.toList();
+              if (segments.isNotEmpty) {
+                segments.removeLast(); // Remove API segment (e.g., '123456')
+              }
+              base = baseUri.replace(pathSegments: segments).toString();
+              if (!base.endsWith('/')) {
+                base += '/';
+              }
+              
+              String zipName = (newFrameJson['zip_name'] ?? newFrameJson['path'] ?? '').toString().replaceAll('/', '').trim();
+              String frameBaseUrl = base;
+              if (zipName.isNotEmpty) {
+                frameBaseUrl = '${base}uploads/template/$zipName/';
+              } else if (newFrameJson['full_url'] != null) {
+                String fullUrl = newFrameJson['full_url'].toString();
+                int skinsIndex = fullUrl.indexOf('/skins/');
+                if (skinsIndex != -1) {
+                  frameBaseUrl = fullUrl.substring(0, skinsIndex) + '/';
+                }
+              }
+
+              if (srcStr.startsWith('data:') || srcStr.startsWith('http')) {
+                newLayer[urlField] = srcStr;
+              } else if (srcStr.startsWith('/')) {
+                newLayer[urlField] = '$base${srcStr.substring(1)}';
+              } else if (srcStr.startsWith('../')) {
+                newLayer[urlField] = '$frameBaseUrl${srcStr.replaceFirst('../', '')}';
+              } else if (srcStr.startsWith('uploads/')) {
+                newLayer[urlField] = '$base$srcStr';
+              } else {
+                newLayer[urlField] = '${frameBaseUrl}skins/$srcStr';
               }
             }
-
-            if (srcStr.startsWith('data:') || srcStr.startsWith('http')) {
-              newLayer['src'] = srcStr;
-            } else if (srcStr.startsWith('/')) {
-              newLayer['src'] = '$base${srcStr.substring(1)}';
-            } else if (srcStr.startsWith('../')) {
-              newLayer['src'] = '$frameBaseUrl${srcStr.replaceFirst('../', '')}';
-            } else if (srcStr.startsWith('uploads/')) {
-              newLayer['src'] = '$base$srcStr';
-            } else {
-              newLayer['src'] = '${frameBaseUrl}skins/$srcStr';
+            
+            // Server zip extraction replaces spaces with hyphens.
+            // Replace proactively to avoid a 404 delay before the fallback kicks in.
+            if (!newLayer[urlField].toString().startsWith('data:')) {
+              newLayer[urlField] = newLayer[urlField].toString().replaceAll(' ', '-').replaceAll('%20', '-');
             }
-          }
-          
-          // Server zip extraction replaces spaces with hyphens.
-          // Replace proactively to avoid a 404 delay before the fallback kicks in.
-          // This must run even if the URL already starts with 'http' (e.g. from native_editor_screen.dart)
-          if (!newLayer['src'].toString().startsWith('data:')) {
-            newLayer['src'] = newLayer['src'].toString().replaceAll(' ', '-').replaceAll('%20', '-');
           }
         }
 

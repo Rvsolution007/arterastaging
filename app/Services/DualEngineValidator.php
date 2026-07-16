@@ -43,8 +43,23 @@ class DualEngineValidator
         if (!$golden) {
             return [
                 'status' => 'NO_BASELINE',
+                'frame_id' => $frameId,
+                'current_version' => $currentVersion,
+                'target_version' => $targetVersion,
+                'max_diff_px' => 0,
                 'message' => "No golden baseline found for frame #$frameId at V$currentVersion",
-                'web_mismatches' => [],
+                'web_mismatches' => [
+                    [
+                        'engine' => 'SYSTEM',
+                        'layer' => 'Golden Snapshot',
+                        'property' => 'Baseline Data',
+                        'golden_value' => 'Missing',
+                        'new_value' => 'N/A',
+                        'diff' => 0,
+                        'severity' => 'major',
+                        'auto_compensatable' => false
+                    ]
+                ],
                 'native_mismatches' => [],
             ];
         }

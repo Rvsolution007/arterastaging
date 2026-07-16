@@ -410,10 +410,97 @@ class NativeEditorController extends GetxController {
     }
   }
 
+  /// Auto-detect contact/social icons by proximity to contact text layers
+  void _autoDetectContactIcons(List<dynamic> layers) {
+    try {
+      for (var imgLayer in layers) {
+        if (imgLayer is Map<String, dynamic>) {
+          final String type = (imgLayer['type'] ?? '').toString();
+          if (type == 'image' || type == 'icon' || type == 'shape') {
+            // Skip if it already has a business key
+            if (imgLayer['_businessKey'] != null) continue;
+
+            double iw = safeDouble((imgLayer['w'] ?? imgLayer['width'] ?? 0) as num);
+            double ih = safeDouble((imgLayer['h'] ?? imgLayer['height'] ?? 0) as num);
+            if (iw <= 0 || ih <= 0 || iw > 80 || ih > 80) continue; // Must be a small icon asset
+
+            double ix = safeDouble((imgLayer['x'] ?? 0) as num);
+            double iy = safeDouble((imgLayer['y'] ?? 0) as num);
+            double icY = iy + ih / 2;
+
+            Map<String, dynamic>? bestTextLayer;
+            double bestDist = 999999;
+
+            for (var txtLayer in layers) {
+              if (txtLayer is Map<String, dynamic> && txtLayer['type'] == 'text') {
+                String? txtBizKey = txtLayer['_businessKey']?.toString();
+                if (txtBizKey == null || txtBizKey.isEmpty) {
+                  final String tname = (txtLayer['name'] ?? txtLayer['id'] ?? '').toString().toLowerCase();
+                  if (tname.contains('phone') || tname.contains('mobile') || tname.contains('whatsapp') || tname.contains('number') || tname.contains('tel')) txtBizKey = 'phone';
+                  else if (tname.contains('email') || tname.contains('mail')) txtBizKey = 'email';
+                  else if (tname.contains('website') || tname.contains('web') || tname.contains('url')) txtBizKey = 'website';
+                  else if (tname.contains('address') || tname.contains('location')) txtBizKey = 'address';
+                }
+                if (txtBizKey == null || txtBizKey.isEmpty) continue;
+
+                double tx = safeDouble((txtLayer['x'] ?? 0) as num);
+                double ty = safeDouble((txtLayer['y'] ?? 0) as num);
+                double tw = safeDouble((txtLayer['w'] ?? txtLayer['width'] ?? 0) as num);
+                double th = safeDouble((txtLayer['h'] ?? txtLayer['height'] ?? 0) as num);
+                double tcY = ty + th / 2;
+
+                // Check vertical alignment (diff in center Y <= 35)
+                double diffY = (icY - tcY).abs();
+                if (diffY > 35) continue;
+
+                // Check horizontal proximity (gap <= 120)
+                double gap = 999999;
+                if (ix + iw <= tx) {
+                  gap = tx - (ix + iw); // Icon is to the left
+                } else if (tx + tw <= ix) {
+                  gap = ix - (tx + tw); // Icon is to the right
+                } else {
+                  gap = 0; // Horizontally overlapping
+                }
+
+                if (gap > 120) continue;
+
+                double dist = diffY + gap;
+                if (dist < bestDist) {
+                  bestDist = dist;
+                  bestTextLayer = txtLayer;
+                }
+              }
+            }
+
+            if (bestTextLayer != null) {
+              String bizKey = bestTextLayer['_businessKey']?.toString() ?? '';
+              if (bizKey.isEmpty) {
+                final String tname = (bestTextLayer['name'] ?? bestTextLayer['id'] ?? '').toString().toLowerCase();
+                if (tname.contains('phone') || tname.contains('mobile') || tname.contains('whatsapp') || tname.contains('number') || tname.contains('tel')) bizKey = 'phone';
+                else if (tname.contains('email') || tname.contains('mail')) bizKey = 'email';
+                else if (tname.contains('website') || tname.contains('web') || tname.contains('url')) bizKey = 'website';
+                else if (tname.contains('address') || tname.contains('location')) bizKey = 'address';
+              }
+              if (bizKey.isNotEmpty) {
+                imgLayer['_businessKey'] = bizKey;
+                debugPrint('[ICON_AUTO_DETECT] Coupled icon "${imgLayer['name']}" to text "${bestTextLayer['name']}" (key=$bizKey, dist=${bestDist.toInt()})');
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[ICON_AUTO_DETECT] Error: $e');
+    }
+  }
+
   /// Applies brightness-based color theming on initial load
   Future<void> _applyInitialBrightness() async {
     final layers = templateConfig['layers'] as List<dynamic>? ?? [];
     if (layers.isEmpty) return;
+    
+    _autoDetectContactIcons(layers);
     
     // Build shape layers list (same logic as loadNewFrame)
     List<Map<String, dynamic>> shapeLayers = [];
@@ -435,6 +522,8 @@ class NativeEditorController extends GetxController {
                 'y': safeDouble((layer['y'] ?? 0) as num),
                 'w': rawW,
                 'h': rawH,
+                'fill': layer['fill'] ?? layer['tint_color'] ?? layer['color'],
+                'src': layer['src'],
               });
             }
           }
@@ -858,6 +947,8 @@ class NativeEditorController extends GetxController {
         debugPrint('🔴 [DIAGNOSIS] newLayer: ${l['name']} type=${l['type']}');
       }
       
+      _autoDetectContactIcons(newLayers);
+      
       Map<String, String> userTexts = {};
       for (var l in currentLayers) {
         final name = (l['name'] ?? l['id'] ?? '').toString();
@@ -1089,12 +1180,14 @@ class NativeEditorController extends GetxController {
             }
           }
         } else if (newLayer['type'] == 'image') {
-          if (bLow.contains('phone') || bLow.contains('call') || bLow.contains('mobile') || bLow.contains('contact') || bLow.contains('whatsapp') || bLow.contains('tel') || bLow.contains('ph')) newLayer['_businessKey'] = 'phone';
-          else if (bLow.contains('email') || bLow.contains('mail')) newLayer['_businessKey'] = 'email';
-          else if (bLow.contains('website') || bLow.contains('web') || bLow.contains('url')) newLayer['_businessKey'] = 'website';
-          else if (bLow.contains('address') || bLow.contains('location')) newLayer['_businessKey'] = 'address';
-          else if (bLow.contains('icon') || bLow.contains('facebook') || bLow.contains('instagram') || bLow.contains('twitter') || bLow.contains('youtube') || bLow.contains('social') || bLow.contains('linkedin')) newLayer['_businessKey'] = 'social';
-          else if (bLow.contains('logo') && !bLow.contains('email') && !bLow.contains('call') && !bLow.contains('phone') && !bLow.contains('web')) {
+          if (newLayer['_businessKey'] == null) {
+            if (bLow.contains('phone') || bLow.contains('call') || bLow.contains('mobile') || bLow.contains('contact') || bLow.contains('whatsapp') || bLow.contains('tel') || bLow.contains('ph')) newLayer['_businessKey'] = 'phone';
+            else if (bLow.contains('email') || bLow.contains('mail')) newLayer['_businessKey'] = 'email';
+            else if (bLow.contains('website') || bLow.contains('web') || bLow.contains('url')) newLayer['_businessKey'] = 'website';
+            else if (bLow.contains('address') || bLow.contains('location')) newLayer['_businessKey'] = 'address';
+            else if (bLow.contains('icon') || bLow.contains('facebook') || bLow.contains('instagram') || bLow.contains('twitter') || bLow.contains('youtube') || bLow.contains('social') || bLow.contains('linkedin')) newLayer['_businessKey'] = 'social';
+          }
+          if (bLow.contains('logo') && !bLow.contains('email') && !bLow.contains('call') && !bLow.contains('phone') && !bLow.contains('web')) {
             newLayer['_businessKey'] = 'logo';
             if (Get.isRegistered<HomeController>()) {
               final homeCtrl = Get.find<HomeController>();
@@ -1126,9 +1219,16 @@ class NativeEditorController extends GetxController {
                double py = safeDouble((newLayer['y'] ?? 0) as num);
                double pw = safeDouble((newLayer['w'] ?? newLayer['width'] ?? 0) as num);
                double ph = safeDouble((newLayer['h'] ?? newLayer['height'] ?? 0) as num);
-               if (pw > 20 && ph > 10) {
-                 shapeLayers.add({'x': px, 'y': py, 'w': pw, 'h': ph});
-               }
+                if (pw > 20 && ph > 10) {
+                  shapeLayers.add({
+                    'x': px,
+                    'y': py,
+                    'w': pw,
+                    'h': ph,
+                    'fill': newLayer['fill'] ?? newLayer['tint_color'] ?? newLayer['color'],
+                    'src': newLayer['src'],
+                  });
+                }
               }
             }
           }
@@ -1245,6 +1345,60 @@ class NativeEditorController extends GetxController {
     List<Map<String, dynamic>> shapeLayers
   ) async {
     try {
+      // Process shape images to find their actual brightness
+      for (var shape in shapeLayers) {
+        if (shape['fill'] == null && shape['src'] != null && shape['src'].toString().isNotEmpty) {
+          String sUrl = shape['src'].toString();
+          // Normalize URL
+          if (!sUrl.startsWith('http')) {
+            String baseUrl = templateBaseUrl.isNotEmpty ? templateBaseUrl : AppConfig.baseUrl.replaceAll('/123456', '') + '/public';
+            if (sUrl.startsWith('../')) {
+              sUrl = '$baseUrl/${sUrl.replaceFirst('../', '')}';
+            } else if (sUrl.startsWith('uploads/')) {
+              sUrl = '$baseUrl/$sUrl';
+            } else {
+              sUrl = '$baseUrl/skins/$sUrl';
+            }
+          }
+          
+          bool shapeIsDark = false;
+          if (_brightnessCache.containsKey(sUrl)) {
+            shapeIsDark = _brightnessCache[sUrl]!;
+          } else {
+            try {
+              final resp = await http.get(Uri.parse(sUrl));
+              if (resp.statusCode == 200) {
+                final codec = await ui.instantiateImageCodec(resp.bodyBytes);
+                final frameInfo = await codec.getNextFrame();
+                final img = frameInfo.image;
+                final data = (await img.toByteData())?.buffer.asUint8List();
+                if (data != null) {
+                  double totalLuminance = 0;
+                  int sampleCount = 0;
+                  for (int i = 0; i < data.length; i += 4 * 10) {
+                    int r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
+                    if (a > 30) { // Only sample non-transparent pixels
+                      totalLuminance += (0.299 * r + 0.587 * g + 0.114 * b);
+                      sampleCount++;
+                    }
+                  }
+                  if (sampleCount > 0) {
+                    double avgBrightness = totalLuminance / sampleCount;
+                    shapeIsDark = avgBrightness < 128;
+                    _brightnessCache[sUrl] = shapeIsDark;
+                    debugPrint('[SHAPE_BRIGHTNESS] Computed for ${shape['src']} -> avg=$avgBrightness, isDark=$shapeIsDark');
+                  }
+                }
+              }
+            } catch (e) {
+              debugPrint('[SHAPE_BRIGHTNESS] Error for ${shape['src']}: $e');
+            }
+          }
+          shape['shapeIsDark'] = shapeIsDark;
+          shape['hasComputedBrightness'] = true;
+        }
+      }
+
       bool templateIsDark = false;
       
       // Priority 1: Use the controller's stored baseImgUrl (set at init from designUrl)
@@ -1434,7 +1588,7 @@ class NativeEditorController extends GetxController {
       // PASS 2: Apply colors to ICON layers - match paired text color (same as web editor)
       for (var newLayer in newLayers) {
         final String lname = (newLayer['name'] ?? newLayer['id'] ?? '').toString().toLowerCase();
-        bool isIcon = newLayer['type'] == 'image' && (
+        bool isIcon = (newLayer['type'] == 'image' || newLayer['type'] == 'icon') && (
           ['phone', 'email', 'website', 'address', 'social'].contains(newLayer['_businessKey']) ||
           ['phone', 'email', 'website', 'address', 'call', 'mobile', 'contact', 'whatsapp', 'tel',
            'mail', 'web', 'url', 'location', 'icon', 'facebook', 'instagram', 'twitter', 'youtube',
@@ -1478,6 +1632,21 @@ class NativeEditorController extends GetxController {
         }
       }
       
+      // PASS 3: Apply colors to general ICON-TYPE layers (type=='icon' from web editor icon picker)
+      // These are distinct from PASS 2 contact icons.
+      for (var newLayer in newLayers) {
+        if (newLayer['type'] == 'icon') {
+          // Skip if it was already processed as a contact icon in PASS 2 (has business key)
+          if (newLayer['_businessKey'] != null && ['phone', 'email', 'website', 'address', 'social'].contains(newLayer['_businessKey'])) {
+            continue;
+          }
+          debugPrint('[BRIGHTNESS] PASS3: Found type=icon layer: "${newLayer['name']}"');
+          if (_applyDynamicTextColor(newLayer, templateIsDark, shapeLayers)) {
+            needsRefresh = true;
+          }
+        }
+      }
+      
       debugPrint('[BRIGHTNESS] needsRefresh=$needsRefresh');
       if (needsRefresh) {
         templateConfig.refresh();
@@ -1507,14 +1676,18 @@ class NativeEditorController extends GetxController {
 
     bool isText = layer['type'] == 'text';
     final String lname = (layer['name'] ?? layer['id'] ?? '').toString().toLowerCase();
-    bool isIcon = layer['type'] == 'image' && (
+    bool isContactIcon = layer['type'] == 'image' && (
                   ['phone', 'email', 'website', 'address', 'social'].contains(layer['_businessKey']) ||
                   ['phone', 'email', 'website', 'address', 'call', 'mobile', 'contact', 'whatsapp', 'tel',
                    'mail', 'web', 'url', 'location', 'icon', 'facebook', 'instagram', 'twitter', 'youtube',
                    'social', 'linkedin'].any((key) => lname.contains(key))
                   );
+    // NEW: Also detect type=='icon' layers (from web editor icon picker, e.g. Iconify/FontAwesome)
+    bool isIconType = layer['type'] == 'icon';
+    bool isIcon = isContactIcon || isIconType;
+    debugPrint('[COLOR_DIAG] isText=$isText, isContactIcon=$isContactIcon, isIconType=$isIconType, isIcon=$isIcon');
 
-    // DO NOT override colors for frame layers — EXCEPT for text and contact icons.
+    // DO NOT override colors for frame layers — EXCEPT for text and contact icons and icon-type layers.
     // If it's a frame layer and not a text/icon, skip it.
     if (layer['_is_frame_layer'] == true || layer['_isFrameLayer'] == true) {
       if (!isText && !isIcon) {
@@ -1524,7 +1697,7 @@ class NativeEditorController extends GetxController {
     }
 
     if (!isText && !isIcon) {
-      debugPrint('[COLOR_DIAG] ❌ SKIPPED: Not text or contact icon');
+      debugPrint('[COLOR_DIAG] ❌ SKIPPED: Not text, contact icon, or icon-type layer');
       return false;
     }
 
@@ -1550,15 +1723,20 @@ class NativeEditorController extends GetxController {
           textCenterY >= sy && textCenterY <= (sy + sh)) {
         overlapsShape = true;
         
-        // Parse the shape's fill color to determine its brightness
-        final fillVal = shape['fill']?.toString() ?? '#FFFFFF';
-        final Color shapeColor = _parseColor(fillVal, fallback: Colors.white);
-        
-        // Compute brightness (standard formula)
-        final double luminance = (0.299 * shapeColor.red + 0.587 * shapeColor.green + 0.114 * shapeColor.blue);
-        shapeIsDark = luminance < 128;
-        
-        debugPrint('[COLOR] "$layerName" overlaps shape at (${sx.toInt()},${sy.toInt()},${sw.toInt()},${sh.toInt()}) with fill="$fillVal" (shapeIsDark=$shapeIsDark)');
+        if (shape['hasComputedBrightness'] == true) {
+          shapeIsDark = shape['shapeIsDark'] == true;
+          debugPrint('[COLOR] "$layerName" overlaps image shape with computed shapeIsDark=$shapeIsDark (src=${shape['src']})');
+        } else {
+          // Parse the shape's fill color to determine its brightness
+          final fillVal = shape['fill']?.toString() ?? '#FFFFFF';
+          final Color shapeColor = _parseColor(fillVal, fallback: Colors.white);
+          
+          // Compute brightness (standard formula)
+          final double luminance = (0.299 * shapeColor.red + 0.587 * shapeColor.green + 0.114 * shapeColor.blue);
+          shapeIsDark = luminance < 128;
+          
+          debugPrint('[COLOR] "$layerName" overlaps shape at (${sx.toInt()},${sy.toInt()},${sw.toInt()},${sh.toInt()}) with fill="$fillVal" (shapeIsDark=$shapeIsDark)');
+        }
         break;
       }
     }
@@ -1581,10 +1759,14 @@ class NativeEditorController extends GetxController {
       layer['color'] = newColor;
       layer['font_color'] = newColor;
     } else if (isIcon) {
-      debugPrint('[COLOR] ICON "$layerName" → templateIsDark=$templateIsDark overlapsShape=$overlapsShape → tint=$newColor (was: ${layer['tint_color']})');
+      debugPrint('[COLOR] ICON "$layerName" → templateIsDark=$templateIsDark overlapsShape=$overlapsShape → tint=$newColor (was: ${layer['tint_color']}, isIconType=$isIconType)');
       if (layer['tint_color'] != newColor || layer['color'] != newColor) changed = true;
       layer['tint_color'] = newColor;
       layer['color'] = newColor;
+      // Icon-type layers (type=='icon') use font_color in _buildIconLayer
+      if (isIconType) {
+        layer['font_color'] = newColor;
+      }
     }
     return changed;
   }

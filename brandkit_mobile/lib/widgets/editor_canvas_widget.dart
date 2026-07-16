@@ -2231,7 +2231,18 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
 
     if (iconData == null) {
       // 2. Fetch SVG from Iconify API and render with flutter_svg
-      final String tintColor = (layer['color'] ?? layer['tint_color'] ?? '#333333').toString().replaceAll('#', '');
+      // Dynamic Theming: prefer font_color (set by brightness detection) over original color
+      String rawTint = (layer['font_color'] ?? layer['color'] ?? layer['tint_color'] ?? '#333333').toString();
+      // Normalize to 6-char hex for Iconify API (expects #RRGGBB)
+      String tintColor = rawTint.replaceAll('#', '');
+      if (tintColor.startsWith('0x') || tintColor.startsWith('0X')) {
+        tintColor = tintColor.substring(2); // Remove '0x' prefix
+      }
+      if (tintColor.length == 8) {
+        tintColor = tintColor.substring(2); // Remove alpha prefix (AARRGGBB → RRGGBB)
+      }
+      if (tintColor.length != 6) tintColor = '333333'; // Safety fallback
+      debugPrint('[ICON_DIAG] Iconify SVG "$lname" → font_color=${layer['font_color']} color=${layer['color']} tint_color=${layer['tint_color']} → resolved tintColor=#$tintColor');
       final String svgUrl = 'https://api.iconify.design/${iconName.replaceAll(':', '/')}.svg?color=%23$tintColor';
       
       double size = (safeDouble(layer['size']) ?? (nativeH > 0 ? nativeH : 24.0)) * scale;
@@ -2253,7 +2264,9 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       return Center(child: svgWidget);
     }
 
-    String colorStr = layer['color'] ?? '#000000';
+    // Dynamic Theming: prefer font_color (set by brightness detection) over original color
+    String colorStr = layer['font_color'] ?? layer['color'] ?? '#000000';
+    debugPrint('[ICON_DIAG] FontAwesome "$lname" → font_color=${layer['font_color']} color=${layer['color']} → resolved colorStr=$colorStr');
     Color iconColor = _parseColor(colorStr);
     List<Color>? gradientColors = _parseGradient(colorStr);
 

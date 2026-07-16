@@ -389,6 +389,12 @@ class TemplateBuilderController extends Controller
                         \Log::info('[loadFrameZip] EditorTemplate assets missing locally for frame #' . $id . ', using ZIP JSON instead');
                     }
                 }
+
+                // Force sync render_version again here in case it was overwritten by EditorTemplate schema_json
+                if ($jsonConfig) {
+                    $jsonConfig['render_version'] = (int) ($frame->render_version ?? 1);
+                }
+
                 // Extract and load fonts from schema
                 $schemaFonts = [];
                 array_walk_recursive($jsonConfig, function($value, $key) use (&$schemaFonts) {

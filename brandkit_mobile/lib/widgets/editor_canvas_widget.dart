@@ -686,6 +686,13 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       return zA.compareTo(zB);
     });
 
+    // Print all layers for diagnosis as requested by user
+    debugPrint('🔴 [USER_DIAGNOSIS] Listing all layers of frame:');
+    for (int i = 0; i < sortedLayers.length; i++) {
+      final l = sortedLayers[i];
+      debugPrint('  [LAYER $i] name="${l['name']}" type="${l['type']}" originalType="${l['_originalType']}" iconName="${l['iconName']}" src="${l['src'] != null ? (l['src'].toString().length > 100 ? l['src'].toString().substring(0, 100) + '...' : l['src']) : 'null'}" _source_meta=${l['_source_meta']} tint_color=${l['tint_color']} font_color=${l['font_color']} color=${l['color']}');
+    }
+
     // ══════════════════════════════════════════════════════════════
     // APPLY Y-SHIFTS (from post-frame measurement)
     // ══════════════════════════════════════════════════════════════
@@ -1070,8 +1077,21 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       debugPrint('│   finalX=${safeDouble(effectiveLayer['x'] ?? 0) * scale}  finalY=${safeDouble(effectiveLayer['y'] ?? 0) * scale}');
       debugPrint('│   finalW=${nativeW * scale}  finalH=${nativeH * scale}');
       debugPrint('└─────────────────────────────────────────────────────────');
-      content =
-          _buildImageLayer(effectiveLayer, name, scale, nativeW, nativeH);
+      // ── CHECK: Is this actually an icon exported as type='image' from ArteraSchema? ──
+      final bool _hasIconMeta = effectiveLayer['_source_meta'] is Map &&
+          effectiveLayer['_source_meta']['iconName'] != null &&
+          effectiveLayer['_source_meta']['iconName'].toString().isNotEmpty;
+      final bool _hasOrigTypeIcon = effectiveLayer['_originalType'] == 'icon';
+      final bool _hasTopIconName = effectiveLayer['iconName'] != null &&
+          effectiveLayer['iconName'].toString().isNotEmpty;
+
+      if (_hasIconMeta || _hasOrigTypeIcon || _hasTopIconName) {
+        debugPrint('[ICON_ROUTE] type=image but detected icon metadata → routing to _buildIconLayer (meta=$_hasIconMeta origType=$_hasOrigTypeIcon topName=$_hasTopIconName)');
+        content = _buildIconLayer(effectiveLayer, name, scale, nativeW, nativeH);
+      } else {
+        content =
+            _buildImageLayer(effectiveLayer, name, scale, nativeW, nativeH);
+      }
     } else if (type == 'shape' || type == 'rect') {
       // ── RENDER V4: Native vector shape rendering ──
       if (renderVersion >= 4) {
@@ -1473,8 +1493,18 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     return textWidget;
   }
 
-  Color _parseColor(String colorStr, {Color fallback = const Color(0xFF000000)}) {
+  Color _parseColor(dynamic colorVal, {Color fallback = const Color(0xFF000000)}) {
+    if (colorVal == null) return fallback;
+    if (colorVal is int) return Color(colorVal);
+    
+    String colorStr = colorVal.toString().trim();
     if (colorStr.isEmpty) return fallback;
+    
+    // Handle stringified integers (e.g. "4278190080" from 0xFF000000)
+    int? intParsed = int.tryParse(colorStr);
+    if (intParsed != null && !colorStr.startsWith('#') && !colorStr.startsWith('0x') && colorStr.length > 7) {
+      return Color(intParsed);
+    }
     
     // Handle rgb(r,g,b) format
     if (colorStr.startsWith('rgb') && !colorStr.startsWith('rgba')) {
@@ -1714,7 +1744,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       
       // Add cache buster to invalidate old transparent PNGs in memory cache
       if (finalUrl.startsWith('http') && !finalUrl.contains('?')) {
-        finalUrl = '$finalUrl?v=2';
+        finalUrl = '$finalUrl?cb=${DateTime.now().millisecondsSinceEpoch}';
       }
       
       final bool isShape = layer['is_shape'] == true;
@@ -1774,9 +1804,9 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     final bool skipRasterTint = isRasterizedShape && ((widget.config['render_version'] ?? 1) as int) < 2 && layer['tint_color'] == null;
     
     if (layer['tint_color'] != null && !skipRasterTint) {
-      String tintStr = layer['tint_color'].toString();
-      tintColor = _parseColor(tintStr, fallback: const Color(0xFFFFFFFF));
-      gradientColors = _parseGradient(tintStr);
+      final dynamic rawTint = layer['tint_color'];
+      tintColor = _parseColor(rawTint, fallback: const Color(0xFFFFFFFF));
+      gradientColors = _parseGradient(rawTint.toString());
       debugPrint('[TINT] "$lname" PARSED tint_color → $tintColor');
     } else if (layer['fill'] != null && layer['type'] == 'shape' && !isRasterizedShape) {
       // Native shapes (rect, circle, etc.) have their color in 'fill', not 'tint_color'
@@ -1807,6 +1837,46 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     bool clipOval = !isShapeLayer && hasInjectedImage && (_lowName.contains('ellipse') || _lowName.contains('circle') || _lowName.contains('round'));
     
     Widget imgWidget = _buildImage(finalUrl, fit, radius, isSmall: isSmallAsset, tintColor: tintColor, gradientColors: gradientColors, gradientDir: gradientDir, isLocal: isLocal, flipX: flipX, clipOval: clipOval);
+    
+    // -- Native Fallback for Broken Raster Contact Icons (Bug 1 Fix) --
+    // Legacy V1 templates saved Iconify SVGs as broken PNGs if the network failed, resulting in solid white squares when tinted.
+    if (_isContactOrSocial && pathType == 'TEMPLATE_ASSET' && isRasterizedShape) {
+        IconData? fallbackIcon;
+        if (_lowName.contains('phone') || _lowName.contains('call') || _lowName.contains('mobile')) {
+          fallbackIcon = Icons.phone;
+        } else if (_lowName.contains('email') || _lowName.contains('mail')) {
+          fallbackIcon = Icons.email;
+        } else if (_lowName.contains('web') || _lowName.contains('globe') || _lowName.contains('website')) {
+          fallbackIcon = Icons.language;
+        } else if (_lowName.contains('location') || _lowName.contains('address') || _lowName.contains('map')) {
+          fallbackIcon = Icons.location_on;
+        } else if (_lowName.contains('facebook')) {
+          fallbackIcon = Icons.facebook;
+        } else if (_lowName.contains('instagram')) {
+          fallbackIcon = Icons.camera_alt;
+        } else if (_lowName.contains('twitter') || _lowName.contains('x_')) {
+          fallbackIcon = Icons.close;
+        } else if (_lowName.contains('youtube')) {
+          fallbackIcon = Icons.play_circle_filled;
+        } else if (_lowName.contains('linkedin')) {
+          fallbackIcon = Icons.work;
+        }
+
+        if (fallbackIcon != null) {
+            debugPrint('✅ [IMG_LAYER] Using native Flutter Icon fallback for broken raster icon "$lname"');
+            imgWidget = SizedBox(
+                width: nativeW * scale,
+                height: nativeH * scale,
+                child: FittedBox(
+                    fit: BoxFit.contain,
+                    child: Icon(
+                        fallbackIcon,
+                        color: tintColor ?? Colors.black,
+                    ),
+                ),
+            );
+        }
+    }
     
     // -- Custom Image Mask Logic --
     // When a layer has mask_layer_id (either from JSON or auto-detected in pre-pass):
@@ -1889,6 +1959,8 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
           imgWidget = Image.memory(
             bytes,
             fit: fit,
+            color: tintColor,
+            colorBlendMode: tintColor != null ? BlendMode.srcIn : null,
             filterQuality: FilterQuality.high,
             errorBuilder: (_, error, __) {
               debugPrint('IMAGE LOAD ERROR (Base64): $error');
@@ -1912,6 +1984,8 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
           imgWidget = Image.network(
             url,
             fit: fit,
+            color: tintColor,
+            colorBlendMode: tintColor != null ? BlendMode.srcIn : null,
             filterQuality: FilterQuality.high,
             errorBuilder: (context, error, stackTrace) {
               debugPrint('IMAGE LOAD ERROR (Small): $error');
@@ -1921,6 +1995,8 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
                 return Image.network(
                   fallbackUrl,
                   fit: fit,
+                  color: tintColor,
+                  colorBlendMode: tintColor != null ? BlendMode.srcIn : null,
                   filterQuality: FilterQuality.high,
                   errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                 );
@@ -1932,8 +2008,13 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
           // ── LARGE ASSET PATH ──
           imgWidget = CachedNetworkImage(
             imageUrl: url,
-            fit: fit,
-            filterQuality: FilterQuality.high,
+            imageBuilder: (context, provider) => Image(
+              image: provider,
+              fit: fit,
+              color: tintColor,
+              colorBlendMode: tintColor != null ? BlendMode.srcIn : null,
+              filterQuality: FilterQuality.high,
+            ),
             fadeInDuration: Duration.zero,
             fadeOutDuration: Duration.zero,
             placeholderFadeInDuration: Duration.zero,
@@ -1946,8 +2027,13 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
                 debugPrint('Retrying image with fallback URL: $fallbackUrl');
                 return CachedNetworkImage(
                   imageUrl: fallbackUrl,
-                  fit: fit,
-                  filterQuality: FilterQuality.high,
+                  imageBuilder: (context, provider) => Image(
+                    image: provider,
+                    fit: fit,
+                    color: tintColor,
+                    colorBlendMode: tintColor != null ? BlendMode.srcIn : null,
+                    filterQuality: FilterQuality.high,
+                  ),
                   fadeInDuration: Duration.zero,
                   fadeOutDuration: Duration.zero,
                   placeholderFadeInDuration: Duration.zero,
@@ -1979,11 +2065,6 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
             colors: gradientColors,
           ).createShader(bounds);
         },
-        child: imgWidget,
-      );
-    } else if (tintColor != null) {
-      imgWidget = ColorFiltered(
-        colorFilter: ColorFilter.mode(tintColor, BlendMode.srcIn),
         child: imgWidget,
       );
     }
@@ -2022,7 +2103,8 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     debugPrint('🔴 [DIAGNOSIS-SHAPE] name="$lname" shapeType="$shapeType" fallback=${layer['_fallback_src'] != null}');
     
     // If it's an icon shape, delegate to _buildIconLayer
-    if (shapeType == 'icon' || layer['iconName'] != null) {
+    final bool hasMetaIcon = layer['_source_meta'] is Map && layer['_source_meta']['iconName'] != null;
+    if (shapeType == 'icon' || layer['iconName'] != null || hasMetaIcon) {
       return _buildIconLayer(layer, lname, scale, nativeW, nativeH);
     }
 
@@ -2219,10 +2301,19 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     }
   }
 
-  Widget _buildIconLayer(Map<String, dynamic> layer, String lname,
-      double scale, double nativeW, double nativeH) {
-    final String iconName = layer['iconName'] ?? '';
-    if (iconName.isEmpty) {
+  Widget _buildIconLayer(Map<String, dynamic> layer, String lname, double scale, double nativeW, double nativeH) {
+    String iconName = layer['iconName'] ?? '';
+    if (iconName.isEmpty && layer['_source_meta'] is Map && layer['_source_meta']['iconName'] != null) {
+      iconName = layer['_source_meta']['iconName'].toString();
+    }
+    
+    // Attempt to read offline SVG from JSON
+    String offlineSvg = '';
+    if (layer['_source_meta'] is Map && layer['_source_meta']['originalSvg'] != null) {
+      offlineSvg = layer['_source_meta']['originalSvg'].toString();
+    }
+
+    if (iconName.isEmpty && offlineSvg.isEmpty) {
       // Fallback to image
       return _buildImageLayer(layer, lname, scale, nativeW, nativeH);
     }
@@ -2232,35 +2323,76 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     if (iconData == null) {
       // 2. Fetch SVG from Iconify API and render with flutter_svg
       // Dynamic Theming: prefer font_color (set by brightness detection) over original color
-      String rawTint = (layer['font_color'] ?? layer['color'] ?? layer['tint_color'] ?? '#333333').toString();
-      // Normalize to 6-char hex for Iconify API (expects #RRGGBB)
-      String tintColor = rawTint.replaceAll('#', '');
-      if (tintColor.startsWith('0x') || tintColor.startsWith('0X')) {
-        tintColor = tintColor.substring(2); // Remove '0x' prefix
-      }
-      if (tintColor.length == 8) {
-        tintColor = tintColor.substring(2); // Remove alpha prefix (AARRGGBB → RRGGBB)
-      }
-      if (tintColor.length != 6) tintColor = '333333'; // Safety fallback
-      debugPrint('[ICON_DIAG] Iconify SVG "$lname" → font_color=${layer['font_color']} color=${layer['color']} tint_color=${layer['tint_color']} → resolved tintColor=#$tintColor');
-      final String svgUrl = 'https://api.iconify.design/${iconName.replaceAll(':', '/')}.svg?color=%23$tintColor';
-      
       double size = (safeDouble(layer['size']) ?? (nativeH > 0 ? nativeH : 24.0)) * scale;
       
-      Widget svgWidget = SvgPicture.network(
-        svgUrl,
+      final dynamic rawColor = layer['font_color'] ?? layer['color'] ?? layer['tint_color'] ?? '#333333';
+      Color parsedColor = _parseColor(rawColor);
+      
+      Widget svgWidget;
+      
+      if (offlineSvg.isEmpty) {
+        debugPrint('🔴 [SVG LOAD] No offlineSvg found for icon: $iconName, attempting native fallback');
+        // Native fallback for common contact icons
+        final String lowerName = lname.toLowerCase();
+        IconData? fallbackIcon;
+        if (lowerName.contains('phone') || lowerName.contains('call') || lowerName.contains('mobile')) {
+          fallbackIcon = Icons.phone;
+        } else if (lowerName.contains('email') || lowerName.contains('mail')) {
+          fallbackIcon = Icons.email;
+        } else if (lowerName.contains('web') || lowerName.contains('globe') || lowerName.contains('website')) {
+          fallbackIcon = Icons.language;
+        } else if (lowerName.contains('location') || lowerName.contains('address') || lowerName.contains('map')) {
+          fallbackIcon = Icons.location_on;
+        } else if (lowerName.contains('facebook')) {
+          fallbackIcon = Icons.facebook;
+        } else if (lowerName.contains('instagram')) {
+          fallbackIcon = Icons.camera_alt;
+        } else if (lowerName.contains('twitter') || lowerName.contains('x_')) {
+          fallbackIcon = Icons.close;
+        } else if (lowerName.contains('youtube')) {
+          fallbackIcon = Icons.play_circle_filled;
+        } else if (lowerName.contains('linkedin')) {
+          fallbackIcon = Icons.work;
+        }
+
+        if (fallbackIcon != null) {
+          debugPrint('✅ [SVG LOAD] Using native Flutter Icon fallback for "$lname"');
+          return SizedBox(
+            width: nativeW * scale,
+            height: nativeH * scale,
+            child: FittedBox(
+              fit: BoxFit.contain,
+              child: Icon(
+                fallbackIcon,
+                color: parsedColor,
+              ),
+            ),
+          );
+        }
+
+        debugPrint('🔴 [SVG LOAD] No native fallback found, falling back to image layer');
+        return _buildImageLayer(layer, lname, scale, nativeW, nativeH);
+      }
+      
+      // Offline SVG Rendering (Bug 2 Fix)
+      // Normalize stroke/fill to currentColor so ColorFilter always works
+      offlineSvg = offlineSvg.replaceAll(RegExp(r'fill="[^"]*"'), 'fill="currentColor"');
+      offlineSvg = offlineSvg.replaceAll(RegExp(r'stroke="[^"]*"'), 'stroke="currentColor"');
+      
+      svgWidget = SvgPicture.string(
+        offlineSvg,
         width: size,
         height: size,
-        placeholderBuilder: (context) {
-          // While loading or if failed, try _fallback_src PNG
-          return _buildImageLayer(layer, lname, scale, nativeW, nativeH);
-        },
+        fit: BoxFit.contain,
+        colorFilter: ColorFilter.mode(parsedColor, BlendMode.srcIn),
       );
       
       if (layer['opacity'] != null) {
         svgWidget = Opacity(opacity: safeDouble(layer['opacity']), child: svgWidget);
       }
       
+      
+
       return Center(child: svgWidget);
     }
 
@@ -2307,19 +2439,25 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       iconWidget = Opacity(opacity: safeDouble(layer['opacity']), child: iconWidget);
     }
 
+
     return Center(child: iconWidget);
   }
 
   FaIconData? _getFontAwesomeIcon(String rawName) {
     if (rawName.isEmpty) return null;
 
-    // 1. Strip Iconify provider prefixes (e.g., 'mdi-light:phone' -> 'phone')
+    // 1. Check if it's an Iconify SVG with a provider (e.g., 'material-symbols:call')
+    // If it contains ':', it's an Iconify icon, and we MUST use the SVG renderer instead of FontAwesome hack.
+    if (rawName.contains(':') && !rawName.startsWith('fa:')) {
+      return null; // Fallthrough to SVG renderer
+    }
+
     String name = rawName.toLowerCase();
     if (name.contains(':')) {
       name = name.split(':').last;
     }
 
-    // 2. Smart Keyword Matching
+    // 2. Smart Keyword Matching (Legacy fallback for old icons)
     if (name.contains('phone') || name.contains('call') || name.contains('mobile') || name.contains('cellphone') || name.contains('telephone')) {
       return FontAwesomeIcons.phone;
     } else if (name.contains('email') || name.contains('mail') || name.contains('envelope')) {

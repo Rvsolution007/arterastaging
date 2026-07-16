@@ -2256,7 +2256,7 @@
     let isUndoing = false;
     const btnUndo = $('btn-undo');
     const btnRedo = $('btn-redo');
-    const customAttrs = ['customType','customName','is_background','is_placeholder','is_slot','color_group','ai_role','ai_max_chars','placeholderKey','ai_field','ai_semantic_role','ai_priority','auto_scale','ai_replaceable', 'mask_layer_id'];
+    const customAttrs = ['customType','customName','is_background','is_placeholder','is_slot','color_group','ai_role','ai_max_chars','placeholderKey','ai_field','ai_semantic_role','ai_priority','auto_scale','ai_replaceable', 'mask_layer_id', '_iconName', '_iconProvider', '_originalSvgMarkup'];
 
     function saveHistory() {
         if (isUndoing) return;
@@ -4870,11 +4870,17 @@
                     
                     // ── Non-Destructive Metadata (Phase 1A) ──
                     if (obj.customType === 'icon') {
+                        let svgMarkup = obj._originalSvgMarkup || null;
+                        if (svgMarkup) {
+                            // Normalize stroke and fill for Flutter ColorFilter
+                            svgMarkup = svgMarkup.replace(/fill="[^"]*"/gi, 'fill="currentColor"');
+                            svgMarkup = svgMarkup.replace(/stroke="[^"]*"/gi, 'stroke="currentColor"');
+                        }
                         o._source_meta = {
                             type: 'icon',
                             iconName: obj._iconName || null,
                             provider: obj._iconProvider || 'iconify',
-                            originalSvg: obj._originalSvgMarkup || null
+                            originalSvg: svgMarkup
                         };
                     } else if (obj.customType === 'shape' && obj.type === 'group') {
                         o._source_meta = {
@@ -5038,6 +5044,19 @@
                     vectorData.iconName = obj._iconName || null;
                     vectorData.iconProvider = obj._iconProvider || 'iconify';
                     vectorData.color = fillColor;
+                    
+                    let svgMarkup = obj._originalSvgMarkup || null;
+                    if (svgMarkup) {
+                        svgMarkup = svgMarkup.replace(/fill="[^"]*"/gi, 'fill="currentColor"');
+                        svgMarkup = svgMarkup.replace(/stroke="[^"]*"/gi, 'stroke="currentColor"');
+                    }
+                    
+                    vectorData._source_meta = {
+                        type: 'icon',
+                        iconName: obj._iconName || null,
+                        provider: obj._iconProvider || 'iconify',
+                        originalSvg: svgMarkup
+                    };
                 }
 
                 // ── Polygon points (for star, custom shapes) ──

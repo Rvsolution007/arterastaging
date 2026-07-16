@@ -1592,7 +1592,9 @@ class NativeEditorController extends GetxController {
           ['phone', 'email', 'website', 'address', 'social'].contains(newLayer['_businessKey']) ||
           ['phone', 'email', 'website', 'address', 'call', 'mobile', 'contact', 'whatsapp', 'tel',
            'mail', 'web', 'url', 'location', 'icon', 'facebook', 'instagram', 'twitter', 'youtube',
-           'social', 'linkedin'].any((key) => lname.contains(key))
+           'social', 'linkedin'].any((key) => lname.contains(key)) ||
+          newLayer['_originalType'] == 'icon' ||
+          (newLayer['_source_meta'] is Map && newLayer['_source_meta']['type'] == 'icon')
         );
         if (!isIcon) continue;
         
@@ -1680,7 +1682,9 @@ class NativeEditorController extends GetxController {
                   ['phone', 'email', 'website', 'address', 'social'].contains(layer['_businessKey']) ||
                   ['phone', 'email', 'website', 'address', 'call', 'mobile', 'contact', 'whatsapp', 'tel',
                    'mail', 'web', 'url', 'location', 'icon', 'facebook', 'instagram', 'twitter', 'youtube',
-                   'social', 'linkedin'].any((key) => lname.contains(key))
+                   'social', 'linkedin'].any((key) => lname.contains(key)) ||
+                  layer['_originalType'] == 'icon' ||
+                  (layer['_source_meta'] is Map && layer['_source_meta']['type'] == 'icon')
                   );
     // NEW: Also detect type=='icon' layers (from web editor icon picker, e.g. Iconify/FontAwesome)
     bool isIconType = layer['type'] == 'icon';
@@ -1763,10 +1767,8 @@ class NativeEditorController extends GetxController {
       if (layer['tint_color'] != newColor || layer['color'] != newColor) changed = true;
       layer['tint_color'] = newColor;
       layer['color'] = newColor;
-      // Icon-type layers (type=='icon') use font_color in _buildIconLayer
-      if (isIconType) {
-        layer['font_color'] = newColor;
-      }
+      // All icons use font_color in _buildIconLayer (both type=='icon' and type=='image' with icon metadata)
+      layer['font_color'] = newColor;
     }
     return changed;
   }

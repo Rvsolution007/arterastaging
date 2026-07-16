@@ -5,7 +5,7 @@ $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
 $kernel->bootstrap();
 
 echo "<h3>Staging DB Search for Frame20260527174253</h3>";
-$entries = \DB::table('poster_makers')->where('zip_name', 'like', '%Frame20260527174253%')->get();
+$entries = \DB::table('poster_maker')->where('zip_name', 'like', '%Frame20260527174253%')->get();
 echo "Found " . count($entries) . " entries in poster_makers:<pre>";
 print_r($entries->toArray());
 echo "</pre>";

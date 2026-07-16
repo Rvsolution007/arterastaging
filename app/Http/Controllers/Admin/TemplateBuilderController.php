@@ -1097,6 +1097,16 @@ class TemplateBuilderController extends Controller
                     \Illuminate\Support\Facades\Storage::disk('spaces')->putFileAs('uploads/editor/templates/' . $uuid, $thumbFile, basename($thumbPath), 'public');
                     \Illuminate\Support\Facades\Storage::disk('spaces')->putFileAs('uploads', $thumbFile, basename($thumbPath), 'public');
                 }
+                // Upload extracted template files (skins, JSON) to Space
+                if (is_dir($extractPath)) {
+                    $files = \Illuminate\Support\Facades\File::allFiles($extractPath);
+                    foreach ($files as $file) {
+                        $relativePath = str_replace($extractPath . '\\', '', $file->getPathname());
+                        $relativePath = str_replace($extractPath . '/', '', $relativePath);
+                        $relativePath = str_replace('\\', '/', $relativePath);
+                        \Illuminate\Support\Facades\Storage::disk('spaces')->put('uploads/template/' . $templateName . '/' . $relativePath, file_get_contents($file->getPathname()), 'public');
+                    }
+                }
             } catch (\Exception $e) {
                 \Log::error('DigitalOcean upload failed: ' . $e->getMessage());
             }

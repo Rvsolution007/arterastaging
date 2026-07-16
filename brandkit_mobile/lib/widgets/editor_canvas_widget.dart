@@ -2374,10 +2374,13 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         return _buildImageLayer(layer, lname, scale, nativeW, nativeH);
       }
       
+      // Convert parsedColor to #RRGGBB
+      String hexColor = '#${(parsedColor.value & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
+
       // Offline SVG Rendering (Bug 2 Fix)
-      // Normalize stroke/fill to currentColor so ColorFilter always works
-      offlineSvg = offlineSvg.replaceAll(RegExp(r'fill="[^"]*"'), 'fill="currentColor"');
-      offlineSvg = offlineSvg.replaceAll(RegExp(r'stroke="[^"]*"'), 'stroke="currentColor"');
+      // Inject exact color directly into SVG markup to bypass any flutter_svg colorFilter issues
+      offlineSvg = offlineSvg.replaceAll(RegExp(r'fill="[^"]*"'), 'fill="$hexColor"');
+      offlineSvg = offlineSvg.replaceAll(RegExp(r'stroke="[^"]*"'), 'stroke="$hexColor"');
       
       // flutter_svg fails on '1em' or '100%', remove width/height so it falls back to viewBox
       offlineSvg = offlineSvg.replaceAll(RegExp(r'width="[^"]*"'), '');
@@ -2388,7 +2391,6 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         width: size,
         height: size,
         fit: BoxFit.contain,
-        colorFilter: ColorFilter.mode(parsedColor, BlendMode.srcIn),
       );
       
       if (layer['opacity'] != null) {

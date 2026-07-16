@@ -1539,6 +1539,7 @@ class NativeEditorController extends GetxController {
     final double textCenterY = textY + textH / 2;
 
     bool overlapsShape = false;
+    bool shapeIsDark = false;
     for (var shape in shapeLayers) {
       final double sx = safeDouble(shape['x'] ?? 0);
       final double sy = safeDouble(shape['y'] ?? 0);
@@ -1548,36 +1549,94 @@ class NativeEditorController extends GetxController {
       if (textCenterX >= sx && textCenterX <= (sx + sw) &&
           textCenterY >= sy && textCenterY <= (sy + sh)) {
         overlapsShape = true;
-        debugPrint('[COLOR] "$layerName" overlaps shape at (${sx.toInt()},${sy.toInt()},${sw.toInt()},${sh.toInt()}) → keeping original color');
+        
+        // Parse the shape's fill color to determine its brightness
+        final fillVal = shape['fill']?.toString() ?? '#FFFFFF';
+        final Color shapeColor = _parseColor(fillVal, fallback: Colors.white);
+        
+        // Compute brightness (standard formula)
+        final double luminance = (0.299 * shapeColor.red + 0.587 * shapeColor.green + 0.114 * shapeColor.blue);
+        shapeIsDark = luminance < 128;
+        
+        debugPrint('[COLOR] "$layerName" overlaps shape at (${sx.toInt()},${sy.toInt()},${sw.toInt()},${sh.toInt()}) with fill="$fillVal" (shapeIsDark=$shapeIsDark)');
         break;
       }
     }
 
+    if (layer['original_color'] == null) {
+      layer['original_color'] = layer['color'] ?? layer['tint_color'] ?? '0xFFFFFFFF';
+    }
+
     bool changed = false;
-    if (!overlapsShape) {
-      String newColor = matchedColor ?? (templateIsDark ? '0xFFFFFFFF' : '0xFF000000');
-      if (isText) {
-        debugPrint('[COLOR] TEXT "$layerName" → templateIsDark=$templateIsDark → color=$newColor (was: ${layer['color']})');
-        if (layer['color'] != newColor) changed = true;
-        layer['color'] = newColor;
-        layer['font_color'] = newColor;
-      } else if (isIcon) {
-        debugPrint('[COLOR] ICON "$layerName" → templateIsDark=$templateIsDark → tint=$newColor (was: ${layer['tint_color']})');
-        if (layer['tint_color'] != newColor) changed = true;
-        layer['tint_color'] = newColor;
-      }
+    String newColor;
+    if (overlapsShape) {
+      newColor = shapeIsDark ? '0xFFFFFFFF' : '0xFF000000';
     } else {
-      String originalColor = layer['original_color'] ?? layer['color'] ?? layer['tint_color'] ?? '0xFFFFFFFF';
-      if (isText) {
-        if (layer['color'] != originalColor) changed = true;
-        layer['color'] = originalColor;
-        layer['font_color'] = originalColor;
-      } else if (isIcon) {
-        if (layer['tint_color'] != originalColor) changed = true;
-        layer['tint_color'] = originalColor;
-      }
+      newColor = matchedColor ?? (templateIsDark ? '0xFFFFFFFF' : '0xFF000000');
+    }
+
+    if (isText) {
+      debugPrint('[COLOR] TEXT "$layerName" → templateIsDark=$templateIsDark overlapsShape=$overlapsShape → color=$newColor (was: ${layer['color']})');
+      if (layer['color'] != newColor) changed = true;
+      layer['color'] = newColor;
+      layer['font_color'] = newColor;
+    } else if (isIcon) {
+      debugPrint('[COLOR] ICON "$layerName" → templateIsDark=$templateIsDark overlapsShape=$overlapsShape → tint=$newColor (was: ${layer['tint_color']})');
+      if (layer['tint_color'] != newColor || layer['color'] != newColor) changed = true;
+      layer['tint_color'] = newColor;
+      layer['color'] = newColor;
     }
     return changed;
+  }
+
+  Color _parseColor(String colorStr, {Color fallback = const Color(0xFF000000)}) {
+    if (colorStr.isEmpty) return fallback;
+    
+    // Handle rgb(r,g,b) format
+    if (colorStr.startsWith('rgb') && !colorStr.startsWith('rgba')) {
+      try {
+        final parts = colorStr
+            .replaceAll(RegExp(r'[a-zA-Z\(\)]'), '')
+            .split(',');
+        if (parts.length >= 3) {
+          return Color.fromARGB(
+            255,
+            int.parse(parts[0].trim()),
+            int.parse(parts[1].trim()),
+            int.parse(parts[2].trim()),
+          );
+        }
+      } catch (_) {}
+      return fallback;
+    }
+    
+    // Handle rgba(r,g,b,a) format
+    if (colorStr.startsWith('rgba')) {
+      try {
+        final parts = colorStr
+            .replaceAll(RegExp(r'[a-zA-Z\(\)]'), '')
+            .split(',');
+        if (parts.length >= 4) {
+          return Color.fromARGB(
+            (double.parse(parts[3]) * 255).round(),
+            int.parse(parts[0]),
+            int.parse(parts[1]),
+            int.parse(parts[2]),
+          );
+        }
+      } catch (_) {}
+      return fallback;
+    }
+    
+    String hex = colorStr.replaceAll('#', '').replaceAll('0x', '').replaceAll('0X', '');
+    if (hex.length == 6) hex = 'FF$hex';
+    
+    if (hex.length == 8) {
+      int? parsed = int.tryParse(hex, radix: 16);
+      if (parsed != null) return Color(parsed);
+    }
+    
+    return fallback;
   }
 }
 

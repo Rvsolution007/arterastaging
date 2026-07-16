@@ -5,6 +5,7 @@ import '../utils/app_colors.dart';
 import '../utils/app_text_styles.dart';
 import '../utils/app_spacing.dart';
 import '../services/api_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SupportScreen extends StatefulWidget {
   const SupportScreen({super.key});
@@ -30,6 +31,10 @@ class _SupportScreenState extends State<SupportScreen> {
         final data = jsonDecode(response.body);
         setState(() {
           _appSettings = data is List && data.isNotEmpty ? data[0] : (data['data'] ?? {});
+          // Always ensure exact customer requested values are used
+          _appSettings['whatsapp_number'] = '+91 6356 720 059';
+          _appSettings['contact'] = '+91 6356 720 059';
+          _appSettings['email'] = 'arterapixel7@gmail.com';
           _isLoading = false;
         });
       } else {
@@ -43,23 +48,49 @@ class _SupportScreenState extends State<SupportScreen> {
   void _mockSettings() {
     setState(() {
       _appSettings = {
-        'whatsapp_number': '+919876543210',
-        'contact': '+91 98765 43210',
-        'email': 'support@artera.app',
+        'whatsapp_number': '+91 6356 720 059',
+        'contact': '+91 6356 720 059',
+        'email': 'arterapixel7@gmail.com',
       };
       _isLoading = false;
     });
   }
 
-  void _launchUrl(String type, String value) {
-    // In a real app, use url_launcher
-    Get.snackbar(
-      'Opening $type',
-      value,
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: AppColors.indigo600,
-      colorText: Colors.white,
-    );
+  void _launchUrl(String type, String value) async {
+    Uri? url;
+    if (type == 'WhatsApp') {
+      final cleanNumber = value.replaceAll(RegExp(r'[^0-9]'), '');
+      url = Uri.parse("https://wa.me/$cleanNumber");
+    } else if (type == 'Phone') {
+      final cleanNumber = value.replaceAll(RegExp(r'\s+'), '');
+      url = Uri.parse("tel:$cleanNumber");
+    } else if (type == 'Email') {
+      url = Uri.parse("mailto:$value");
+    }
+
+    if (url != null) {
+      try {
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+        } else {
+          Get.snackbar(
+            'Error',
+            'Could not launch $type app',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+          );
+        }
+      } catch (e) {
+        Get.snackbar(
+          'Error',
+          'Could not launch $type: $e',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      }
+    }
   }
 
   @override

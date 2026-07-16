@@ -121,10 +121,11 @@ class ApiService {
     return await get('/payment-details');
   }
 
-  static Future<http.Response> applyCoupon(String userId, String code) async {
+  static Future<http.Response> applyCoupon(String userId, String code, String planId) async {
     return await post('/coupon-code-validation', {
       'userId': userId,
       'code': code,
+      'planId': planId,
     });
   }
 

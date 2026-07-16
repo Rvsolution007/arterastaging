@@ -11,7 +11,7 @@ class Transaction extends Model
     protected $table = "transaction";
 
     protected $fillable = [
-        'user_id','subscription_id','total_paid',"date",'payment_id',"payment_type","payment_receipt","referral_code","status"
+        'user_id','subscription_id','total_paid',"date",'payment_id',"payment_type","payment_receipt","referral_code","status", "coupon_code_id"
     ];
 
     public function user()

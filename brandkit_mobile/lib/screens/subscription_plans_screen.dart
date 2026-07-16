@@ -108,21 +108,18 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
                       ),
                       AppSpacing.gapV16,
 
-                      // ── Plans Horizontal List ──
-                      SizedBox(
-                        height: 650, // Premium horizontal layout height constraint
-                        child: PageView.builder(
-                          controller: PageController(viewportFraction: 0.88),
-                          physics: const BouncingScrollPhysics(),
-                          itemCount: _plans.length,
-                          itemBuilder: (context, index) {
+                      // ── Plans Vertical List ──
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Column(
+                          children: List.generate(_plans.length, (index) {
                             final plan = _plans[index];
                             final isCurrentPlan = sc.planName.value == plan['planName'];
                             return Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+                              padding: const EdgeInsets.only(bottom: 20.0),
                               child: _buildPlanCard(plan, isCurrentPlan, sc),
                             );
-                          },
+                          }),
                         ),
                       ),
                       const SizedBox(height: 40),
@@ -450,40 +447,62 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
     if (_isYearly) {
       final yDiscount = (plan['yearlyDiscountPrice'] ?? 0) as num;
       final yBase = (plan['yearlyPrice'] ?? 0) as num;
-      // Fallback to old columns if new ones are 0
       displayPrice = yDiscount > 0 ? yDiscount : (plan['discountPrice'] ?? plan['planPrice'] ?? 0);
       displayOriginalPrice = yBase > 0 ? yBase : (plan['planPrice'] ?? 0);
-      durationLabel = '/year';
+      durationLabel = ' billed yearly';
     } else {
       final mDiscount = (plan['monthlyDiscountPrice'] ?? 0) as num;
       final mBase = (plan['monthlyPrice'] ?? 0) as num;
       displayPrice = mDiscount > 0 ? mDiscount : mBase;
       displayOriginalPrice = mBase;
-      durationLabel = '/month';
+      durationLabel = ' billed monthly';
     }
 
     final hasDiscount = displayPrice > 0 && displayPrice < displayOriginalPrice;
 
-    final featureDisplayNames = {
-      'custom_post': {'name': 'Custom Posts', 'icon': Icons.edit_note_rounded},
+    final String planName = plan['planName'] ?? 'Plan';
+    final bool isPopular = planName.toLowerCase().contains('growth') || 
+                           planName.toLowerCase().contains('pro') || 
+                           planName.toLowerCase().contains('business');
 
-      'festival_post': {'name': 'Festival Posts', 'icon': Icons.celebration_rounded},
-      'category_post': {'name': 'Category Posts', 'icon': Icons.category_rounded},
-      'photoroom_bg': {'name': 'BG Remover', 'icon': Icons.layers_clear_rounded},
+    // Custom descriptions matching the premium pricing plans design
+    String planDescription = 'A complete plan with all branding tools and templates.';
+    if (planName.toLowerCase().contains('starter') || planName.toLowerCase().contains('basic') || planName.toLowerCase().contains('free')) {
+      planDescription = 'For small teams or early-stage creators getting started.';
+    } else if (planName.toLowerCase().contains('growth') || planName.toLowerCase().contains('pro')) {
+      planDescription = 'For growing businesses ready to scale their design marketing.';
+    } else if (planName.toLowerCase().contains('custom') || planName.toLowerCase().contains('enterprise') || planName.toLowerCase().contains('premium')) {
+      planDescription = 'For large organizations managing high-volume design kits.';
+    }
+
+    String featuresSectionHeader = 'Includes:';
+    if (planName.toLowerCase().contains('growth') || planName.toLowerCase().contains('pro')) {
+      featuresSectionHeader = 'Includes everything in Basic, plus:';
+    } else if (planName.toLowerCase().contains('custom') || planName.toLowerCase().contains('enterprise') || planName.toLowerCase().contains('premium')) {
+      featuresSectionHeader = 'Includes everything in Growth, plus:';
+    }
+
+    final featureDisplayNames = {
+      'custom_post': 'Custom Posts',
+      'festival_post': 'Festival Posts',
+      'category_post': 'Category Posts',
+      'photoroom_bg': 'BG Remover',
     };
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        border: isCurrentPlan ? Border.all(color: const Color(0xFF6366F1), width: 3) : Border.all(color: const Color(0xFFF1F5F9), width: 2), // Indigo 500 / Slate 100
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isCurrentPlan 
+              ? const Color(0xFF4F46E5) 
+              : (isPopular ? const Color(0xFFE2E8F0) : const Color(0xFFF1F5F9)), 
+          width: isCurrentPlan ? 2.5 : 1.5,
+        ),
         boxShadow: [
           BoxShadow(
-            color: isCurrentPlan
-                ? const Color(0xFF6366F1).withValues(alpha: 0.15)
-                : const Color(0xFF94A3B8).withValues(alpha: 0.08),
-            blurRadius: 20,
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 16,
             offset: const Offset(0, 8),
           ),
         ],
@@ -491,195 +510,211 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Plan Header ──
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: isCurrentPlan ? const Color(0xFFEEF2FF) : Colors.transparent, // Indigo 50
-              borderRadius: const BorderRadius.only(topLeft: Radius.circular(26), topRight: Radius.circular(26)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              plan['planName'] ?? 'Plan',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF0F172A),
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                          ),
-                          if (isCurrentPlan) ...[
-                            const SizedBox(width: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF6366F1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Text(
-                                'ACTIVE',
-                                style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 0.5),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        _isYearly ? '1 Year Plan' : '1 Month Plan',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF64748B),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          '₹${displayPrice is int ? displayPrice : (displayPrice).toInt()}',
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF0F172A),
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 2),
-                            child: Text(
-                              durationLabel,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF94A3B8),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    if (hasDiscount) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        '₹${displayOriginalPrice is int ? displayOriginalPrice : displayOriginalPrice.toInt()}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF94A3B8),
-                          decoration: TextDecoration.lineThrough,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-            ),
-          ),
-          
-          if (isCurrentPlan) const Divider(height: 1, color: Color(0xFFE0E7FF)),
-          
           Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Feature Limits List ──
-                if (featureLimits != null) ...[
-                  const Text(
-                    'INCLUDED FEATURES',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
+                // ── Plan Name & Badge ──
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      planName,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    if (isPopular)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEEF2FF), // light purple/indigo
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.star_rounded, color: Color(0xFF4F46E5), size: 14),
+                            SizedBox(width: 4),
+                            Text(
+                              'Popular',
+                              style: TextStyle(
+                                color: Color(0xFF4F46E5),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (isCurrentPlan)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFECFDF5), // light green
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text(
+                          'Active',
+                          style: TextStyle(
+                            color: Color(0xFF10B981),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // ── Price ──
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      '₹${displayPrice is int ? displayPrice : (displayPrice).toInt()}',
+                      style: const TextStyle(
+                        fontSize: 44,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF0F172A),
+                        letterSpacing: -1.0,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      durationLabel,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ],
+                ),
+                if (hasDiscount) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Regular: ₹${displayOriginalPrice.toInt()}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
                       color: Color(0xFF94A3B8),
-                      letterSpacing: 1.2,
+                      decoration: TextDecoration.lineThrough,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                ],
+                const SizedBox(height: 12),
+
+                // ── Description ──
+                Text(
+                  planDescription,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF64748B),
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Divider(color: Color(0xFFF1F5F9), thickness: 1.5),
+                const SizedBox(height: 20),
+
+                // ── Features Section Heading ──
+                const Text(
+                  'Features',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  featuresSectionHeader,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF94A3B8),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // ── Included Features ──
+                if (featureLimits != null)
                   ...featureLimits.entries.map((entry) {
-                    final meta = featureDisplayNames[entry.key] as Map<String, dynamic>?;
-                    final name = meta?['name'] as String? ?? entry.key;
-                    final icon = meta?['icon'] as IconData? ?? Icons.check_circle_outline;
+                    final name = featureDisplayNames[entry.key] ?? entry.key;
                     final limits = entry.value as Map<String, dynamic>;
                     final baseLimit = limits['base_limit'] ?? 0;
+                    final textVal = baseLimit > 0 ? '$baseLimit $name' : 'Unlimited $name';
 
                     return Padding(
-                      padding: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.only(bottom: 12),
                       child: Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9), // Slate 100
-                              borderRadius: BorderRadius.circular(8),
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFEEF2FF),
+                              shape: BoxShape.circle,
                             ),
-                            child: Icon(icon, size: 16, color: const Color(0xFF475569)), // Slate 600
+                            child: const Icon(Icons.check, size: 12, color: Color(0xFF4F46E5)),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
-                              name,
-                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
-                            ),
-                          ),
-                          Text(
-                            baseLimit > 0 ? '$baseLimit Posts' : 'Ad Only',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                              color: baseLimit > 0 ? const Color(0xFF4F46E5) : const Color(0xFFF59E0B),
+                              textVal,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF334155),
+                              ),
                             ),
                           ),
                         ],
                       ),
                     );
                   }),
-                  const SizedBox(height: 8),
-                  const Divider(color: Color(0xFFF1F5F9), thickness: 1.5),
-                  const SizedBox(height: 16),
-                ],
 
-                // ── Plan Details ──
+                // ── Bullet Point Plan Details ──
                 if (details != null && details.isNotEmpty)
                   ...details.map((detail) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.verified_rounded, color: Color(0xFF10B981), size: 18),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            detail.toString(),
-                            style: const TextStyle(fontSize: 14, color: Color(0xFF475569), fontWeight: FontWeight.w500),
-                          ),
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFEEF2FF),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.check, size: 12, color: Color(0xFF4F46E5)),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                detail.toString(),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF334155),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  )),
-
+                      )),
                 const SizedBox(height: 24),
 
                 // ── Action Button ──
                 GestureDetector(
                   onTap: isCurrentPlan ? null : () async {
-                    bool isUpgrade = sc.hasActivePlan;
+                    bool isUpgrade = sc.hasPaidActivePlan;
                     Map<String, dynamic>? upgradePreview;
                     
                     if (isUpgrade) {
@@ -715,12 +750,19 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
                     decoration: BoxDecoration(
                       gradient: isCurrentPlan
                           ? null
-                          : const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)]),
-                      color: isCurrentPlan ? const Color(0xFFF1F5F9) : null,
+                          : (isPopular
+                              ? const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)])
+                              : null),
+                      color: isCurrentPlan
+                          ? const Color(0xFFF1F5F9)
+                          : (isPopular ? null : Colors.white),
                       borderRadius: BorderRadius.circular(16),
-                      boxShadow: isCurrentPlan ? null : [
+                      border: (!isCurrentPlan && !isPopular)
+                          ? Border.all(color: const Color(0xFFE2E8F0), width: 1.5)
+                          : null,
+                      boxShadow: (isCurrentPlan || !isPopular) ? null : [
                         BoxShadow(
-                          color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
+                          color: const Color(0xFF4F46E5).withValues(alpha: 0.25),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
@@ -728,12 +770,16 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
                     ),
                     child: Center(
                       child: Text(
-                        isCurrentPlan ? '✓ Currently Active' : 'Upgrade to ${plan['planName']}',
+                        isCurrentPlan 
+                            ? 'Currently Active' 
+                            : 'Upgrade to $planName',
                         style: TextStyle(
-                          color: isCurrentPlan ? const Color(0xFF94A3B8) : Colors.white,
+                          color: isCurrentPlan 
+                              ? const Color(0xFF94A3B8) 
+                              : (isPopular ? Colors.white : const Color(0xFF4F46E5)),
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
+                          letterSpacing: 0.3,
                         ),
                       ),
                     ),

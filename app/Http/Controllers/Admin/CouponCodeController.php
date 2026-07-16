@@ -27,7 +27,8 @@ class CouponCodeController extends Controller
     public function create()
     {
         $partners = \App\Models\User::where('is_partner', 1)->pluck('name', 'id')->toArray();
-        return view("coupon_code.create", compact('partners'));
+        $subscriptions = \App\Models\Subscription::pluck('plan_name', 'id')->toArray();
+        return view("coupon_code.create", compact('partners', 'subscriptions'));
     }
 
     public function store(Request $request)
@@ -46,6 +47,7 @@ class CouponCodeController extends Controller
                 "discount" => $request->get("discount"),
                 "limit" => $request->get("limit"),
                 "partner_id" => $request->get("partner_id"),
+                "subscription_id" => $request->get("subscription_id"),
                 "is_first_time_only" => $request->has("is_first_time_only") ? 1 : 0,
             ]);
 
@@ -64,7 +66,8 @@ class CouponCodeController extends Controller
     {
         $couponCode = CouponCode::find($id);
         $partners = \App\Models\User::where('is_partner', 1)->pluck('name', 'id')->toArray();
-        return view("coupon_code.edit", compact("couponCode", "partners"));
+        $subscriptions = \App\Models\Subscription::pluck('plan_name', 'id')->toArray();
+        return view("coupon_code.edit", compact("couponCode", "partners", "subscriptions"));
     }
 
     public function update(Request $request, $id)
@@ -83,6 +86,7 @@ class CouponCodeController extends Controller
             $couponCode->discount = $request->get("discount");
             $couponCode->limit = $request->get("limit");
             $couponCode->partner_id = $request->get("partner_id");
+            $couponCode->subscription_id = $request->get("subscription_id");
             $couponCode->is_first_time_only = $request->has("is_first_time_only") ? 1 : 0;
             $couponCode->save();
 

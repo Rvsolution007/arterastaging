@@ -35,6 +35,8 @@ class SubscriptionController extends GetxController {
   bool get isExpiringSoon => daysRemaining > 0 && daysRemaining <= 3;
   bool get isExpired => isSubscribe.value && daysRemaining == 0;
   bool get hasActivePlan => isSubscribe.value && daysRemaining > 0;
+  bool get isFreePlan => planName.value.toLowerCase().contains('starting') || planName.value.toLowerCase().contains('free');
+  bool get hasPaidActivePlan => hasActivePlan && !isFreePlan;
 
   @override
   void onInit() {

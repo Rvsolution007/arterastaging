@@ -162,10 +162,8 @@ class TemplateBuilderController extends Controller
             $zip->close();
 
             if ($jsonConfig) {
-                // Default render_version to 1 for legacy frames without versioning
-                if (!isset($jsonConfig['render_version'])) {
-                    $jsonConfig['render_version'] = 1;
-                }
+                // Always sync render_version with the database value if available
+                $jsonConfig['render_version'] = (int) ($frame->render_version ?? $jsonConfig['render_version'] ?? 1);
                 // Try to load full Artera schema if available for the web builder
                 $uuid = str_replace(['Template_', '.zip'], '', $frame->zip_file_path);
                 $editorTemplate = \App\Models\EditorTemplate::where('uuid', $uuid)->first();
@@ -240,6 +238,7 @@ class TemplateBuilderController extends Controller
                     $this->_injectSystemFonts($fonts, $jsonConfig);
                 }
 
+                $jsonConfig['render_version'] = (int) ($frame->render_version ?? $jsonConfig['render_version'] ?? 1);
                 return response()->json([
                     'success' => true, 
                     'config' => $jsonConfig, 
@@ -331,10 +330,8 @@ class TemplateBuilderController extends Controller
         }
 
         if ($jsonConfig) {
-                // Default render_version to 1 for legacy frames without versioning
-                if (!isset($jsonConfig['render_version'])) {
-                    $jsonConfig['render_version'] = 1;
-                }
+                // Always sync render_version with the database value if available
+                $jsonConfig['render_version'] = (int) ($frame->render_version ?? $jsonConfig['render_version'] ?? 1);
                 // Try to load full Artera schema from EditorTemplate (preserves vector shapes)
                 $editorTemplate = null;
                 $editorUuid = null;
@@ -392,6 +389,12 @@ class TemplateBuilderController extends Controller
                         \Log::info('[loadFrameZip] EditorTemplate assets missing locally for frame #' . $id . ', using ZIP JSON instead');
                     }
                 }
+
+                // Force sync render_version again here in case it was overwritten by EditorTemplate schema_json
+                if ($jsonConfig) {
+                    $jsonConfig['render_version'] = (int) ($frame->render_version ?? 1);
+                }
+
                 // Extract and load fonts from schema
                 $schemaFonts = [];
                 array_walk_recursive($jsonConfig, function($value, $key) use (&$schemaFonts) {
@@ -421,6 +424,7 @@ class TemplateBuilderController extends Controller
                     'req_website' => $frame->req_website,
                 ];
 
+                $jsonConfig['render_version'] = (int) ($frame->render_version ?? $jsonConfig['render_version'] ?? 1);
                 $this->_injectSystemFonts($fonts, $jsonConfig);
                 return response()->json([
                     'success' => true, 
@@ -519,10 +523,25 @@ class TemplateBuilderController extends Controller
             }
         }
 
-        // Process legacy_json for base64 shapes and old HTTP images
+        // Process legacy_json for base64 shapes, icons, and old HTTP images
         if (isset($legacyJson['layers'])) {
             foreach ($legacyJson['layers'] as &$legacyLayer) {
-                if ($legacyLayer['type'] === 'image' && isset($legacyLayer['src'])) {
+                // Extract Shapes and Icons
+                if (($legacyLayer['type'] === 'shape' || $legacyLayer['type'] === 'icon') 
+                    && isset($legacyLayer['_fallback_src']) 
+                    && str_starts_with($legacyLayer['_fallback_src'], 'data:image')) {
+                    $parts = explode(';base64,', $legacyLayer['_fallback_src']);
+                    if (count($parts) === 2) {
+                        $data = base64_decode($parts[1]);
+                        if ($data !== false) {
+                            $filename = uniqid('shape_') . '.png';
+                            file_put_contents($assetsDir . '/' . $filename, $data);
+                            $legacyLayer['_fallback_src'] = '../skins/' . $uuid . '/' . $filename;
+                        }
+                    }
+                }
+                // Extract Images
+                elseif ($legacyLayer['type'] === 'image' && isset($legacyLayer['src'])) {
                     $src = $legacyLayer['src'];
                     if (strpos($src, 'data:image') === 0) {
                         $image_parts = explode(";base64,", $src);
@@ -729,6 +748,7 @@ class TemplateBuilderController extends Controller
         if (!$existingFrame) {
             $frame->original_zip_name = $templateName . '.zip';
         }
+        $frame->render_version = $template->legacy_json['render_version'] ?? 4;
         // Map ai_roles and ai_fields from EditorTemplate->schema_json back to BusinessCustomFrame->json_rules
         // This ensures the mobile app's legacy AI generation can read the AI constraints
         $jsonRules = ['layers' => [], 'ai_global_rule' => ''];
@@ -862,6 +882,7 @@ class TemplateBuilderController extends Controller
 
         if ($existingTemplate) {
             $existingTemplate->title = $request->input('title');
+            $existingTemplate->render_version = $schemaJson['render_version'] ?? 1;
             $existingTemplate->canvas_width = $schemaJson['canvas']['width'] ?? 1080;
             $existingTemplate->canvas_height = $schemaJson['canvas']['height'] ?? 1080;
             $existingTemplate->schema_json = $schemaJson;
@@ -873,6 +894,7 @@ class TemplateBuilderController extends Controller
             $template = new \App\Models\EditorTemplate();
             $template->uuid = $uuid;
             $template->title = $request->input('title');
+            $template->render_version = $schemaJson['render_version'] ?? 1;
             $template->canvas_width = $schemaJson['canvas']['width'] ?? 1080;
             $template->canvas_height = $schemaJson['canvas']['height'] ?? 1080;
             $template->schema_json = $schemaJson;
@@ -937,7 +959,23 @@ class TemplateBuilderController extends Controller
         
         if (isset($legacyJson['layers']) && is_array($legacyJson['layers'])) {
             foreach ($legacyJson['layers'] as &$layer) {
-                if ($layer['type'] === 'image' && isset($layer['src'])) {
+                // ── V4 Vector Shapes/Icons: Extract _fallback_src to disk ──
+                if (($layer['type'] === 'shape' || $layer['type'] === 'icon') 
+                    && isset($layer['_fallback_src']) 
+                    && str_starts_with($layer['_fallback_src'], 'data:image')) {
+                    
+                    $parts = explode(';base64,', $layer['_fallback_src']);
+                    if (count($parts) === 2) {
+                        $data = base64_decode($parts[1]);
+                        if ($data !== false) {
+                            $filename = uniqid('shape_') . '.png';
+                            file_put_contents($skinsPath . '/' . $filename, $data);
+                            $layer['_fallback_src'] = '../skins/' . $templateName . '/' . $filename;
+                        }
+                    }
+                }
+                // ── Image layers (unchanged logic) ──
+                elseif ($layer['type'] === 'image' && isset($layer['src'])) {
                     if (str_starts_with($layer['src'], 'data:image')) {
                         $parts = explode(';base64,', $layer['src']);
                         if (count($parts) === 2) {
@@ -982,8 +1020,32 @@ class TemplateBuilderController extends Controller
                     }
                 }
             }
+            unset($layer);
         }
         file_put_contents($jsonDir . '/' . $templateName . '.json', json_encode($legacyJson, JSON_PRETTY_PRINT));
+
+        // ── Phase 1C: Template Revisions ──
+        if ($existingFrame && $existingFrame->id) {
+            $existingZipPath = public_path('uploads/custom_frames_zips/' . $existingFrame->zip_name . '.zip');
+            if (file_exists($existingZipPath)) {
+                $revCount = \App\Models\TemplateRevision::where('frame_id', $existingFrame->id)->count();
+                $revNumber = $revCount + 1;
+                $revDir = public_path('uploads/template_revisions/' . $existingFrame->id);
+                if (!file_exists($revDir)) @mkdir($revDir, 0777, true);
+                
+                $revFileName = $existingFrame->zip_name . '_v' . $revNumber . '_' . time() . '.zip';
+                $revPath = $revDir . '/' . $revFileName;
+                
+                if (@copy($existingZipPath, $revPath)) {
+                    \App\Models\TemplateRevision::create([
+                        'frame_id' => $existingFrame->id,
+                        'revision_number' => $revNumber,
+                        'file_path' => 'uploads/template_revisions/' . $existingFrame->id . '/' . $revFileName,
+                        'schema_json' => $existingTemplate ? json_encode($existingTemplate->schema_json) : json_encode($schemaJson)
+                    ]);
+                }
+            }
+        }
 
         // Create Zip
         $zipDir = public_path('uploads/custom_frames_zips');
@@ -1035,6 +1097,16 @@ class TemplateBuilderController extends Controller
                     \Illuminate\Support\Facades\Storage::disk('spaces')->putFileAs('uploads/editor/templates/' . $uuid, $thumbFile, basename($thumbPath), 'public');
                     \Illuminate\Support\Facades\Storage::disk('spaces')->putFileAs('uploads', $thumbFile, basename($thumbPath), 'public');
                 }
+                // Upload extracted template files (skins, JSON) to Space
+                if (is_dir($extractPath)) {
+                    $files = \Illuminate\Support\Facades\File::allFiles($extractPath);
+                    foreach ($files as $file) {
+                        $relativePath = str_replace($extractPath . '\\', '', $file->getPathname());
+                        $relativePath = str_replace($extractPath . '/', '', $relativePath);
+                        $relativePath = str_replace('\\', '/', $relativePath);
+                        \Illuminate\Support\Facades\Storage::disk('spaces')->put('uploads/template/' . $templateName . '/' . $relativePath, file_get_contents($file->getPathname()), 'public');
+                    }
+                }
             } catch (\Exception $e) {
                 \Log::error('DigitalOcean upload failed: ' . $e->getMessage());
             }
@@ -1048,6 +1120,9 @@ class TemplateBuilderController extends Controller
             $existingFrame->req_email = $request->input('req_email', 0);
             $existingFrame->req_phone = $request->input('req_phone', 0);
             $existingFrame->req_website = $request->input('req_website', 0);
+            $existingFrame->render_version = $schemaJson['render_version'] ?? 1;
+            // ── RENDER V4: Store complete layers JSON in DB for fast API serving ──
+            $existingFrame->layers_json = json_encode($legacyJson, JSON_UNESCAPED_SLASHES);
             
             if ($thumbPath) {
                 $existingFrame->post_thumb = str_replace('uploads/', '', $thumbPath);
@@ -1067,13 +1142,65 @@ class TemplateBuilderController extends Controller
                 'req_email' => $request->input('req_email', 0),
                 'req_phone' => $request->input('req_phone', 0),
                 'req_website' => $request->input('req_website', 0),
+                'render_version' => $schemaJson['render_version'] ?? 1,
                 'post_thumb' => $thumbPath ? str_replace('uploads/', '', $thumbPath) : null,
-                'paid' => 1
+                'paid' => 1,
+                'layers_json' => json_encode($legacyJson, JSON_UNESCAPED_SLASHES),
             ]);
         }
         
+        // ── Clear template JSON cache for BOTH old and new names ──
+        // The API uses Cache::remember("template_json:{zip_name}") with 1hr TTL.
+        // If we don't clear BOTH the old and new cache keys, the API may serve
+        // stale JSON with wrong render_version to the mobile app.
         \Illuminate\Support\Facades\Cache::forget("template_json:{$templateName}");
         \Illuminate\Support\Facades\Cache::forget("template_json:{$templateName}.zip");
+        if ($existingFrame && $existingFrame->getOriginal('zip_name') && $existingFrame->getOriginal('zip_name') !== $templateName) {
+            $oldZipName = $existingFrame->getOriginal('zip_name');
+            \Illuminate\Support\Facades\Cache::forget("template_json:{$oldZipName}");
+            \Illuminate\Support\Facades\Cache::forget("template_json:{$oldZipName}.zip");
+            \Log::info("[saveFrame] Cleared cache for old zip_name: {$oldZipName} AND new: {$templateName}");
+        }
+
+        // === GOLDEN SNAPSHOT: Capture Web Computed Values ===
+        $webComputed = [];
+        $schemaObjects = $schemaJson['objects'] ?? $schemaJson['layers'] ?? $schemaJson['elements'] ?? $legacyJson['layers'] ?? [];
+        foreach ($schemaObjects as $obj) {
+            $layerName = $obj['name'] ?? $obj['id'] ?? 'unknown';
+            $webComputed[$layerName] = [
+                'canvasX' => $obj['x'] ?? $obj['left'] ?? 0,
+                'canvasY' => $obj['y'] ?? $obj['top'] ?? 0,
+                'canvasW' => $obj['w'] ?? $obj['width'] ?? 0,
+                'canvasH' => $obj['h'] ?? $obj['height'] ?? 0,
+                'computedFontSize' => $obj['fontSize'] ?? $obj['font_size'] ?? $obj['size'] ?? null,
+                'fontFamily' => $obj['fontFamily'] ?? $obj['font_name'] ?? $obj['font'] ?? null,
+                'fill' => $obj['fill'] ?? $obj['color'] ?? $obj['font_color'] ?? null,
+                'type' => $obj['type'] ?? 'unknown',
+                'scaleX' => $obj['scaleX'] ?? 1,
+                'scaleY' => $obj['scaleY'] ?? 1,
+            ];
+        }
+
+        // Save the thumbnail as web_thumbnail
+        $webThumbPath = null;
+        if (isset($thumbPath)) {
+            $webThumbPath = $thumbPath;
+        }
+
+        // Determine frame_id (the PosterMaker record)
+        $goldenFrameId = $existingFrame ? $existingFrame->id : null;
+        if ($goldenFrameId) {
+            \App\Models\GoldenRender::capture(
+                $goldenFrameId,
+                $templateName,
+                (int) ($schemaJson['render_version'] ?? 1),
+                [
+                    'web_computed' => $webComputed,
+                    'web_thumbnail_path' => $webThumbPath,
+                    'source' => 'publish',
+                ]
+            );
+        }
 
         return response()->json(['success' => true, 'message' => 'Frame saved successfully!', 'uuid' => $uuid, 'frame_id' => $existingFrame ? $existingFrame->id : null]);
     }

@@ -1,1 +1,1 @@
-<?php $ch = curl_init('https://stagingartera.arterapixel.com/api/getAppAbout'); curl_setopt($ch, CURLOPT_RETURNTRANSFER, true); curl_setopt($ch, CURLOPT_POST, true); echo curl_exec($ch);
+<?php require 'vendor/autoload.php'; $app = require_once 'bootstrap/app.php'; $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class); $kernel->bootstrap(); $t = \App\Models\EditorTemplate::orderByDesc('updated_at')->first(); $file = 'public/uploads/editor/templates/' . $t->uuid . '/assets/asset_6a54d86c8a2de.png'; echo base64_encode(file_get_contents($file));

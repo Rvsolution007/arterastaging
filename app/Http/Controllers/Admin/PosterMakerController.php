@@ -857,4 +857,338 @@ class PosterMakerController extends Controller
         }
         return redirect()->back()->with('error', 'Invalid import file.');
     }
+
+    public function versionControl(Request $request)
+    {
+        $query = PosterMaker::query()->with('poster_category');
+
+        // Version filter
+        if ($request->has('version') && $request->version !== null && $request->version !== '') {
+            $query->where('render_version', $request->version);
+        }
+
+        // Search filter
+        if ($request->has('search') && $request->search !== null && $request->search !== '') {
+            $query->where('zip_name', 'like', '%' . $request->search . '%');
+        }
+
+        $data = $query->orderBy('id', 'DESC')->paginate(50)->withQueryString();
+
+        // Get distinct versions for filter dropdown
+        $versions = PosterMaker::select('render_version')
+            ->distinct()
+            ->orderBy('render_version')
+            ->pluck('render_version');
+
+        // Current max version (from the JS constant)
+        $currentMaxVersion = 5;
+
+        return view('poster_maker.version_control', [
+            'data' => $data,
+            'versions' => $versions,
+            'currentMaxVersion' => $currentMaxVersion,
+            'selectedVersion' => $request->version,
+            'searchQuery' => $request->search,
+        ]);
+    }
+
+    public function bulkMigrateVersion(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer|exists:poster_maker,id',
+            'target_version' => 'required|string',
+            'upgrade_icons' => 'nullable|boolean'
+        ]);
+
+        $targetVersion = $request->target_version;
+        $upgradeIcons = filter_var($request->upgrade_icons, FILTER_VALIDATE_BOOLEAN);
+        $errors = [];
+
+        $validator = new \App\Services\DualEngineValidator();
+        $validationResults = [];
+        $autoCommitted = [];
+        $needsReview = [];
+
+        foreach ($request->ids as $id) {
+            try {
+                $frame = PosterMaker::findOrFail($id);
+                $currentVersion = $frame->render_version ?? 1;
+                $targetVersionInt = ($targetVersion !== 'none') ? (int)$targetVersion : $currentVersion;
+
+                // Skip if already at target version
+                if ($currentVersion === $targetVersionInt) {
+                    $autoCommitted[] = ['id' => $id, 'name' => $frame->zip_name, 'status' => 'ALREADY_SAME'];
+                    continue;
+                }
+
+                $jsonPath = public_path("uploads/template/{$frame->zip_name}/json/{$frame->zip_name}.json");
+
+                if (!file_exists($jsonPath)) {
+                    $errors[] = "Frame #{$id} ({$frame->zip_name}): JSON file not found";
+                    continue;
+                }
+
+                $json = json_decode(file_get_contents($jsonPath), true);
+                if (!$json) {
+                    $errors[] = "Frame #{$id}: Invalid JSON";
+                    continue;
+                }
+
+                // Run Dual Engine Validation
+                $result = $validator->validate($id, $json, $currentVersion, $targetVersionInt);
+                $result['zip_name'] = $frame->zip_name;
+
+                $validationResults[] = $result;
+
+                if ($result['status'] === 'MATCH' || $result['status'] === 'MINOR_DRIFT') {
+                    $jsonModified = false;
+
+                    // Legacy Icon Upgrade Logic
+                    if ($upgradeIcons && isset($json['layers']) && is_array($json['layers'])) {
+                        $iconMap = [
+                            'facebook' => 'facebook.png',
+                            'fb' => 'facebook.png',
+                            'instagram' => 'instagram.png',
+                            'insta' => 'instagram.png',
+                            'twitter' => 'twitter.png',
+                            'youtube' => 'youtube.png',
+                            'whatsapp' => 'whatsapp.png',
+                            'call' => 'call.png',
+                            'phone' => 'call.png',
+                            'mail' => 'email.png',
+                            'email' => 'email.png',
+                            'web' => 'website.png',
+                            'website' => 'website.png',
+                            'location' => 'location.png',
+                            'address' => 'location.png'
+                        ];
+
+                        foreach ($json['layers'] as &$layer) {
+                            if (isset($layer['type']) && $layer['type'] === 'image' && isset($layer['src'])) {
+                                $src = strtolower($layer['src']);
+                                $name = strtolower(isset($layer['name']) ? $layer['name'] : '');
+                                
+                                $w = isset($layer['w']) ? $layer['w'] : (isset($layer['width']) ? $layer['width'] : 0);
+                                $h = isset($layer['h']) ? $layer['h'] : (isset($layer['height']) ? $layer['height'] : 0);
+                                
+                                if ($w > 200 || $h > 200) continue;
+                                if (strpos($name, 'bg') !== false || strpos($name, 'background') !== false || strpos($name, 'main') !== false) continue;
+
+                                $matchedIconFile = null;
+                                $isGenericIcon = false;
+
+                                foreach ($iconMap as $kw => $filename) {
+                                    if (strpos($src, $kw) !== false || strpos($name, $kw) !== false) {
+                                        $matchedIconFile = $filename;
+                                        break;
+                                    }
+                                }
+
+                                if (!$matchedIconFile && (strpos($src, 'icon') !== false || strpos($name, 'icon') !== false)) {
+                                    $isGenericIcon = true;
+                                }
+
+                                if (($matchedIconFile || $isGenericIcon) && empty($layer['is_shape'])) {
+                                    $layer['is_shape'] = true;
+                                    $layer['customType'] = 'icon';
+                                    
+                                    if ($matchedIconFile) {
+                                        $layer['src'] = '/assets/new_icons/' . $matchedIconFile;
+                                        $layer['name'] = 'icon_' . str_replace('.png', '', $matchedIconFile);
+                                    } else {
+                                        if (strpos($name, 'icon_') !== 0) {
+                                            $layer['name'] = 'icon_' . (isset($layer['name']) ? $layer['name'] : 'legacy');
+                                        }
+                                    }
+                                    $jsonModified = true;
+                                }
+                            }
+                        }
+                    }
+
+                    // Update render_version in JSON
+                    if ($targetVersion !== 'none') {
+                        $json['render_version'] = (int) $targetVersion;
+                        $jsonModified = true;
+                    }
+
+                    // Save back to file
+                    if ($jsonModified) {
+                        file_put_contents($jsonPath, json_encode($json, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
+                    }
+
+                    // Update DB column
+                    if ($targetVersion !== 'none') {
+                        $frame->render_version = (int) $targetVersion;
+                        $frame->save();
+                    }
+
+                    // Invalidate Redis Cache
+                    \Illuminate\Support\Facades\Cache::forget("template_json:{$frame->zip_name}");
+
+                    // Also update EditorTemplate if exists
+                    $editorTemplate = \App\Models\EditorTemplate::where('uuid', $frame->zip_name)->first();
+                    if ($editorTemplate) {
+                        $schema = is_string($editorTemplate->schema_json) ? json_decode($editorTemplate->schema_json, true) : $editorTemplate->schema_json;
+                        $legacy = is_string($editorTemplate->legacy_json) ? json_decode($editorTemplate->legacy_json, true) : $editorTemplate->legacy_json;
+                        $dbModified = false;
+
+                        if ($upgradeIcons) {
+                            $updateLayers = function(&$layers) use (&$dbModified) {
+                                $socialKeywords = ['facebook', 'fb', 'instagram', 'insta', 'twitter', 'youtube', 'whatsapp', 'call', 'mail', 'email', 'web', 'location'];
+                                if (is_array($layers)) {
+                                    foreach ($layers as &$layer) {
+                                        if (isset($layer['type']) && $layer['type'] === 'image' && isset($layer['src'])) {
+                                            $src = strtolower($layer['src']);
+                                            $isSocial = false;
+                                            foreach ($socialKeywords as $kw) {
+                                                if (strpos($src, $kw) !== false) { $isSocial = true; break; }
+                                            }
+                                            if ($isSocial && empty($layer['is_shape'])) {
+                                                $layer['is_shape'] = true;
+                                                $layer['customType'] = 'icon';
+                                                $layer['name'] = 'icon_' . (isset($layer['name']) ? $layer['name'] : 'legacy');
+                                                $dbModified = true;
+                                            }
+                                        }
+                                    }
+                                }
+                            };
+                            if (is_array($schema) && isset($schema['objects'])) $updateLayers($schema['objects']);
+                            if (is_array($legacy) && isset($legacy['layers'])) $updateLayers($legacy['layers']);
+                        }
+
+                        if ($targetVersion !== 'none') {
+                            if (is_array($schema)) { $schema['render_version'] = (int) $targetVersion; }
+                            if (is_array($legacy)) { $legacy['render_version'] = (int) $targetVersion; }
+                            $editorTemplate->render_version = (int) $targetVersion;
+                            $dbModified = true;
+                        }
+                        
+                        if ($dbModified) {
+                            if (is_array($schema)) $editorTemplate->schema_json = $schema;
+                            if (is_array($legacy)) $editorTemplate->legacy_json = $legacy;
+                            $editorTemplate->save();
+                            \Illuminate\Support\Facades\Cache::forget("template_json:{$editorTemplate->uuid}");
+                        }
+                    }
+
+                    $autoCommitted[] = $result;
+
+                } else {
+                    // Needs manual review
+                    $needsReview[] = $result;
+                }
+            } catch (\Exception $e) {
+                $errors[] = "Frame #{$id}: " . $e->getMessage();
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'total' => count($request->ids),
+            'auto_committed' => count($autoCommitted),
+            'needs_review' => count($needsReview),
+            'auto_committed_frames' => $autoCommitted,
+            'review_frames' => $needsReview,
+            'errors' => $errors,
+        ]);
+    }
+
+    /**
+     * Auto-compensate a frame's JSON values to match golden baseline at new version.
+     * Only works for simple linear properties (x, y, w, h).
+     */
+    public function autoCompensate(Request $request)
+    {
+        $request->validate([
+            'frame_id' => 'required|integer',
+            'target_version' => 'required|integer',
+            'mismatches' => 'required|array',
+        ]);
+
+        $frame = PosterMaker::findOrFail($request->frame_id);
+        $jsonPath = public_path('uploads/template/'.$frame->zip_name.'/json/'.$frame->zip_name.'.json');
+        
+        if (!file_exists($jsonPath)) {
+            return response()->json(['success' => false, 'message' => 'JSON file not found'], 404);
+        }
+
+        $json = json_decode(file_get_contents($jsonPath), true);
+
+        $compensated = [];
+        $manualRequired = [];
+
+        foreach ($request->mismatches as $mismatch) {
+            $layer = $mismatch['layer'];
+            $property = $mismatch['property'];
+            $goldenValue = floatval($mismatch['golden_value']);
+            $newValue = floatval($mismatch['new_value']);
+
+            // Only auto-compensate simple linear properties
+            $linearProps = ['canvasX', 'canvasY', 'canvasW', 'canvasH', 'finalX', 'finalY', 'finalW', 'finalH'];
+
+            if (!in_array($property, $linearProps)) {
+                $manualRequired[] = $mismatch;
+                continue;
+            }
+
+            // Find the layer in JSON and calculate correction factor
+            $layers = &$json['layers'];
+            foreach ($layers as &$jsonLayer) {
+                $lName = $jsonLayer['name'] ?? $jsonLayer['id'] ?? '';
+                if ($lName === $layer) {
+                    // Map computed property back to JSON property
+                    $jsonProp = $this->mapComputedToJsonProp($property);
+                    if ($jsonProp && isset($jsonLayer[$jsonProp]) && $newValue != 0) {
+                        $currentJsonVal = floatval($jsonLayer[$jsonProp]);
+                        $correctionFactor = $goldenValue / $newValue;
+                        $correctedVal = round($currentJsonVal * $correctionFactor, 2);
+
+                        $compensated[] = [
+                            'layer' => $layer,
+                            'property' => $jsonProp,
+                            'old_json_value' => $currentJsonVal,
+                            'new_json_value' => $correctedVal,
+                            'correction_factor' => round($correctionFactor, 4),
+                        ];
+
+                        $jsonLayer[$jsonProp] = $correctedVal;
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Save corrected JSON back
+        file_put_contents($jsonPath, json_encode($json, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
+
+        // Update render_version
+        $json['render_version'] = $request->target_version;
+        $frame->render_version = $request->target_version;
+        $frame->save();
+
+        // Clear Redis cache
+        \Illuminate\Support\Facades\Cache::forget("template_json:{$frame->zip_name}");
+
+        return response()->json([
+            'success' => true,
+            'compensated' => $compensated,
+            'manual_required' => $manualRequired,
+            'message' => count($compensated) . ' properties auto-compensated, ' . count($manualRequired) . ' need manual review',
+        ]);
+    }
+
+    private function mapComputedToJsonProp(string $computedProp): ?string
+    {
+        return match($computedProp) {
+            'canvasX', 'finalX' => 'x',
+            'canvasY', 'finalY' => 'y',
+            'canvasW', 'finalW' => 'w',
+            'canvasH', 'finalH' => 'h',
+            'computedFontSize', 'finalFontSize' => null, // Font size is complex — manual review
+            default => null,
+        };
+    }
 }

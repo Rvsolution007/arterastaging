@@ -212,7 +212,11 @@ class HomeController extends GetxController {
         extraAddresses.value = (biz['extra_addresses'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
         
         if (biz['hidden_frame_fields'] != null) {
-          hiddenFrameFields.value = Map<String, dynamic>.from(biz['hidden_frame_fields']);
+          if (biz['hidden_frame_fields'] is Map) {
+            hiddenFrameFields.value = Map<String, dynamic>.from(biz['hidden_frame_fields']);
+          } else {
+            hiddenFrameFields.value = {};
+          }
         } else {
           hiddenFrameFields.value = {};
         }

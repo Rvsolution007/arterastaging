@@ -20,7 +20,8 @@
     console.log('[TEMPLATE_BUILDER] v3.0 loaded — fill control + vector paths + complete effects');
     // ── Render Version: ALL rendering logic is versioned. Current code = version 1. ──
     // ── Future rendering changes MUST increment this and add version-gated code paths. ──
-    const CURRENT_RENDER_VERSION = 1;
+    window.CURRENT_RENDER_VERSION = 5;
+    const CURRENT_RENDER_VERSION = window.CURRENT_RENDER_VERSION;
     try {
     
     // Fix fabric.js alphabetical warning globally
@@ -394,6 +395,35 @@
     if (gradStart) gradStart.addEventListener('input', applyGradient);
     if (gradEnd) gradEnd.addEventListener('input', applyGradient);
 
+    // ── Helper: Convert any CSS color string to #rrggbb hex ──
+    // HTML <input type="color"> only accepts #rrggbb format.
+    // Fabric.js sometimes stores fill as rgb()/rgba() which breaks the picker.
+    function toHex(color) {
+        if (!color || typeof color !== 'string') return '#000000';
+        color = color.trim();
+        // Already hex
+        if (/^#[0-9a-fA-F]{6}$/.test(color)) return color;
+        if (/^#[0-9a-fA-F]{3}$/.test(color)) {
+            return '#' + color[1]+color[1] + color[2]+color[2] + color[3]+color[3];
+        }
+        // rgb(r,g,b) or rgba(r,g,b,a)
+        var m = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+        if (m) {
+            var r = parseInt(m[1]).toString(16).padStart(2,'0');
+            var g = parseInt(m[2]).toString(16).padStart(2,'0');
+            var b = parseInt(m[3]).toString(16).padStart(2,'0');
+            return '#' + r + g + b;
+        }
+        // Use a temporary canvas to resolve named colors
+        try {
+            var ctx = document.createElement('canvas').getContext('2d');
+            ctx.fillStyle = color;
+            var resolved = ctx.fillStyle; // browsers return #rrggbb
+            if (/^#[0-9a-fA-F]{6}$/.test(resolved)) return resolved;
+        } catch(e) {}
+        return '#000000';
+    }
+
     let templateImages = {};
 
     // --- Properties Panel References ---
@@ -698,7 +728,14 @@
             if (shapeProps) shapeProps.style.display = 'none';
             if (inputText) inputText.value = obj.text;
             if (inputFontSize) inputFontSize.value = Math.round(obj.fontSize * Math.abs(obj.scaleY || 1));
-            if (inputColor) inputColor.value = obj.fill || '#000000';
+            if (inputColor) {
+                var hexColor = toHex(obj.fill || '#000000');
+                inputColor.value = hexColor;
+                // JSColor v2: update the swatch/picker to match the new value
+                if (inputColor.jscolor) {
+                    inputColor.jscolor.fromString(hexColor);
+                }
+            }
             if (inputFontFamily) inputFontFamily.value = obj.fontFamily || 'Arial';
             
             // Bold/Italic button state
@@ -781,7 +818,11 @@
                 }
             } else {
                 const rawFill = obj.fill || '#6366f1';
-                const hexFill = (typeof rawFill === 'string' && rawFill.startsWith('#') && rawFill.length >= 7) ? rawFill.substring(0,7) : '#6366f1';
+                let hexFill = '#6366f1';
+                if (typeof rawFill === 'string') {
+                    if (rawFill.startsWith('#') && rawFill.length >= 7) hexFill = rawFill.substring(0,7);
+                    else try { hexFill = '#' + new fabric.Color(rawFill).toHex(); } catch(e) { hexFill = rawFill; }
+                }
                 if (inputFillColor) {
                     if (inputFillColor.jscolor) {
                         inputFillColor.jscolor.fromString(hexFill);
@@ -792,7 +833,11 @@
             }
 
             const rawStroke = obj.stroke || '#000000';
-            const hexStroke = (typeof rawStroke === 'string' && rawStroke.startsWith('#') && rawStroke.length >= 7) ? rawStroke.substring(0,7) : '#000000';
+            let hexStroke = '#000000';
+            if (typeof rawStroke === 'string') {
+                if (rawStroke.startsWith('#') && rawStroke.length >= 7) hexStroke = rawStroke.substring(0,7);
+                else try { hexStroke = '#' + new fabric.Color(rawStroke).toHex(); } catch(e) { hexStroke = rawStroke; }
+            }
             if (inputStrokeColor) {
                 if (inputStrokeColor.jscolor) {
                     inputStrokeColor.jscolor.fromString(hexStroke);
@@ -1421,13 +1466,42 @@
 
     if (inputIsColorizableShape) inputIsColorizableShape.addEventListener('change', function() {
         const objs = canvas.getActiveObjects();
+        const isChecked = this.checked;
         if (objs.length) {
+            let filtersChanged = false;
             objs.forEach(obj => {
                 if (obj.type === 'image') {
-                    obj.is_shape = this.checked;
-                    obj.customType = this.checked ? 'shape' : 'image';
+                    obj.is_shape = isChecked;
+                    obj.customType = isChecked ? 'shape' : 'image';
+                    
+                    if (isChecked && obj._element && (!obj.filters || !obj.filters.some(f => f && f.type === 'BlendColor'))) {
+                        try {
+                            const tempCanvas = document.createElement('canvas');
+                            tempCanvas.width = 1; tempCanvas.height = 1;
+                            const ctx = tempCanvas.getContext('2d');
+                            ctx.drawImage(obj._element, 0, 0, 1, 1);
+                            const data = ctx.getImageData(0, 0, 1, 1).data;
+                            if (data[3] > 0) { 
+                                const hex = '#' + [data[0], data[1], data[2]].map(x => x.toString(16).padStart(2, '0')).join('');
+                                obj.set('fill', hex);
+                            } else {
+                                obj.set('fill', '#6366f1');
+                            }
+                        } catch(e) { 
+                            obj.set('fill', '#6366f1');
+                            console.warn('Could not guess color:', e); 
+                        }
+                    } else if (!isChecked && obj.filters) {
+                        const originalLength = obj.filters.length;
+                        obj.filters = obj.filters.filter(f => !(f && f.type === 'BlendColor'));
+                        if (obj.filters.length !== originalLength) {
+                            obj.applyFilters();
+                            filtersChanged = true;
+                        }
+                    }
                 }
             });
+            if (filtersChanged) canvas.renderAll();
             updateProps();
             saveHistory();
         }
@@ -1454,12 +1528,27 @@
         if(obj) { canvas.remove(obj); canvas.discardActiveObject(); updateLayersList(); saveHistory(); }
     });
 
+    // --- UNIQUE LAYER NAME GENERATOR ---
+    // Ensures every layer gets a unique sequential name (Text_1, Text_2, Icon_1, Icon_2, etc.)
+    // This prevents diff engine confusion and JSON layer conflicts in the native editor.
+    function getNextLayerName(baseName) {
+        const existingNames = canvas.getObjects().map(o => o.customName || o.placeholderKey || '');
+        let counter = 1;
+        let candidate = baseName + '_' + counter;
+        while (existingNames.includes(candidate)) {
+            counter++;
+            candidate = baseName + '_' + counter;
+        }
+        return candidate;
+    }
+
     // --- ADD TEXT ---
     const addTextBtn = $('add-text');
     if (addTextBtn) addTextBtn.addEventListener('click', function() {
         const text = new fabric.Textbox('Double click to edit', {
             left: 100, top: 100, fontSize: 60, fill: '#000000', fontFamily: 'Arial', customType: 'text',
-            textBaseline: 'alphabetic'
+            textBaseline: 'alphabetic',
+            customName: getNextLayerName('Text')
         });
         canvas.add(text);
         canvas.setActiveObject(text);
@@ -1607,6 +1696,7 @@
                 break;
         }
         if (shape) {
+            shape.set('customName', getNextLayerName(type.charAt(0).toUpperCase() + type.slice(1)));
             canvas.add(shape);
             canvas.setActiveObject(shape);
             updateLayersList();
@@ -1634,7 +1724,7 @@
                         left: 150,
                         top: 150,
                         customType: 'shape',
-                        customName: 'Custom Shape'
+                        customName: getNextLayerName('Custom_Shape')
                     });
                     
                     // Automatically color all internal paths to black by default for easier recoloring,
@@ -1739,7 +1829,7 @@
                         left: 150,
                         top: 150,
                         customType: 'shape',
-                        customName: shape.name
+                        customName: getNextLayerName(shape.name || 'Shape')
                     });
                     if (obj.isSameColor && obj.isSameColor() || obj.paths) {
                          obj.set({ fill: '#000000' });
@@ -1776,21 +1866,39 @@
                 
                 item.addEventListener('click', function() {
                     const addSvgUrl = `https://api.iconify.design/${iconName.replace(':', '/')}.svg?color=%23333333`;
-                    fabric.loadSVGFromURL(addSvgUrl, function(objects, options) {
-                        const obj = fabric.util.groupSVGElements(objects, options);
-                        obj.set({
-                            left: 150,
-                            top: 150,
-                            scaleX: 2,
-                            scaleY: 2,
-                            customType: 'icon',
-                            customName: 'Icon'
+                    // Fetch SVG as text first, then use loadSVGFromString to avoid CORS tainted canvas
+                    fetch(addSvgUrl)
+                        .then(function(response) { return response.text(); })
+                        .then(function(svgText) {
+                            fabric.loadSVGFromString(svgText, function(objects, options) {
+                                if (!objects || objects.length === 0) {
+                                    console.error('[ICON] Failed to parse SVG for:', iconName);
+                                    return;
+                                }
+                                const obj = fabric.util.groupSVGElements(objects, options);
+                                obj.set({
+                                    left: 150,
+                                    top: 150,
+                                    scaleX: 2,
+                                    scaleY: 2,
+                                    customType: 'icon',
+                                    customName: getNextLayerName('Icon'),
+                                    fill: '#333333'
+                                });
+                                // ── Non-Destructive Metadata (Phase 1A) ──
+                                obj._iconName = iconName;
+                                obj._iconProvider = 'iconify';
+                                obj._originalSvgMarkup = svgText;
+                                canvas.add(obj);
+                                canvas.setActiveObject(obj);
+                                updateLayersList();
+                                saveHistory();
+                                console.log('[ICON] Added icon:', iconName, 'type:', obj.type);
+                            });
+                        })
+                        .catch(function(err) {
+                            console.error('[ICON] Failed to fetch SVG:', iconName, err);
                         });
-                        canvas.add(obj);
-                        canvas.setActiveObject(obj);
-                        updateLayersList();
-                        saveHistory();
-                    });
                 });
                 iconsGrid.appendChild(item);
             });
@@ -2148,7 +2256,7 @@
     let isUndoing = false;
     const btnUndo = $('btn-undo');
     const btnRedo = $('btn-redo');
-    const customAttrs = ['customType','customName','is_background','is_placeholder','is_slot','color_group','ai_role','ai_max_chars','placeholderKey','ai_field','ai_semantic_role','ai_priority','auto_scale','ai_replaceable', 'mask_layer_id'];
+    const customAttrs = ['customType','customName','is_background','is_placeholder','is_slot','color_group','ai_role','ai_max_chars','placeholderKey','ai_field','ai_semantic_role','ai_priority','auto_scale','ai_replaceable', 'mask_layer_id', '_iconName', '_iconProvider', '_originalSvgMarkup'];
 
     function saveHistory() {
         if (isUndoing) return;
@@ -3128,7 +3236,12 @@
                                     rotation: el.rotation, opacity: el.opacity, z_index: el.z_index,
                                     is_background: el.is_background, is_placeholder: el.is_placeholder, is_slot: el.is_slot, mask_layer_id: el.mask_layer_id
                                 };
-                                if (el.type === 'image') l.src = el.src;
+                                if (el.type === 'image') {
+                                    l.src = el.src;
+                                    if (el.tint_color) l.tint_color = el.tint_color;
+                                    if (el.is_shape) l.is_shape = el.is_shape;
+                                    if (el._originalType) l._originalType = el._originalType;
+                                }
                                 else if (el.type === 'text' || el.type === 'i-text' || el.type === 'textbox') {
                                     l.type = 'text';
                                     l.text = el.text;
@@ -3229,6 +3342,9 @@
                     canvas.clear();
                     
                     const jsonObj = data.config;
+                    window._originalLoadedJson = JSON.parse(JSON.stringify(jsonObj));
+                    window._originalRenderVersion = window._originalLoadedJson.render_version || 1;
+                    console.log('[VERSION_SYNC] Loaded template render_version:', window._originalRenderVersion);
                     const imagesMap = data.images || {};
                     const fontsMap = data.fonts || {};
 
@@ -3319,6 +3435,7 @@
                         console.log('[DEBUG] Detected: Artera Schema JSON from ZIP, elements:', jsonObj.elements.length);
                         const shapeTypes = ['rect','circle','triangle','path','polygon','line','ellipse'];
                         const legacyConfig = {
+                            render_version: jsonObj.render_version,
                             info: { width: jsonObj.canvas.width, height: jsonObj.canvas.height },
                             layers: jsonObj.elements.map((el, idx) => {
                                 let l = {
@@ -3330,7 +3447,9 @@
                                 if (el.type === 'image') {
                                     l.src = el.src;
                                     if (el.is_shape || /shape|rect|circle|triangle|polygon|ellipse|path/i.test(el.name)) l.is_shape = true;
-                                    console.log('[LOAD] Layer ' + idx + ' "' + el.name + '" → image' + (l.is_shape ? ' (rasterized shape)' : '') + ', src=' + (el.src||'').substring(0,60));
+                                    if (el.tint_color) l.tint_color = el.tint_color;
+                                    if (el._originalType) l._originalType = el._originalType;
+                                    console.log('[LOAD] Layer ' + idx + ' "' + el.name + '" → image' + (l.is_shape ? ' (rasterized shape)' : '') + ', tint_color=' + (l.tint_color||'none') + ', src=' + (el.src||'').substring(0,60));
                                 } else if (el.type === 'text' || el.type === 'i-text' || el.type === 'textbox') {
                                     l.type = 'text';
                                     l.text = el.text;
@@ -3437,6 +3556,9 @@
                     canvas.clear();
                     
                     const jsonObj = data.config;
+                    window._originalLoadedJson = JSON.parse(JSON.stringify(jsonObj));
+                    window._originalRenderVersion = window._originalLoadedJson.render_version || 1;
+                    console.log('[VERSION_SYNC] Loaded frame render_version:', window._originalRenderVersion);
                     const imagesMap = data.images || {};
                     const fontsMap = data.fonts || {};
 
@@ -3483,6 +3605,7 @@
                         });
                     } else if (jsonObj.elements) {
                         const legacyConfig = {
+                            render_version: jsonObj.render_version,
                             width: jsonObj.canvas.width || 1080,
                             height: jsonObj.canvas.height || 1080,
                             layers: jsonObj.elements.map((el, idx) => {
@@ -3499,6 +3622,13 @@
                                     l.type = 'image'; l.src = el.src;
                                     const fn = (el.src || '').split('/').pop();
                                     if (imagesMap[fn]) l.src = imagesMap[fn];
+                                    // Carry over shape/icon metadata so _doRender can restore tint
+                                    if (el.tint_color) l.tint_color = el.tint_color;
+                                    if (el.is_shape) l.is_shape = el.is_shape;
+                                    if (el._originalType) l._originalType = el._originalType;
+                                    if (el.is_background) l.is_background = el.is_background;
+                                    if (el.is_placeholder) l.is_placeholder = el.is_placeholder;
+                                    if (el.is_slot) l.is_slot = el.is_slot;
                                 } else if (el.type === 'text') {
                                     l.type = 'text'; l.text = el.text;
                                     // Artera schema stores font as object {family, size, weight, style, color, ...}
@@ -3937,6 +4067,12 @@
                     }
                 });
                 canvas.requestRenderAll();
+
+                // Store original JSON for diff comparison (read-only copy)
+                // Use the passed config which holds the raw loaded JSON, or canvas.toJSON if needed
+                window._originalLoadedJson = JSON.parse(JSON.stringify(config));
+                window._originalRenderVersion = window._originalLoadedJson.render_version || 1;
+                console.log('[VERSION_SYNC] Loaded template render_version:', window._originalRenderVersion);
             }
         }
 
@@ -4048,7 +4184,8 @@
                 layer.type = 'image';
                 layer.is_shape = false; // Bypass shape vector logic
                 // But we still want them to act like shapes in the UI
-                layer._originalType = 'shape'; 
+                // Preserve _originalType from JSON if already set (e.g., 'icon'), else default to 'shape'
+                if (!layer._originalType) layer._originalType = 'shape'; 
             }
 
             // ─────────────────────────────────────────────────────────────────
@@ -4072,7 +4209,9 @@
                         is_placeholder: layer.is_placeholder,
                         is_slot: layer.is_slot,
                         mask_layer_id: layer.mask_layer_id,
-                        visible: visible
+                        visible: visible,
+                        is_image_placeholder: true,
+                        _src: layer.src || layer._fallback_src || ''
                     });
                     canvas.add(ph);
                     if (typeof sortCanvasLayers === 'function') {
@@ -4090,12 +4229,16 @@
                         fabric.Image.fromURL(imgSrc, function(img) {
                             if (!img || !img.width) { console.warn('[DEBUG] Image FAILED for "' + layer.name + '" - img:', img, 'width:', img ? img.width : 'null'); showImgPlaceholder(); return; }
                             console.log('[DEBUG] Image LOADED for "' + layer.name + '" - ' + img.width + 'x' + img.height);
+                            // Determine the correct customType to restore
+                            var restoredCustomType = 'image';
+                            if (layer._originalType === 'shape' || layer._originalType === 'icon') restoredCustomType = layer._originalType;
+                            else if (layer.is_shape) restoredCustomType = 'shape';
                             img.set({
                                 left: layer.x, top: layer.y,
                                 originX: 'left', originY: 'top',
                                 angle: rotation, opacity: opacity,
                                 shadow: shadow,
-                                customType: layer._originalType === 'shape' ? 'shape' : 'image',
+                                customType: restoredCustomType,
                                 customName: layer.name,
                                 is_background: layer.is_background,
                                 is_placeholder: layer.is_placeholder,
@@ -4105,16 +4248,32 @@
                                 z_index: layer.z_index || idx
                             });
                             img.set({ scaleX: layer.w / img.width, scaleY: layer.h / img.height });
-                            // Restore is_shape flag so color picker works
-                            if (layer.is_shape) {
+                            
+                            // ── Non-Destructive Metadata (Phase 1A) ──
+                            if (layer._source_meta) {
+                                img._iconName = layer._source_meta.iconName;
+                                img._iconProvider = layer._source_meta.provider;
+                                img._originalSvgMarkup = layer._source_meta.originalSvg;
+                            }
+
+                            // Restore is_shape flag so color picker + export works
+                            if (layer.is_shape || layer._originalType === 'shape' || layer._originalType === 'icon') {
                                 img.is_shape = true;
                             }
+                            console.log("--> _doRender image layer:", layer.name, "tint_color:", layer.tint_color, "blendColor type:", typeof fabric.Image.filters.BlendColor, "is_shape:", layer.is_shape);
                             // Restore tint_color (saved fill color) for image-converted shapes
                             if (layer.tint_color && typeof fabric.Image.filters.BlendColor !== 'undefined') {
                                 img.set('fill', layer.tint_color);
                                 img.filters = [new fabric.Image.filters.BlendColor({ color: layer.tint_color, mode: 'tint', alpha: 1 })];
                                 img.applyFilters();
+                                console.log('[LOAD] Applied tint_color=' + layer.tint_color + ' to "' + layer.name + '"');
                             }
+                            // Remove any temporary placeholder rectangle added before actual image load
+                            canvas.getObjects().forEach(function(o) {
+                                if (o.is_image_placeholder && o.customName === layer.name) {
+                                    canvas.remove(o);
+                                }
+                            });
                             canvas.add(img);
                             if (typeof sortCanvasLayers === 'function') {
                                 try { sortCanvasLayers(); } catch(e) { console.error('[SORT ERROR]', e); }
@@ -4615,15 +4774,26 @@
 
     // --- Export Schemas ---
     function exportArteraSchema(objects, title) {
+        const targetRenderVer = window._originalRenderVersion || 4;
         return {
-            schema_version: 1, render_version: CURRENT_RENDER_VERSION, template_id: 'tpl_' + Date.now(),
+            schema_version: 1, render_version: targetRenderVer, template_id: 'tpl_' + Date.now(),
             canvas: { width: baseWidth, height: baseHeight, background_color: canvas.backgroundColor || '#FFFFFF' },
             elements: objects.map((obj, i) => {
                 const z = i+1;
-                let w = Math.round(obj.width*obj.scaleX);
-                let h = Math.round(obj.height*obj.scaleY);
-                let x = Math.round(obj.left);
-                let y = Math.round(obj.top);
+                let w = Math.round(obj.width * (obj.scaleX || 1));
+                let h = Math.round(obj.height * (obj.scaleY || 1));
+                
+                // --- Phase 2 Math Fix (Text box width) ---
+                if ((obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') && w === 0) {
+                    w = Math.round(obj.getScaledWidth() || obj.width || 100);
+                    h = Math.round(obj.getScaledHeight() || obj.height || 50);
+                }
+
+                // Fabric returns absolute left/top when using setCoords()
+                obj.setCoords();
+                let aCoords = obj.aCoords;
+                let x = Math.round(aCoords ? aCoords.tl.x : obj.left);
+                let y = Math.round(aCoords ? aCoords.tl.y : obj.top);
                 let fontSize = obj.fontSize;
 
                 if (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
@@ -4640,19 +4810,93 @@
                 }
 
                 let o = { id:'el_'+z, name:obj.customName||(obj.type==='image'?'layer_'+z:'text_'+z), type:(obj.type==='i-text'||obj.type==='textbox')?'text':((obj.customType==='shape' && obj.type!=='image')?'shape':obj.type),
-                    x:x, y:y, w:w, h:h, rotation:obj.angle||0, opacity:obj.opacity??1, z_index:z, locked:!obj.selectable, visible:obj.visible!==false };
-                if (obj.type === 'image') { 
-                    o.src=obj.getSrc(); o.is_background=obj.is_background||false; o.is_placeholder=obj.is_placeholder||false; o.is_slot=obj.is_slot||false; 
-                    if(obj.customType==='shape' || obj.customType==='icon') o.is_shape=true; 
+                    x:x, y:y, w:w, h:h, width:w, height:h, scaleX:1, scaleY:1, originX:'left', originY:'top', rotation:obj.angle||0, opacity:obj.opacity??1, z_index:z, locked:!obj.selectable, visible:obj.visible!==false };
+                if (obj.type === 'image' || obj.customType === 'icon' || (obj.customType === 'shape' && obj.type === 'group') || (obj.customType === 'image' && obj.is_image_placeholder)) { 
+                    o.type = 'image';
+                    let isShapeRaster = (obj.customType === 'shape' || obj.customType === 'icon' || obj.is_shape);
+                    try { 
+                        if (obj.is_image_placeholder) {
+                            o.src = obj._src || '';
+                        } else if (obj.type === 'image' && !isShapeRaster) {
+                            o.src = obj.getSrc();
+                        } else {
+                            let origFill = obj.fill;
+                            let oldFilters = obj.filters ? [...obj.filters] : [];
+                            console.log('[EXPORT] Shape "' + (obj.customName||obj.type) + '": type=' + obj.type + ' customType=' + obj.customType + ' is_shape=' + obj.is_shape + ' fill=' + origFill + ' filters=' + oldFilters.length);
+                            
+                            let childFills = [];
+                            if (obj.type === 'group' && typeof obj.getObjects === 'function') {
+                                obj.getObjects().forEach(c => { 
+                                    let clr = (c.fill && c.fill !== 'none') ? c.fill : c.stroke;
+                                    if (clr && clr !== 'none') childFills.push(clr);
+                                });
+                            }
+                            if (!origFill && childFills.length > 0) {
+                                origFill = childFills[0];
+                                obj.fill = origFill; // Temporarily set so tint_color extraction catches it
+                            }
+                            if (!origFill && obj.stroke && obj.stroke !== 'none') {
+                                origFill = obj.stroke;
+                                obj.fill = origFill;
+                            }
+                            
+                            if (obj.filters && obj.filters.length > 0) {
+                                obj.filters = [];
+                                if (obj.applyFilters) obj.applyFilters();
+                                obj.dirty = true;
+                                if (obj._cacheCanvas) obj._cacheCanvas = null;
+                            }
+                            
+                            o.src = obj.toDataURL({format: 'png', multiplier: 2}); 
+                            console.log('[EXPORT] Shape "' + (obj.customName||obj.type) + '" rasterized: src length=' + (o.src||'').length + ' starts=' + (o.src||'').substring(0,30));
+                            
+                            if (oldFilters.length > 0) {
+                                obj.filters = oldFilters;
+                                if (obj.applyFilters) obj.applyFilters();
+                                obj.dirty = true;
+                            }
+                            // Restore cache state after export if needed
+                            obj.dirty = true;
+                        }
+                    } catch(e) { console.error('Failed rasterizing shape:', e); }
+                    
+                    o.is_background=obj.is_background||false; o.is_placeholder=obj.is_placeholder||false; o.is_slot=obj.is_slot||false; 
+                    if(isShapeRaster) o.is_shape=true; 
                     if(obj.mask_layer_id) o.mask_layer_id = obj.mask_layer_id;
-                    if((obj.customType==='shape' || obj.customType==='icon') && obj.fill && typeof obj.fill === 'string') o.tint_color = obj.fill;
+                    // Save _originalType so icons keep their identity through save/load
+                    if(obj.customType === 'icon') o._originalType = 'icon';
+                    else if(isShapeRaster) o._originalType = 'shape';
+                    if(isShapeRaster && obj.fill && typeof obj.fill === 'string') o.tint_color = obj.fill;
+                    
+                    // ── Non-Destructive Metadata (Phase 1A) ──
+                    if (obj.customType === 'icon') {
+                        let svgMarkup = obj._originalSvgMarkup || null;
+                        if (svgMarkup) {
+                            // Normalize stroke and fill for Flutter ColorFilter
+                            svgMarkup = svgMarkup.replace(/fill="[^"]*"/gi, 'fill="currentColor"');
+                            svgMarkup = svgMarkup.replace(/stroke="[^"]*"/gi, 'stroke="currentColor"');
+                        }
+                        o._source_meta = {
+                            type: 'icon',
+                            iconName: obj._iconName || null,
+                            provider: obj._iconProvider || 'iconify',
+                            originalSvg: svgMarkup
+                        };
+                    } else if (obj.customType === 'shape' && obj.type === 'group') {
+                        o._source_meta = {
+                            type: 'shape_group',
+                            childCount: (typeof obj.getObjects === 'function') ? obj.getObjects().length : 0
+                        };
+                    }
+
+                    if(isShapeRaster) console.log('[EXPORT] Schema element "' + o.name + '": is_shape=' + o.is_shape + ' tint_color=' + o.tint_color + ' _originalType=' + (o._originalType||'') + ' src_len=' + (o.src||'').length);
                 }
                 else if (obj.type==='text'||obj.type==='i-text'||obj.type==='textbox') {
                     o.text=obj.text; o.font={family:obj.fontFamily,size:fontSize,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,color:obj.fill,justification:obj.textAlign||'left',auto_scale:obj.auto_scale||false,charSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16};
                     o.placeholder=obj.customType==='placeholder'?{field_type:obj.placeholderKey,required:true}:null;
                     o.kind = (obj.type === 'textbox') ? 'Paragraph' : 'Point';
                     o.textKind = (obj.type === 'textbox') ? 'paragraph' : 'point';
-                } else if (obj.customType==='shape' || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type)) {
+                } else if (!obj.is_image_placeholder && obj.customType !== 'image' && (obj.customType==='shape' || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type))) {
                     o.type = 'shape';
                     o.shapeType = obj.type; // e.g. 'rect', 'ellipse'
                     
@@ -4708,13 +4952,24 @@
     }
 
     function exportLegacyJson(objects, title) {
-        const j = { name: title.replace(/\s+/g,'_'), render_version: CURRENT_RENDER_VERSION, info:{width:baseWidth,height:baseHeight}, layers:[] };
+        const targetRenderVer = window._originalRenderVersion || 4;
+        const j = { name: title.replace(/\s+/g,'_'), render_version: targetRenderVer, info:{width:baseWidth,height:baseHeight}, layers:[] };
         objects.forEach((obj,i) => {
             const z=i+1;
-            let w = Math.round(obj.width*obj.scaleX);
-            let h = Math.round(obj.height*obj.scaleY);
-            let x = Math.round(obj.left);
-            let y = Math.round(obj.top);
+            let w = Math.round(obj.width * (obj.scaleX || 1));
+            let h = Math.round(obj.height * (obj.scaleY || 1));
+            
+            // --- Phase 2 Math Fix (Text box width) ---
+            if ((obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') && w === 0) {
+                w = Math.round(obj.getScaledWidth() || obj.width || 100);
+                h = Math.round(obj.getScaledHeight() || obj.height || 50);
+            }
+
+            // Fabric returns absolute left/top when using setCoords()
+            obj.setCoords();
+            let aCoords = obj.aCoords;
+            let x = Math.round(aCoords ? aCoords.tl.x : obj.left);
+            let y = Math.round(aCoords ? aCoords.tl.y : obj.top);
             let fontSize = obj.fontSize;
 
             if (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox') {
@@ -4729,23 +4984,313 @@
                 y = Math.round(obj.top + yOffset);
             }
 
-            if (obj.type==='image') {
-                let imgData = {name:obj.customName||'layer_'+z,type:'image',src:obj.getSrc(),x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,is_background:obj.is_background||false,is_placeholder:obj.is_placeholder||false,is_slot:obj.is_slot||false, image_type: obj.image_type||'', is_shape: obj.customType === 'shape' || obj.customType === 'icon'};
+            if (obj.type==='image' || (obj.customType === 'image' && obj.is_image_placeholder)) {
+                let srcToUse = obj.is_image_placeholder ? (obj._src || '') : obj.getSrc();
+                let imgData = {name:obj.customName||'layer_'+z,type:'image',src:srcToUse,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,is_background:obj.is_background||false,is_placeholder:obj.is_placeholder||false,is_slot:obj.is_slot||false, image_type: obj.image_type||'', is_shape: obj.customType === 'shape' || obj.customType === 'icon' || obj.is_shape === true, flipX:obj.flipX||false, flipY:obj.flipY||false, opacity:obj.opacity??1};
                 if (obj.mask_layer_id) imgData.mask_layer_id = obj.mask_layer_id;
-                if ((obj.customType==='shape' || obj.customType==='icon') && obj.fill && typeof obj.fill === 'string') imgData.tint_color = obj.fill;
+                if ((obj.customType==='shape' || obj.customType==='icon' || obj.is_shape) && obj.fill && typeof obj.fill === 'string') imgData.tint_color = obj.fill;
                 j.layers.push(imgData);
             }
-            else if (obj.type==='i-text'||obj.type==='text'||obj.type==='textbox') j.layers.push({name:obj.customName||'text_'+z,type:'text',kind: (obj.type==='textbox'?'Paragraph':'Point'),textKind: (obj.type==='textbox'?'paragraph':'point'),text:obj.text,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,color:obj.fill,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,size:fontSize,font_size:fontSize,font:obj.fontFamily,font_name:obj.fontFamily,justification:obj.textAlign||'left',letterSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16,ai_role:obj.ai_role||null,ai_max_chars:obj.ai_max_chars||null});
-            else if (obj.customType==='shape' || obj.customType==='icon' || ['rect','circle','triangle','path','polygon','line'].includes(obj.type)) {
+            else if (obj.type==='i-text'||obj.type==='text'||obj.type==='textbox') j.layers.push({name:obj.customName||'text_'+z,type:'text',kind: (obj.type==='textbox'?'Paragraph':'Point'),textKind: (obj.type==='textbox'?'paragraph':'point'),text:obj.text,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,color:obj.fill,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,size:fontSize,font_size:fontSize,font:obj.fontFamily,font_name:obj.fontFamily,justification:obj.textAlign||'left',letterSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16,opacity:obj.opacity??1,rotation:obj.angle||0,visible:obj.visible!==false,flipX:obj.flipX||false,flipY:obj.flipY||false,ai_role:obj.ai_role||null,ai_max_chars:obj.ai_max_chars||null});
+            else if (!obj.is_image_placeholder && obj.customType !== 'image' && (obj.customType==='shape' || obj.customType==='icon' || obj.is_shape || ['rect','circle','triangle','path','polygon','line'].includes(obj.type))) {
+                // ══════════════════════════════════════════════════════════════════
+                // RENDER VERSION 4: Save shapes/icons as VECTOR DATA, not PNG
+                // This preserves exact color, border radius, shape type, and icon name.
+                // A _fallback_src PNG is kept for backward compatibility.
+                // ══════════════════════════════════════════════════════════════════
+
+                // ── Determine the exact fill color ──
+                let fillColor = null;
+                if (obj.fill && typeof obj.fill === 'string' && obj.fill !== 'none') {
+                    fillColor = toHex(obj.fill);
+                } else if (obj.fill && typeof obj.fill === 'object' && obj.fill.type === 'linear') {
+                    fillColor = JSON.parse(JSON.stringify(obj.fill));
+                }
+                // Fallback: check child objects in groups
+                if (!fillColor && obj.type === 'group' && typeof obj.getObjects === 'function') {
+                    obj.getObjects().forEach(function(c) {
+                        var clr = (c.fill && c.fill !== 'none') ? c.fill : c.stroke;
+                        if (clr && clr !== 'none' && !fillColor) fillColor = toHex(clr);
+                    });
+                }
+                if (!fillColor && obj.stroke && obj.stroke !== 'none') {
+                    fillColor = toHex(obj.stroke);
+                }
+
+                // ── Build vector layer data ──
+                var vectorData = {
+                    name: obj.customName || 'shape_' + z,
+                    type: 'shape',
+                    shapeType: obj.type,
+                    x: x, y: y, w: w, h: h,
+                    width: w, height: h,
+                    z_index: z,
+                    fill: fillColor,
+                    stroke: (obj.stroke && obj.stroke !== 'none') ? toHex(obj.stroke) : null,
+                    strokeWidth: obj.strokeWidth || 0,
+                    rx: obj.rx || 0,
+                    ry: obj.ry || 0,
+                    opacity: obj.opacity ?? 1,
+                    rotation: obj.angle || 0,
+                    is_background: obj.is_background || false,
+                    is_slot: obj.is_slot || false,
+                    is_shape: true,
+                    visible: obj.visible !== false
+                };
+
+                // ── Icon-specific metadata ──
+                if (obj.customType === 'icon') {
+                    vectorData.type = 'icon';
+                    vectorData.iconName = obj._iconName || null;
+                    vectorData.iconProvider = obj._iconProvider || 'iconify';
+                    vectorData.color = fillColor;
+                    
+                    let svgMarkup = obj._originalSvgMarkup || null;
+                    if (svgMarkup) {
+                        svgMarkup = svgMarkup.replace(/fill="[^"]*"/gi, 'fill="currentColor"');
+                        svgMarkup = svgMarkup.replace(/stroke="[^"]*"/gi, 'stroke="currentColor"');
+                    }
+                    
+                    vectorData._source_meta = {
+                        type: 'icon',
+                        iconName: obj._iconName || null,
+                        provider: obj._iconProvider || 'iconify',
+                        originalSvg: svgMarkup
+                    };
+                }
+
+                // ── Polygon points (for star, custom shapes) ──
+                if ((obj.type === 'polygon' || obj.type === 'polyline') && obj.points && obj.points.length >= 3) {
+                    var polyMatrix = obj.calcTransformMatrix();
+                    var polyOffX = obj.pathOffset ? obj.pathOffset.x : 0;
+                    var polyOffY = obj.pathOffset ? obj.pathOffset.y : 0;
+                    vectorData.points = obj.points.map(function(p) {
+                        var lx = p.x - polyOffX;
+                        var ly = p.y - polyOffY;
+                        var abs = fabric.util.transformPoint(new fabric.Point(lx, ly), polyMatrix);
+                        return { x: Math.round(abs.x), y: Math.round(abs.y) };
+                    });
+                }
+
+                // ── SVG path data (for custom shapes) ──
+                if (obj.type === 'path' && obj.path && obj.path.length > 0) {
+                    vectorData.svgPath = fabric.util.joinPath(obj.path);
+                }
+
+                // ── Clipping mask ──
+                if (obj.mask_layer_id) vectorData.mask_layer_id = obj.mask_layer_id;
+
+                // ── BACKWARD COMPAT: Also save a rasterized PNG as _fallback_src ──
+                // Old native app versions (render_version < 4) will use this PNG.
                 try {
-                    const dataUrl = obj.toDataURL({format: 'png', multiplier: 2});
-                    let shapeData = {name:obj.customName||'shape_'+z, type:'image', src:dataUrl, x:x, y:y, w:w, h:h, width:w, height:h, z_index:z, is_background:false, is_slot:false, image_type: '', is_shape: true};
-                    if (obj.fill && typeof obj.fill === 'string') shapeData.tint_color = obj.fill;
-                    j.layers.push(shapeData);
-                } catch(e) { console.error('Failed to rasterize shape for legacy json:', e); }
+                    var oldFilters = obj.filters ? obj.filters.slice() : [];
+                    if (obj.filters && obj.filters.length > 0) {
+                        obj.filters = [];
+                        if (obj.applyFilters) obj.applyFilters();
+                        obj.dirty = true;
+                        if (obj._cacheCanvas) obj._cacheCanvas = null;
+                    }
+                    vectorData._fallback_src = obj.toDataURL({format: 'png', multiplier: 2});
+                    if (oldFilters.length > 0) {
+                        obj.filters = oldFilters;
+                        if (obj.applyFilters) obj.applyFilters();
+                        obj.dirty = true;
+                    }
+                    obj.dirty = true;
+                } catch(e) { console.warn('[EXPORT_V4] Fallback raster failed:', e); }
+
+                console.log('[EXPORT_V4] Vector shape:', vectorData.name, 'type:', vectorData.shapeType,
+                    'fill:', vectorData.fill, 'icon:', vectorData.iconName);
+
+                j.layers.push(vectorData);
             }
         });
         return j;
+    }
+
+    /**
+     * Compare old JSON (loaded version) vs new JSON (about to save).
+     * Returns an array of diffs per layer.
+     *
+     * @param {Object} oldJson - The JSON that was loaded when template opened
+     * @param {Object} newJson - The JSON that exportArteraSchema() just generated
+     * @returns {Array<{layerName, property, oldValue, newValue, type}>}
+     */
+    function computeVersionDiff(oldJson, newJson) {
+        const diffs = [];
+
+        // Build layer maps by name
+        const oldLayers = {};
+        const newLayers = {};
+        (oldJson.layers || oldJson.elements || oldJson.objects || []).forEach(l => {
+            oldLayers[l.name || l.id || 'unknown'] = l;
+        });
+        (newJson.layers || newJson.elements || newJson.objects || []).forEach(l => {
+            newLayers[l.name || l.id || 'unknown'] = l;
+        });
+
+        // Compare properties for each layer
+        const propsToCompare = [
+            { key: 'width', aliases: ['w', 'width'] },
+            { key: 'height', aliases: ['h', 'height'] },
+            { key: 'x', aliases: ['x', 'left'] },
+            { key: 'y', aliases: ['y', 'top'] },
+            { key: 'fontSize', aliases: ['fontSize', 'font_size', 'size'] },
+            { key: 'color', aliases: ['fill', 'color', 'font_color'] },
+            { key: 'stroke', aliases: ['stroke', 'strokeColor'] },
+            { key: 'fontFamily', aliases: ['fontFamily', 'font_name', 'font'] },
+            { key: 'fontWeight', aliases: ['fontWeight', 'weight'] },
+            { key: 'fontStyle', aliases: ['fontStyle', 'style'] },
+            { key: 'textAlign', aliases: ['textAlign', 'justification'] },
+            { key: 'text', aliases: ['text', 'textContent'] },
+            { key: 'charSpacing', aliases: ['charSpacing', 'letterSpacing'] },
+            { key: 'wordSpacing', aliases: ['wordSpacing'] },
+            { key: 'lineHeight', aliases: ['lineHeight'] },
+            { key: 'opacity', aliases: ['opacity'] },
+            { key: 'flipX', aliases: ['flipX'] },
+            { key: 'flipY', aliases: ['flipY'] },
+            { key: 'type', aliases: ['type'] },
+            { key: 'scaleX', aliases: ['scaleX'] },
+            { key: 'scaleY', aliases: ['scaleY'] }
+        ];
+
+        const allLayerNames = new Set([...Object.keys(oldLayers), ...Object.keys(newLayers)]);
+
+        allLayerNames.forEach(name => {
+            const oldL = oldLayers[name];
+            const newL = newLayers[name];
+
+            // Track newly ADDED layers (exist in new but not old)
+            if (!oldL && newL) {
+                diffs.push({
+                    layerName: name,
+                    property: '(layer)',
+                    oldValue: '—',
+                    newValue: newL.type || 'unknown',
+                    type: 'layer added'
+                });
+                return;
+            }
+
+            // Track REMOVED layers (exist in old but not new)
+            if (oldL && !newL) {
+                diffs.push({
+                    layerName: name,
+                    property: '(layer)',
+                    oldValue: oldL.type || 'unknown',
+                    newValue: '—',
+                    type: 'layer removed'
+                });
+                return;
+            }
+
+            propsToCompare.forEach(propDef => {
+                let oldVal = undefined;
+                let newVal = undefined;
+
+                propDef.aliases.forEach(alias => {
+                    if (oldL[alias] !== undefined && oldVal === undefined) oldVal = oldL[alias];
+                    if (newL[alias] !== undefined && newVal === undefined) newVal = newL[alias];
+                });
+
+                // --- ARTERA SCHEMA NESTED FONT FIX ---
+                // In Artera Schema, text properties are nested inside the 'font' object
+                if (propDef.key === 'fontFamily') {
+                    if (oldL.font && typeof oldL.font === 'object') oldVal = oldL.font.family;
+                    if (newL.font && typeof newL.font === 'object') newVal = newL.font.family;
+                    // Fallback if it picked up the raw font object instead of string
+                    if (typeof oldVal === 'object') oldVal = oldVal.family || oldVal.fontFamily;
+                    if (typeof newVal === 'object') newVal = newVal.family || newVal.fontFamily;
+                }
+                if (propDef.key === 'fontSize') {
+                    if (oldL.font && typeof oldL.font === 'object') oldVal = oldL.font.size;
+                    if (newL.font && typeof newL.font === 'object') newVal = newL.font.size;
+                }
+                if (propDef.key === 'fontWeight') {
+                    if (oldL.font && typeof oldL.font === 'object') oldVal = oldL.font.weight;
+                    if (newL.font && typeof newL.font === 'object') newVal = newL.font.weight;
+                }
+                if (propDef.key === 'fontStyle') {
+                    if (oldL.font && typeof oldL.font === 'object') oldVal = oldL.font.style;
+                    if (newL.font && typeof newL.font === 'object') newVal = newL.font.style;
+                }
+                if (propDef.key === 'color') {
+                    if (oldL.font && typeof oldL.font === 'object') oldVal = oldL.font.color;
+                    if (newL.font && typeof newL.font === 'object') newVal = newL.font.color;
+                }
+                if (propDef.key === 'textAlign') {
+                    if (oldL.font && typeof oldL.font === 'object') oldVal = oldL.font.justification;
+                    if (newL.font && typeof newL.font === 'object') newVal = newL.font.justification;
+                }
+                if (propDef.key === 'charSpacing') {
+                    if (oldL.font && typeof oldL.font === 'object') oldVal = oldL.font.charSpacing;
+                    if (newL.font && typeof newL.font === 'object') newVal = newL.font.charSpacing;
+                }
+                if (propDef.key === 'wordSpacing') {
+                    if (oldL.font && typeof oldL.font === 'object') oldVal = oldL.font.wordSpacing;
+                    if (newL.font && typeof newL.font === 'object') newVal = newL.font.wordSpacing;
+                }
+                if (propDef.key === 'lineHeight') {
+                    if (oldL.font && typeof oldL.font === 'object') oldVal = oldL.font.lineHeight;
+                    if (newL.font && typeof newL.font === 'object') newVal = newL.font.lineHeight;
+                }
+
+                // Only report if BOTH exist and are different (avoids spam when upgrading schema formats)
+                if (oldVal !== undefined && newVal !== undefined) {
+                    const ovStr = String(oldVal);
+                    const nvStr = String(newVal);
+                    
+                    if (ovStr !== nvStr) {
+                        diffs.push({
+                            layerName: name,
+                            property: propDef.key,
+                            oldValue: oldVal,
+                            newValue: newVal,
+                            type: 'value change'
+                        });
+                    }
+                }
+            });
+        });
+
+        return diffs;
+    }
+
+    function validateBeforePublish(schemaJson, legacyJson) {
+        const errors = [];
+
+        // 1. Check for NaN in coordinates
+        const checkNaN = (elements, format) => {
+            (elements || []).forEach((el, i) => {
+                if (isNaN(el.x) || isNaN(el.y) || isNaN(el.w) || isNaN(el.h)) {
+                    errors.push(`[${format}] Layer "${el.name}" (index ${i}) has NaN coordinates: x=${el.x}, y=${el.y}, w=${el.w}, h=${el.h}`);
+                }
+                if (el.w === 0 && el.h === 0 && el.type === 'image') {
+                    errors.push(`[${format}] Image layer "${el.name}" has zero dimensions`);
+                }
+            });
+        };
+
+        checkNaN(schemaJson.elements, 'Schema');
+        checkNaN(legacyJson.layers, 'Legacy');
+
+        // 2. Check image sources are not empty
+        const checkImages = (elements, format) => {
+            (elements || []).forEach((el, i) => {
+                if (el.type === 'image' && (!el.src || el.src.length < 50)) {
+                    errors.push(`[${format}] Image "${el.name}" has empty or broken src (length: ${(el.src||'').length})`);
+                }
+            });
+        };
+
+        checkImages(schemaJson.elements, 'Schema');
+        checkImages(legacyJson.layers, 'Legacy');
+
+        // 3. Check render_version exists
+        if (!schemaJson.render_version) errors.push('Schema is missing render_version');
+        if (!legacyJson.render_version) errors.push('Legacy is missing render_version');
+
+        return errors;
     }
 
     // --- Publish ---
@@ -4776,13 +5321,45 @@
         const schemaData = exportArteraSchema(objects, title);
         const legacyData = exportLegacyJson(objects, title);
 
+        // Compute diff (only for existing templates — new templates skip diff popup)
+        const diffs = window.editing_frame_id
+            ? computeVersionDiff(window._originalLoadedJson || {}, schemaData)
+            : [];
+
+        if (diffs.length > 0) {
+            // Show diff modal instead of direct save
+            if (typeof showDiffReviewModal === 'function') {
+                showDiffReviewModal(diffs, schemaData, legacyData, fd, btnSave);
+                return;
+            } else {
+                console.warn('[PUBLISH] showDiffReviewModal not found, proceeding with direct save.');
+            }
+        }
+
+        // No version change or no diffs — proceed with normal save
+        doSaveFrame(schemaData, legacyData, fd, btnSave);
+    });
+
+    // Make doSaveFrame globally accessible for the modal to call
+    window.doSaveFrame = function(schemaData, legacyData, fd, btnSave) {
+        // ── Phase 1B: Pre-Publish Validation ──
+        const validationErrors = validateBeforePublish(schemaData, legacyData);
+        if (validationErrors.length > 0) {
+            console.error('[PUBLISH BLOCKED]', validationErrors);
+            alert('⚠️ Publish blocked! Found ' + validationErrors.length + ' issue(s):\n\n' + validationErrors.join('\n'));
+            btnSave.disabled = false;
+            btnSave.innerHTML = '<i class="fa fa-save"></i> Publish';
+            return;
+        }
+
+        const objects = canvas.getObjects();
         // Debug: log every element being published
         console.log('[PUBLISH] Canvas objects count:', objects.length);
         objects.forEach((obj, i) => {
             const t = obj.type;
             const ct = obj.customType || '';
             const n = obj.customName || obj.type;
-            console.log('[PUBLISH] Object ' + i + ': type=' + t + ' customType=' + ct + ' name="' + n + '" w=' + Math.round(obj.width*obj.scaleX) + ' h=' + Math.round(obj.height*obj.scaleY));
+            console.log('[PUBLISH] Object ' + i + ': type=' + t + ' customType=' + ct + ' name="' + n + '" w=' + Math.round(obj.width*(obj.scaleX||1)) + ' h=' + Math.round(obj.height*(obj.scaleY||1)));
         });
         console.log('[PUBLISH] Schema elements:', schemaData.elements.length, '| Legacy layers:', legacyData.layers.length);
 
@@ -4830,7 +5407,7 @@
         });
 
         currentScale = updateCanvasZoom();
-    });
+    };
 
     } catch (err) {
         alert("CRITICAL JS ERROR: " + err.message + "\nStack: " + err.stack);

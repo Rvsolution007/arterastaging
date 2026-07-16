@@ -14,12 +14,14 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'interactive_layer.dart';
 
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:get/get.dart';
 
 import '../controllers/native_editor_controller.dart';
+import '../services/api_service.dart';
 
 
 /// Renders a JSON-based AI Post configuration into native Flutter widgets.
@@ -91,6 +93,61 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
 
   /// Whether post-frame measurement has completed at least once.
   bool _hasMeasured = false;
+  String _activeMaskShapeId = '';
+
+  bool _goldenCaptured = false;
+
+  void _captureNativeGolden(List<Widget> children, double scale, int renderVersion) {
+      // Debounce — only send once
+      _goldenCaptured = true;
+      widget.config['_golden_sent'] = true;
+
+      // Build native_computed map from current layer data
+      final layers = widget.config['layers'] as List<dynamic>? ?? [];
+      final Map<String, Map<String, dynamic>> nativeComputed = {};
+
+      for (var layer in layers) {
+          final name = (layer['name'] ?? layer['id'] ?? '').toString();
+          if (name.isEmpty) continue;
+
+          final double x = safeDouble(layer['x'] ?? 0);
+          final double y = safeDouble(layer['y'] ?? 0);
+          final double w = safeDouble(layer['w'] ?? layer['width'] ?? 0);
+          final double h = safeDouble(layer['h'] ?? layer['height'] ?? 0);
+
+          nativeComputed[name] = {
+              'finalX': (x * scale).roundToDouble(),
+              'finalY': (y * scale).roundToDouble(),
+              'finalW': (w * scale).roundToDouble(),
+              'finalH': (h * scale).roundToDouble(),
+              'type': layer['type'] ?? 'unknown',
+          };
+
+          // For text layers, also capture computed font size
+          if (layer['type'] == 'text') {
+              final double rawSize = safeDouble(layer['fontSize'] ?? layer['font_size'] ?? layer['size'] ?? 16);
+              final double ppiScale = safeDouble(widget.config['info']?['ppi'] ?? 72) / 72.0;
+              final double layerScaleY = safeDouble(layer['scaleY'] ?? 1);
+              nativeComputed[name]!['finalFontSize'] = (rawSize * ppiScale * layerScaleY * scale).roundToDouble();
+          }
+      }
+
+      // Get frame info
+      final frameId = widget.config['info']?['id'] ?? widget.config['id'];
+      final zipName = widget.config['info']?['zip_name'] ?? widget.config['zip_name'] ?? '';
+
+      if (frameId != null && zipName.toString().isNotEmpty) {
+          // Send to server (fire and forget — don't block render)
+          ApiService.post('/golden-render/capture-native', {
+              'frame_id': frameId,
+              'zip_name': zipName,
+              'render_version': renderVersion,
+              'native_computed': nativeComputed,
+          }).catchError((e) {
+              debugPrint('[GOLDEN] Error sending native golden: $e');
+          });
+      }
+  }
 
   @override
   void initState() {
@@ -629,6 +686,13 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       return zA.compareTo(zB);
     });
 
+    // Print all layers for diagnosis as requested by user
+    debugPrint('🔴 [USER_DIAGNOSIS] Listing all layers of frame:');
+    for (int i = 0; i < sortedLayers.length; i++) {
+      final l = sortedLayers[i];
+      debugPrint('  [LAYER $i] name="${l['name']}" type="${l['type']}" originalType="${l['_originalType']}" iconName="${l['iconName']}" src="${l['src'] != null ? (l['src'].toString().length > 100 ? l['src'].toString().substring(0, 100) + '...' : l['src']) : 'null'}" _source_meta=${l['_source_meta']} tint_color=${l['tint_color']} font_color=${l['font_color']} color=${l['color']}');
+    }
+
     // ══════════════════════════════════════════════════════════════
     // APPLY Y-SHIFTS (from post-frame measurement)
     // ══════════════════════════════════════════════════════════════
@@ -671,6 +735,9 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
           final candidate = adjusted[i];
           final bool candIsShape = candidate['is_shape'] == true || candidate['is_shape'] == 1;
           if (!candIsShape) continue;
+          
+          // NEW: Skip shapes with tint_color — they are decorative icons/shapes, not PSD masks
+          if (candidate['tint_color'] != null) continue;
           
           final double cx = safeDouble(candidate['x'] ?? 0);
           final double cy = safeDouble(candidate['y'] ?? 0);
@@ -791,7 +858,13 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         }
       }
 
-      stackChildren.add(_buildLayer(layer, scale));
+      stackChildren.add(_buildLayer(layer, scale, renderVersion));
+    }
+
+    // === GOLDEN SNAPSHOT: Capture native computed values (once per frame) ===
+    // Only run this in non-edit mode (preview/initial load), not on every rebuild
+    if (!_goldenCaptured && widget.config['_golden_sent'] != true) {
+        _captureNativeGolden(stackChildren, scale, renderVersion);
     }
 
     return AnimatedOpacity(
@@ -813,7 +886,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     );
   }
 
-  Widget _buildLayer(Map<String, dynamic> layer, double scale) {
+  Widget _buildLayer(Map<String, dynamic> layer, double scale, int renderVersion) {
     final String name =
         (layer['name'] ?? layer['id'] ?? '').toString().toLowerCase();
     final String rawName =
@@ -825,6 +898,8 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         name == 'background' ||
         name.contains('background'))));
 
+    debugPrint('🔴 [DIAGNOSIS-LAYER] name="$name" type="$type" isShape=${layer['is_shape']} isFrameLayer=$isFrameLayer isBackground=$isBackground');
+    
     // ── FIX: Hide layer when is_background is explicitly false and name suggests background ──
     if (!isFrameLayer && layer['is_background'] == false &&
         (name.contains('background') || name == 'bg' || name == 'image1')) {
@@ -845,6 +920,10 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     if (isUsedAsMask) {
       debugPrint('[LAYER_HIDE] Hiding "$name" — used as mask shape by another layer');
       return const SizedBox.shrink();
+    }
+
+    if ((layer['is_shape'] == true || layer['is_shape'] == 1) && layer['tint_color'] != null) {
+      debugPrint('[LAYER_DIAG] Processing decorated shape/icon (has tint_color): "$name"');
     }
 
     // ══ FULL LAYER DIAGNOSTICS ══
@@ -923,14 +1002,17 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       final double currentY = safeDouble(effectiveLayer['y'] ?? 0);
       final String textKind = (effectiveLayer['kind'] ?? '').toString().toLowerCase();
       
-      // The Web Editor exports JSON with an artificial +0.12 * fontSize Y-offset for ALL text (Point & Paragraph).
-      // Flutter's Text widget with height: 1.16 introduces internal leading (~0.08 * fontSize visual padding at the top).
-      // InteractiveLayer ALREADY subtracts 0.12 for 'point' text (due to a locked legacy rule).
-      // So for 'point', we only need to compensate the remaining 0.08 (Flutter padding).
-      // For 'paragraph', we must subtract the full 0.20 (0.12 JSON + 0.08 padding).
-      final double offsetMultiplier = (textKind == 'point') ? 0.08 : 0.20;
-      final double yAdjustment = fontSize * offsetMultiplier;
-      effectiveLayer['y'] = currentY - yAdjustment;
+      // ── Y-Offset: Only apply legacy adjustment for versions < 3 ──
+      // Version 3+ has the correct Y pre-baked by the web editor
+      if (renderVersion < 3) {
+        final double offsetMultiplier = (textKind == 'point') ? 0.08 : 0.20;
+        final double yAdjustment = fontSize * offsetMultiplier;
+        effectiveLayer['y'] = currentY - yAdjustment;
+      } else if (renderVersion >= 5) {
+        effectiveLayer['y'] = currentY - 5.0;
+      } else {
+        effectiveLayer['y'] = currentY;
+      }
 
       // ══ COMPREHENSIVE TEXT DIAGNOSTICS ══
       debugPrint('┌─────────────────────────────────────────────────────────');
@@ -949,8 +1031,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       debugPrint('│   json.scaleX=${layer['scaleX']}  json.scaleY=${layer['scaleY']}');
       debugPrint('│   ── COMPUTED VALUES ──');
       debugPrint('│   rawSize=$rawSize  docPPI=$docPPI  ppiScale=$ppiScale  fontSize(design)=$fontSize');
-      debugPrint('│   textKind=$textKind  offsetMultiplier=$offsetMultiplier');
-      debugPrint('│   yAdjustment=$yAdjustment');
+      debugPrint('│   textKind=$textKind');
       debugPrint('│   original_Y=$currentY  adjusted_Y=${effectiveLayer['y']}');
       debugPrint('│   ── INTERACTIVE_LAYER WILL COMPUTE ──');
       debugPrint('│   scale=$scale');
@@ -983,7 +1064,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       final key =
           _textKeys.putIfAbsent(uniqueKeyName, () => GlobalKey());
       content = KeyedSubtree(key: key, child: content);
-    } else if (type == 'image' || type == 'shape' || type == 'rect') {
+    } else if (type == 'image') {
       // ══ IMAGE/SHAPE DIAGNOSTICS ══
       debugPrint('┌─────────────────────────────────────────────────────────');
       debugPrint('│ [IMG_DIAG] name="${effectiveLayer['name']}"  type=$type');
@@ -996,8 +1077,29 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       debugPrint('│   finalX=${safeDouble(effectiveLayer['x'] ?? 0) * scale}  finalY=${safeDouble(effectiveLayer['y'] ?? 0) * scale}');
       debugPrint('│   finalW=${nativeW * scale}  finalH=${nativeH * scale}');
       debugPrint('└─────────────────────────────────────────────────────────');
-      content =
-          _buildImageLayer(effectiveLayer, name, scale, nativeW, nativeH);
+      // ── CHECK: Is this actually an icon exported as type='image' from ArteraSchema? ──
+      final bool _hasIconMeta = effectiveLayer['_source_meta'] is Map &&
+          effectiveLayer['_source_meta']['iconName'] != null &&
+          effectiveLayer['_source_meta']['iconName'].toString().isNotEmpty;
+      final bool _hasOrigTypeIcon = effectiveLayer['_originalType'] == 'icon';
+      final bool _hasTopIconName = effectiveLayer['iconName'] != null &&
+          effectiveLayer['iconName'].toString().isNotEmpty;
+
+      if (_hasIconMeta || _hasOrigTypeIcon || _hasTopIconName) {
+        debugPrint('[ICON_ROUTE] type=image but detected icon metadata → routing to _buildIconLayer (meta=$_hasIconMeta origType=$_hasOrigTypeIcon topName=$_hasTopIconName)');
+        content = _buildIconLayer(effectiveLayer, name, scale, nativeW, nativeH);
+      } else {
+        content =
+            _buildImageLayer(effectiveLayer, name, scale, nativeW, nativeH);
+      }
+    } else if (type == 'shape' || type == 'rect') {
+      // ── RENDER V4: Native vector shape rendering ──
+      if (renderVersion >= 4) {
+        content = _buildVectorShape(effectiveLayer, name, scale, nativeW, nativeH);
+      } else {
+        // V1-V3: Treat shape as image (old rasterized PNG behavior)
+        content = _buildImageLayer(effectiveLayer, name, scale, nativeW, nativeH);
+      }
     } else if (type == 'icon') {
       content =
           _buildIconLayer(effectiveLayer, name, scale, nativeW, nativeH);
@@ -1017,6 +1119,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       layerName: rawName,
       layerConfig: effectiveLayer,
       scale: scale,
+      renderVersion: renderVersion,
       child: content,
     );
   }
@@ -1277,11 +1380,26 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
                                         (isFrameLayer && !hasExplicitNewlines) ||
                                         noSpaces;
 
+    bool fitsOnSingleLine = false;
+    final double tpW = safeDouble(layer['w'] ?? layer['width'] ?? 0);
+    if (tpW > 0 && textValue.isNotEmpty) {
+      final tp = TextPainter(
+        textDirection: TextDirection.ltr,
+        textScaler: TextScaler.noScaling,
+        maxLines: 1,
+      );
+      tp.text = TextSpan(text: textValue, style: textStyle);
+      tp.layout();
+      if (tp.width <= tpW * 1.1) {
+        fitsOnSingleLine = true;
+      }
+    }
+
     bool isSingleLine;
     if (textKind == 'point') {
       // Explicitly marked as Point Text by web editor — never wraps, scales down
       isSingleLine = true;
-    } else if (isKnownSingleLineField || (!hasExplicitNewlines && ratio <= 2.2)) {
+    } else if (isKnownSingleLineField || (!hasExplicitNewlines && (ratio <= 2.2 || fitsOnSingleLine))) {
       // Even if marked as 'paragraph' (Textbox for alignment), fields like email/phone/web/name,
       // frame layers, or boxes without explicit newlines must NEVER wrap to multiple lines; they must scale down via FittedBox!
       isSingleLine = true;
@@ -1375,8 +1493,36 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     return textWidget;
   }
 
-  Color _parseColor(String colorStr, {Color fallback = const Color(0xFF000000)}) {
+  Color _parseColor(dynamic colorVal, {Color fallback = const Color(0xFF000000)}) {
+    if (colorVal == null) return fallback;
+    if (colorVal is int) return Color(colorVal);
+    
+    String colorStr = colorVal.toString().trim();
     if (colorStr.isEmpty) return fallback;
+    
+    // Handle stringified integers (e.g. "4278190080" from 0xFF000000)
+    int? intParsed = int.tryParse(colorStr);
+    if (intParsed != null && !colorStr.startsWith('#') && !colorStr.startsWith('0x') && colorStr.length > 7) {
+      return Color(intParsed);
+    }
+    
+    // Handle rgb(r,g,b) format
+    if (colorStr.startsWith('rgb') && !colorStr.startsWith('rgba')) {
+      try {
+        final parts = colorStr
+            .replaceAll(RegExp(r'[a-zA-Z\(\)]'), '')
+            .split(',');
+        if (parts.length >= 3) {
+          return Color.fromARGB(
+            255,
+            int.parse(parts[0].trim()),
+            int.parse(parts[1].trim()),
+            int.parse(parts[2].trim()),
+          );
+        }
+      } catch (_) {}
+      return fallback;
+    }
     
     // Handle rgba(r,g,b,a) format
     if (colorStr.startsWith('rgba')) {
@@ -1434,32 +1580,86 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
   /// Matches the web editor logic: skinDir + filename
   String _resolveAssetUrl(String src) {
     if (src.isEmpty) return '';
-    if (src.startsWith('http')) return src;
     if (src.startsWith('data:')) return src;
 
-    // Web editor logic: take just the filename and prepend skinDir
-    // src is like "../skins/Frame_Square_101/BG.png"
-    // We need: templateBaseUrl + /skins/Frame_Square_101/BG.png
-    String resolved;
-    if (src.startsWith('../')) {
-      // Remove the leading ../ and combine with templateBaseUrl
-      resolved = '${widget.templateBaseUrl}/${src.replaceFirst('../', '')}';
-    } else if (src.contains('/')) {
-      // Has path separators, might be skins/SkinName/file.png
-      resolved = '${widget.templateBaseUrl}/$src';
-    } else {
-      // Just a filename — put it in skins directory
-      resolved = '${widget.templateBaseUrl}/skins/$src';
+    String baseUrl = widget.templateBaseUrl;
+    if ((baseUrl.isEmpty || !baseUrl.contains('/uploads/template/')) && Get.isRegistered<NativeEditorController>()) {
+      final ctrl = Get.find<NativeEditorController>();
+      if (ctrl.templateBaseUrl.contains('/uploads/template/')) {
+        baseUrl = ctrl.templateBaseUrl;
+      }
+    }
+    if (!baseUrl.endsWith('/')) {
+      baseUrl += '/';
     }
 
-    // Normalize path to handle multiple ../../ segments
+    String zipName = (widget.config['zip_name'] ?? widget.config['path'] ?? '').toString().replaceAll('/', '').trim();
+    if (zipName.isEmpty) {
+      final reg = RegExp(r'(?:\.\./)?skins/([^/]+)/');
+      final match = reg.firstMatch(src);
+      if (match != null && match.group(1) != null) {
+        zipName = match.group(1)!.trim();
+      } else if (widget.config['layers'] is List) {
+        for (var l in (widget.config['layers'] as List)) {
+          if (l is Map) {
+            for (var f in ['src', '_fallback_src']) {
+              if (l[f] != null) {
+                final m = reg.firstMatch(l[f].toString());
+                if (m != null && m.group(1) != null) {
+                  zipName = m.group(1)!.trim();
+                  break;
+                }
+              }
+            }
+          }
+          if (zipName.isNotEmpty) break;
+        }
+      }
+    }
+
+    if (zipName.isNotEmpty && !baseUrl.contains('/uploads/template/$zipName')) {
+      final rootUrl = ApiService.baseUrl.replaceAll('/123456', '');
+      baseUrl = '$rootUrl/uploads/template/$zipName/';
+    }
+
+    if (src.startsWith('http')) {
+      if (src.contains('/skins/skins/')) {
+        src = src.replaceAll('/skins/skins/', '/skins/');
+      }
+      if (zipName.isNotEmpty && src.contains('/uploads/skins/$zipName/')) {
+        src = src.replaceAll('/uploads/skins/$zipName/', '/uploads/template/$zipName/skins/$zipName/');
+      }
+      return src;
+    }
+
+    String resolved;
+    if (src.startsWith('../')) {
+      resolved = '$baseUrl${src.replaceFirst('../', '')}';
+    } else if (src.startsWith('skins/')) {
+      resolved = '$baseUrl$src';
+    } else if (src.startsWith('uploads/')) {
+      final rootUrl = ApiService.baseUrl.replaceAll('/123456', '');
+      resolved = '$rootUrl/$src';
+    } else if (src.startsWith('/')) {
+      final rootUrl = ApiService.baseUrl.replaceAll('/123456', '');
+      resolved = '$rootUrl${src.substring(1)}';
+    } else if (src.contains('/')) {
+      resolved = '$baseUrl$src';
+    } else {
+      if (zipName.isNotEmpty) {
+        resolved = '${baseUrl}skins/$zipName/$src';
+      } else {
+        resolved = '${baseUrl}skins/$src';
+      }
+    }
+
     final uri = Uri.parse(resolved).normalizePath();
     return uri.toString();
   }
 
   Widget _buildImageLayer(Map<String, dynamic> layer, String lname,
       double scale, double nativeW, double nativeH) {
-    String src = layer['src'] ?? '';
+    String src = layer['src'] ?? layer['_fallback_src'] ?? '';
     String? mappedImg;
 
     // Map AI injected images
@@ -1542,6 +1742,11 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         finalUrl = _resolveAssetUrl(src);
       }
       
+      // Add cache buster to invalidate old transparent PNGs in memory cache
+      if (finalUrl.startsWith('http') && !finalUrl.contains('?')) {
+        finalUrl = '$finalUrl?cb=${DateTime.now().millisecondsSinceEpoch}';
+      }
+      
       final bool isShape = layer['is_shape'] == true;
       final bool isFlatBg = isBg && !isShape;
       // Shaped backgrounds (circle/ellipse) that were dynamically replaced by API
@@ -1596,11 +1801,12 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     // OVERRIDE the baked-in color. Fabric.js default fill is rgb(0,0,0) which turns everything black.
     // Only apply tint_color for non-shape icons (contact/social icons that need dynamic coloring).
     final bool isRasterizedShape = (layer['is_shape'] == true || layer['is_shape'] == 1) && pathType == 'TEMPLATE_ASSET';
+    final bool skipRasterTint = isRasterizedShape && ((widget.config['render_version'] ?? 1) as int) < 2 && layer['tint_color'] == null;
     
-    if (layer['tint_color'] != null) {
-      String tintStr = layer['tint_color'].toString();
-      tintColor = _parseColor(tintStr, fallback: const Color(0xFFFFFFFF));
-      gradientColors = _parseGradient(tintStr);
+    if (layer['tint_color'] != null && !skipRasterTint) {
+      final dynamic rawTint = layer['tint_color'];
+      tintColor = _parseColor(rawTint, fallback: const Color(0xFFFFFFFF));
+      gradientColors = _parseGradient(rawTint.toString());
       debugPrint('[TINT] "$lname" PARSED tint_color → $tintColor');
     } else if (layer['fill'] != null && layer['type'] == 'shape' && !isRasterizedShape) {
       // Native shapes (rect, circle, etc.) have their color in 'fill', not 'tint_color'
@@ -1613,8 +1819,8 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         // Gradient fill from web editor
         debugPrint('[TINT] "$lname" has gradient fill object');
       }
-    } else if (isRasterizedShape) {
-      debugPrint('[TINT] "$lname" SKIPPED — rasterized shape, color baked in PNG');
+    } else if (skipRasterTint) {
+      debugPrint('[TINT] "$lname" SKIPPED — rasterized shape v1, color baked in PNG');
     }
 
     String gradientDir = (layer['gradient_direction'] ?? 'vertical').toString();
@@ -1625,11 +1831,52 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     // an ellipse-shaped layer (API_INJECTED, BASE_IMG, AI_MAPPED). Template asset PNGs
     // (TEMPLATE_ASSET) already have their shape baked into the alpha channel —
     // clipping them with ClipOval would distort/cut them in half.
-    final bool isShapeLayer = layer['is_shape'] == true || layer['is_shape'] == 1;
+    final bool isIcon = ['facebook', 'instagram', 'twitter', 'youtube', 'linkedin', 'icon', 'social', 'mail', 'location'].any((k) => _lowName.contains(k));
+    final bool isShapeLayer = layer['is_shape'] == true || layer['is_shape'] == 1 || isIcon;
     final bool hasInjectedImage = (pathType == 'API_INJECTED' || pathType == 'BASE_IMG' || pathType == 'AI_MAPPED');
     bool clipOval = !isShapeLayer && hasInjectedImage && (_lowName.contains('ellipse') || _lowName.contains('circle') || _lowName.contains('round'));
     
     Widget imgWidget = _buildImage(finalUrl, fit, radius, isSmall: isSmallAsset, tintColor: tintColor, gradientColors: gradientColors, gradientDir: gradientDir, isLocal: isLocal, flipX: flipX, clipOval: clipOval);
+    
+    // -- Native Fallback for Broken Raster Contact Icons (Bug 1 Fix) --
+    // Legacy V1 templates saved Iconify SVGs as broken PNGs if the network failed, resulting in solid white squares when tinted.
+    if (_isContactOrSocial && pathType == 'TEMPLATE_ASSET' && isRasterizedShape) {
+        IconData? fallbackIcon;
+        if (_lowName.contains('phone') || _lowName.contains('call') || _lowName.contains('mobile')) {
+          fallbackIcon = Icons.phone;
+        } else if (_lowName.contains('email') || _lowName.contains('mail')) {
+          fallbackIcon = Icons.email;
+        } else if (_lowName.contains('web') || _lowName.contains('globe') || _lowName.contains('website')) {
+          fallbackIcon = Icons.language;
+        } else if (_lowName.contains('location') || _lowName.contains('address') || _lowName.contains('map')) {
+          fallbackIcon = Icons.location_on;
+        } else if (_lowName.contains('facebook')) {
+          fallbackIcon = Icons.facebook;
+        } else if (_lowName.contains('instagram')) {
+          fallbackIcon = Icons.camera_alt;
+        } else if (_lowName.contains('twitter') || _lowName.contains('x_')) {
+          fallbackIcon = Icons.close;
+        } else if (_lowName.contains('youtube')) {
+          fallbackIcon = Icons.play_circle_filled;
+        } else if (_lowName.contains('linkedin')) {
+          fallbackIcon = Icons.work;
+        }
+
+        if (fallbackIcon != null) {
+            debugPrint('✅ [IMG_LAYER] Using native Flutter Icon fallback for broken raster icon "$lname"');
+            imgWidget = SizedBox(
+                width: nativeW * scale,
+                height: nativeH * scale,
+                child: FittedBox(
+                    fit: BoxFit.contain,
+                    child: Icon(
+                        fallbackIcon,
+                        color: tintColor ?? Colors.black,
+                    ),
+                ),
+            );
+        }
+    }
     
     // -- Custom Image Mask Logic --
     // When a layer has mask_layer_id (either from JSON or auto-detected in pre-pass):
@@ -1653,8 +1900,8 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         gradientColors: gradientColors, gradientDir: gradientDir, 
         isLocal: isLocal, flipX: flipX, clipOval: false);
       
-      if (maskShapeLayer.isNotEmpty && maskShapeLayer['src'] != null) {
-        final String maskSrc = maskShapeLayer['src'] ?? '';
+      if (maskShapeLayer.isNotEmpty && (maskShapeLayer['src'] != null || maskShapeLayer['_fallback_src'] != null)) {
+        final String maskSrc = maskShapeLayer['src'] ?? maskShapeLayer['_fallback_src'] ?? '';
         final String maskUrl = _resolveAssetUrl(maskSrc);
         
         debugPrint('[MASK_DIAG] maskSrc="$maskSrc" → maskUrl="$maskUrl"');
@@ -1669,7 +1916,6 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       }
       debugPrint('[MASK_DIAG] ═══════════════════════════════════════');
     }
-    
     return imgWidget;
   }
 
@@ -1713,6 +1959,8 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
           imgWidget = Image.memory(
             bytes,
             fit: fit,
+            color: tintColor,
+            colorBlendMode: tintColor != null ? BlendMode.srcIn : null,
             filterQuality: FilterQuality.high,
             errorBuilder: (_, error, __) {
               debugPrint('IMAGE LOAD ERROR (Base64): $error');
@@ -1729,11 +1977,15 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
           return const SizedBox.shrink();
         }
 
+        debugPrint('🔴 [DIAGNOSIS-IMAGE] name="$url"');
+
         if (isSmall) {
           // ── SMALL ASSET PATH ──
           imgWidget = Image.network(
             url,
             fit: fit,
+            color: tintColor,
+            colorBlendMode: tintColor != null ? BlendMode.srcIn : null,
             filterQuality: FilterQuality.high,
             errorBuilder: (context, error, stackTrace) {
               debugPrint('IMAGE LOAD ERROR (Small): $error');
@@ -1743,6 +1995,8 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
                 return Image.network(
                   fallbackUrl,
                   fit: fit,
+                  color: tintColor,
+                  colorBlendMode: tintColor != null ? BlendMode.srcIn : null,
                   filterQuality: FilterQuality.high,
                   errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                 );
@@ -1754,8 +2008,13 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
           // ── LARGE ASSET PATH ──
           imgWidget = CachedNetworkImage(
             imageUrl: url,
-            fit: fit,
-            filterQuality: FilterQuality.high,
+            imageBuilder: (context, provider) => Image(
+              image: provider,
+              fit: fit,
+              color: tintColor,
+              colorBlendMode: tintColor != null ? BlendMode.srcIn : null,
+              filterQuality: FilterQuality.high,
+            ),
             fadeInDuration: Duration.zero,
             fadeOutDuration: Duration.zero,
             placeholderFadeInDuration: Duration.zero,
@@ -1768,8 +2027,13 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
                 debugPrint('Retrying image with fallback URL: $fallbackUrl');
                 return CachedNetworkImage(
                   imageUrl: fallbackUrl,
-                  fit: fit,
-                  filterQuality: FilterQuality.high,
+                  imageBuilder: (context, provider) => Image(
+                    image: provider,
+                    fit: fit,
+                    color: tintColor,
+                    colorBlendMode: tintColor != null ? BlendMode.srcIn : null,
+                    filterQuality: FilterQuality.high,
+                  ),
                   fadeInDuration: Duration.zero,
                   fadeOutDuration: Duration.zero,
                   placeholderFadeInDuration: Duration.zero,
@@ -1803,11 +2067,6 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         },
         child: imgWidget,
       );
-    } else if (tintColor != null) {
-      imgWidget = ColorFiltered(
-        colorFilter: ColorFilter.mode(tintColor, BlendMode.srcIn),
-        child: imgWidget,
-      );
     }
 
     if (radius != null && radius > 0) {
@@ -1834,10 +2093,227 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     return imgWidget;
   }
 
-  Widget _buildIconLayer(Map<String, dynamic> layer, String lname,
+  /// ── RENDER V4: Renders shapes natively without PNG ──
+  /// Supports: rect, ellipse/circle, triangle, line, icon
+  /// Fallback: For complex shapes (polygon, path), uses _fallback_src PNG
+  Widget _buildVectorShape(Map<String, dynamic> layer, String lname,
       double scale, double nativeW, double nativeH) {
-    final String iconName = layer['iconName'] ?? '';
-    if (iconName.isEmpty) {
+    
+    final String shapeType = (layer['shapeType'] ?? 'rect').toString().toLowerCase();
+    debugPrint('🔴 [DIAGNOSIS-SHAPE] name="$lname" shapeType="$shapeType" fallback=${layer['_fallback_src'] != null}');
+    
+    // If it's an icon shape, delegate to _buildIconLayer
+    final bool hasMetaIcon = layer['_source_meta'] is Map && layer['_source_meta']['iconName'] != null;
+    if (shapeType == 'icon' || layer['iconName'] != null || hasMetaIcon) {
+      return _buildIconLayer(layer, lname, scale, nativeW, nativeH);
+    }
+
+    final double w = nativeW * scale;
+    final double h = nativeH * scale;
+    final double opacity = safeDouble(layer['opacity'] ?? 1.0);
+    final double rotation = safeDouble(layer['rotation'] ?? 0);
+    
+    // ── Parse Fill Color ──
+    Color fillColor = Colors.transparent;
+    List<Color>? gradientColors;
+    Gradient? gradient;
+    
+    final dynamic fillVal = layer['fill'];
+    if (fillVal is String && fillVal.isNotEmpty && fillVal != 'none') {
+      fillColor = _parseColor(fillVal, fallback: Colors.transparent);
+      gradientColors = _parseGradient(fillVal);
+    } else if (fillVal is Map) {
+      // Fabric.js gradient object
+      gradient = _fabricGradientToFlutter(fillVal, w, h);
+    }
+    
+    // ── Parse Stroke ──
+    Color strokeColor = Colors.transparent;
+    double strokeWidth = 0;
+    if (layer['stroke'] != null && layer['stroke'].toString() != 'null' && layer['stroke'].toString() != 'none') {
+      strokeColor = _parseColor(layer['stroke'].toString());
+      strokeWidth = safeDouble(layer['strokeWidth'] ?? 0) * scale;
+    }
+    
+    // ── Parse Border Radius ──
+    double rx = safeDouble(layer['rx'] ?? 0) * scale;
+    double ry = safeDouble(layer['ry'] ?? 0) * scale;
+    
+    Widget shapeWidget;
+    
+    // ═══════════════════════════════════════════════════════
+    // RECT / ROUNDED RECT
+    // ═══════════════════════════════════════════════════════
+    if (shapeType == 'rect' || shapeType == 'rectangle') {
+      shapeWidget = Container(
+        width: w,
+        height: h,
+        decoration: BoxDecoration(
+          color: gradient == null ? fillColor : null,
+          gradient: gradient,
+          borderRadius: (rx > 0 || ry > 0)
+              ? BorderRadius.all(Radius.elliptical(rx, ry))
+              : null,
+          border: strokeWidth > 0
+              ? Border.all(color: strokeColor, width: strokeWidth)
+              : null,
+        ),
+      );
+    }
+    // ═══════════════════════════════════════════════════════
+    // ELLIPSE / CIRCLE
+    // ═══════════════════════════════════════════════════════
+    else if (shapeType == 'ellipse' || shapeType == 'circle') {
+      shapeWidget = Container(
+        width: w,
+        height: h,
+        decoration: BoxDecoration(
+          color: gradient == null ? fillColor : null,
+          gradient: gradient,
+          shape: (w == h) ? BoxShape.circle : BoxShape.rectangle,
+          borderRadius: (w != h)
+              ? BorderRadius.all(Radius.elliptical(w / 2, h / 2))
+              : null,
+          border: strokeWidth > 0
+              ? Border.all(color: strokeColor, width: strokeWidth)
+              : null,
+        ),
+      );
+    }
+    // ═══════════════════════════════════════════════════════
+    // TRIANGLE
+    // ═══════════════════════════════════════════════════════
+    else if (shapeType == 'triangle') {
+      shapeWidget = SizedBox(
+        width: w,
+        height: h,
+        child: CustomPaint(
+          painter: _TrianglePainter(
+            fillColor: fillColor,
+            strokeColor: strokeColor,
+            strokeWidth: strokeWidth,
+            gradient: gradient,
+          ),
+        ),
+      );
+    }
+    // ═══════════════════════════════════════════════════════
+    // LINE
+    // ═══════════════════════════════════════════════════════
+    else if (shapeType == 'line') {
+      shapeWidget = SizedBox(
+        width: w,
+        height: h.clamp(1.0, double.infinity),
+        child: CustomPaint(
+          painter: _LinePainter(
+            color: strokeColor != Colors.transparent ? strokeColor : fillColor,
+            strokeWidth: strokeWidth > 0 ? strokeWidth : 1.0 * scale,
+          ),
+        ),
+      );
+    }
+    // ═══════════════════════════════════════════════════════
+    // COMPLEX SHAPES (polygon, path) — use fallback PNG
+    // ═══════════════════════════════════════════════════════
+    else {
+      final String fallbackSrc = layer['_fallback_src'] ?? layer['src'] ?? '';
+      if (fallbackSrc.isNotEmpty) {
+        return _buildImageLayer(layer, lname, scale, nativeW, nativeH);
+      }
+      shapeWidget = Container(width: w, height: h, color: fillColor);
+    }
+    
+    // ── Apply Gradient via ShaderMask if fill is string gradient ──
+    if (gradientColors != null && gradientColors.length >= 2 && gradient == null) {
+      String gradientDir = (layer['gradient_direction'] ?? 'vertical').toString();
+      Alignment begin = Alignment.topCenter;
+      Alignment end = Alignment.bottomCenter;
+      if (gradientDir.contains('horizontal') || gradientDir.contains('left')) {
+        begin = Alignment.centerLeft;
+        end = Alignment.centerRight;
+      }
+      shapeWidget = ShaderMask(
+        blendMode: BlendMode.srcIn,
+        shaderCallback: (bounds) => LinearGradient(
+          begin: begin, end: end, colors: gradientColors!,
+        ).createShader(bounds),
+        child: shapeWidget,
+      );
+    }
+    
+    // ── Apply Opacity ──
+    if (opacity < 1.0 && opacity >= 0.0) {
+      shapeWidget = Opacity(opacity: opacity, child: shapeWidget);
+    }
+    
+    // ── Apply Rotation ──
+    if (rotation != 0) {
+      shapeWidget = Transform.rotate(
+        angle: rotation * 3.1415926535897932 / 180,
+        child: shapeWidget,
+      );
+    }
+    
+    return shapeWidget;
+  }
+
+  /// Convert Fabric.js gradient object to Flutter Gradient
+  Gradient? _fabricGradientToFlutter(Map<dynamic, dynamic> gradObj, double w, double h) {
+    try {
+      final coords = gradObj['coords'] as Map?;
+      final colorStops = gradObj['colorStops'] as List?;
+      if (coords == null || colorStops == null || colorStops.isEmpty) return null;
+
+      final colors = colorStops.map((stop) {
+        if (stop is Map) {
+          return _parseColor(stop['color']?.toString() ?? '#000000');
+        }
+        return const Color(0xFF000000);
+      }).toList();
+
+      final stops = colorStops.map((stop) {
+        if (stop is Map) {
+          return safeDouble(stop['offset'] ?? 0);
+        }
+        return 0.0;
+      }).toList();
+
+      final x1 = safeDouble(coords['x1'] ?? 0);
+      final y1 = safeDouble(coords['y1'] ?? 0);
+      final x2 = safeDouble(coords['x2'] ?? 0);
+      final y2 = safeDouble(coords['y2'] ?? 0);
+
+      return LinearGradient(
+        begin: Alignment(
+          (x1 / (w > 0 ? w : 1)) * 2 - 1,
+          (y1 / (h > 0 ? h : 1)) * 2 - 1,
+        ),
+        end: Alignment(
+          (x2 / (w > 0 ? w : 1)) * 2 - 1,
+          (y2 / (h > 0 ? h : 1)) * 2 - 1,
+        ),
+        colors: colors,
+        stops: stops.length == colors.length ? stops : null,
+      );
+    } catch (e) {
+      debugPrint('[GRADIENT] Failed to parse Fabric gradient: $e');
+      return null;
+    }
+  }
+
+  Widget _buildIconLayer(Map<String, dynamic> layer, String lname, double scale, double nativeW, double nativeH) {
+    String iconName = layer['iconName'] ?? '';
+    if (iconName.isEmpty && layer['_source_meta'] is Map && layer['_source_meta']['iconName'] != null) {
+      iconName = layer['_source_meta']['iconName'].toString();
+    }
+    
+    // Attempt to read offline SVG from JSON
+    String offlineSvg = '';
+    if (layer['_source_meta'] is Map && layer['_source_meta']['originalSvg'] != null) {
+      offlineSvg = layer['_source_meta']['originalSvg'].toString();
+    }
+
+    if (iconName.isEmpty && offlineSvg.isEmpty) {
       // Fallback to image
       return _buildImageLayer(layer, lname, scale, nativeW, nativeH);
     }
@@ -1845,11 +2321,84 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     FaIconData? iconData = _getFontAwesomeIcon(iconName);
 
     if (iconData == null) {
-      // Fallback to image if icon is not found in library
-      return _buildImageLayer(layer, lname, scale, nativeW, nativeH);
+      // 2. Fetch SVG from Iconify API and render with flutter_svg
+      // Dynamic Theming: prefer font_color (set by brightness detection) over original color
+      double size = (safeDouble(layer['size']) ?? (nativeH > 0 ? nativeH : 24.0)) * scale;
+      
+      final dynamic rawColor = layer['font_color'] ?? layer['color'] ?? layer['tint_color'] ?? '#333333';
+      Color parsedColor = _parseColor(rawColor);
+      
+      Widget svgWidget;
+      
+      if (offlineSvg.isEmpty) {
+        debugPrint('🔴 [SVG LOAD] No offlineSvg found for icon: $iconName, attempting native fallback');
+        // Native fallback for common contact icons
+        final String lowerName = lname.toLowerCase();
+        IconData? fallbackIcon;
+        if (lowerName.contains('phone') || lowerName.contains('call') || lowerName.contains('mobile')) {
+          fallbackIcon = Icons.phone;
+        } else if (lowerName.contains('email') || lowerName.contains('mail')) {
+          fallbackIcon = Icons.email;
+        } else if (lowerName.contains('web') || lowerName.contains('globe') || lowerName.contains('website')) {
+          fallbackIcon = Icons.language;
+        } else if (lowerName.contains('location') || lowerName.contains('address') || lowerName.contains('map')) {
+          fallbackIcon = Icons.location_on;
+        } else if (lowerName.contains('facebook')) {
+          fallbackIcon = Icons.facebook;
+        } else if (lowerName.contains('instagram')) {
+          fallbackIcon = Icons.camera_alt;
+        } else if (lowerName.contains('twitter') || lowerName.contains('x_')) {
+          fallbackIcon = Icons.close;
+        } else if (lowerName.contains('youtube')) {
+          fallbackIcon = Icons.play_circle_filled;
+        } else if (lowerName.contains('linkedin')) {
+          fallbackIcon = Icons.work;
+        }
+
+        if (fallbackIcon != null) {
+          debugPrint('✅ [SVG LOAD] Using native Flutter Icon fallback for "$lname"');
+          return SizedBox(
+            width: nativeW * scale,
+            height: nativeH * scale,
+            child: FittedBox(
+              fit: BoxFit.contain,
+              child: Icon(
+                fallbackIcon,
+                color: parsedColor,
+              ),
+            ),
+          );
+        }
+
+        debugPrint('🔴 [SVG LOAD] No native fallback found, falling back to image layer');
+        return _buildImageLayer(layer, lname, scale, nativeW, nativeH);
+      }
+      
+      // Offline SVG Rendering (Bug 2 Fix)
+      // Normalize stroke/fill to currentColor so ColorFilter always works
+      offlineSvg = offlineSvg.replaceAll(RegExp(r'fill="[^"]*"'), 'fill="currentColor"');
+      offlineSvg = offlineSvg.replaceAll(RegExp(r'stroke="[^"]*"'), 'stroke="currentColor"');
+      
+      svgWidget = SvgPicture.string(
+        offlineSvg,
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+        colorFilter: ColorFilter.mode(parsedColor, BlendMode.srcIn),
+      );
+      
+      if (layer['opacity'] != null) {
+        svgWidget = Opacity(opacity: safeDouble(layer['opacity']), child: svgWidget);
+      }
+      
+      
+
+      return Center(child: svgWidget);
     }
 
-    String colorStr = layer['color'] ?? '#000000';
+    // Dynamic Theming: prefer font_color (set by brightness detection) over original color
+    String colorStr = layer['font_color'] ?? layer['color'] ?? '#000000';
+    debugPrint('[ICON_DIAG] FontAwesome "$lname" → font_color=${layer['font_color']} color=${layer['color']} → resolved colorStr=$colorStr');
     Color iconColor = _parseColor(colorStr);
     List<Color>? gradientColors = _parseGradient(colorStr);
 
@@ -1890,58 +2439,175 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       iconWidget = Opacity(opacity: safeDouble(layer['opacity']), child: iconWidget);
     }
 
+
     return Center(child: iconWidget);
   }
 
-  FaIconData? _getFontAwesomeIcon(String name) {
-    switch (name.toLowerCase()) {
-      case 'circlecheck':
-      case 'check-circle':
-      case 'check_circle':
-        return FontAwesomeIcons.solidCircleCheck;
-      case 'phone':
-      case 'call':
-        return FontAwesomeIcons.phone;
-      case 'email':
-      case 'envelope':
-        return FontAwesomeIcons.envelope;
-      case 'globe':
-      case 'website':
-      case 'web':
-        return FontAwesomeIcons.globe;
-      case 'address':
-      case 'location':
-      case 'locationdot':
-      case 'location-dot':
-      case 'mapmarker':
-      case 'map-marker':
-      case 'map-marker-alt':
-      case 'map-pin':
-      case 'mappin':
-      case 'pin':
-      case 'address-book':
-      case 'addressbook':
-      case 'address-card':
-      case 'addresscard':
-      case 'building':
-      case 'office':
-        return FontAwesomeIcons.locationDot;
-      case 'whatsapp':
-        return FontAwesomeIcons.whatsapp;
-      case 'facebook':
-        return FontAwesomeIcons.facebook;
-      case 'instagram':
-        return FontAwesomeIcons.instagram;
-      case 'twitter':
-      case 'x':
-        return FontAwesomeIcons.xTwitter;
-      case 'youtube':
-        return FontAwesomeIcons.youtube;
-      case 'linkedin':
-        return FontAwesomeIcons.linkedin;
-      default:
-        return null; // Triggers fallback
+  FaIconData? _getFontAwesomeIcon(String rawName) {
+    if (rawName.isEmpty) return null;
+
+    // 1. Check if it's an Iconify SVG with a provider (e.g., 'material-symbols:call')
+    // If it contains ':', it's an Iconify icon, and we MUST use the SVG renderer instead of FontAwesome hack.
+    if (rawName.contains(':') && !rawName.startsWith('fa:')) {
+      return null; // Fallthrough to SVG renderer
     }
+
+    String name = rawName.toLowerCase();
+    if (name.contains(':')) {
+      name = name.split(':').last;
+    }
+
+    // 2. Smart Keyword Matching (Legacy fallback for old icons)
+    if (name.contains('phone') || name.contains('call') || name.contains('mobile') || name.contains('cellphone') || name.contains('telephone')) {
+      return FontAwesomeIcons.phone;
+    } else if (name.contains('email') || name.contains('mail') || name.contains('envelope')) {
+      return FontAwesomeIcons.envelope;
+    } else if (name.contains('globe') || name.contains('web') || name.contains('internet') || name.contains('url')) {
+      return FontAwesomeIcons.globe;
+    } else if (name.contains('location') || name.contains('map') || name.contains('pin') || name.contains('address') || name.contains('building') || name.contains('office') || name.contains('marker')) {
+      return FontAwesomeIcons.locationDot;
+    } else if (name.contains('whatsapp')) {
+      return FontAwesomeIcons.whatsapp;
+    } else if (name.contains('facebook') || name == 'fb') {
+      return FontAwesomeIcons.facebook;
+    } else if (name.contains('instagram') || name == 'insta') {
+      return FontAwesomeIcons.instagram;
+    } else if (name.contains('twitter') || name == 'x-twitter' || name == 'x') {
+      return FontAwesomeIcons.xTwitter;
+    } else if (name.contains('youtube') || name == 'yt') {
+      return FontAwesomeIcons.youtube;
+    } else if (name.contains('linkedin')) {
+      return FontAwesomeIcons.linkedin;
+    } else if (name.contains('check')) {
+      return FontAwesomeIcons.solidCircleCheck;
+    } else if (name.contains('home') || name.contains('house')) {
+      return FontAwesomeIcons.house;
+    } else if (name.contains('star')) {
+      return FontAwesomeIcons.star;
+    } else if (name.contains('heart')) {
+      return FontAwesomeIcons.heart;
+    } else if (name.contains('user') || name.contains('account') || name.contains('person')) {
+      return FontAwesomeIcons.user;
+    } else if (name.contains('camera')) {
+      return FontAwesomeIcons.camera;
+    } else if (name.contains('search') || name.contains('magnify')) {
+      return FontAwesomeIcons.magnifyingGlass;
+    } else if (name.contains('bell') || name.contains('notification')) {
+      return FontAwesomeIcons.bell;
+    } else if (name.contains('cog') || name.contains('setting') || name.contains('gear')) {
+      return FontAwesomeIcons.gear;
+    } else if (name.contains('calendar') || name.contains('date')) {
+      return FontAwesomeIcons.calendar;
+    } else if (name.contains('clock') || name.contains('time')) {
+      return FontAwesomeIcons.clock;
+    } else if (name.contains('cart') || name.contains('shop')) {
+      return FontAwesomeIcons.cartShopping;
+    } else if (name.contains('bookmark')) {
+      return FontAwesomeIcons.bookmark;
+    } else if (name.contains('share')) {
+      return FontAwesomeIcons.shareNodes;
+    } else if (name.contains('download')) {
+      return FontAwesomeIcons.download;
+    } else if (name.contains('upload')) {
+      return FontAwesomeIcons.upload;
+    } else if (name.contains('print')) {
+      return FontAwesomeIcons.print;
+    } else if (name.contains('image') || name.contains('photo') || name.contains('picture')) {
+      return FontAwesomeIcons.image;
+    } else if (name.contains('video') || name.contains('play')) {
+      return FontAwesomeIcons.play;
+    } else if (name.contains('music') || name.contains('audio')) {
+      return FontAwesomeIcons.music;
+    } else if (name.contains('lock') || name.contains('secure')) {
+      return FontAwesomeIcons.lock;
+    } else if (name.contains('key')) {
+      return FontAwesomeIcons.key;
+    } else if (name.contains('wifi')) {
+      return FontAwesomeIcons.wifi;
+    } else if (name.contains('bluetooth')) {
+      return FontAwesomeIcons.bluetooth;
+    } else if (name.contains('battery')) {
+      return FontAwesomeIcons.batteryFull;
+    } else if (name.contains('cloud')) {
+      return FontAwesomeIcons.cloud;
+    } else if (name.contains('sun') || name.contains('bright')) {
+      return FontAwesomeIcons.sun;
+    } else if (name.contains('moon') || name.contains('dark')) {
+      return FontAwesomeIcons.moon;
+    } else if (name.contains('trash') || name.contains('delete') || name.contains('bin')) {
+      return FontAwesomeIcons.trash;
+    } else if (name.contains('edit') || name.contains('pencil') || name.contains('pen')) {
+      return FontAwesomeIcons.pen;
+    } else if (name.contains('plus') || name.contains('add')) {
+      return FontAwesomeIcons.plus;
+    } else if (name.contains('minus') || name.contains('remove')) {
+      return FontAwesomeIcons.minus;
+    } else if (name.contains('close') || name.contains('times') || name.contains('x')) {
+      return FontAwesomeIcons.xmark;
+    } else if (name.contains('arrow-right') || name.contains('forward')) {
+      return FontAwesomeIcons.arrowRight;
+    } else if (name.contains('arrow-left') || name.contains('back')) {
+      return FontAwesomeIcons.arrowLeft;
+    } else if (name.contains('info')) {
+      return FontAwesomeIcons.circleInfo;
+    } else if (name.contains('question') || name.contains('help')) {
+      return FontAwesomeIcons.circleQuestion;
+    } else if (name.contains('warning') || name.contains('alert')) {
+      return FontAwesomeIcons.triangleExclamation;
+    } else if (name.contains('comment') || name.contains('chat') || name.contains('message')) {
+      return FontAwesomeIcons.comment;
+    } else if (name.contains('gift') || name.contains('present')) {
+      return FontAwesomeIcons.gift;
+    } else if (name.contains('tag') || name.contains('label')) {
+      return FontAwesomeIcons.tag;
+    } else if (name.contains('flag')) {
+      return FontAwesomeIcons.flag;
+    } else if (name.contains('link') || name.contains('chain')) {
+      return FontAwesomeIcons.link;
+    } else if (name.contains('file') || name.contains('document')) {
+      return FontAwesomeIcons.file;
+    } else if (name.contains('folder')) {
+      return FontAwesomeIcons.folder;
+    } else if (name.contains('code')) {
+      return FontAwesomeIcons.code;
+    } else if (name.contains('trophy') || name.contains('award')) {
+      return FontAwesomeIcons.trophy;
+    } else if (name.contains('crown') || name.contains('king')) {
+      return FontAwesomeIcons.crown;
+    } else if (name.contains('thumbs-up') || name.contains('like')) {
+      return FontAwesomeIcons.thumbsUp;
+    } else if (name.contains('fire') || name.contains('hot') || name.contains('flame')) {
+      return FontAwesomeIcons.fire;
+    } else if (name.contains('bolt') || name.contains('lightning') || name.contains('thunder')) {
+      return FontAwesomeIcons.bolt;
+    } else if (name.contains('rocket') || name.contains('launch')) {
+      return FontAwesomeIcons.rocket;
+    } else if (name.contains('diamond') || name.contains('gem')) {
+      return FontAwesomeIcons.gem;
+    } else if (name.contains('pinterest')) {
+      return FontAwesomeIcons.pinterest;
+    } else if (name.contains('telegram')) {
+      return FontAwesomeIcons.telegram;
+    } else if (name.contains('snapchat')) {
+      return FontAwesomeIcons.snapchat;
+    } else if (name.contains('tiktok')) {
+      return FontAwesomeIcons.tiktok;
+    } else if (name.contains('reddit')) {
+      return FontAwesomeIcons.reddit;
+    } else if (name.contains('github')) {
+      return FontAwesomeIcons.github;
+    } else if (name.contains('google')) {
+      return FontAwesomeIcons.google;
+    } else if (name.contains('apple')) {
+      return FontAwesomeIcons.apple;
+    } else if (name.contains('android')) {
+      return FontAwesomeIcons.android;
+    } else if (name.contains('windows')) {
+      return FontAwesomeIcons.windows;
+    }
+
+    // 3. Unrecognized icon fallback
+    return null;
   }
 }
 
@@ -1967,6 +2633,78 @@ class _TextShiftSource {
     this.shrinkableGap = 0,
     this.appliedCompression = 0,
   });
+}
+
+/// Triangle painter for CustomPaint
+class _TrianglePainter extends CustomPainter {
+  final Color fillColor;
+  final Color strokeColor;
+  final double strokeWidth;
+  final Gradient? gradient;
+
+  _TrianglePainter({
+    required this.fillColor,
+    required this.strokeColor,
+    required this.strokeWidth,
+    this.gradient,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(size.width / 2, 0)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+
+    final fillPaint = Paint()..style = PaintingStyle.fill;
+    if (gradient != null) {
+      fillPaint.shader = gradient!.createShader(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+      );
+    } else {
+      fillPaint.color = fillColor;
+    }
+    canvas.drawPath(path, fillPaint);
+
+    if (strokeWidth > 0) {
+      final strokePaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..color = strokeColor
+        ..strokeWidth = strokeWidth;
+      canvas.drawPath(path, strokePaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TrianglePainter old) =>
+      old.fillColor != fillColor || old.strokeColor != strokeColor || 
+      old.strokeWidth != strokeWidth;
+}
+
+/// Line painter for CustomPaint
+class _LinePainter extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+
+  _LinePainter({required this.color, required this.strokeWidth});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(
+      Offset(0, size.height / 2),
+      Offset(size.width, size.height / 2),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _LinePainter old) =>
+      old.color != color || old.strokeWidth != strokeWidth;
 }
 
 class CustomImageMaskWidget extends StatefulWidget {

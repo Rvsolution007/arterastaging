@@ -20,6 +20,7 @@ class BusinessCustomFrame extends Model
         'status',
         'show_on_landing',
         'tags',
+        'render_version',
     ];
 
     protected $casts = [

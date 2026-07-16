@@ -486,6 +486,18 @@ class MainController extends Controller
 
             if (is_dir($fullPath)) {
                 $skinFolders = array_filter(glob($fullPath . '/*'), 'is_dir');
+                
+                // If there are multiple folders, filter to keep only the one matching the template's base name
+                if (count($skinFolders) > 1) {
+                    $exactMatch = array_filter($skinFolders, function($path) use ($baseExtractLocation) {
+                        $baseName = basename($baseExtractLocation);
+                        return strcasecmp(basename($path), $baseName) === 0;
+                    });
+                    if (!empty($exactMatch)) {
+                        $skinFolders = $exactMatch;
+                    }
+                }
+
                 foreach ($skinFolders as $folderPath) {
                     $folderName = basename($folderPath);
                     $framePngLocal = $folderPath . DIRECTORY_SEPARATOR . 'frame.png';

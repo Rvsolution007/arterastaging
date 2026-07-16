@@ -708,6 +708,18 @@
                         <p><i class="fa fa-angle-right ml-3 mr-1"></i> Frame</p>
                       </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->is('admin/regression-test-log*') ? 'active' : '' }}"
+                           href="{{ route('admin.regression_tests.index') }}" style="color: white;">
+                            <p><i class="fa fa-angle-right ml-3 mr-1"></i> Regression Tests</p>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->is('admin/benchmark-frames*') ? 'active' : '' }}"
+                           href="{{ route('admin.regression_tests.benchmarks') }}" style="color: white;">
+                            <p><i class="fa fa-angle-right ml-3 mr-1"></i> Benchmark Frames</p>
+                        </a>
+                    </li>
                   @endcan
                 </ul>
               </li>

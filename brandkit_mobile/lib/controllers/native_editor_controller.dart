@@ -12,6 +12,7 @@ import 'dart:ui' as ui;
 import '../config/app_config.dart';
 
 import '../services/api_service.dart';
+import '../utils/template_json_cache.dart';
 
 import '../controllers/home_controller.dart';
 
@@ -71,6 +72,36 @@ class NativeEditorController extends GetxController {
     } finally {
       isLoadingFrames.value = false;
     }
+  }
+
+  Future<Map<String, dynamic>?> fetchTemplateJson(String zipName) async {
+    try {
+      final cachedTs = await TemplateJsonCache.getTimestamp(zipName);
+      String url = '/api/template/$zipName';
+      if (cachedTs != null) {
+        url += '?last_updated=$cachedTs';
+      }
+
+      final response = await ApiService.get(url);
+
+      if (response.statusCode == 304) {
+        final cached = await TemplateJsonCache.getCached(zipName);
+        if (cached != null) {
+          return jsonDecode(cached);
+        }
+      }
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true && data['json'] != null) {
+          await TemplateJsonCache.save(zipName, jsonEncode(data['json']), data['updated_at']);
+          return data['json'];
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetchTemplateJson: $e');
+    }
+    return null;
   }
 
   List<dynamic> get filteredFrames {
@@ -133,6 +164,96 @@ class NativeEditorController extends GetxController {
     }
 
     if (templateConfig['layers'] != null) {
+      String base = ApiService.baseUrl;
+      Uri baseUri = Uri.parse(base);
+      List<String> segments = baseUri.pathSegments.toList();
+      if (segments.isNotEmpty) {
+        segments.removeLast(); // Remove API segment (e.g., '123456')
+      }
+      base = baseUri.replace(pathSegments: segments).toString();
+      if (!base.endsWith('/')) {
+        base += '/';
+      }
+
+      // Use templateBaseUrl (derived from preview image) as primary frame base,
+      // falling back to API base only if templateBaseUrl was not provided.
+      // This ensures ../skins/ paths resolve to uploads/template/FrameName/skins/
+      String frameBaseUrl = templateBaseUrl.isNotEmpty ? templateBaseUrl : base;
+      if (!frameBaseUrl.endsWith('/')) {
+        frameBaseUrl += '/';
+      }
+      final String fullUrl = (initialConfig['full_url'] ?? '').toString();
+      if (fullUrl.isNotEmpty) {
+        int skinsIndex = fullUrl.indexOf('/skins/');
+        if (skinsIndex != -1) {
+          frameBaseUrl = fullUrl.substring(0, skinsIndex) + '/';
+        }
+      }
+
+      // Self-heal frameBaseUrl if it does not contain /uploads/template/
+      String zipName = (initialConfig['zip_name'] ?? initialConfig['path'] ?? templateConfig['zip_name'] ?? templateConfig['path'] ?? '').toString().replaceAll('/', '').trim();
+      if (zipName.isEmpty && templateConfig['layers'] is List) {
+        final reg = RegExp(r'(?:\.\./)?skins/([^/]+)/');
+        for (var layer in (templateConfig['layers'] as List)) {
+          if (layer is Map) {
+            for (var urlField in ['src', '_fallback_src']) {
+              if (layer[urlField] != null) {
+                final match = reg.firstMatch(layer[urlField].toString());
+                if (match != null && match.group(1) != null) {
+                  zipName = match.group(1)!.trim();
+                  break;
+                }
+              }
+            }
+          }
+          if (zipName.isNotEmpty) break;
+        }
+      }
+
+      if (zipName.isNotEmpty && !frameBaseUrl.contains('/uploads/template/$zipName')) {
+        frameBaseUrl = '${base}uploads/template/$zipName/';
+        this.templateBaseUrl = frameBaseUrl;
+      } else if (this.templateBaseUrl.isEmpty || !this.templateBaseUrl.contains('/uploads/template/')) {
+        this.templateBaseUrl = frameBaseUrl;
+      }
+
+      for (var layer in (templateConfig['layers'] as List)) {
+        if (layer is Map<String, dynamic>) {
+          for (var urlField in ['src', '_fallback_src']) {
+            if (layer[urlField] != null && layer[urlField].toString().isNotEmpty) {
+              String srcStr = layer[urlField].toString();
+              if (srcStr.startsWith('data:') || srcStr.startsWith('http')) {
+                if (srcStr.contains('/skins/skins/')) {
+                  srcStr = srcStr.replaceAll('/skins/skins/', '/skins/');
+                  layer[urlField] = srcStr;
+                }
+                if (zipName.isNotEmpty && srcStr.contains('/uploads/skins/$zipName/')) {
+                  srcStr = srcStr.replaceAll('/uploads/skins/$zipName/', '/uploads/template/$zipName/skins/$zipName/');
+                  layer[urlField] = srcStr;
+                }
+              } else if (srcStr.startsWith('/')) {
+                layer[urlField] = '$base${srcStr.substring(1)}';
+              } else if (srcStr.startsWith('../')) {
+                layer[urlField] = '$frameBaseUrl${srcStr.replaceFirst('../', '')}';
+              } else if (srcStr.startsWith('skins/')) {
+                layer[urlField] = '$frameBaseUrl$srcStr';
+              } else if (srcStr.startsWith('uploads/')) {
+                layer[urlField] = '$base$srcStr';
+              } else {
+                if (zipName.isNotEmpty) {
+                  layer[urlField] = '${frameBaseUrl}skins/$zipName/$srcStr';
+                } else {
+                  layer[urlField] = '${frameBaseUrl}skins/$srcStr';
+                }
+              }
+              if (layer[urlField] != null && !layer[urlField].toString().startsWith('data:')) {
+                layer[urlField] = layer[urlField].toString().replaceAll(' ', '-').replaceAll('%20', '-');
+              }
+            }
+          }
+        }
+      }
+
       _deduplicateLayerNames(templateConfig['layers']);
     }
 
@@ -289,10 +410,97 @@ class NativeEditorController extends GetxController {
     }
   }
 
+  /// Auto-detect contact/social icons by proximity to contact text layers
+  void _autoDetectContactIcons(List<dynamic> layers) {
+    try {
+      for (var imgLayer in layers) {
+        if (imgLayer is Map<String, dynamic>) {
+          final String type = (imgLayer['type'] ?? '').toString();
+          if (type == 'image' || type == 'icon' || type == 'shape') {
+            // Skip if it already has a business key
+            if (imgLayer['_businessKey'] != null) continue;
+
+            double iw = safeDouble((imgLayer['w'] ?? imgLayer['width'] ?? 0) as num);
+            double ih = safeDouble((imgLayer['h'] ?? imgLayer['height'] ?? 0) as num);
+            if (iw <= 0 || ih <= 0 || iw > 80 || ih > 80) continue; // Must be a small icon asset
+
+            double ix = safeDouble((imgLayer['x'] ?? 0) as num);
+            double iy = safeDouble((imgLayer['y'] ?? 0) as num);
+            double icY = iy + ih / 2;
+
+            Map<String, dynamic>? bestTextLayer;
+            double bestDist = 999999;
+
+            for (var txtLayer in layers) {
+              if (txtLayer is Map<String, dynamic> && txtLayer['type'] == 'text') {
+                String? txtBizKey = txtLayer['_businessKey']?.toString();
+                if (txtBizKey == null || txtBizKey.isEmpty) {
+                  final String tname = (txtLayer['name'] ?? txtLayer['id'] ?? '').toString().toLowerCase();
+                  if (tname.contains('phone') || tname.contains('mobile') || tname.contains('whatsapp') || tname.contains('number') || tname.contains('tel')) txtBizKey = 'phone';
+                  else if (tname.contains('email') || tname.contains('mail')) txtBizKey = 'email';
+                  else if (tname.contains('website') || tname.contains('web') || tname.contains('url')) txtBizKey = 'website';
+                  else if (tname.contains('address') || tname.contains('location')) txtBizKey = 'address';
+                }
+                if (txtBizKey == null || txtBizKey.isEmpty) continue;
+
+                double tx = safeDouble((txtLayer['x'] ?? 0) as num);
+                double ty = safeDouble((txtLayer['y'] ?? 0) as num);
+                double tw = safeDouble((txtLayer['w'] ?? txtLayer['width'] ?? 0) as num);
+                double th = safeDouble((txtLayer['h'] ?? txtLayer['height'] ?? 0) as num);
+                double tcY = ty + th / 2;
+
+                // Check vertical alignment (diff in center Y <= 35)
+                double diffY = (icY - tcY).abs();
+                if (diffY > 35) continue;
+
+                // Check horizontal proximity (gap <= 120)
+                double gap = 999999;
+                if (ix + iw <= tx) {
+                  gap = tx - (ix + iw); // Icon is to the left
+                } else if (tx + tw <= ix) {
+                  gap = ix - (tx + tw); // Icon is to the right
+                } else {
+                  gap = 0; // Horizontally overlapping
+                }
+
+                if (gap > 120) continue;
+
+                double dist = diffY + gap;
+                if (dist < bestDist) {
+                  bestDist = dist;
+                  bestTextLayer = txtLayer;
+                }
+              }
+            }
+
+            if (bestTextLayer != null) {
+              String bizKey = bestTextLayer['_businessKey']?.toString() ?? '';
+              if (bizKey.isEmpty) {
+                final String tname = (bestTextLayer['name'] ?? bestTextLayer['id'] ?? '').toString().toLowerCase();
+                if (tname.contains('phone') || tname.contains('mobile') || tname.contains('whatsapp') || tname.contains('number') || tname.contains('tel')) bizKey = 'phone';
+                else if (tname.contains('email') || tname.contains('mail')) bizKey = 'email';
+                else if (tname.contains('website') || tname.contains('web') || tname.contains('url')) bizKey = 'website';
+                else if (tname.contains('address') || tname.contains('location')) bizKey = 'address';
+              }
+              if (bizKey.isNotEmpty) {
+                imgLayer['_businessKey'] = bizKey;
+                debugPrint('[ICON_AUTO_DETECT] Coupled icon "${imgLayer['name']}" to text "${bestTextLayer['name']}" (key=$bizKey, dist=${bestDist.toInt()})');
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[ICON_AUTO_DETECT] Error: $e');
+    }
+  }
+
   /// Applies brightness-based color theming on initial load
   Future<void> _applyInitialBrightness() async {
     final layers = templateConfig['layers'] as List<dynamic>? ?? [];
     if (layers.isEmpty) return;
+    
+    _autoDetectContactIcons(layers);
     
     // Build shape layers list (same logic as loadNewFrame)
     List<Map<String, dynamic>> shapeLayers = [];
@@ -304,15 +512,20 @@ class NativeEditorController extends GetxController {
       if (!isBg && (layer['type'] == 'image' || layer['type'] == 'rect' || layer['type'] == 'shape')) {
         bool isContactIcon = ['phone', 'email', 'website', 'address', 'social'].any((e) => layerName.contains(e));
         if (!isContactIcon || layer['type'] != 'image') {
-          double pw = safeDouble((layer['w'] ?? layer['width'] ?? 0) as num);
-          double ph = safeDouble((layer['h'] ?? layer['height'] ?? 0) as num);
-          if (pw > 50 && ph > 10) {
-            shapeLayers.add({
-              'x': safeDouble((layer['x'] ?? 0) as num),
-              'y': safeDouble((layer['y'] ?? 0) as num),
-              'w': pw,
-              'h': ph,
-            });
+          double rawW = safeDouble((layer['w'] ?? layer['width'] ?? 0) as num);
+          double rawH = safeDouble((layer['h'] ?? layer['height'] ?? 0) as num);
+          bool isShapeMarked = layer['is_shape'] == true;
+          if (layer['type'] != 'image' || rawW > 200 || rawH > 200 || isShapeMarked) {
+            if (rawW > 20 && rawH > 10) {
+              shapeLayers.add({
+                'x': safeDouble((layer['x'] ?? 0) as num),
+                'y': safeDouble((layer['y'] ?? 0) as num),
+                'w': rawW,
+                'h': rawH,
+                'fill': layer['fill'] ?? layer['tint_color'] ?? layer['color'],
+                'src': layer['src'],
+              });
+            }
           }
         }
       }
@@ -716,9 +929,25 @@ class NativeEditorController extends GetxController {
           } catch(e) {}
         }
       }
+      
+      // 3. Fallback to API if not in config and we have a zip_name
+      if (rawNewLayers == null && newFrameJson['zip_name'] != null) {
+        final fetchedJson = await fetchTemplateJson(newFrameJson['zip_name']);
+        if (fetchedJson != null) {
+          newFrameJson['config'] = fetchedJson; // save it so we don't fetch again unnecessarily
+          rawNewLayers = fetchedJson['layers'];
+        }
+      }
+
       if (rawNewLayers == null) rawNewLayers = [];
 
       final newLayers = jsonDecode(jsonEncode(rawNewLayers)) as List<dynamic>;
+      debugPrint('🔴 [DIAGNOSIS] loadNewFrame newLayers count: ${newLayers.length}');
+      for (var l in newLayers) {
+        debugPrint('🔴 [DIAGNOSIS] newLayer: ${l['name']} type=${l['type']}');
+      }
+      
+      _autoDetectContactIcons(newLayers);
       
       Map<String, String> userTexts = {};
       for (var l in currentLayers) {
@@ -834,39 +1063,51 @@ class NativeEditorController extends GetxController {
 
         newLayer['_is_frame_layer'] = true;
 
-        if (newLayer['type'] == 'image' && newLayer['src'] != null) {
-          String srcStr = newLayer['src'].toString();
-          if (!srcStr.startsWith('http') && !srcStr.startsWith('data:')) {
-            String base = ApiService.baseUrl.replaceAll('/api', '');
-            if (!base.endsWith('/')) {
-              base += '/';
-            }
-            
-            String frameBaseUrl = base;
-            if (newFrameJson['full_url'] != null) {
-              String fullUrl = newFrameJson['full_url'].toString();
-              int skinsIndex = fullUrl.indexOf('/skins/');
-              if (skinsIndex != -1) {
-                frameBaseUrl = fullUrl.substring(0, skinsIndex) + '/';
+        for (String urlField in ['src', '_fallback_src']) {
+          if (newLayer[urlField] != null && newLayer[urlField].toString().isNotEmpty) {
+            String srcStr = newLayer[urlField].toString();
+            if (!srcStr.startsWith('http') && !srcStr.startsWith('data:')) {
+              String base = ApiService.baseUrl;
+              Uri baseUri = Uri.parse(base);
+              List<String> segments = baseUri.pathSegments.toList();
+              if (segments.isNotEmpty) {
+                segments.removeLast(); // Remove API segment (e.g., '123456')
+              }
+              base = baseUri.replace(pathSegments: segments).toString();
+              if (!base.endsWith('/')) {
+                base += '/';
+              }
+              
+              String zipName = (newFrameJson['zip_name'] ?? newFrameJson['path'] ?? '').toString().replaceAll('/', '').trim();
+              String frameBaseUrl = base;
+              if (zipName.isNotEmpty) {
+                frameBaseUrl = '${base}uploads/template/$zipName/';
+              } else if (newFrameJson['full_url'] != null) {
+                String fullUrl = newFrameJson['full_url'].toString();
+                int skinsIndex = fullUrl.indexOf('/skins/');
+                if (skinsIndex != -1) {
+                  frameBaseUrl = fullUrl.substring(0, skinsIndex) + '/';
+                }
+              }
+
+              if (srcStr.startsWith('data:') || srcStr.startsWith('http')) {
+                newLayer[urlField] = srcStr;
+              } else if (srcStr.startsWith('/')) {
+                newLayer[urlField] = '$base${srcStr.substring(1)}';
+              } else if (srcStr.startsWith('../')) {
+                newLayer[urlField] = '$frameBaseUrl${srcStr.replaceFirst('../', '')}';
+              } else if (srcStr.startsWith('uploads/')) {
+                newLayer[urlField] = '$base$srcStr';
+              } else {
+                newLayer[urlField] = '${frameBaseUrl}skins/$srcStr';
               }
             }
-
-            if (srcStr.startsWith('data:') || srcStr.startsWith('http')) {
-              newLayer['src'] = srcStr;
-            } else if (srcStr.startsWith('../')) {
-              newLayer['src'] = '$frameBaseUrl${srcStr.replaceFirst('../', '')}';
-            } else if (srcStr.startsWith('uploads/')) {
-              newLayer['src'] = '$base$srcStr';
-            } else {
-              newLayer['src'] = '${frameBaseUrl}skins/$srcStr';
+            
+            // Server zip extraction replaces spaces with hyphens.
+            // Replace proactively to avoid a 404 delay before the fallback kicks in.
+            if (!newLayer[urlField].toString().startsWith('data:')) {
+              newLayer[urlField] = newLayer[urlField].toString().replaceAll(' ', '-').replaceAll('%20', '-');
             }
-          }
-          
-          // Server zip extraction replaces spaces with hyphens.
-          // Replace proactively to avoid a 404 delay before the fallback kicks in.
-          // This must run even if the URL already starts with 'http' (e.g. from native_editor_screen.dart)
-          if (!newLayer['src'].toString().startsWith('data:')) {
-            newLayer['src'] = newLayer['src'].toString().replaceAll(' ', '-').replaceAll('%20', '-');
           }
         }
 
@@ -939,12 +1180,14 @@ class NativeEditorController extends GetxController {
             }
           }
         } else if (newLayer['type'] == 'image') {
-          if (bLow.contains('phone') || bLow.contains('call') || bLow.contains('mobile') || bLow.contains('contact') || bLow.contains('whatsapp') || bLow.contains('tel') || bLow.contains('ph')) newLayer['_businessKey'] = 'phone';
-          else if (bLow.contains('email') || bLow.contains('mail')) newLayer['_businessKey'] = 'email';
-          else if (bLow.contains('website') || bLow.contains('web') || bLow.contains('url')) newLayer['_businessKey'] = 'website';
-          else if (bLow.contains('address') || bLow.contains('location')) newLayer['_businessKey'] = 'address';
-          else if (bLow.contains('icon') || bLow.contains('facebook') || bLow.contains('instagram') || bLow.contains('twitter') || bLow.contains('youtube') || bLow.contains('social') || bLow.contains('linkedin')) newLayer['_businessKey'] = 'social';
-          else if (bLow.contains('logo') && !bLow.contains('email') && !bLow.contains('call') && !bLow.contains('phone') && !bLow.contains('web')) {
+          if (newLayer['_businessKey'] == null) {
+            if (bLow.contains('phone') || bLow.contains('call') || bLow.contains('mobile') || bLow.contains('contact') || bLow.contains('whatsapp') || bLow.contains('tel') || bLow.contains('ph')) newLayer['_businessKey'] = 'phone';
+            else if (bLow.contains('email') || bLow.contains('mail')) newLayer['_businessKey'] = 'email';
+            else if (bLow.contains('website') || bLow.contains('web') || bLow.contains('url')) newLayer['_businessKey'] = 'website';
+            else if (bLow.contains('address') || bLow.contains('location')) newLayer['_businessKey'] = 'address';
+            else if (bLow.contains('icon') || bLow.contains('facebook') || bLow.contains('instagram') || bLow.contains('twitter') || bLow.contains('youtube') || bLow.contains('social') || bLow.contains('linkedin')) newLayer['_businessKey'] = 'social';
+          }
+          if (bLow.contains('logo') && !bLow.contains('email') && !bLow.contains('call') && !bLow.contains('phone') && !bLow.contains('web')) {
             newLayer['_businessKey'] = 'logo';
             if (Get.isRegistered<HomeController>()) {
               final homeCtrl = Get.find<HomeController>();
@@ -970,14 +1213,22 @@ class NativeEditorController extends GetxController {
         if (newLayer['type'] == 'image' || newLayer['type'] == 'rect' || newLayer['type'] == 'shape') {
           if (newLayer['is_background'] != true && !(newLayer['is_background'] == null && ['image1', 'main_image', 'bg', 'background', '_frame_bg'].contains(layerName))) {
             if (newLayer['type'] != 'image' || !['phone', 'email', 'website', 'address', 'social'].any((e) => layerName.contains(e))) {
-              if (newLayer['type'] != 'image' || rawW > 200 || rawH > 200) {
+              bool isShapeMarked = newLayer['is_shape'] == true;
+              if (newLayer['type'] != 'image' || rawW > 200 || rawH > 200 || isShapeMarked) {
                double px = safeDouble((newLayer['x'] ?? 0) as num);
                double py = safeDouble((newLayer['y'] ?? 0) as num);
                double pw = safeDouble((newLayer['w'] ?? newLayer['width'] ?? 0) as num);
                double ph = safeDouble((newLayer['h'] ?? newLayer['height'] ?? 0) as num);
-               if (pw > 50 && ph > 10) {
-                 shapeLayers.add({'x': px, 'y': py, 'w': pw, 'h': ph});
-               }
+                if (pw > 20 && ph > 10) {
+                  shapeLayers.add({
+                    'x': px,
+                    'y': py,
+                    'w': pw,
+                    'h': ph,
+                    'fill': newLayer['fill'] ?? newLayer['tint_color'] ?? newLayer['color'],
+                    'src': newLayer['src'],
+                  });
+                }
               }
             }
           }
@@ -1061,6 +1312,21 @@ class NativeEditorController extends GetxController {
       var finalLayersList = uniqueLayers.reversed.toList();
       _deduplicateLayerNames(finalLayersList);
       templateConfig['layers'] = finalLayersList;
+
+      int newRenderVersion = 1;
+      if (newFrameJson['render_version'] != null) {
+        newRenderVersion = (newFrameJson['render_version'] is int) ? newFrameJson['render_version'] : safeDouble(newFrameJson['render_version'] as num).toInt();
+      } else if (configJson != null && configJson['render_version'] != null) {
+        newRenderVersion = (configJson['render_version'] is int) ? configJson['render_version'] : safeDouble(configJson['render_version'] as num).toInt();
+      } else if (newFrameJson['info'] != null && newFrameJson['info'] is Map && newFrameJson['info']['render_version'] != null) {
+        newRenderVersion = (newFrameJson['info']['render_version'] is int) ? newFrameJson['info']['render_version'] : safeDouble(newFrameJson['info']['render_version'] as num).toInt();
+      }
+      if (newRenderVersion > (templateConfig['render_version'] as int? ?? 1)) {
+        templateConfig['render_version'] = newRenderVersion;
+      } else if (newFrameJson['render_version'] != null || (configJson != null && configJson['render_version'] != null)) {
+        templateConfig['render_version'] = newRenderVersion;
+      }
+
       templateConfig.refresh();
       _pushHistory();
 
@@ -1079,6 +1345,60 @@ class NativeEditorController extends GetxController {
     List<Map<String, dynamic>> shapeLayers
   ) async {
     try {
+      // Process shape images to find their actual brightness
+      for (var shape in shapeLayers) {
+        if (shape['fill'] == null && shape['src'] != null && shape['src'].toString().isNotEmpty) {
+          String sUrl = shape['src'].toString();
+          // Normalize URL
+          if (!sUrl.startsWith('http')) {
+            String baseUrl = templateBaseUrl.isNotEmpty ? templateBaseUrl : AppConfig.baseUrl.replaceAll('/123456', '') + '/public';
+            if (sUrl.startsWith('../')) {
+              sUrl = '$baseUrl/${sUrl.replaceFirst('../', '')}';
+            } else if (sUrl.startsWith('uploads/')) {
+              sUrl = '$baseUrl/$sUrl';
+            } else {
+              sUrl = '$baseUrl/skins/$sUrl';
+            }
+          }
+          
+          bool shapeIsDark = false;
+          if (_brightnessCache.containsKey(sUrl)) {
+            shapeIsDark = _brightnessCache[sUrl]!;
+          } else {
+            try {
+              final resp = await http.get(Uri.parse(sUrl));
+              if (resp.statusCode == 200) {
+                final codec = await ui.instantiateImageCodec(resp.bodyBytes);
+                final frameInfo = await codec.getNextFrame();
+                final img = frameInfo.image;
+                final data = (await img.toByteData())?.buffer.asUint8List();
+                if (data != null) {
+                  double totalLuminance = 0;
+                  int sampleCount = 0;
+                  for (int i = 0; i < data.length; i += 4 * 10) {
+                    int r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
+                    if (a > 30) { // Only sample non-transparent pixels
+                      totalLuminance += (0.299 * r + 0.587 * g + 0.114 * b);
+                      sampleCount++;
+                    }
+                  }
+                  if (sampleCount > 0) {
+                    double avgBrightness = totalLuminance / sampleCount;
+                    shapeIsDark = avgBrightness < 128;
+                    _brightnessCache[sUrl] = shapeIsDark;
+                    debugPrint('[SHAPE_BRIGHTNESS] Computed for ${shape['src']} -> avg=$avgBrightness, isDark=$shapeIsDark');
+                  }
+                }
+              }
+            } catch (e) {
+              debugPrint('[SHAPE_BRIGHTNESS] Error for ${shape['src']}: $e');
+            }
+          }
+          shape['shapeIsDark'] = shapeIsDark;
+          shape['hasComputedBrightness'] = true;
+        }
+      }
+
       bool templateIsDark = false;
       
       // Priority 1: Use the controller's stored baseImgUrl (set at init from designUrl)
@@ -1268,11 +1588,13 @@ class NativeEditorController extends GetxController {
       // PASS 2: Apply colors to ICON layers - match paired text color (same as web editor)
       for (var newLayer in newLayers) {
         final String lname = (newLayer['name'] ?? newLayer['id'] ?? '').toString().toLowerCase();
-        bool isIcon = newLayer['type'] == 'image' && (
+        bool isIcon = (newLayer['type'] == 'image' || newLayer['type'] == 'icon') && (
           ['phone', 'email', 'website', 'address', 'social'].contains(newLayer['_businessKey']) ||
           ['phone', 'email', 'website', 'address', 'call', 'mobile', 'contact', 'whatsapp', 'tel',
            'mail', 'web', 'url', 'location', 'icon', 'facebook', 'instagram', 'twitter', 'youtube',
-           'social', 'linkedin'].any((key) => lname.contains(key))
+           'social', 'linkedin'].any((key) => lname.contains(key)) ||
+          newLayer['_originalType'] == 'icon' ||
+          (newLayer['_source_meta'] is Map && newLayer['_source_meta']['type'] == 'icon')
         );
         if (!isIcon) continue;
         
@@ -1312,6 +1634,21 @@ class NativeEditorController extends GetxController {
         }
       }
       
+      // PASS 3: Apply colors to general ICON-TYPE layers (type=='icon' from web editor icon picker)
+      // These are distinct from PASS 2 contact icons.
+      for (var newLayer in newLayers) {
+        if (newLayer['type'] == 'icon') {
+          // Skip if it was already processed as a contact icon in PASS 2 (has business key)
+          if (newLayer['_businessKey'] != null && ['phone', 'email', 'website', 'address', 'social'].contains(newLayer['_businessKey'])) {
+            continue;
+          }
+          debugPrint('[BRIGHTNESS] PASS3: Found type=icon layer: "${newLayer['name']}"');
+          if (_applyDynamicTextColor(newLayer, templateIsDark, shapeLayers)) {
+            needsRefresh = true;
+          }
+        }
+      }
+      
       debugPrint('[BRIGHTNESS] needsRefresh=$needsRefresh');
       if (needsRefresh) {
         templateConfig.refresh();
@@ -1341,14 +1678,20 @@ class NativeEditorController extends GetxController {
 
     bool isText = layer['type'] == 'text';
     final String lname = (layer['name'] ?? layer['id'] ?? '').toString().toLowerCase();
-    bool isIcon = layer['type'] == 'image' && (
+    bool isContactIcon = layer['type'] == 'image' && (
                   ['phone', 'email', 'website', 'address', 'social'].contains(layer['_businessKey']) ||
                   ['phone', 'email', 'website', 'address', 'call', 'mobile', 'contact', 'whatsapp', 'tel',
                    'mail', 'web', 'url', 'location', 'icon', 'facebook', 'instagram', 'twitter', 'youtube',
-                   'social', 'linkedin'].any((key) => lname.contains(key))
+                   'social', 'linkedin'].any((key) => lname.contains(key)) ||
+                  layer['_originalType'] == 'icon' ||
+                  (layer['_source_meta'] is Map && layer['_source_meta']['type'] == 'icon')
                   );
+    // NEW: Also detect type=='icon' layers (from web editor icon picker, e.g. Iconify/FontAwesome)
+    bool isIconType = layer['type'] == 'icon';
+    bool isIcon = isContactIcon || isIconType;
+    debugPrint('[COLOR_DIAG] isText=$isText, isContactIcon=$isContactIcon, isIconType=$isIconType, isIcon=$isIcon');
 
-    // DO NOT override colors for frame layers — EXCEPT for text and contact icons.
+    // DO NOT override colors for frame layers — EXCEPT for text and contact icons and icon-type layers.
     // If it's a frame layer and not a text/icon, skip it.
     if (layer['_is_frame_layer'] == true || layer['_isFrameLayer'] == true) {
       if (!isText && !isIcon) {
@@ -1358,7 +1701,7 @@ class NativeEditorController extends GetxController {
     }
 
     if (!isText && !isIcon) {
-      debugPrint('[COLOR_DIAG] ❌ SKIPPED: Not text or contact icon');
+      debugPrint('[COLOR_DIAG] ❌ SKIPPED: Not text, contact icon, or icon-type layer');
       return false;
     }
 
@@ -1373,6 +1716,7 @@ class NativeEditorController extends GetxController {
     final double textCenterY = textY + textH / 2;
 
     bool overlapsShape = false;
+    bool shapeIsDark = false;
     for (var shape in shapeLayers) {
       final double sx = safeDouble(shape['x'] ?? 0);
       final double sy = safeDouble(shape['y'] ?? 0);
@@ -1382,36 +1726,101 @@ class NativeEditorController extends GetxController {
       if (textCenterX >= sx && textCenterX <= (sx + sw) &&
           textCenterY >= sy && textCenterY <= (sy + sh)) {
         overlapsShape = true;
-        debugPrint('[COLOR] "$layerName" overlaps shape at (${sx.toInt()},${sy.toInt()},${sw.toInt()},${sh.toInt()}) → keeping original color');
+        
+        if (shape['hasComputedBrightness'] == true) {
+          shapeIsDark = shape['shapeIsDark'] == true;
+          debugPrint('[COLOR] "$layerName" overlaps image shape with computed shapeIsDark=$shapeIsDark (src=${shape['src']})');
+        } else {
+          // Parse the shape's fill color to determine its brightness
+          final fillVal = shape['fill']?.toString() ?? '#FFFFFF';
+          final Color shapeColor = _parseColor(fillVal, fallback: Colors.white);
+          
+          // Compute brightness (standard formula)
+          final double luminance = (0.299 * shapeColor.red + 0.587 * shapeColor.green + 0.114 * shapeColor.blue);
+          shapeIsDark = luminance < 128;
+          
+          debugPrint('[COLOR] "$layerName" overlaps shape at (${sx.toInt()},${sy.toInt()},${sw.toInt()},${sh.toInt()}) with fill="$fillVal" (shapeIsDark=$shapeIsDark)');
+        }
         break;
       }
     }
 
+    if (layer['original_color'] == null) {
+      layer['original_color'] = layer['color'] ?? layer['tint_color'] ?? '0xFFFFFFFF';
+    }
+
     bool changed = false;
-    if (!overlapsShape) {
-      String newColor = matchedColor ?? (templateIsDark ? '0xFFFFFFFF' : '0xFF000000');
-      if (isText) {
-        debugPrint('[COLOR] TEXT "$layerName" → templateIsDark=$templateIsDark → color=$newColor (was: ${layer['color']})');
-        if (layer['color'] != newColor) changed = true;
-        layer['color'] = newColor;
-        layer['font_color'] = newColor;
-      } else if (isIcon) {
-        debugPrint('[COLOR] ICON "$layerName" → templateIsDark=$templateIsDark → tint=$newColor (was: ${layer['tint_color']})');
-        if (layer['tint_color'] != newColor) changed = true;
-        layer['tint_color'] = newColor;
-      }
+    String newColor;
+    if (overlapsShape) {
+      newColor = shapeIsDark ? '0xFFFFFFFF' : '0xFF000000';
     } else {
-      String originalColor = layer['original_color'] ?? layer['color'] ?? layer['tint_color'] ?? '0xFFFFFFFF';
-      if (isText) {
-        if (layer['color'] != originalColor) changed = true;
-        layer['color'] = originalColor;
-        layer['font_color'] = originalColor;
-      } else if (isIcon) {
-        if (layer['tint_color'] != originalColor) changed = true;
-        layer['tint_color'] = originalColor;
-      }
+      newColor = matchedColor ?? (templateIsDark ? '0xFFFFFFFF' : '0xFF000000');
+    }
+
+    if (isText) {
+      debugPrint('[COLOR] TEXT "$layerName" → templateIsDark=$templateIsDark overlapsShape=$overlapsShape → color=$newColor (was: ${layer['color']})');
+      if (layer['color'] != newColor) changed = true;
+      layer['color'] = newColor;
+      layer['font_color'] = newColor;
+    } else if (isIcon) {
+      debugPrint('[COLOR] ICON "$layerName" → templateIsDark=$templateIsDark overlapsShape=$overlapsShape → tint=$newColor (was: ${layer['tint_color']}, isIconType=$isIconType)');
+      if (layer['tint_color'] != newColor || layer['color'] != newColor) changed = true;
+      layer['tint_color'] = newColor;
+      layer['color'] = newColor;
+      // All icons use font_color in _buildIconLayer (both type=='icon' and type=='image' with icon metadata)
+      layer['font_color'] = newColor;
     }
     return changed;
+  }
+
+  Color _parseColor(String colorStr, {Color fallback = const Color(0xFF000000)}) {
+    if (colorStr.isEmpty) return fallback;
+    
+    // Handle rgb(r,g,b) format
+    if (colorStr.startsWith('rgb') && !colorStr.startsWith('rgba')) {
+      try {
+        final parts = colorStr
+            .replaceAll(RegExp(r'[a-zA-Z\(\)]'), '')
+            .split(',');
+        if (parts.length >= 3) {
+          return Color.fromARGB(
+            255,
+            int.parse(parts[0].trim()),
+            int.parse(parts[1].trim()),
+            int.parse(parts[2].trim()),
+          );
+        }
+      } catch (_) {}
+      return fallback;
+    }
+    
+    // Handle rgba(r,g,b,a) format
+    if (colorStr.startsWith('rgba')) {
+      try {
+        final parts = colorStr
+            .replaceAll(RegExp(r'[a-zA-Z\(\)]'), '')
+            .split(',');
+        if (parts.length >= 4) {
+          return Color.fromARGB(
+            (double.parse(parts[3]) * 255).round(),
+            int.parse(parts[0]),
+            int.parse(parts[1]),
+            int.parse(parts[2]),
+          );
+        }
+      } catch (_) {}
+      return fallback;
+    }
+    
+    String hex = colorStr.replaceAll('#', '').replaceAll('0x', '').replaceAll('0X', '');
+    if (hex.length == 6) hex = 'FF$hex';
+    
+    if (hex.length == 8) {
+      int? parsed = int.tryParse(hex, radix: 16);
+      if (parsed != null) return Color(parsed);
+    }
+    
+    return fallback;
   }
 }
 

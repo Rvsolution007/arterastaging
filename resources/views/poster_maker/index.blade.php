@@ -281,6 +281,11 @@
                         </div>
                     </div>
                     
+                    <a href="#" onclick="enterVersionControl()" class="btn-action-primary mr-2" 
+                       style="height: 38px; display: flex; align-items: center; padding: 0 16px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); box-shadow: 0 4px 6px -1px rgba(217, 119, 6, 0.3);">
+                        <i class="fa-solid fa-code-branch mr-1"></i> Version Control
+                    </a>
+                    
                     <a href="{{ route('template_builder.index', ['mode' => 'frame']) }}" class="btn-action-primary" style="height: 38px; display: flex; align-items: center; padding: 0 16px;">
                         <i class="fa-solid fa-plus mr-1"></i> Add Frame
                     </a>
@@ -620,4 +625,15 @@
   </div>
 </div>
 
+<script>
+function enterVersionControl() {
+    var pwd = prompt('Enter Version Control password:');
+    if (pwd === 'Brijesh@1415') {
+        sessionStorage.setItem('vc_auth', 'true');
+        window.location.href = "{{ route('admin.poster_maker.version_control') }}";
+    } else if (pwd !== null) {
+        alert('Wrong password!');
+    }
+}
+</script>
 @endsection

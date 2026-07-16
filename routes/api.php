@@ -96,7 +96,10 @@ Route::
             Route::get('/custom-post', 'HomeApi@getBusinessFrame');
 
             Route::get('/get-sticker', 'HomeApi@getSticker');
-            Route::post('/search-sticker', 'HomeApi@searchSticker');
+            Route::post('/save-fcm-token', [\App\Http\Controllers\Api\HomeApi::class, 'saveFcmToken']);
+
+            // Golden Render capture from Flutter
+            Route::post('/golden-render/capture-native', [\App\Http\Controllers\Api\HomeApi::class, 'captureNativeGolden'])->middleware('throttle');
 
             Route::post('/inquiry', 'HomeApi@postInquiry');
             Route::get('/poster-category', 'HomeApi@posterCategory');
@@ -129,6 +132,7 @@ Route::
 
             // Native App: Get frames for a specific festival/category/custom post
             Route::get('/get-frames', 'HomeApi@getFrames');
+            Route::get('/templates/batch', 'HomeApi@batchTemplates')->middleware('throttle');
             // Setup Wizard Endpoints
             Route::post('/setup-wizard/status', [\App\Http\Controllers\Api\SetupWizardApiController::class, 'status']);
             Route::post('/setup-wizard/analyze', [\App\Http\Controllers\Api\SetupWizardApiController::class, 'analyze']);

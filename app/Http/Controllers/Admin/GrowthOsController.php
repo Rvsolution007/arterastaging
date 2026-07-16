@@ -22,9 +22,15 @@ class GrowthOsController extends Controller
      */
     public function getDashboardStats(Request $request)
     {
-        $today = Carbon::today();
-        $metric = \App\Models\GrowthMetric::whereDate('date', $today)->first();
-        $tasks = \App\Models\GrowthTask::where('status', 'pending')->orderBy('id', 'desc')->take(10)->get();
+        $start = $request->input('start_date') ? Carbon::parse($request->input('start_date'))->startOfDay() : Carbon::now()->subDays(30)->startOfDay();
+        $end = $request->input('end_date') ? Carbon::parse($request->input('end_date'))->endOfDay() : Carbon::now()->endOfDay();
+
+        $metric = \App\Models\GrowthMetric::whereBetween('date', [$start->format('Y-m-d'), $end->format('Y-m-d')])
+            ->orderBy('date', 'desc')->first();
+            
+        $tasks = \App\Models\GrowthTask::where('status', 'pending')
+            ->whereBetween('date', [$start->format('Y-m-d'), $end->format('Y-m-d')])
+            ->orderBy('id', 'desc')->take(10)->get();
 
         $execution_plan = [];
         foreach($tasks as $t) {
@@ -58,23 +64,49 @@ class GrowthOsController extends Controller
      */
     public function getAcquisitionStats(Request $request)
     {
+        $start = $request->input('start_date') ? Carbon::parse($request->input('start_date'))->startOfDay() : Carbon::now()->subDays(30)->startOfDay();
+        $end = $request->input('end_date') ? Carbon::parse($request->input('end_date'))->endOfDay() : Carbon::now()->endOfDay();
+
+        $organicCount = DB::table('users')
+            ->where(function($q) {
+                $q->whereNull('referral_code')->orWhere('referral_code', '');
+            })
+            ->whereBetween('created_at', [$start, $end])
+            ->count();
+
+        $referralCount = DB::table('users')
+            ->whereNotNull('referral_code')
+            ->where('referral_code', '!=', '')
+            ->whereBetween('created_at', [$start, $end])
+            ->count();
+
+        $positiveReviews = DB::table('ai_review_replies')
+            ->where('rating', '>=', 4)
+            ->whereBetween('created_at', [$start, $end])
+            ->count();
+
+        $negativeReviews = DB::table('ai_review_replies')
+            ->where('rating', '<=', 2)
+            ->whereBetween('created_at', [$start, $end])
+            ->count();
+
         return response()->json([
             'status' => 'success',
             'installs' => [
                 'today' => DB::table('users')->whereDate('created_at', Carbon::today())->count(),
                 'yesterday' => DB::table('users')->whereDate('created_at', Carbon::yesterday())->count(),
                 'last_7_days' => DB::table('users')->whereDate('created_at', '>=', Carbon::now()->subDays(7))->count(),
-                'last_30_days' => DB::table('users')->whereDate('created_at', '>=', Carbon::now()->subDays(30))->count(),
+                'last_30_days' => DB::table('users')->whereBetween('created_at', [$start, $end])->count(),
             ],
             'sources' => [
-                'organic' => 450,
-                'referral' => 120,
-                'paid' => 300,
-                'play_store' => 800
+                'organic' => $organicCount,
+                'referral' => $referralCount,
+                'paid' => 0,
+                'play_store' => $organicCount + $referralCount
             ],
             'reviews' => [
-                'positive' => 120,
-                'negative' => 15,
+                'positive' => $positiveReviews,
+                'negative' => $negativeReviews,
                 'bug_reports' => 5,
                 'feature_requests' => 20
             ]
@@ -86,11 +118,14 @@ class GrowthOsController extends Controller
      */
     public function getEngagementStats(Request $request)
     {
+        $start = $request->input('start_date') ? Carbon::parse($request->input('start_date'))->startOfDay() : Carbon::now()->subDays(30)->startOfDay();
+        $end = $request->input('end_date') ? Carbon::parse($request->input('end_date'))->endOfDay() : Carbon::now()->endOfDay();
+
         return response()->json([
             'status' => 'success',
             'engagement' => [
-                'dau' => DB::table('user_activities')->whereDate('created_at', Carbon::today())->distinct('user_id')->count('user_id'),
-                'mau' => DB::table('user_activities')->whereDate('created_at', '>=', Carbon::now()->subDays(30))->distinct('user_id')->count('user_id'),
+                'dau' => DB::table('user_activities')->whereBetween('created_at', [$start, $end])->distinct('user_id')->count('user_id'),
+                'mau' => DB::table('user_activities')->whereBetween('created_at', [$start, $end])->distinct('user_id')->count('user_id'),
                 'avg_session_time' => '4m 32s', // Dummy for now, will calculate from user_sessions
                 'most_active_time' => 'Evening (6 PM - 9 PM)'
             ],
@@ -109,9 +144,16 @@ class GrowthOsController extends Controller
      */
     public function getContentStats(Request $request)
     {
+        $start = $request->input('start_date') ? Carbon::parse($request->input('start_date'))->startOfDay() : Carbon::now()->subDays(30)->startOfDay();
+        $end = $request->input('end_date') ? Carbon::parse($request->input('end_date'))->endOfDay() : Carbon::now()->endOfDay();
+
+        $query = DB::table('general_posts');
+        if ($request->has('start_date') && $request->has('end_date')) {
+            $query->whereBetween('created_at', [$start, $end]);
+        }
+
         // Get top 10 downloaded templates
-        $topTemplates = DB::table('general_posts')
-            ->orderBy('downloads_count', 'desc')
+        $topTemplates = $query->orderBy('downloads_count', 'desc')
             ->limit(10)
             ->get(['id', 'task_name as title', 'downloads_count', 'views_count', 'frame_image as image']);
 
@@ -131,8 +173,11 @@ class GrowthOsController extends Controller
      */
     public function getPlannerStats(Request $request)
     {
+        $start = $request->input('start_date') ? Carbon::parse($request->input('start_date'))->startOfDay() : Carbon::now()->subDays(30)->startOfDay();
+        $end = $request->input('end_date') ? Carbon::parse($request->input('end_date'))->endOfDay() : Carbon::now()->endOfDay();
+
         // 1. Upcoming Festivals
-        $festivals = \App\Models\Festivals::whereDate('festivals_date', '>=', now()->format('Y-m-d'))
+        $festivals = \App\Models\Festivals::whereBetween('festivals_date', [$start->format('Y-m-d'), $end->format('Y-m-d')])
             ->orderBy('festivals_date', 'asc')
             ->limit(10)
             ->get();
@@ -199,7 +244,11 @@ class GrowthOsController extends Controller
      */
     public function getMarketingStats(Request $request)
     {
-        $notifications = \App\Models\AiPushNotification::orderBy('created_at', 'desc')->get();
+        $start = $request->input('start_date') ? Carbon::parse($request->input('start_date'))->startOfDay() : Carbon::now()->subDays(30)->startOfDay();
+        $end = $request->input('end_date') ? Carbon::parse($request->input('end_date'))->endOfDay() : Carbon::now()->endOfDay();
+
+        $notifications = \App\Models\AiPushNotification::whereBetween('created_at', [$start, $end])
+            ->orderBy('created_at', 'desc')->get();
 
         return response()->json([
             'status' => 'success',
@@ -212,7 +261,12 @@ class GrowthOsController extends Controller
      */
     public function getAsoStats(Request $request)
     {
-        $reviews = \App\Models\AiReviewReply::orderBy('created_at', 'desc')->get();
+        $start = $request->input('start_date') ? Carbon::parse($request->input('start_date'))->startOfDay() : Carbon::now()->subDays(30)->startOfDay();
+        $end = $request->input('end_date') ? Carbon::parse($request->input('end_date'))->endOfDay() : Carbon::now()->endOfDay();
+
+        $reviews = \App\Models\AiReviewReply::whereBetween('created_at', [$start, $end])
+            ->orderBy('created_at', 'desc')->get();
+            
         $keywords = \App\Models\AsoKeyword::orderBy('current_rank', 'asc')->get();
 
         return response()->json([

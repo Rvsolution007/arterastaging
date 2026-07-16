@@ -1,0 +1,1 @@
+<?php require 'vendor/autoload.php'; $app = require_once 'bootstrap/app.php'; $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class); $kernel->bootstrap(); $t = \App\Models\EditorTemplate::orderByDesc('updated_at')->first(); echo json_encode($t->legacy_json['layers'] ?? []);

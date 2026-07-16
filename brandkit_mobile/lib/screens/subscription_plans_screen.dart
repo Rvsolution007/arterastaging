@@ -772,7 +772,7 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
                       child: Text(
                         isCurrentPlan 
                             ? 'Currently Active' 
-                            : (isPopular ? 'Start Free Trial' : 'Start Free Trial'),
+                            : 'Upgrade to $planName',
                         style: TextStyle(
                           color: isCurrentPlan 
                               ? const Color(0xFF94A3B8) 

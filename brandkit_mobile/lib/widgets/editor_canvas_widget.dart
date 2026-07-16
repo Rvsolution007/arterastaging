@@ -2379,6 +2379,10 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       offlineSvg = offlineSvg.replaceAll(RegExp(r'fill="[^"]*"'), 'fill="currentColor"');
       offlineSvg = offlineSvg.replaceAll(RegExp(r'stroke="[^"]*"'), 'stroke="currentColor"');
       
+      // flutter_svg fails on '1em' or '100%', remove width/height so it falls back to viewBox
+      offlineSvg = offlineSvg.replaceAll(RegExp(r'width="[^"]*"'), '');
+      offlineSvg = offlineSvg.replaceAll(RegExp(r'height="[^"]*"'), '');
+      
       svgWidget = SvgPicture.string(
         offlineSvg,
         width: size,

@@ -1890,17 +1890,35 @@ class NativeEditorController extends GetxController {
     }
 
     if (layer['original_color'] == null) {
-      layer['original_color'] = layer['color'] ?? layer['tint_color'] ?? '0xFFFFFFFF';
+      layer['original_color'] = layer['color'] ?? layer['tint_color'] ?? (templateIsDark ? '0xFFFFFFFF' : '0xFF000000');
     }
 
     bool changed = false;
     String newColor;
     if (matchedColor != null) {
       newColor = matchedColor;
-    } else if (overlapsShape) {
-      newColor = shapeIsDark ? '0xFFFFFFFF' : '0xFF000000';
     } else {
-      newColor = templateIsDark ? '0xFFFFFFFF' : '0xFF000000';
+      bool isBgDark = overlapsShape ? shapeIsDark : templateIsDark;
+      final String origColorStr = layer['original_color'].toString();
+      final Color origColor = _parseColor(origColorStr, fallback: isBgDark ? Colors.white : Colors.black);
+      final double origLuminance = (0.299 * origColor.red + 0.587 * origColor.green + 0.114 * origColor.blue);
+      bool isOrigDark = origLuminance < 128;
+      
+      if (isBgDark) {
+        // Background is Dark. Needs Light color.
+        if (!isOrigDark) {
+          newColor = origColorStr; // Already light, keep original
+        } else {
+          newColor = '0xFFFFFFFF'; // Dark on dark, force white
+        }
+      } else {
+        // Background is Light. Needs Dark color.
+        if (isOrigDark) {
+          newColor = origColorStr; // Already dark, keep original
+        } else {
+          newColor = '0xFF000000'; // Light on light, force black
+        }
+      }
     }
     if (isText) {
       debugPrint('[COLOR] TEXT "$layerName" → templateIsDark=$templateIsDark overlapsShape=$overlapsShape → color=$newColor (was: ${layer['color']})');

@@ -72,9 +72,13 @@ class HomeApi extends Controller
      * @param  int|null    $frameId  Optional PosterMaker ID for DB lookup
      * @return string|null Raw JSON string, or null if not found
      */
-    private function resolveTemplateJson(string $zipName, ?int $frameId = null): ?string
-    {
-        $cacheKey = "template_json:{$zipName}";
+    private function resolveTemplateJson(
+        string $zipName,
+        ?int $frameId = null,
+        ?string $frameType = null
+    ): ?string {
+        $cleanUuid = preg_replace('/^Template_/i', '', $zipName);
+        $cacheKey = "template_json:v2:{$cleanUuid}";
         $cacheTTL = 3600; // 1 hour
 
         // === SOURCE 1: Redis Cache (fastest — 5ms) ===
@@ -83,10 +87,10 @@ class HomeApi extends Controller
             return $cached;
         }
 
-        // === SOURCE 2: DB Column (fast — 20-50ms) ===
         $jsonData = null;
 
-        if ($frameId) {
+        // === SOURCE 2: PosterMaker (only if caller explicitly asks for a poster) ===
+        if ($frameType === 'poster' && $frameId) {
             $poster = \App\Models\PosterMaker::find($frameId);
             if ($poster && !empty($poster->layers_json)) {
                 $jsonData = is_array($poster->layers_json)
@@ -95,8 +99,13 @@ class HomeApi extends Controller
             }
         }
 
+        // === SOURCE 3: EditorTemplate (by UUID or Template_UUID) ===
         if ($jsonData === null) {
-            $editorTemplate = \App\Models\EditorTemplate::where('uuid', $zipName)->first();
+            $editorTemplate = \App\Models\EditorTemplate::where(function ($q) use ($zipName, $cleanUuid) {
+                $q->where('uuid', $zipName)
+                  ->orWhere('uuid', $cleanUuid);
+            })->first();
+
             if ($editorTemplate && !empty($editorTemplate->legacy_json)) {
                 $jsonData = is_array($editorTemplate->legacy_json)
                     ? json_encode($editorTemplate->legacy_json, JSON_UNESCAPED_SLASHES)
@@ -104,7 +113,28 @@ class HomeApi extends Controller
             }
         }
 
-        // === SOURCE 3: Disk File (slowest fallback — 100-200ms) ===
+        // === SOURCE 4: Digital Ocean Fallback ===
+        if ($jsonData === null) {
+            $storage = \App\Models\StorageSetting::getStorageSetting('storage');
+            if ($storage === 'DigitalOcean') {
+                try {
+                    $disk = \Illuminate\Support\Facades\Storage::disk('spaces');
+                    $base = "uploads/template/{$zipName}/json/";
+                    if ($disk->exists($base)) {
+                        foreach ($disk->files($base) as $file) {
+                            if (\Illuminate\Support\Str::endsWith($file, '.json')) {
+                                $jsonData = $disk->get($file);
+                                break;
+                            }
+                        }
+                    }
+                } catch (\Exception $e) {
+                    \Log::error("Error loading template json from DigitalOcean spaces: " . $e->getMessage());
+                }
+            }
+        }
+
+        // === SOURCE 5: Disk File (slowest local fallback — 100-200ms) ===
         if ($jsonData === null) {
             $jsonDir = public_path('uploads/template/' . $zipName . '/json/');
             if (is_dir($jsonDir)) {
@@ -118,7 +148,9 @@ class HomeApi extends Controller
             }
         }
 
-        if ($jsonData === null) return null;
+        if ($jsonData === null) {
+            return null;
+        }
 
         // Ensure render_version exists
         $jsonData = $this->ensureRenderVersion($jsonData);
@@ -378,7 +410,7 @@ class HomeApi extends Controller
                     if($cc->zip_name)
                     {
                         // === OPTIMIZATION: Cache template JSON per zip_name ===
-                        $json_data = $this->resolveTemplateJson($cc->zip_name) ?? '';
+                        $json_data = $this->resolveTemplateJson($cc->zip_name, null, 'custom') ?? '';
                     }
 
                     $frame_data[] = array(
@@ -596,7 +628,7 @@ class HomeApi extends Controller
 
                 if($zip_name)
                 {
-                    $json_data = $this->resolveTemplateJson($zip_name, $frame->id) ?? '';
+                    $json_data = $this->resolveTemplateJson($zip_name, null, 'custom') ?? '';
                 }
 
                 $preview_img = "";
@@ -767,7 +799,7 @@ class HomeApi extends Controller
 
             if($zip_name)
             {
-                $json_data = $this->resolveTemplateJson($zip_name) ?? '';
+                $json_data = $this->resolveTemplateJson($zip_name, null, 'custom') ?? '';
             }
 
             $preview_img = "";
@@ -1345,7 +1377,7 @@ class HomeApi extends Controller
             {
                 if($c->zip_name)
                 {
-                    $json_data = $this->resolveTemplateJson($c->zip_name) ?? '';
+                    $json_data = $this->resolveTemplateJson($c->zip_name, null, 'custom') ?? '';
                 }
 
                 $image_val = ($c->frame_image)?((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$c->frame_image):asset('uploads/'.$c->frame_image)):"";
@@ -3310,7 +3342,7 @@ class HomeApi extends Controller
 
                 if($zip_name)
                 {
-                    $json_data = $this->resolveTemplateJson($zip_name, $f->id) ?? '';
+                    $json_data = $this->resolveTemplateJson($zip_name, null, 'custom') ?? '';
                 }
 
                 $preview_img = "";
@@ -3459,7 +3491,7 @@ class HomeApi extends Controller
         if ($frame) {
             $zip_name = pathinfo($frame->zip_file_path, PATHINFO_FILENAME);
             if ($zip_name) {
-                $jsonData = $this->resolveTemplateJson($zip_name, $frameId) ?? '';
+                $jsonData = $this->resolveTemplateJson($zip_name, null, 'custom') ?? '';
             }
 
             // Inject AI content into template JSON layers
@@ -3684,7 +3716,7 @@ class HomeApi extends Controller
 
                 if($zip_name)
                 {
-                    $json_data = $this->resolveTemplateJson($zip_name, $f->id) ?? '';
+                    $json_data = $this->resolveTemplateJson($zip_name, null, 'custom') ?? '';
                 }
 
                 $preview_img = "";
@@ -4040,7 +4072,7 @@ class HomeApi extends Controller
                 if (!empty($p->layers_json)) {
                     $json_data = is_string($p->layers_json) ? $p->layers_json : json_encode($p->layers_json);
                 } else {
-                    $json_data = $this->resolveTemplateJson($p->zip_name, $p->id) ?? '';
+                    $json_data = $this->resolveTemplateJson($p->zip_name, $p->id, 'poster') ?? '';
                 }
 
                 $data[] = array(
@@ -4307,7 +4339,7 @@ class HomeApi extends Controller
                 $zip_name = $cc->zip_name ?? '';
                 $json_data = '';
                 if ($zip_name) {
-                    $json_data = $this->resolveTemplateJson($zip_name) ?? '';
+                    $json_data = $this->resolveTemplateJson($zip_name, null, 'custom') ?? '';
                 }
                 $image_val = ($cc->frame_image) ? ((StorageSetting::getStorageSetting('storage') == 'DigitalOcean') ? Storage::disk('spaces')->url('uploads/'.$cc->frame_image) : asset('uploads/'.$cc->frame_image)) : '';
                 if(empty($image_val) && $zip_name) {
@@ -4825,7 +4857,7 @@ class HomeApi extends Controller
         if (!empty($ids)) {
             $frames = \App\Models\PosterMaker::whereIn('id', $ids)->get();
             foreach ($frames as $frame) {
-                $jsonData = $this->resolveTemplateJson($frame->zip_name, $frame->id);
+                $jsonData = $this->resolveTemplateJson($frame->zip_name, $frame->id, 'poster');
                 $results[] = [
                     'id' => $frame->id,
                     'zip_name' => $frame->zip_name,
@@ -4841,7 +4873,7 @@ class HomeApi extends Controller
         if (!empty($zipNames)) {
             $frames = \App\Models\PosterMaker::whereIn('zip_name', $zipNames)->get();
             foreach ($frames as $frame) {
-                $jsonData = $this->resolveTemplateJson($frame->zip_name, $frame->id);
+                $jsonData = $this->resolveTemplateJson($frame->zip_name, $frame->id, 'poster');
                 $results[] = [
                     'id' => $frame->id,
                     'zip_name' => $frame->zip_name,

@@ -83,6 +83,11 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
       final double? posW = w > 0 ? w : null;
       final double? posH = (h > 0 && !isText) ? h : null;
 
+      // Proportional minimum container size enforcement for icons
+      final bool isIconLayer = widget.layerConfig['type'] == 'icon';
+      final double? finalPosW = (isIconLayer && posW != null) ? math.max(posW, rawW * 0.30) : posW;
+      final double? finalPosH = (isIconLayer && posH != null) ? math.max(posH, rawH * 0.30) : posH;
+
       final bool isFrameLayer = widget.layerConfig['_is_frame_layer'] == true || widget.layerConfig['_isFrameLayer'] == true;
 
       // Only block interaction on STRUCTURAL frame layers (bg, overlay, frame border).
@@ -125,8 +130,8 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
               color: Colors.transparent,
             ),
           SizedBox(
-            width: posW,
-            height: posH,
+            width: finalPosW,
+            height: finalPosH,
             child: widget.child,
           ),
           if (isSelected)
@@ -228,25 +233,31 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
       double? finalLeft;
       double? finalRight;
 
+      // Adjust positioning to keep the center aligned if size was increased due to minimum size enforcement
+      final double xOffset = (finalPosW != null && posW != null) ? (finalPosW - posW) / 2 : 0.0;
+      final double yOffset = (finalPosH != null && posH != null) ? (finalPosH - posH) / 2 : 0.0;
+      final double adjustedVisualX = visualX - xOffset;
+      final double adjustedVisualY = visualY - yOffset;
+
       if (posW != null) {
-        finalLeft = visualX;
+        finalLeft = adjustedVisualX;
       } else {
         if (just == 'right') {
           final double canvasW = safeDouble(controller.templateConfig['info']?['width'] ?? controller.templateConfig['width'] ?? 1080) * widget.scale;
-          finalRight = canvasW - visualX;
+          finalRight = canvasW - adjustedVisualX;
         } else if (just == 'center') {
-          finalLeft = visualX;
+          finalLeft = adjustedVisualX;
         } else {
-          finalLeft = visualX;
+          finalLeft = adjustedVisualX;
         }
       }
 
       return Positioned(
         left: finalLeft,
         right: finalRight,
-        top: visualY,
-        width: posW,
-        height: posH,
+        top: adjustedVisualY,
+        width: finalPosW,
+        height: finalPosH,
         child: layerContent,
       );
     });

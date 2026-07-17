@@ -270,3 +270,20 @@ Widget _buildText(layer, scale) {
 - `assets/js/template_builder.js`: `_doRender()`, `exportArteraSchema()`, `exportLegacyJson()`
 
 This rule applies to ALL conversations, ALL agents, and ALL subagents working on this project.
+
+## 🎨 Dynamic Icon and Text Color Matching Rule
+
+**CRITICAL RULE - MUST FOLLOW EVERY TIME:**
+
+To ensure that contact and social icons (phone, email, website, address) always match their paired text colors on the canvas:
+
+1. **Paired Color Prioritization**: If an icon layer has a paired text layer and `matchedColor` is resolved, the icon MUST inherit the text color directly. Never let background brightness or shape overlaps override the paired text color.
+2. **Prevent Self-Overlap**: When performing shape-overlap checks in `_applyDynamicTextColor()`, always skip the overlap check if the shape layer name or ID matches the current layer name or ID (case-insensitive comparison). This prevents icons marked as `is_shape: true` from falsely overlapping themselves and rendering white.
+3. **Environment-Specific Rendering**: The `Image.network` pathway must only be used on Flutter Web (`kIsWeb`) for small assets. Mobile applications (Android/iOS) must use `CachedNetworkImage` with `imageBuilder` even for small assets, ensuring that color filters and blends (e.g. `BlendMode.srcIn`) are correctly applied by the engine once loaded.
+
+This rule applies to:
+- `brandkit_mobile/lib/controllers/native_editor_controller.dart` (`_applyDynamicTextColor`)
+- `brandkit_mobile/lib/widgets/editor_canvas_widget.dart` (`_buildImage` / `_buildImageLayer`)
+
+This rule applies to ALL conversations, ALL agents, and ALL subagents working on this project.
+

@@ -81,9 +81,25 @@ class HomeApi extends Controller
         $cacheKey = "template_json:v2:{$cleanUuid}";
         $cacheTTL = 3600; // 1 hour
 
+        \Log::info("ARTERA_DEBUG resolveTemplateJson CALLED", [
+            'zipName' => $zipName,
+            'cleanUuid' => $cleanUuid,
+            'frameId' => $frameId,
+            'frameType' => $frameType,
+            'cacheKey' => $cacheKey,
+        ]);
+
         // === SOURCE 1: Redis Cache (fastest — 5ms) ===
         $cached = \Cache::get($cacheKey);
         if ($cached !== null) {
+            $parsed = json_decode($cached, true);
+            \Log::info("ARTERA_DEBUG resolveTemplateJson SOURCE=CACHE", [
+                'zipName' => $zipName,
+                'json_length' => strlen($cached),
+                'has_layers' => isset($parsed['layers']),
+                'layer_count' => isset($parsed['layers']) ? count($parsed['layers']) : 0,
+                'render_version' => $parsed['render_version'] ?? 'NOT_SET',
+            ]);
             return $cached;
         }
 
@@ -96,6 +112,18 @@ class HomeApi extends Controller
                 $jsonData = is_array($poster->layers_json)
                     ? json_encode($poster->layers_json, JSON_UNESCAPED_SLASHES)
                     : $poster->layers_json;
+                \Log::info("ARTERA_DEBUG resolveTemplateJson SOURCE=POSTER_DB", [
+                    'zipName' => $zipName,
+                    'frameId' => $frameId,
+                    'json_length' => strlen($jsonData),
+                ]);
+            } else {
+                \Log::info("ARTERA_DEBUG resolveTemplateJson POSTER_DB_MISS", [
+                    'zipName' => $zipName,
+                    'frameId' => $frameId,
+                    'poster_found' => ($poster !== null),
+                    'has_layers_json' => $poster ? !empty($poster->layers_json) : false,
+                ]);
             }
         }
 
@@ -110,26 +138,47 @@ class HomeApi extends Controller
                 $jsonData = is_array($editorTemplate->legacy_json)
                     ? json_encode($editorTemplate->legacy_json, JSON_UNESCAPED_SLASHES)
                     : $editorTemplate->legacy_json;
+                \Log::info("ARTERA_DEBUG resolveTemplateJson SOURCE=EDITOR_TEMPLATE_DB", [
+                    'zipName' => $zipName,
+                    'json_length' => strlen($jsonData),
+                ]);
+            } else {
+                \Log::info("ARTERA_DEBUG resolveTemplateJson EDITOR_TEMPLATE_MISS", [
+                    'zipName' => $zipName,
+                    'found' => ($editorTemplate !== null),
+                    'has_legacy_json' => $editorTemplate ? !empty($editorTemplate->legacy_json) : false,
+                ]);
             }
         }
 
         // === SOURCE 4: Digital Ocean Fallback ===
         if ($jsonData === null) {
             $storage = \App\Models\StorageSetting::getStorageSetting('storage');
+            \Log::info("ARTERA_DEBUG resolveTemplateJson TRYING_DO", ['storage_type' => $storage]);
             if ($storage === 'DigitalOcean') {
                 try {
                     $disk = \Illuminate\Support\Facades\Storage::disk('spaces');
                     $base = "uploads/template/{$zipName}/json/";
-                    if ($disk->exists($base)) {
+                    $baseExists = $disk->exists($base);
+                    \Log::info("ARTERA_DEBUG resolveTemplateJson DO_BASE_CHECK", [
+                        'base' => $base,
+                        'exists' => $baseExists,
+                    ]);
+                    if ($baseExists) {
                         foreach ($disk->files($base) as $file) {
                             if (\Illuminate\Support\Str::endsWith($file, '.json')) {
                                 $jsonData = $disk->get($file);
+                                \Log::info("ARTERA_DEBUG resolveTemplateJson SOURCE=DIGITAL_OCEAN", [
+                                    'zipName' => $zipName,
+                                    'file' => $file,
+                                    'json_length' => strlen($jsonData),
+                                ]);
                                 break;
                             }
                         }
                     }
                 } catch (\Exception $e) {
-                    \Log::error("Error loading template json from DigitalOcean spaces: " . $e->getMessage());
+                    \Log::error("ARTERA_DEBUG resolveTemplateJson DO_ERROR: " . $e->getMessage());
                 }
             }
         }
@@ -137,11 +186,21 @@ class HomeApi extends Controller
         // === SOURCE 5: Disk File (slowest local fallback — 100-200ms) ===
         if ($jsonData === null) {
             $jsonDir = public_path('uploads/template/' . $zipName . '/json/');
-            if (is_dir($jsonDir)) {
+            $dirExists = is_dir($jsonDir);
+            \Log::info("ARTERA_DEBUG resolveTemplateJson TRYING_DISK", [
+                'jsonDir' => $jsonDir,
+                'dir_exists' => $dirExists,
+            ]);
+            if ($dirExists) {
                 $files = scandir($jsonDir, 1);
                 foreach ($files as $f) {
                     if ($f !== '.' && $f !== '..') {
                         $jsonData = file_get_contents($jsonDir . $f);
+                        \Log::info("ARTERA_DEBUG resolveTemplateJson SOURCE=DISK", [
+                            'zipName' => $zipName,
+                            'file' => $f,
+                            'json_length' => strlen($jsonData),
+                        ]);
                         break;
                     }
                 }
@@ -149,11 +208,29 @@ class HomeApi extends Controller
         }
 
         if ($jsonData === null) {
+            \Log::warning("ARTERA_DEBUG resolveTemplateJson ALL_SOURCES_FAILED", [
+                'zipName' => $zipName,
+                'frameId' => $frameId,
+                'frameType' => $frameType,
+            ]);
             return null;
         }
 
         // Ensure render_version exists
         $jsonData = $this->ensureRenderVersion($jsonData);
+
+        // Final debug: log what we're about to cache and return
+        $finalParsed = json_decode($jsonData, true);
+        \Log::info("ARTERA_DEBUG resolveTemplateJson FINAL_RESULT", [
+            'zipName' => $zipName,
+            'json_length' => strlen($jsonData),
+            'has_layers' => isset($finalParsed['layers']),
+            'layer_count' => isset($finalParsed['layers']) ? count($finalParsed['layers']) : 0,
+            'render_version' => $finalParsed['render_version'] ?? 'NOT_SET',
+            'layer_types' => isset($finalParsed['layers']) ? array_map(function($l) {
+                return ($l['name'] ?? 'unnamed') . ':' . ($l['type'] ?? 'unknown');
+            }, array_slice($finalParsed['layers'], 0, 10)) : [],
+        ]);
 
         // Store in Redis for next request
         \Cache::put($cacheKey, $jsonData, $cacheTTL);

@@ -268,6 +268,19 @@
                     
                     <!-- Text only properties -->
                     <div id="text-properties" style="display:none;">
+                        @if($mode === 'frame')
+                        <div class="mb-3">
+                            <label class="aim-label" style="font-weight: bold; color: #10b981;">Bind to Placeholder</label>
+                            <select class="aim-select" id="prop-placeholder-bind" style="border: 1px solid #a7f3d0; background-color: #f0fdf4;">
+                                <option value="">-- None --</option>
+                                <option value="name">Business Name</option>
+                                <option value="phone_1">Mobile Number</option>
+                                <option value="email">Email ID</option>
+                                <option value="website">Website</option>
+                                <option value="address">Address</option>
+                            </select>
+                        </div>
+                        @endif
                         <div class="mb-3">
                             <label class="aim-label">Text content</label>
                             <input type="text" class="aim-input" id="prop-text">

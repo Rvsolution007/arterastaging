@@ -261,6 +261,9 @@ class NativeEditorController extends GetxController {
     
     // Run brightness detection on initial load too (not just on frame switch)
     _applyInitialBrightness();
+
+    // Apply business details to layers immediately if they are already loaded
+    reapplyBusinessProfile();
   }
 
   void _deduplicateLayerNames(List<dynamic> layers) {
@@ -407,6 +410,104 @@ class NativeEditorController extends GetxController {
         '_businessKey': 'address',
         'opacity': 0.0,
       });
+    }
+  }
+
+  /// Re-applies the loaded business profile details to the template layers.
+  /// Resolves the race condition where layers initialize beforeHomeController fetches business details.
+  void reapplyBusinessProfile() {
+    if (!Get.isRegistered<HomeController>()) return;
+    final homeCtrl = Get.find<HomeController>();
+
+    final layers = templateConfig['layers'] as List<dynamic>? ?? [];
+    if (layers.isEmpty) return;
+
+    Map<String, int> bizKeyCounter = {
+      'phone': 0, 'email': 0, 'website': 0, 'address': 0,
+    };
+
+    bool updated = false;
+    for (var layer in layers) {
+      if (layer is Map<String, dynamic> && layer['_businessKey'] != null) {
+        final String key = layer['_businessKey'].toString();
+        if (layer['type'] == 'text') {
+          if (key == 'name') {
+            if (layer['text'] != homeCtrl.businessName.value) {
+              layer['text'] = homeCtrl.businessName.value;
+              updated = true;
+            }
+          } else if (key == 'phone') {
+            int idx = bizKeyCounter['phone']!;
+            String targetVal = '';
+            if (idx == 0) {
+              targetVal = homeCtrl.businessPhone.value.replaceAll(' ', '\u00A0');
+            } else if (idx - 1 < homeCtrl.extraPhones.length) {
+              targetVal = homeCtrl.extraPhones[idx - 1].replaceAll(' ', '\u00A0');
+            }
+            bizKeyCounter['phone'] = idx + 1;
+            if (targetVal.isNotEmpty && layer['text'] != targetVal) {
+              layer['text'] = targetVal;
+              updated = true;
+            }
+          } else if (key == 'email') {
+            int idx = bizKeyCounter['email']!;
+            String targetVal = '';
+            if (idx == 0) {
+              targetVal = homeCtrl.businessEmail.value;
+            } else if (idx - 1 < homeCtrl.extraEmails.length) {
+              targetVal = homeCtrl.extraEmails[idx - 1];
+            }
+            bizKeyCounter['email'] = idx + 1;
+            if (targetVal.isNotEmpty && layer['text'] != targetVal) {
+              layer['text'] = targetVal;
+              updated = true;
+            }
+          } else if (key == 'website') {
+            int idx = bizKeyCounter['website']!;
+            String targetVal = '';
+            if (idx == 0) {
+              targetVal = homeCtrl.businessWebsite.value;
+            } else if (idx - 1 < homeCtrl.extraWebsites.length) {
+              targetVal = homeCtrl.extraWebsites[idx - 1];
+            }
+            bizKeyCounter['website'] = idx + 1;
+            if (targetVal.isNotEmpty && layer['text'] != targetVal) {
+              layer['text'] = targetVal;
+              updated = true;
+            }
+          } else if (key == 'address') {
+            int idx = bizKeyCounter['address']!;
+            String targetVal = '';
+            if (idx == 0) {
+              targetVal = homeCtrl.businessAddress.value;
+            } else if (idx - 1 < homeCtrl.extraAddresses.length) {
+              targetVal = homeCtrl.extraAddresses[idx - 1];
+            }
+            bizKeyCounter['address'] = idx + 1;
+            if (targetVal.isNotEmpty && layer['text'] != targetVal) {
+              layer['text'] = targetVal;
+              updated = true;
+            }
+          }
+        } else if (layer['type'] == 'image' || layer['type'] == 'icon') {
+          if (key == 'logo' && homeCtrl.businessLogo.value.isNotEmpty) {
+            String logoPath = homeCtrl.businessLogo.value;
+            if (!logoPath.startsWith('http')) {
+              logoPath = ApiService.baseUrl.replaceAll('/api', '') + '/' + (logoPath.startsWith('/') ? logoPath.substring(1) : logoPath);
+            }
+            if (layer['src'] != logoPath) {
+              layer['src'] = logoPath;
+              updated = true;
+            }
+          }
+        }
+      }
+    }
+
+    if (updated) {
+      debugPrint('[NATIVE_EDITOR] Business profile reapplied successfully.');
+      layerUpdateTrigger.value++;
+      templateConfig.refresh();
     }
   }
 
@@ -1718,6 +1819,12 @@ class NativeEditorController extends GetxController {
     bool overlapsShape = false;
     bool shapeIsDark = false;
     for (var shape in shapeLayers) {
+      final String shapeName = (shape['name'] ?? shape['id'] ?? '').toString().toLowerCase();
+      final String currentName = (layer['name'] ?? layer['id'] ?? '').toString().toLowerCase();
+      if (shapeName == currentName && shapeName.isNotEmpty) {
+        continue;
+      }
+      
       final double sx = safeDouble(shape['x'] ?? 0);
       final double sy = safeDouble(shape['y'] ?? 0);
       final double sw = safeDouble(shape['w'] ?? shape['width'] ?? 0);
@@ -1751,12 +1858,13 @@ class NativeEditorController extends GetxController {
 
     bool changed = false;
     String newColor;
-    if (overlapsShape) {
+    if (matchedColor != null) {
+      newColor = matchedColor;
+    } else if (overlapsShape) {
       newColor = shapeIsDark ? '0xFFFFFFFF' : '0xFF000000';
     } else {
-      newColor = matchedColor ?? (templateIsDark ? '0xFFFFFFFF' : '0xFF000000');
+      newColor = templateIsDark ? '0xFFFFFFFF' : '0xFF000000';
     }
-
     if (isText) {
       debugPrint('[COLOR] TEXT "$layerName" → templateIsDark=$templateIsDark overlapsShape=$overlapsShape → color=$newColor (was: ${layer['color']})');
       if (layer['color'] != newColor) changed = true;

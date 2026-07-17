@@ -441,6 +441,7 @@
     const inputText = $('prop-text');
     const inputFontSize = $('prop-font-size');
     const inputColor = $('prop-color');
+    const inputPlaceholderBind = $('prop-placeholder-bind');
 
     const inputLetterSpacing = $('prop-letter-spacing');
     const inputWordSpacing = $('prop-word-spacing');
@@ -737,6 +738,15 @@
                 }
             }
             if (inputFontFamily) inputFontFamily.value = obj.fontFamily || 'Arial';
+            if (inputPlaceholderBind) {
+                if (obj.customType === 'placeholder' && obj.placeholderKey) {
+                    inputPlaceholderBind.value = obj.placeholderKey;
+                } else if (obj.customName && ['name', 'phone_1', 'email', 'website', 'address'].includes(obj.customName)) {
+                    inputPlaceholderBind.value = obj.customName;
+                } else {
+                    inputPlaceholderBind.value = '';
+                }
+            }
             
             // Bold/Italic button state
             if (btnBold) {
@@ -1154,6 +1164,51 @@
             obj.set('auto_scale', this.checked);
             canvas.renderAll();
             saveHistory();
+        });
+    }
+
+    if (inputPlaceholderBind) {
+        inputPlaceholderBind.addEventListener('change', function() {
+            const obj = canvas.getActiveObject();
+            if (!obj) return;
+
+            const val = this.value;
+            if (val === '') {
+                // Clear binding: turn back into normal text
+                obj.name = 'text_layer';
+                obj.customName = 'text_layer';
+                obj.set({
+                    customType: 'text',
+                    placeholderKey: null,
+                    customName: 'text_layer',
+                    ai_field: null
+                });
+            } else {
+                // Set binding: turn into placeholder text
+                let displayStr = obj.text;
+                if (val === 'phone_1') displayStr = '+91 9876543210';
+                else if (val === 'email') displayStr = 'example@email.com';
+                else if (val === 'website') displayStr = 'www.yourwebsite.com';
+                else if (val === 'address') displayStr = 'Your Business Address Here';
+                else if (val === 'name') displayStr = 'Your Business Name';
+
+                obj.name = val;
+                obj.customName = val;
+                obj.set({
+                    text: displayStr,
+                    customType: 'placeholder',
+                    placeholderKey: val,
+                    customName: val,
+                    ai_field: val,
+                    ai_semantic_role: 'body_text'
+                });
+
+                // Update properties text input value
+                if (inputText) inputText.value = displayStr;
+            }
+            canvas.renderAll();
+            saveHistory();
+            updateLayersList();
         });
     }
 

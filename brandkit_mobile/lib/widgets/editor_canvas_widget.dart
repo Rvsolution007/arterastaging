@@ -5,6 +5,7 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -1979,7 +1980,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
 
         debugPrint('🔴 [DIAGNOSIS-IMAGE] name="$url"');
 
-        if (isSmall) {
+        if (isSmall && kIsWeb) {
           // ── SMALL ASSET PATH ──
           imgWidget = Image.network(
             url,
@@ -2313,6 +2314,18 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       offlineSvg = layer['_source_meta']['originalSvg'].toString();
     }
 
+    debugPrint("========== ICON DIAG ==========");
+    debugPrint("layerName = $lname");
+    debugPrint("iconName = ${layer['iconName']} (resolved: $iconName)");
+    debugPrint("_originalType = ${layer['_originalType']}");
+    debugPrint("_source_meta = ${layer['_source_meta']}");
+    debugPrint("src = ${layer['src']}");
+    debugPrint("offlineSvg length = ${offlineSvg.length}");
+    if (offlineSvg.isNotEmpty) {
+      debugPrint("offlineSvg starts with: ${offlineSvg.substring(0, offlineSvg.length > 200 ? 200 : offlineSvg.length)}");
+      debugPrint("offlineSvg contains viewBox: ${offlineSvg.contains('viewBox')}");
+    }
+
     if (iconName.isEmpty && offlineSvg.isEmpty) {
       // Fallback to image
       return _buildImageLayer(layer, lname, scale, nativeW, nativeH);
@@ -2324,6 +2337,8 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       // 2. Fetch SVG from Iconify API and render with flutter_svg
       // Dynamic Theming: prefer font_color (set by brightness detection) over original color
       double size = (safeDouble(layer['size']) ?? (nativeH > 0 ? nativeH : 24.0)) * scale;
+      final double minEnforced = (nativeH > 0 ? nativeH : 24.0) * 0.30;
+      size = math.max(size, minEnforced);
       
       final dynamic rawColor = layer['font_color'] ?? layer['color'] ?? layer['tint_color'] ?? '#333333';
       Color parsedColor = _parseColor(rawColor);
@@ -2358,8 +2373,8 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         if (fallbackIcon != null) {
           debugPrint('✅ [SVG LOAD] Using native Flutter Icon fallback for "$lname"');
           return SizedBox(
-            width: nativeW * scale,
-            height: nativeH * scale,
+            width: math.max(nativeW * scale, nativeW * 0.30),
+            height: math.max(nativeH * scale, nativeH * 0.30),
             child: FittedBox(
               fit: BoxFit.contain,
               child: Icon(
@@ -2382,22 +2397,37 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       offlineSvg = offlineSvg.replaceAll(RegExp(r'fill="[^"]*"'), 'fill="$hexColor"');
       offlineSvg = offlineSvg.replaceAll(RegExp(r'stroke="[^"]*"'), 'stroke="$hexColor"');
       
+      // Inline CSS style replacements
+      offlineSvg = offlineSvg.replaceAll(RegExp(r'fill:[^;"]+'), 'fill:$hexColor');
+      offlineSvg = offlineSvg.replaceAll(RegExp(r'stroke:[^;"]+'), 'stroke:$hexColor');
+      
+      // Standalone currentColor replacements
+      offlineSvg = offlineSvg.replaceAll('fill="currentColor"', 'fill="$hexColor"');
+      offlineSvg = offlineSvg.replaceAll('stroke="currentColor"', 'stroke="$hexColor"');
+      
       // flutter_svg fails on '1em' or '100%', remove width/height so it falls back to viewBox
       offlineSvg = offlineSvg.replaceAll(RegExp(r'width="[^"]*"'), '');
       offlineSvg = offlineSvg.replaceAll(RegExp(r'height="[^"]*"'), '');
       
-      svgWidget = SvgPicture.string(
-        offlineSvg,
-        width: size,
-        height: size,
-        fit: BoxFit.contain,
-      );
+      debugPrint("FINAL SVG: $offlineSvg");
+      
+      try {
+        svgWidget = SvgPicture.string(
+          offlineSvg,
+          width: size,
+          height: size,
+          fit: BoxFit.contain,
+        );
+      } catch (e, stack) {
+        debugPrint("❌ [SVG PICTURE ERROR] Fail parsing SVG: $e");
+        debugPrint(stack.toString());
+        // Fallback to image layer
+        return _buildImageLayer(layer, lname, scale, nativeW, nativeH);
+      }
       
       if (layer['opacity'] != null) {
         svgWidget = Opacity(opacity: safeDouble(layer['opacity']), child: svgWidget);
       }
-      
-      
 
       return Center(child: svgWidget);
     }
@@ -2409,9 +2439,9 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     List<Color>? gradientColors = _parseGradient(colorStr);
 
     // Default icon size is based on height
-    double size = (safeDouble(layer['size']) ??
-            (nativeH > 0 ? nativeH : 24.0)) *
-        scale;
+    double size = (safeDouble(layer['size']) ?? (nativeH > 0 ? nativeH : 24.0)) * scale;
+    final double minEnforced = (nativeH > 0 ? nativeH : 24.0) * 0.30;
+    size = math.max(size, minEnforced);
 
     Widget iconWidget = FaIcon(
       iconData,

@@ -8,6 +8,7 @@ import '../config/app_config.dart';
 import 'subscription_controller.dart';
 import '../services/notification_service.dart';
 import 'app_update_controller.dart';
+import 'native_editor_controller.dart';
 
 class HomeController extends GetxController {
   var isLoading = true.obs;
@@ -147,6 +148,24 @@ class HomeController extends GetxController {
     upcomingFestivals.clear();
     customCategories.clear();
     profileCategories.clear();
+
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.remove('cached_biz_id');
+      prefs.remove('cached_biz_name');
+      prefs.remove('cached_biz_logo');
+      prefs.remove('cached_biz_phone');
+      prefs.remove('cached_biz_email');
+      prefs.remove('cached_biz_website');
+      prefs.remove('cached_biz_address');
+      prefs.remove('cached_biz_category_id');
+      prefs.remove('cached_extra_emails');
+      prefs.remove('cached_extra_phones');
+      prefs.remove('cached_extra_websites');
+      prefs.remove('cached_extra_addresses');
+      prefs.remove('cached_hidden_frame_fields');
+      prefs.remove('cached_business_sub_category_ids');
+      prefs.remove('cached_business_type_ids');
+    });
   }
 
   Future<void> loadBusinessInfo() async {
@@ -156,8 +175,30 @@ class HomeController extends GetxController {
       // Load from cache instantly so Hot Restart doesn't cause "Profile Incomplete"
       if (businessId.value.isEmpty) {
         businessId.value = prefs.getString('cached_biz_id') ?? '';
+        businessName.value = prefs.getString('cached_biz_name') ?? '';
+        businessLogo.value = prefs.getString('cached_biz_logo') ?? '';
         businessPhone.value = prefs.getString('cached_biz_phone') ?? '';
         businessEmail.value = prefs.getString('cached_biz_email') ?? '';
+        businessWebsite.value = prefs.getString('cached_biz_website') ?? '';
+        businessAddress.value = prefs.getString('cached_biz_address') ?? '';
+        businessCategoryId.value = prefs.getString('cached_biz_category_id') ?? '';
+        
+        try {
+          extraEmails.value = List<String>.from(jsonDecode(prefs.getString('cached_extra_emails') ?? '[]'));
+          extraPhones.value = List<String>.from(jsonDecode(prefs.getString('cached_extra_phones') ?? '[]'));
+          extraWebsites.value = List<String>.from(jsonDecode(prefs.getString('cached_extra_websites') ?? '[]'));
+          extraAddresses.value = List<String>.from(jsonDecode(prefs.getString('cached_extra_addresses') ?? '[]'));
+          hiddenFrameFields.value = Map<String, dynamic>.from(jsonDecode(prefs.getString('cached_hidden_frame_fields') ?? '{}'));
+          businessSubCategoryIds.value = List<String>.from(jsonDecode(prefs.getString('cached_business_sub_category_ids') ?? '[]'));
+          businessTypeIds.value = List<String>.from(jsonDecode(prefs.getString('cached_business_type_ids') ?? '[]'));
+        } catch (_) {}
+
+        // Notify editor immediately using cached profile values
+        if (Get.isRegistered<NativeEditorController>()) {
+          final editor = Get.find<NativeEditorController>();
+          editor.reapplyBusinessProfile();
+          editor.fetchFramesList();
+        }
       }
 
       final userId = prefs.getString('userId') ?? '';
@@ -194,8 +235,12 @@ class HomeController extends GetxController {
         
         // Save to cache for hot restarts
         prefs.setString('cached_biz_id', businessId.value);
+        prefs.setString('cached_biz_name', businessName.value);
+        prefs.setString('cached_biz_logo', businessLogo.value);
         prefs.setString('cached_biz_phone', businessPhone.value);
         prefs.setString('cached_biz_email', businessEmail.value);
+        prefs.setString('cached_biz_website', businessWebsite.value);
+        prefs.setString('cached_biz_address', businessAddress.value);
         
         // businessCategoryId comes from nested businessCategory object OR top-level
         if (biz['businessCategory'] != null && biz['businessCategory']['businessCategoryId'] != null) {
@@ -205,11 +250,17 @@ class HomeController extends GetxController {
         } else if (biz['businessCategoryId'] != null) {
           businessCategoryId.value = biz['businessCategoryId'].toString();
         }
+        prefs.setString('cached_biz_category_id', businessCategoryId.value);
         
         extraEmails.value = (biz['extra_emails'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
         extraPhones.value = (biz['extra_mobile_numbers'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
         extraWebsites.value = (biz['extra_websites'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
         extraAddresses.value = (biz['extra_addresses'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
+        
+        prefs.setString('cached_extra_emails', jsonEncode(extraEmails));
+        prefs.setString('cached_extra_phones', jsonEncode(extraPhones));
+        prefs.setString('cached_extra_websites', jsonEncode(extraWebsites));
+        prefs.setString('cached_extra_addresses', jsonEncode(extraAddresses));
         
         if (biz['hidden_frame_fields'] != null) {
           if (biz['hidden_frame_fields'] is Map) {
@@ -220,10 +271,21 @@ class HomeController extends GetxController {
         } else {
           hiddenFrameFields.value = {};
         }
+        prefs.setString('cached_hidden_frame_fields', jsonEncode(hiddenFrameFields));
 
         businessSubCategoryIds.value = (biz['business_sub_category_ids'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
         businessTypeIds.value = (biz['business_type_ids'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
         products.value = biz['products'] as List<dynamic>? ?? [];
+        
+        prefs.setString('cached_business_sub_category_ids', jsonEncode(businessSubCategoryIds));
+        prefs.setString('cached_business_type_ids', jsonEncode(businessTypeIds));
+
+        // Notify editor to refresh placeholders and reload frames list once business details are loaded
+        if (Get.isRegistered<NativeEditorController>()) {
+          final editor = Get.find<NativeEditorController>();
+          editor.reapplyBusinessProfile();
+          editor.fetchFramesList();
+        }
       }
     } catch (e, st) {
       // Business info fetch failed

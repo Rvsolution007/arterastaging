@@ -1689,14 +1689,36 @@ class NativeEditorController extends GetxController {
       // PASS 2: Apply colors to ICON layers - match paired text color (same as web editor)
       for (var newLayer in newLayers) {
         final String lname = (newLayer['name'] ?? newLayer['id'] ?? '').toString().toLowerCase();
-        bool isIcon = (newLayer['type'] == 'image' || newLayer['type'] == 'icon') && (
-          ['phone', 'email', 'website', 'address', 'social'].contains(newLayer['_businessKey']) ||
-          ['phone', 'email', 'website', 'address', 'call', 'mobile', 'contact', 'whatsapp', 'tel',
-           'mail', 'web', 'url', 'location', 'icon', 'facebook', 'instagram', 'twitter', 'youtube',
-           'social', 'linkedin'].any((key) => lname.contains(key)) ||
-          newLayer['_originalType'] == 'icon' ||
-          (newLayer['_source_meta'] is Map && newLayer['_source_meta']['type'] == 'icon')
-        );
+        
+        bool isModernIcon = newLayer['type'] == 'icon' || (newLayer['_source_meta'] is Map && newLayer['_source_meta']['type'] == 'icon');
+        bool isContactOrSocial = false;
+        
+        if (isModernIcon) {
+          // For modern vector icons, check explicit business key or the actual icon name from source_meta
+          String iconName = '';
+          if (newLayer['_source_meta'] is Map) {
+            iconName = (newLayer['_source_meta']['iconName'] ?? '').toString().toLowerCase();
+          }
+          String bizKey = (newLayer['_businessKey'] ?? '').toString().toLowerCase();
+          
+          bool hasContactKey = ['phone', 'email', 'website', 'address', 'social'].contains(bizKey);
+          bool hasContactName = ['phone', 'email', 'website', 'address', 'call', 'mobile', 'contact', 'whatsapp', 'tel',
+                                 'mail', 'web', 'url', 'location', 'facebook', 'instagram', 'twitter', 'youtube',
+                                 'social', 'linkedin'].any((key) => iconName.contains(key));
+          
+          isContactOrSocial = hasContactKey || hasContactName;
+        } else {
+          // For legacy image-based icons, fallback to checking the layer name
+          String bizKey = (newLayer['_businessKey'] ?? '').toString().toLowerCase();
+          bool hasContactKey = ['phone', 'email', 'website', 'address', 'social'].contains(bizKey);
+          bool hasContactName = ['phone', 'email', 'website', 'address', 'call', 'mobile', 'contact', 'whatsapp', 'tel',
+                                 'mail', 'web', 'url', 'location', 'icon', 'facebook', 'instagram', 'twitter', 'youtube',
+                                 'social', 'linkedin'].any((key) => lname.contains(key));
+                                 
+          isContactOrSocial = hasContactKey || hasContactName || newLayer['_originalType'] == 'icon';
+        }
+
+        bool isIcon = (newLayer['type'] == 'image' || newLayer['type'] == 'icon') && isContactOrSocial;
         if (!isIcon) continue;
         
         // Determine the business key for this icon to find matching text
@@ -1723,7 +1745,17 @@ class NativeEditorController extends GetxController {
               else if (tname.contains('address') || tname.contains('location')) textBizKey = 'address';
             }
             if (textBizKey == iconBizKey) {
-              matchedTextColor = textLayer['font_color'] ?? textLayer['color'];
+              String iconRawColor = (newLayer['tint_color'] ?? newLayer['color'] ?? newLayer['fill'] ?? '').toString().toLowerCase();
+              bool iconHasCustomColor = iconRawColor.isNotEmpty && 
+                                        iconRawColor != '0xff000000' && 
+                                        iconRawColor != '#000000' && 
+                                        iconRawColor != '0xffffffff' && 
+                                        iconRawColor != '#ffffff';
+              
+              bool textChanged = textLayer['color'] != (textLayer['original_color'] ?? textLayer['color']);
+              if (textChanged || !iconHasCustomColor) {
+                matchedTextColor = textLayer['font_color'] ?? textLayer['color'];
+              }
               break;
             }
           }
@@ -1759,8 +1791,18 @@ class NativeEditorController extends GetxController {
               double distSq = dx * dx + dy * dy;
               
               if (distSq < minDistanceSq) {
-                minDistanceSq = distSq;
-                matchedTextColor = textLayer['font_color'] ?? textLayer['color'];
+                String iconRawColor = (newLayer['tint_color'] ?? newLayer['color'] ?? newLayer['fill'] ?? '').toString().toLowerCase();
+                bool iconHasCustomColor = iconRawColor.isNotEmpty && 
+                                          iconRawColor != '0xff000000' && 
+                                          iconRawColor != '#000000' && 
+                                          iconRawColor != '0xffffffff' && 
+                                          iconRawColor != '#ffffff';
+                
+                bool textChanged = textLayer['color'] != (textLayer['original_color'] ?? textLayer['color']);
+                if (textChanged || !iconHasCustomColor) {
+                  minDistanceSq = distSq;
+                  matchedTextColor = textLayer['font_color'] ?? textLayer['color'];
+                }
               }
             }
           }
@@ -1770,14 +1812,17 @@ class NativeEditorController extends GetxController {
         if (_applyDynamicTextColor(newLayer, templateIsDark, shapeLayers, matchedColor: matchedTextColor)) {
           needsRefresh = true;
         }
+        // Mark this layer so PASS 3 does not re-process and override the color
+        newLayer['_pass2_colored'] = true;
       }
       
       // PASS 3: Apply colors to general ICON-TYPE layers (type=='icon' from web editor icon picker)
       // These are distinct from PASS 2 contact icons.
       for (var newLayer in newLayers) {
         if (newLayer['type'] == 'icon') {
-          // Skip if it was already processed as a contact icon in PASS 2 (has business key)
-          if (newLayer['_businessKey'] != null && ['phone', 'email', 'website', 'address', 'social'].contains(newLayer['_businessKey'])) {
+          // Skip if already processed by PASS 2 — this prevents overriding matched colors
+          if (newLayer['_pass2_colored'] == true) {
+            debugPrint('[BRIGHTNESS] PASS3: SKIPPING "${newLayer['name']}" — already colored by PASS 2');
             continue;
           }
           debugPrint('[BRIGHTNESS] PASS3: Found type=icon layer: "${newLayer['name']}"');
@@ -1845,6 +1890,9 @@ class NativeEditorController extends GetxController {
 
     final String layerName = (layer['name'] ?? layer['id'] ?? '').toString();
     debugPrint('[COLOR_DIAG] ✅ PROCEEDING for "$layerName" (isText=$isText, isIcon=$isIcon)');
+    if (isIcon) {
+      debugPrint('[COLOR_DIAG] 🎨 "$layerName" color_fields: tint_color=${layer['tint_color']}, color=${layer['color']}, fill=${layer['fill']}, font_color=${layer['font_color']}, original_color=${layer['original_color']}, _pass2_colored=${layer['_pass2_colored']}');
+    }
     
     final double textX = safeDouble(layer['x'] ?? 0);
     final double textY = safeDouble(layer['y'] ?? 0);
@@ -1890,13 +1938,22 @@ class NativeEditorController extends GetxController {
     }
 
     if (layer['original_color'] == null) {
-      layer['original_color'] = (isIcon ? (layer['tint_color'] ?? layer['color']) : (layer['color'] ?? layer['tint_color'])) ?? (templateIsDark ? '0xFFFFFFFF' : '0xFF000000');
+      // Priority chain: tint_color → color → fill → font_color → brightness fallback
+      // Web editor exports icon color to 'fill' (legacy) and 'color' (legacy icon type).
+      // Schema export uses 'tint_color'. Some old templates may only have 'fill'.
+      final String? fillStr = (layer['fill'] is String) ? layer['fill'] : null;
+      layer['original_color'] = (isIcon
+        ? (layer['tint_color'] ?? layer['color'] ?? fillStr ?? layer['font_color'])
+        : (layer['color'] ?? layer['tint_color'] ?? layer['font_color']))
+        ?? (templateIsDark ? '0xFFFFFFFF' : '0xFF000000');
     }
 
     bool changed = false;
     String newColor;
     if (matchedColor != null) {
       newColor = matchedColor;
+      // Persist the matched color as the new "original" so future calls don't revert to fallback
+      layer['original_color'] = matchedColor;
     } else {
       bool isBgDark = overlapsShape ? shapeIsDark : templateIsDark;
       final String origColorStr = layer['original_color'].toString();

@@ -1727,6 +1727,43 @@ class NativeEditorController extends GetxController {
               break;
             }
           }
+        } else {
+          // SPATIAL MATCHING: For generic icons (like Icon_2), find the closest contact text field
+          double minDistanceSq = 90000; // max distance 300px (300*300)
+          
+          final double ix = safeDouble(newLayer['x']);
+          final double iy = safeDouble(newLayer['y']);
+          final double iw = safeDouble(newLayer['w'] ?? newLayer['width']);
+          final double ih = safeDouble(newLayer['h'] ?? newLayer['height']);
+          final double iconCenterX = ix + iw / 2;
+          final double iconCenterY = iy + ih / 2;
+          
+          for (var textLayer in newLayers) {
+            if (textLayer['type'] != 'text') continue;
+            String? textBizKey = textLayer['_businessKey']?.toString();
+            final String tname = (textLayer['name'] ?? textLayer['id'] ?? '').toString().toLowerCase();
+            
+            bool isContactText = (textBizKey != null && ['phone', 'email', 'website', 'address'].contains(textBizKey)) ||
+                                 tname.contains('phone') || tname.contains('email') || tname.contains('web') || tname.contains('address');
+            
+            if (isContactText) {
+              final double tx = safeDouble(textLayer['x']);
+              final double ty = safeDouble(textLayer['y']);
+              final double tw = safeDouble(textLayer['w'] ?? textLayer['width']);
+              final double th = safeDouble(textLayer['h'] ?? textLayer['height']);
+              final double textCenterX = tx + tw / 2;
+              final double textCenterY = ty + th / 2;
+              
+              double dx = iconCenterX - textCenterX;
+              double dy = iconCenterY - textCenterY;
+              double distSq = dx * dx + dy * dy;
+              
+              if (distSq < minDistanceSq) {
+                minDistanceSq = distSq;
+                matchedTextColor = textLayer['font_color'] ?? textLayer['color'];
+              }
+            }
+          }
         }
         
         String layerName = (newLayer['name'] ?? '').toString();

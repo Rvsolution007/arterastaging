@@ -20,7 +20,7 @@
     console.log('[TEMPLATE_BUILDER] v3.0 loaded — fill control + vector paths + complete effects');
     // ── Render Version: ALL rendering logic is versioned. Current code = version 1. ──
     // ── Future rendering changes MUST increment this and add version-gated code paths. ──
-    window.CURRENT_RENDER_VERSION = 5;
+    window.CURRENT_RENDER_VERSION = 6;
     const CURRENT_RENDER_VERSION = window.CURRENT_RENDER_VERSION;
     try {
     
@@ -4951,6 +4951,10 @@
                     o.placeholder=obj.customType==='placeholder'?{field_type:obj.placeholderKey,required:true}:null;
                     o.kind = (obj.type === 'textbox') ? 'Paragraph' : 'Point';
                     o.textKind = (obj.type === 'textbox') ? 'paragraph' : 'point';
+                    // V6: Export explicit paragraph width for accurate Flutter rendering
+                    if (obj.type === 'textbox') {
+                        o.paragraphWidth = w;  // Already baked: obj.width * scaleX
+                    }
                 } else if (!obj.is_image_placeholder && obj.customType !== 'image' && (obj.customType==='shape' || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type))) {
                     o.type = 'shape';
                     o.shapeType = obj.type; // e.g. 'rect', 'ellipse'
@@ -5046,7 +5050,7 @@
                 if ((obj.customType==='shape' || obj.customType==='icon' || obj.is_shape) && obj.fill && typeof obj.fill === 'string') imgData.tint_color = obj.fill;
                 j.layers.push(imgData);
             }
-            else if (obj.type==='i-text'||obj.type==='text'||obj.type==='textbox') j.layers.push({name:obj.customName||'text_'+z,type:'text',kind: (obj.type==='textbox'?'Paragraph':'Point'),textKind: (obj.type==='textbox'?'paragraph':'point'),text:obj.text,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,color:obj.fill,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,size:fontSize,font_size:fontSize,font:obj.fontFamily,font_name:obj.fontFamily,justification:obj.textAlign||'left',letterSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16,opacity:obj.opacity??1,rotation:obj.angle||0,visible:obj.visible!==false,flipX:obj.flipX||false,flipY:obj.flipY||false,ai_role:obj.ai_role||null,ai_max_chars:obj.ai_max_chars||null});
+            else if (obj.type==='i-text'||obj.type==='text'||obj.type==='textbox') j.layers.push({name:obj.customName||'text_'+z,type:'text',kind: (obj.type==='textbox'?'Paragraph':'Point'),textKind: (obj.type==='textbox'?'paragraph':'point'),paragraphWidth: (obj.type==='textbox' ? w : undefined),text:obj.text,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,color:obj.fill,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,size:fontSize,font_size:fontSize,font:obj.fontFamily,font_name:obj.fontFamily,justification:obj.textAlign||'left',letterSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16,opacity:obj.opacity??1,rotation:obj.angle||0,visible:obj.visible!==false,flipX:obj.flipX||false,flipY:obj.flipY||false,ai_role:obj.ai_role||null,ai_max_chars:obj.ai_max_chars||null});
             else if (!obj.is_image_placeholder && obj.customType !== 'image' && (obj.customType==='shape' || obj.customType==='icon' || obj.is_shape || ['rect','circle','triangle','path','polygon','line'].includes(obj.type))) {
                 // ══════════════════════════════════════════════════════════════════
                 // RENDER VERSION 4: Save shapes/icons as VECTOR DATA, not PNG

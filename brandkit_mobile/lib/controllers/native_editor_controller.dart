@@ -158,6 +158,9 @@ class NativeEditorController extends GetxController {
 
     // Default render_version to 1 for legacy frames without versioning
     templateConfig['render_version'] ??= 1;
+    
+    // FORCE TO 6 FOR DIAGNOSIS & TESTING
+    templateConfig['render_version'] = 6;
 
     if (editorType == 'business_custom_frame') {
       _injectDynamicBusinessFrame();

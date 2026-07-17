@@ -1890,7 +1890,7 @@ class NativeEditorController extends GetxController {
     }
 
     if (layer['original_color'] == null) {
-      layer['original_color'] = layer['color'] ?? layer['tint_color'] ?? (templateIsDark ? '0xFFFFFFFF' : '0xFF000000');
+      layer['original_color'] = (isIcon ? (layer['tint_color'] ?? layer['color']) : (layer['color'] ?? layer['tint_color'])) ?? (templateIsDark ? '0xFFFFFFFF' : '0xFF000000');
     }
 
     bool changed = false;

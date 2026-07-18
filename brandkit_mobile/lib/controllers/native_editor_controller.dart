@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'dart:ui' as ui;
+import 'dart:math';
 import '../config/app_config.dart';
 
 import '../services/api_service.dart';
@@ -1115,7 +1116,12 @@ class NativeEditorController extends GetxController {
       });
 
       // FIX: If the frame JSON lacks a background layer, but provides a full_url, auto-create the frame background
-      if (!hasBg && newFrameJson['full_url'] != null && newFrameJson['full_url'].toString().isNotEmpty) {
+      // Only do this for legacy frames (V1-V3) since V4+ frames are fully constructed from component layers.
+      final int renderVersion = (newFrameJson['render_version'] is int) 
+          ? newFrameJson['render_version'] 
+          : safeDouble(newFrameJson['render_version'] ?? 1).toInt();
+
+      if (renderVersion < 4 && !hasBg && newFrameJson['full_url'] != null && newFrameJson['full_url'].toString().isNotEmpty) {
         newLayers.insert(0, {
           'name': '_frame_bg',
           'id': '_frame_bg',
@@ -1677,10 +1683,12 @@ class NativeEditorController extends GetxController {
         }
       }
 
+      int renderVersion = (templateConfig['render_version'] ?? 1) as int;
+
       // PASS 1: Apply colors to TEXT layers first
       for (var newLayer in newLayers) {
         if (newLayer['type'] == 'text') {
-          if (_applyDynamicTextColor(newLayer, templateIsDark, shapeLayers)) {
+          if (_applyDynamicTextColor(newLayer, templateIsDark, shapeLayers, renderVersion: renderVersion)) {
             needsRefresh = true;
           }
         }
@@ -1730,22 +1738,18 @@ class NativeEditorController extends GetxController {
         }
         
         String layerName = (newLayer['name'] ?? '').toString();
-        if (_applyDynamicTextColor(newLayer, templateIsDark, shapeLayers, matchedColor: matchedTextColor)) {
+        if (_applyDynamicTextColor(newLayer, templateIsDark, shapeLayers, matchedColor: matchedTextColor, renderVersion: renderVersion)) {
           needsRefresh = true;
         }
       }
       
-      // PASS 3: Apply colors to general ICON-TYPE layers (type=='icon' from web editor icon picker)
-      // These are distinct from PASS 2 contact icons.
-      for (var newLayer in newLayers) {
-        if (newLayer['type'] == 'icon') {
-          // Skip if it was already processed as a contact icon in PASS 2 (has business key)
-          if (newLayer['_businessKey'] != null && ['phone', 'email', 'website', 'address', 'social'].contains(newLayer['_businessKey'])) {
-            continue;
-          }
-          debugPrint('[BRIGHTNESS] PASS3: Found type=icon layer: "${newLayer['name']}"');
-          if (_applyDynamicTextColor(newLayer, templateIsDark, shapeLayers)) {
-            needsRefresh = true;
+      // PASS 3: Apply colors to general ICON-TYPE layers (V7+)
+      if (renderVersion >= 7) {
+        for (var newLayer in newLayers) {
+          if (newLayer['type'] == 'icon' && newLayer['_pass2_colored'] != true) {
+            if (_applyDynamicTextColor(newLayer, templateIsDark, shapeLayers, renderVersion: renderVersion)) {
+              needsRefresh = true;
+            }
           }
         }
       }
@@ -1763,7 +1767,7 @@ class NativeEditorController extends GetxController {
     Map<String, dynamic> layer,
     bool templateIsDark,
     List<Map<String, dynamic>> shapeLayers,
-    {String? matchedColor}
+    {String? matchedColor, int renderVersion = 1}
   ) {
     final String diagName = (layer['name'] ?? layer['id'] ?? '').toString();
     debugPrint('[COLOR_DIAG] Starting _applyDynamicTextColor for layer: "$diagName" (type: ${layer['type']})');
@@ -1779,21 +1783,20 @@ class NativeEditorController extends GetxController {
 
     bool isText = layer['type'] == 'text';
     final String lname = (layer['name'] ?? layer['id'] ?? '').toString().toLowerCase();
-    bool isContactIcon = layer['type'] == 'image' && (
+    
+    // Only target true contact/social icons. Do not broadly target all "icon" layers.
+    bool isContactIcon = (layer['type'] == 'image' || layer['type'] == 'icon') && (
                   ['phone', 'email', 'website', 'address', 'social'].contains(layer['_businessKey']) ||
                   ['phone', 'email', 'website', 'address', 'call', 'mobile', 'contact', 'whatsapp', 'tel',
-                   'mail', 'web', 'url', 'location', 'icon', 'facebook', 'instagram', 'twitter', 'youtube',
-                   'social', 'linkedin'].any((key) => lname.contains(key)) ||
-                  layer['_originalType'] == 'icon' ||
-                  (layer['_source_meta'] is Map && layer['_source_meta']['type'] == 'icon')
+                   'mail', 'web', 'url', 'location', 'facebook', 'instagram', 'twitter', 'youtube',
+                   'social', 'linkedin'].any((key) => lname.contains(key))
                   );
-    // NEW: Also detect type=='icon' layers (from web editor icon picker, e.g. Iconify/FontAwesome)
-    bool isIconType = layer['type'] == 'icon';
-    bool isIcon = isContactIcon || isIconType;
-    debugPrint('[COLOR_DIAG] isText=$isText, isContactIcon=$isContactIcon, isIconType=$isIconType, isIcon=$isIcon');
 
-    // DO NOT override colors for frame layers — EXCEPT for text and contact icons and icon-type layers.
-    // If it's a frame layer and not a text/icon, skip it.
+    // For V7+, we allow all icons to be processed by the Smart Color Adaptation logic.
+    bool isIcon = renderVersion >= 7 ? (layer['type'] == 'icon' || isContactIcon) : isContactIcon;
+    debugPrint('[COLOR_DIAG] isText=$isText, isContactIcon=$isContactIcon, isIcon=$isIcon');
+
+    // DO NOT override colors for frame layers — EXCEPT for text and contact icons.
     if (layer['_is_frame_layer'] == true || layer['_isFrameLayer'] == true) {
       if (!isText && !isIcon) {
         debugPrint('[COLOR_DIAG] ❌ SKIPPED: Regular frame layer that is not text or icon');
@@ -1802,7 +1805,7 @@ class NativeEditorController extends GetxController {
     }
 
     if (!isText && !isIcon) {
-      debugPrint('[COLOR_DIAG] ❌ SKIPPED: Not text, contact icon, or icon-type layer');
+      debugPrint('[COLOR_DIAG] ❌ SKIPPED: Not text or contact icon');
       return false;
     }
 
@@ -1863,7 +1866,53 @@ class NativeEditorController extends GetxController {
     } else if (overlapsShape) {
       newColor = shapeIsDark ? '0xFFFFFFFF' : '0xFF000000';
     } else {
-      newColor = templateIsDark ? '0xFFFFFFFF' : '0xFF000000';
+      bool isBgDark = overlapsShape ? shapeIsDark : templateIsDark;
+      final String origColorStr = layer['original_color'].toString();
+      final Color origColor = _parseColor(origColorStr, fallback: isBgDark ? Colors.white : Colors.black);
+
+      if (renderVersion >= 7) {
+        // V7+ WCAG Smart Contrast Logic
+        Color bgColor = overlapsShape 
+            ? _parseColor((shapeLayers.firstWhere((s) {
+                final double sx = safeDouble(s['x'] ?? 0);
+                final double sy = safeDouble(s['y'] ?? 0);
+                final double sw = safeDouble(s['w'] ?? s['width'] ?? 0);
+                final double sh = safeDouble(s['h'] ?? s['height'] ?? 0);
+                return textCenterX >= sx && textCenterX <= (sx + sw) && textCenterY >= sy && textCenterY <= (sy + sh);
+              }, orElse: () => {'fill': isBgDark ? '#000000' : '#FFFFFF'})['fill'] ?? (isBgDark ? '#000000' : '#FFFFFF')).toString(), fallback: isBgDark ? Colors.black : Colors.white)
+            : (isBgDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF));
+        
+        double contrastRatio = _computeContrastRatio(origColor, bgColor);
+        
+        if (contrastRatio >= 2.0) {
+          // It's readable! Keep the original color.
+          newColor = origColorStr;
+        } else {
+          // Clash! It's not readable. Override to White or Black based on background.
+          newColor = isBgDark ? '0xFFFFFFFF' : '0xFF000000';
+        }
+        debugPrint('[COLOR_DIAG] V7 SmartColor: bgIsDark=$isBgDark, origColor=$origColor, bgColor=$bgColor, contrast=$contrastRatio -> Result: $newColor');
+      } else {
+        // V1-V6 Legacy Logic
+        final double origLuminance = (0.299 * origColor.red + 0.587 * origColor.green + 0.114 * origColor.blue);
+        bool isOrigDark = origLuminance < 128;
+        
+        if (isBgDark) {
+          // Background is Dark. Needs Light color.
+          if (!isOrigDark) {
+            newColor = origColorStr; // Already light, keep original
+          } else {
+            newColor = '0xFFFFFFFF'; // Dark on dark, force white
+          }
+        } else {
+          // Background is Light. Needs Dark color.
+          if (isOrigDark) {
+            newColor = origColorStr; // Already dark, keep original
+          } else {
+            newColor = '0xFF000000'; // Light on light, force black
+          }
+        }
+      }
     }
     if (isText) {
       debugPrint('[COLOR] TEXT "$layerName" → templateIsDark=$templateIsDark overlapsShape=$overlapsShape → color=$newColor (was: ${layer['color']})');
@@ -1871,7 +1920,7 @@ class NativeEditorController extends GetxController {
       layer['color'] = newColor;
       layer['font_color'] = newColor;
     } else if (isIcon) {
-      debugPrint('[COLOR] ICON "$layerName" → templateIsDark=$templateIsDark overlapsShape=$overlapsShape → tint=$newColor (was: ${layer['tint_color']}, isIconType=$isIconType)');
+      debugPrint('[COLOR] ICON "$layerName" → templateIsDark=$templateIsDark overlapsShape=$overlapsShape → tint=$newColor (was: ${layer['tint_color']})');
       if (layer['tint_color'] != newColor || layer['color'] != newColor) changed = true;
       layer['tint_color'] = newColor;
       layer['color'] = newColor;
@@ -1929,6 +1978,24 @@ class NativeEditorController extends GetxController {
     }
     
     return fallback;
+  }
+
+  double _computeContrastRatio(Color fg, Color bg) {
+    double fgL = _relativeLuminance(fg);
+    double bgL = _relativeLuminance(bg);
+    double lighter = max(fgL, bgL);
+    double darker = min(fgL, bgL);
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  double _relativeLuminance(Color c) {
+    double r = c.red / 255.0;
+    double g = c.green / 255.0;
+    double b = c.blue / 255.0;
+    r = r <= 0.03928 ? r / 12.92 : pow((r + 0.055) / 1.055, 2.4) as double;
+    g = g <= 0.03928 ? g / 12.92 : pow((g + 0.055) / 1.055, 2.4) as double;
+    b = b <= 0.03928 ? b / 12.92 : pow((b + 0.055) / 1.055, 2.4) as double;
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   }
 }
 

@@ -20,7 +20,7 @@
     console.log('[TEMPLATE_BUILDER] v3.0 loaded — fill control + vector paths + complete effects');
     // ── Render Version: ALL rendering logic is versioned. Current code = version 1. ──
     // ── Future rendering changes MUST increment this and add version-gated code paths. ──
-    window.CURRENT_RENDER_VERSION = 5;
+    window.CURRENT_RENDER_VERSION = 7;
     const CURRENT_RENDER_VERSION = window.CURRENT_RENDER_VERSION;
     try {
     
@@ -497,6 +497,157 @@
         if (noSelect) noSelect.style.display = 'block';
     });
     canvas.on('object:modified', updateProps);
+
+    // ══════════════════════════════════════════════════════════════════════
+    // 🔍 COMPREHENSIVE ELEMENT DIAGNOSTICS — Change Detection & Parameter Diff
+    // Captures before-state on selection, logs full diff on every modification.
+    // ══════════════════════════════════════════════════════════════════════
+    (function() {
+        var _diagSnapshot = {};  // Stores per-object snapshots keyed by customName
+
+        // Helper: extract all relevant properties from a fabric object by type
+        function _captureObjectState(obj) {
+            if (!obj) return {};
+            var state = {
+                // Common properties
+                name: obj.customName || obj.id || '(unnamed)',
+                type: obj.type,
+                customType: obj.customType || '',
+                left: Math.round(obj.left * 100) / 100,
+                top: Math.round(obj.top * 100) / 100,
+                width: Math.round((obj.width || 0) * 100) / 100,
+                height: Math.round((obj.height || 0) * 100) / 100,
+                scaleX: Math.round((obj.scaleX || 1) * 10000) / 10000,
+                scaleY: Math.round((obj.scaleY || 1) * 10000) / 10000,
+                angle: obj.angle || 0,
+                opacity: Math.round((obj.opacity != null ? obj.opacity : 1) * 100) / 100,
+                flipX: obj.flipX || false,
+                flipY: obj.flipY || false,
+                visible: obj.visible !== false,
+                fill: (typeof obj.fill === 'string') ? obj.fill : (obj.fill ? JSON.stringify(obj.fill).substring(0, 80) : ''),
+                stroke: obj.stroke || '',
+                strokeWidth: obj.strokeWidth || 0
+            };
+
+            // Text-specific
+            var isText = (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox');
+            if (isText) {
+                state.text = (obj.text || '').substring(0, 100);
+                state.fontFamily = obj.fontFamily || '';
+                state.fontSize = obj.fontSize || 0;
+                state.fontWeight = obj.fontWeight || 'normal';
+                state.fontStyle = obj.fontStyle || 'normal';
+                state.textAlign = obj.textAlign || 'left';
+                state.charSpacing = obj.charSpacing || 0;
+                state.lineHeight = Math.round((obj.lineHeight || 1.16) * 1000) / 1000;
+                state.underline = obj.underline || false;
+                state.linethrough = obj.linethrough || false;
+            }
+
+            // Image-specific
+            if (obj.type === 'image') {
+                state.src = obj._element ? (obj._element.src || '').substring(0, 100) : '';
+                state.is_shape = obj.is_shape || false;
+                state.tint_color = obj.fill || '';
+                state._iconName = obj._iconName || '';
+            }
+
+            // Shape-specific (also rect, ellipse, polygon, path)
+            if (obj.customType === 'shape' || obj.type === 'rect' || obj.type === 'ellipse' || obj.type === 'polygon' || obj.type === 'path') {
+                state.rx = obj.rx || 0;
+                state.ry = obj.ry || 0;
+                state.shapeType = obj.type;
+            }
+
+            return state;
+        }
+
+        // On selection: snapshot the current state for comparison
+        function _snapshotOnSelect(e) {
+            var obj = e.selected ? e.selected[0] : (e.target || null);
+            if (!obj) return;
+            var key = obj.customName || obj.id || obj.__fabricIndex;
+            _diagSnapshot[key] = _captureObjectState(obj);
+        }
+
+        // On modified: diff against snapshot
+        function _diagOnModified(e) {
+            var obj = e.target;
+            if (!obj) return;
+            var key = obj.customName || obj.id || obj.__fabricIndex;
+            var before = _diagSnapshot[key] || {};
+            var after = _captureObjectState(obj);
+
+            // Compute diff
+            var changes = [];
+            var allKeys = Object.keys(after);
+            for (var i = 0; i < allKeys.length; i++) {
+                var k = allKeys[i];
+                if (k === 'name' || k === 'type' || k === 'customType') continue;
+                var bVal = before[k], aVal = after[k];
+                if (bVal === undefined) bVal = '(new)';
+                if (String(bVal) !== String(aVal)) {
+                    changes.push('  ' + k + ': ' + bVal + ' → ' + aVal);
+                }
+            }
+
+            if (changes.length === 0) return; // No meaningful change
+
+            // Determine element category
+            var isText = (obj.type === 'text' || obj.type === 'i-text' || obj.type === 'textbox');
+            var isShape = (obj.customType === 'shape');
+            var isImage = (obj.type === 'image' && !obj.is_shape && !obj._iconName);
+            var isIcon = (obj.type === 'image' && (obj.is_shape || obj._iconName));
+            var category = isText ? '📝 TEXT' : isShape ? '🟦 SHAPE' : isIcon ? '🎯 ICON' : isImage ? '🖼️ IMAGE' : '❓ OTHER';
+
+            console.log('%c╔══════════════════════════════════════════════════════════', 'color: #FF6B00; font-weight: bold');
+            console.log('%c║ [DIAG-CHANGE] ' + category + ' "' + (obj.customName || '?') + '"', 'color: #FF6B00; font-weight: bold');
+            console.log('%c║ Changes detected (' + changes.length + '):', 'color: #FF6B00');
+            for (var c = 0; c < changes.length; c++) {
+                console.log('%c║' + changes[c], 'color: #FFB347');
+            }
+            console.log('%c╚══════════════════════════════════════════════════════════', 'color: #FF6B00; font-weight: bold');
+
+            // Update snapshot for next comparison
+            _diagSnapshot[key] = after;
+        }
+
+        canvas.on('selection:created', _snapshotOnSelect);
+        canvas.on('selection:updated', _snapshotOnSelect);
+        canvas.on('object:modified', _diagOnModified);
+
+        // Also snapshot ALL objects after initial load completes
+        // (Deferred to allow _doRender + checkAllLoaded to finish)
+        var _diagInitTimer = setInterval(function() {
+            if (window._originalLoadedJson) {
+                clearInterval(_diagInitTimer);
+                var objs = canvas.getObjects();
+                console.log('%c[DIAG-INIT] Capturing initial state for ' + objs.length + ' objects...', 'color: #00BCD4; font-weight: bold');
+                for (var i = 0; i < objs.length; i++) {
+                    var o = objs[i];
+                    var k = o.customName || o.id || i;
+                    _diagSnapshot[k] = _captureObjectState(o);
+
+                    // Log initial state summary
+                    var isText = (o.type === 'text' || o.type === 'i-text' || o.type === 'textbox');
+                    var isShape = (o.customType === 'shape');
+                    var isImage = (o.type === 'image' && !o.is_shape && !o._iconName);
+                    var isIcon = (o.type === 'image' && (o.is_shape || o._iconName));
+                    var cat = isText ? '📝TEXT' : isShape ? '🟦SHAPE' : isIcon ? '🎯ICON' : isImage ? '🖼️IMG' : '❓';
+
+                    if (isText) {
+                        console.log('[DIAG-INIT] ' + cat + ' "' + k + '" | text="' + (o.text || '').substring(0, 30) + '" | font=' + o.fontFamily + ' ' + o.fontSize + 'px ' + o.fontWeight + ' ' + o.fontStyle + ' | align=' + o.textAlign + ' | color=' + o.fill + ' | pos=(' + Math.round(o.left) + ',' + Math.round(o.top) + ') | size=' + Math.round(o.width) + 'x' + Math.round(o.height * (o.scaleY || 1)) + ' | opacity=' + o.opacity + ' | charSpacing=' + o.charSpacing + ' | lineHeight=' + o.lineHeight + ' | flip=' + o.flipX + '/' + o.flipY);
+                    } else if (isShape) {
+                        console.log('[DIAG-INIT] ' + cat + ' "' + k + '" | shapeType=' + o.type + ' | fill=' + (typeof o.fill === 'string' ? o.fill : 'gradient') + ' | stroke=' + o.stroke + '/' + o.strokeWidth + ' | pos=(' + Math.round(o.left) + ',' + Math.round(o.top) + ') | size=' + Math.round(o.width * (o.scaleX || 1)) + 'x' + Math.round(o.height * (o.scaleY || 1)) + ' | opacity=' + o.opacity + ' | flip=' + o.flipX + '/' + o.flipY);
+                    } else if (isImage || isIcon) {
+                        var src = o._element ? (o._element.src || '').split('/').pop() : '?';
+                        console.log('[DIAG-INIT] ' + cat + ' "' + k + '" | src=' + src.substring(0, 40) + ' | tint=' + (o.fill || 'none') + ' | pos=(' + Math.round(o.left) + ',' + Math.round(o.top) + ') | size=' + Math.round(o.width * (o.scaleX || 1)) + 'x' + Math.round(o.height * (o.scaleY || 1)) + ' | scale=' + (o.scaleX || 1).toFixed(3) + '/' + (o.scaleY || 1).toFixed(3) + ' | opacity=' + o.opacity + ' | flip=' + o.flipX + '/' + o.flipY);
+                    }
+                }
+                console.log('%c[DIAG-INIT] ✅ Initial snapshot captured for ' + objs.length + ' objects. Any modifications will show a diff.', 'color: #4CAF50; font-weight: bold');
+            }
+        }, 500);
+    })();
 
     // ── Anti-stretch: convert scale → width + fontSize on text objects & width/height on rects ──
     canvas.on('object:modified', function(e) {

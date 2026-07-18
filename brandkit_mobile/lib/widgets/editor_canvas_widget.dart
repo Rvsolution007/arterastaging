@@ -662,8 +662,12 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
 
     // ── Read render version from config (default to 1 for legacy frames) ──
     // Future rendering changes will use: if (renderVersion >= 2) { ... }
-    final int renderVersion = (widget.config['render_version'] ?? 1) as int;
-
+    int renderVersion;
+    if (widget.config['render_version'] is int) {
+      renderVersion = widget.config['render_version'];
+    } else {
+      renderVersion = int.tryParse(widget.config['render_version']?.toString() ?? '1') ?? 1;
+    }
     // ══ DIAGNOSTICS ══
     debugPrint('╔══════════════════════════════════════════════');
     debugPrint('║ EditorCanvasWidget: ${layers.length} layers, '
@@ -1029,7 +1033,9 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       debugPrint('│   json.justification=${layer['justification']}  json.textAlign=${layer['textAlign']}');
       debugPrint('│   json.lineHeight=${layer['lineHeight']}  json.line_height=${layer['line_height']}');
       debugPrint('│   json.letterSpacing=${layer['letterSpacing']}  json.char_spacing=${layer['char_spacing']}');
+      debugPrint('│   json.wordSpacing=${layer['wordSpacing']}  json.opacity=${layer['opacity']}');
       debugPrint('│   json.scaleX=${layer['scaleX']}  json.scaleY=${layer['scaleY']}');
+      debugPrint('│   json.flipX=${layer['flipX']}  json.flipY=${layer['flipY']}');
       debugPrint('│   ── COMPUTED VALUES ──');
       debugPrint('│   rawSize=$rawSize  docPPI=$docPPI  ppiScale=$ppiScale  fontSize(design)=$fontSize');
       debugPrint('│   textKind=$textKind');
@@ -1072,6 +1078,8 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       debugPrint('│   json.x=${effectiveLayer['x']}  json.y=${effectiveLayer['y']}');
       debugPrint('│   json.w=${effectiveLayer['w']}  json.h=${effectiveLayer['h']}');
       debugPrint('│   json.src=${effectiveLayer['src']}');
+      debugPrint('│   json.opacity=${effectiveLayer['opacity']}  json.scaleX=${effectiveLayer['scaleX']}  json.scaleY=${effectiveLayer['scaleY']}');
+      debugPrint('│   json.flipX=${effectiveLayer['flipX']}  json.flipY=${effectiveLayer['flipY']}');
       debugPrint('│   json.is_background=${effectiveLayer['is_background']}  json.is_shape=${effectiveLayer['is_shape']}');
       debugPrint('│   json.is_placeholder=${effectiveLayer['is_placeholder']}  json.is_slot=${effectiveLayer['is_slot']}');
       debugPrint('│   scale=$scale');
@@ -1094,6 +1102,25 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
             _buildImageLayer(effectiveLayer, name, scale, nativeW, nativeH);
       }
     } else if (type == 'shape' || type == 'rect') {
+      // ══ SHAPE DIAGNOSTICS ══
+      debugPrint('┌─────────────────────────────────────────────────────────');
+      debugPrint('│ [SHAPE_DIAG] name="${effectiveLayer['name']}"  type=$type');
+      debugPrint('│   json.x=${effectiveLayer['x']}  json.y=${effectiveLayer['y']}');
+      debugPrint('│   json.w=${effectiveLayer['w']}  json.h=${effectiveLayer['h']}');
+      debugPrint('│   json.fill=${effectiveLayer['fill']}  json.fillColor=${effectiveLayer['fillColor']}');
+      debugPrint('│   json.stroke=${effectiveLayer['stroke']}  json.strokeWidth=${effectiveLayer['strokeWidth']}');
+      debugPrint('│   json.shapeType=${effectiveLayer['shapeType']}  json.shape_type=${effectiveLayer['shape_type']}');
+      debugPrint('│   json.rx=${effectiveLayer['rx']}  json.ry=${effectiveLayer['ry']}');
+      debugPrint('│   json.scaleX=${effectiveLayer['scaleX']}  json.scaleY=${effectiveLayer['scaleY']}');
+      debugPrint('│   json.opacity=${effectiveLayer['opacity']}  json.rotation=${effectiveLayer['rotation']}');
+      debugPrint('│   json.flipX=${effectiveLayer['flipX']}  json.flipY=${effectiveLayer['flipY']}');
+      debugPrint('│   json.is_shape=${effectiveLayer['is_shape']}  json.is_background=${effectiveLayer['is_background']}');
+      debugPrint('│   json.svgPath=${(effectiveLayer['svgPath'] ?? '').toString().length > 0 ? 'yes(${(effectiveLayer['svgPath'] ?? '').toString().length} chars)' : 'no'}');
+      debugPrint('│   json.cornerRadius=${effectiveLayer['cornerRadius']}  json.borderRadius=${effectiveLayer['borderRadius']}');
+      debugPrint('│   scale=$scale');
+      debugPrint('│   finalX=${safeDouble(effectiveLayer['x'] ?? 0) * scale}  finalY=${safeDouble(effectiveLayer['y'] ?? 0) * scale}');
+      debugPrint('│   finalW=${nativeW * scale}  finalH=${nativeH * scale}');
+      debugPrint('└─────────────────────────────────────────────────────────');
       // ── RENDER V4: Native vector shape rendering ──
       if (renderVersion >= 4) {
         content = _buildVectorShape(effectiveLayer, name, scale, nativeW, nativeH);
@@ -1102,6 +1129,24 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         content = _buildImageLayer(effectiveLayer, name, scale, nativeW, nativeH);
       }
     } else if (type == 'icon') {
+      // ══ ICON DIAGNOSTICS ══
+      debugPrint('┌─────────────────────────────────────────────────────────');
+      debugPrint('│ [ICON_DIAG] name="${effectiveLayer['name']}"  type=$type');
+      debugPrint('│   json.x=${effectiveLayer['x']}  json.y=${effectiveLayer['y']}');
+      debugPrint('│   json.w=${effectiveLayer['w']}  json.h=${effectiveLayer['h']}');
+      debugPrint('│   json.src=${effectiveLayer['src']}');
+      debugPrint('│   json.iconName=${effectiveLayer['iconName']}');
+      debugPrint('│   json._originalType=${effectiveLayer['_originalType']}');
+      debugPrint('│   json._source_meta=${effectiveLayer['_source_meta']}');
+      debugPrint('│   json.color=${effectiveLayer['color']}  json.fill=${effectiveLayer['fill']}');
+      debugPrint('│   json.tint_color=${effectiveLayer['tint_color']}  json.font_color=${effectiveLayer['font_color']}');
+      debugPrint('│   json.scaleX=${effectiveLayer['scaleX']}  json.scaleY=${effectiveLayer['scaleY']}');
+      debugPrint('│   json.opacity=${effectiveLayer['opacity']}  json.rotation=${effectiveLayer['rotation']}');
+      debugPrint('│   json.flipX=${effectiveLayer['flipX']}  json.flipY=${effectiveLayer['flipY']}');
+      debugPrint('│   scale=$scale');
+      debugPrint('│   finalX=${safeDouble(effectiveLayer['x'] ?? 0) * scale}  finalY=${safeDouble(effectiveLayer['y'] ?? 0) * scale}');
+      debugPrint('│   finalW=${nativeW * scale}  finalH=${nativeH * scale}');
+      debugPrint('└─────────────────────────────────────────────────────────');
       content =
           _buildIconLayer(effectiveLayer, name, scale, nativeW, nativeH);
     } else if (type == 'solid_rect') {

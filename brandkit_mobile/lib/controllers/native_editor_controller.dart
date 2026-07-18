@@ -620,6 +620,8 @@ class NativeEditorController extends GetxController {
           if (layer['type'] != 'image' || rawW > 200 || rawH > 200 || isShapeMarked) {
             if (rawW > 20 && rawH > 10) {
               shapeLayers.add({
+                'name': layerName,
+                'id': layer['id']?.toString() ?? '',
                 'x': safeDouble((layer['x'] ?? 0) as num),
                 'y': safeDouble((layer['y'] ?? 0) as num),
                 'w': rawW,
@@ -1329,6 +1331,8 @@ class NativeEditorController extends GetxController {
                double ph = safeDouble((newLayer['h'] ?? newLayer['height'] ?? 0) as num);
                 if (pw > 20 && ph > 10) {
                   shapeLayers.add({
+                    'name': layerName,
+                    'id': newLayer['id']?.toString() ?? '',
                     'x': px,
                     'y': py,
                     'w': pw,

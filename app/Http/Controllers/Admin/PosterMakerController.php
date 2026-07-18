@@ -1084,11 +1084,26 @@ class PosterMakerController extends Controller
                         file_put_contents($jsonPath, json_encode($json, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
                     }
 
-                    // Update DB column
+                    // Update DB column and layers_json
                     if ($targetVersion !== 'none') {
                         $frame->render_version = (int) $targetVersion;
-                        $frame->save();
                     }
+                    
+                    if ($jsonModified) {
+                        $jsonString = json_encode($json, JSON_UNESCAPED_SLASHES);
+                        $frame->layers_json = $jsonString;
+                        
+                        // Update the ZIP file directly so Web Editor load doesn't revert to old JSON
+                        $zipPath = public_path("uploads/template/{$frame->zip_name}.zip");
+                        if (file_exists($zipPath)) {
+                            $zip = new \ZipArchive();
+                            if ($zip->open($zipPath) === true) {
+                                $zip->addFromString('frame.json', $jsonString);
+                                $zip->close();
+                            }
+                        }
+                    }
+                    $frame->save();
 
                     // Invalidate Redis Cache
                     \Illuminate\Support\Facades\Cache::forget("template_json:{$frame->zip_name}");

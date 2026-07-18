@@ -1474,7 +1474,7 @@ class NativeEditorController extends GetxController {
           if (shape['tint_color'] != null && shape['tint_color'].toString().isNotEmpty) {
             final Color tint = _parseColor(shape['tint_color'].toString(), fallback: Colors.white);
             final double luminance = (0.299 * tint.red + 0.587 * tint.green + 0.114 * tint.blue);
-            shapeIsDark = luminance < 128;
+            shapeIsDark = luminance < 160;
             _brightnessCache[sUrl] = shapeIsDark;
           } else if (_brightnessCache.containsKey(sUrl)) {
             shapeIsDark = _brightnessCache[sUrl]!;
@@ -1498,7 +1498,7 @@ class NativeEditorController extends GetxController {
                   }
                   if (sampleCount > 0) {
                     double avgBrightness = totalLuminance / sampleCount;
-                    shapeIsDark = avgBrightness < 128;
+                    shapeIsDark = avgBrightness < 160;
                     _brightnessCache[sUrl] = shapeIsDark;
                     debugPrint('[SHAPE_BRIGHTNESS] Computed for ${shape['src']} -> avg=$avgBrightness, isDark=$shapeIsDark');
                   }
@@ -1870,7 +1870,7 @@ class NativeEditorController extends GetxController {
           
           // Compute brightness (standard formula)
           final double luminance = (0.299 * shapeColor.red + 0.587 * shapeColor.green + 0.114 * shapeColor.blue);
-          shapeIsDark = luminance < 128;
+          shapeIsDark = luminance < 160;
           
           debugPrint('[COLOR] "$layerName" overlaps shape at (${sx.toInt()},${sy.toInt()},${sw.toInt()},${sh.toInt()}) with fill="$fillVal" (shapeIsDark=$shapeIsDark)');
         }
@@ -1905,7 +1905,8 @@ class NativeEditorController extends GetxController {
         
         double contrastRatio = _computeContrastRatio(origColor, bgColor);
         
-        if (contrastRatio >= 2.0) {
+        // Use standard WCAG contrast ratio threshold of 4.5
+        if (contrastRatio >= 4.5) {
           // It's readable! Keep the original color.
           newColor = origColorStr;
         } else {

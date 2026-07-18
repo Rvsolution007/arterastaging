@@ -938,7 +938,11 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                       itemCount: controller.filteredFrames.length,
                       itemBuilder: (context, index) {
                         final frame = controller.filteredFrames[index];
-                        final thumbUrl = frame['thumbnail'] ?? frame['thumbnail_url'] ?? frame['full_url'] ?? '';
+                        final thumbBaseUrl = (frame['thumbnail'] ?? frame['thumbnail_url'] ?? frame['full_url'] ?? '').toString();
+                        final updatedAt = (frame['updated_at'] ?? '').toString();
+                        final thumbUrl = thumbBaseUrl.isNotEmpty && updatedAt.isNotEmpty
+                            ? '$thumbBaseUrl?v=${Uri.encodeComponent(updatedAt)}'
+                            : thumbBaseUrl;
                         return GestureDetector(
                           onTap: () {
                             // Try JSON string first, then parsed config object, then full_url fallback

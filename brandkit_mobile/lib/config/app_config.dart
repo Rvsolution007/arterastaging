@@ -20,7 +20,7 @@ class AppConfig {
   static String get baseUrl {
     switch (currentEnv) {
       case AppEnvironment.local:
-        return kIsWeb ? 'http://localhost/Artera/123456' : 'http://192.168.1.34/Artera/123456';
+        return 'http://192.168.1.34/Artera/123456';
       case AppEnvironment.staging:
         return 'https://stagingartera.arterapixel.com/123456';
       case AppEnvironment.production:

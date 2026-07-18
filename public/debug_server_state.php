@@ -240,3 +240,29 @@ try {
 }
 
 echo json_encode($results, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
+if (isset($_GET["action"]) && $_GET["action"] === "log") {
+    $log = file_get_contents(storage_path("logs/laravel.log"));
+    $lines = explode("\n", $log);
+    $debugLines = array_filter($lines, function($line) { return strpos($line, "ARTERA_DEBUG") !== false; });
+    echo implode("\n", array_slice($debugLines, -100));
+    exit;
+}
+
+
+if (isset($_GET["action"]) && $_GET["action"] === "test_frame") {
+    $dir = public_path("uploads/template/Frame_PEWA_1111_2/skins/Frame_PEWA_1111_2");
+    $files = glob($dir . "/*");
+    $res = [];
+    foreach($files as $f) {
+        $res[basename($f)] = [
+            "type" => filetype($f),
+            "is_link" => is_link($f),
+            "perms" => substr(sprintf("%o", fileperms($f)), -4),
+            "owner" => fileowner($f)
+        ];
+    }
+    echo json_encode($res, JSON_PRETTY_PRINT);
+    exit;
+}
+

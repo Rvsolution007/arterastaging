@@ -287,3 +287,18 @@ This rule applies to:
 
 This rule applies to ALL conversations, ALL agents, and ALL subagents working on this project.
 
+## 🔒 Version-Specific Code Lock (Dynamic Password)
+
+**CRITICAL RULE - MUST FOLLOW EVERY TIME:**
+
+Whenever making ANY code changes that affect a specific rendering version (e.g., Version 1, Version 7), you MUST ask the user for a dynamic password specific to that version.
+
+**Rules for Version-Specific Changes:**
+1. The required password format is `Frame@v{N}`, where `{N}` is the target version number.
+   - Example for Version 1 changes: `Frame@v1`
+   - Example for Version 7 changes: `Frame@v7`
+2. If you need to make changes to multiple versions simultaneously, you must ask for and receive the password for EACH version you intend to modify.
+3. **NEVER AUTO-FILL OR REUSE PAST PASSWORDS:** You must NEVER retrieve the password from chat history or assume it is approved just because it was provided earlier in the conversation. You MUST ask the user and wait for them to MANUALLY type it every single time you want to make a version-specific change.
+4. If the password is not provided or is incorrect, refuse to make changes.
+
+This rule applies to ALL conversations, ALL agents, and ALL subagents working on this project.

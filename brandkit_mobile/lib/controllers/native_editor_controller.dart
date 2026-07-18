@@ -626,6 +626,7 @@ class NativeEditorController extends GetxController {
                 'h': rawH,
                 'fill': layer['fill'] ?? layer['tint_color'] ?? layer['color'],
                 'src': layer['src'],
+                'z_index': safeDouble((layer['z_index'] ?? 0) as num).toInt(),
               });
             }
           }
@@ -1334,6 +1335,7 @@ class NativeEditorController extends GetxController {
                     'h': ph,
                     'fill': newLayer['fill'] ?? newLayer['tint_color'] ?? newLayer['color'],
                     'src': newLayer['src'],
+                    'z_index': safeDouble((newLayer['z_index'] ?? 0) as num).toInt(),
                   });
                 }
               }
@@ -1469,7 +1471,12 @@ class NativeEditorController extends GetxController {
           }
           
           bool shapeIsDark = false;
-          if (_brightnessCache.containsKey(sUrl)) {
+          if (shape['tint_color'] != null && shape['tint_color'].toString().isNotEmpty) {
+            final Color tint = _parseColor(shape['tint_color'].toString(), fallback: Colors.white);
+            final double luminance = (0.299 * tint.red + 0.587 * tint.green + 0.114 * tint.blue);
+            shapeIsDark = luminance < 128;
+            _brightnessCache[sUrl] = shapeIsDark;
+          } else if (_brightnessCache.containsKey(sUrl)) {
             shapeIsDark = _brightnessCache[sUrl]!;
           } else {
             try {
@@ -1707,32 +1714,36 @@ class NativeEditorController extends GetxController {
         );
         if (!isIcon) continue;
         
-        // Determine the business key for this icon to find matching text
-        String? iconBizKey = newLayer['_businessKey']?.toString();
-        if (iconBizKey == null || iconBizKey.isEmpty) {
-          if (lname.contains('phone') || lname.contains('call') || lname.contains('mobile') || lname.contains('contact') || lname.contains('whatsapp') || lname.contains('tel')) iconBizKey = 'phone';
-          else if (lname.contains('email') || lname.contains('mail')) iconBizKey = 'email';
-          else if (lname.contains('web') || lname.contains('url')) iconBizKey = 'website';
-          else if (lname.contains('address') || lname.contains('location')) iconBizKey = 'address';
-          else iconBizKey = 'social';
-        }
-        
-        // Try to find matching text layer and copy its color
         String? matchedTextColor;
-        if (iconBizKey != 'social') {
-          for (var textLayer in newLayers) {
-            if (textLayer['type'] != 'text') continue;
-            String? textBizKey = textLayer['_businessKey']?.toString();
-            if (textBizKey == null || textBizKey.isEmpty) {
-              final String tname = (textLayer['name'] ?? textLayer['id'] ?? '').toString().toLowerCase();
-              if (tname.contains('phone') || tname.contains('mobile') || tname.contains('number') || tname.contains('call')) textBizKey = 'phone';
-              else if (tname.contains('email') || tname.contains('mail')) textBizKey = 'email';
-              else if (tname.contains('web') || tname.contains('url')) textBizKey = 'website';
-              else if (tname.contains('address') || tname.contains('location')) textBizKey = 'address';
-            }
-            if (textBizKey == iconBizKey) {
-              matchedTextColor = textLayer['font_color'] ?? textLayer['color'];
-              break;
+        
+        // V7+ uses independent background color detection for icons, NOT pairing!
+        if (renderVersion < 7) {
+          // Determine the business key for this icon to find matching text
+          String? iconBizKey = newLayer['_businessKey']?.toString();
+          if (iconBizKey == null || iconBizKey.isEmpty) {
+            if (lname.contains('phone') || lname.contains('call') || lname.contains('mobile') || lname.contains('contact') || lname.contains('whatsapp') || lname.contains('tel')) iconBizKey = 'phone';
+            else if (lname.contains('email') || lname.contains('mail')) iconBizKey = 'email';
+            else if (lname.contains('web') || lname.contains('url')) iconBizKey = 'website';
+            else if (lname.contains('address') || lname.contains('location')) iconBizKey = 'address';
+            else iconBizKey = 'social';
+          }
+          
+          // Try to find matching text layer and copy its color
+          if (iconBizKey != 'social') {
+            for (var textLayer in newLayers) {
+              if (textLayer['type'] != 'text') continue;
+              String? textBizKey = textLayer['_businessKey']?.toString();
+              if (textBizKey == null || textBizKey.isEmpty) {
+                final String tname = (textLayer['name'] ?? textLayer['id'] ?? '').toString().toLowerCase();
+                if (tname.contains('phone') || tname.contains('mobile') || tname.contains('number') || tname.contains('call')) textBizKey = 'phone';
+                else if (tname.contains('email') || tname.contains('mail')) textBizKey = 'email';
+                else if (tname.contains('web') || tname.contains('url')) textBizKey = 'website';
+                else if (tname.contains('address') || tname.contains('location')) textBizKey = 'address';
+              }
+              if (textBizKey == iconBizKey) {
+                matchedTextColor = textLayer['font_color'] ?? textLayer['color'];
+                break;
+              }
             }
           }
         }
@@ -1821,7 +1832,19 @@ class NativeEditorController extends GetxController {
 
     bool overlapsShape = false;
     bool shapeIsDark = false;
-    for (var shape in shapeLayers) {
+
+    // V8+ Z-Index accurate collision detection
+    List<Map<String, dynamic>> shapesToCheck = shapeLayers;
+    if (renderVersion >= 8) {
+      shapesToCheck = List.from(shapeLayers);
+      shapesToCheck.sort((a, b) {
+        int za = (a['z_index'] ?? 0) as int;
+        int zb = (b['z_index'] ?? 0) as int;
+        return zb.compareTo(za); // Descending order
+      });
+    }
+
+    for (var shape in shapesToCheck) {
       final String shapeName = (shape['name'] ?? shape['id'] ?? '').toString().toLowerCase();
       final String currentName = (layer['name'] ?? layer['id'] ?? '').toString().toLowerCase();
       if (shapeName == currentName && shapeName.isNotEmpty) {
@@ -1863,8 +1886,6 @@ class NativeEditorController extends GetxController {
     String newColor;
     if (matchedColor != null) {
       newColor = matchedColor;
-    } else if (overlapsShape) {
-      newColor = shapeIsDark ? '0xFFFFFFFF' : '0xFF000000';
     } else {
       bool isBgDark = overlapsShape ? shapeIsDark : templateIsDark;
       final String origColorStr = layer['original_color'].toString();
@@ -1873,7 +1894,7 @@ class NativeEditorController extends GetxController {
       if (renderVersion >= 7) {
         // V7+ WCAG Smart Contrast Logic
         Color bgColor = overlapsShape 
-            ? _parseColor((shapeLayers.firstWhere((s) {
+            ? _parseColor((shapesToCheck.firstWhere((s) {
                 final double sx = safeDouble(s['x'] ?? 0);
                 final double sy = safeDouble(s['y'] ?? 0);
                 final double sw = safeDouble(s['w'] ?? s['width'] ?? 0);
@@ -1894,22 +1915,26 @@ class NativeEditorController extends GetxController {
         debugPrint('[COLOR_DIAG] V7 SmartColor: bgIsDark=$isBgDark, origColor=$origColor, bgColor=$bgColor, contrast=$contrastRatio -> Result: $newColor');
       } else {
         // V1-V6 Legacy Logic
-        final double origLuminance = (0.299 * origColor.red + 0.587 * origColor.green + 0.114 * origColor.blue);
-        bool isOrigDark = origLuminance < 128;
-        
-        if (isBgDark) {
-          // Background is Dark. Needs Light color.
-          if (!isOrigDark) {
-            newColor = origColorStr; // Already light, keep original
-          } else {
-            newColor = '0xFFFFFFFF'; // Dark on dark, force white
-          }
+        if (overlapsShape) {
+          newColor = shapeIsDark ? '0xFFFFFFFF' : '0xFF000000';
         } else {
-          // Background is Light. Needs Dark color.
-          if (isOrigDark) {
-            newColor = origColorStr; // Already dark, keep original
+          final double origLuminance = (0.299 * origColor.red + 0.587 * origColor.green + 0.114 * origColor.blue);
+          bool isOrigDark = origLuminance < 128;
+          
+          if (isBgDark) {
+            // Background is Dark. Needs Light color.
+            if (!isOrigDark) {
+              newColor = origColorStr; // Already light, keep original
+            } else {
+              newColor = '0xFFFFFFFF'; // Dark on dark, force white
+            }
           } else {
-            newColor = '0xFF000000'; // Light on light, force black
+            // Background is Light. Needs Dark color.
+            if (isOrigDark) {
+              newColor = origColorStr; // Already dark, keep original
+            } else {
+              newColor = '0xFF000000'; // Light on light, force black
+            }
           }
         }
       }

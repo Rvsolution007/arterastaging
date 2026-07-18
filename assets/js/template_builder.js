@@ -20,7 +20,7 @@
     console.log('[TEMPLATE_BUILDER] v3.0 loaded — fill control + vector paths + complete effects');
     // ── Render Version: ALL rendering logic is versioned. Current code = version 1. ──
     // ── Future rendering changes MUST increment this and add version-gated code paths. ──
-    window.CURRENT_RENDER_VERSION = 7;
+    window.CURRENT_RENDER_VERSION = 8;
     const CURRENT_RENDER_VERSION = window.CURRENT_RENDER_VERSION;
     try {
     
@@ -2066,9 +2066,23 @@
                 item.className = 'icon-item';
                 item.title = iconName;
                 item.style.display = 'flex';
-                // Fetch the SVG directly from Iconify API for rendering
+                // Fetch SVG text directly to bypass Ad-Blockers and Iconify Hotlinking (403) rules
                 const svgUrl = `https://api.iconify.design/${iconName.replace(':', '/')}.svg?color=%23475569`;
-                item.innerHTML = `<img src="${svgUrl}" style="width:24px; height:24px;" alt="${iconName}">`;
+                item.innerHTML = `<div style="width:24px; height:24px; display:flex; align-items:center; justify-content:center;"><i class="fa fa-spinner fa-spin" style="font-size:12px; color:#ccc;"></i></div>`;
+                
+                fetch(svgUrl)
+                    .then(res => res.text())
+                    .then(svgText => {
+                        item.innerHTML = svgText;
+                        const svgEl = item.querySelector('svg');
+                        if (svgEl) {
+                            svgEl.style.width = '24px';
+                            svgEl.style.height = '24px';
+                        }
+                    })
+                    .catch(err => {
+                        item.innerHTML = `<i class="fa fa-exclamation-triangle" style="color:#ff4444; font-size:12px;" title="Failed to load"></i>`;
+                    });
                 
                 item.addEventListener('click', function() {
                     const addSvgUrl = `https://api.iconify.design/${iconName.replace(':', '/')}.svg?color=%23333333`;

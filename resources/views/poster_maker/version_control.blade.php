@@ -580,8 +580,52 @@
     }
 
     function approveAllReviewed() {
-        alert('All remaining frames marked as reviewed.');
-        closeMigrationModal();
+        if (!confirm('Are you sure you want to force-commit all reviewed frames to the target version?')) return;
+        
+        const ids = window._reviewFrames.map(f => f.frame_id);
+        if (ids.length === 0) {
+            closeMigrationModal();
+            return;
+        }
+
+        const targetVersion = document.getElementById('targetVersion').value;
+        const upgradeIcons = document.getElementById('upgradeIconsCheck').checked ? 1 : 0;
+        
+        const btn = document.getElementById('btnApproveAll');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Committing...';
+        
+        fetch("{{ route('admin.poster_maker.bulk_migrate') }}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-TOKEN": "{{ csrf_token() }}"
+            },
+            body: JSON.stringify({
+                ids: ids,
+                target_version: targetVersion,
+                upgrade_icons: upgradeIcons,
+                force_commit: 1
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Successfully forced commit for ' + ids.length + ' frames.');
+                closeMigrationModal();
+                window.location.reload();
+            } else {
+                alert('Force commit failed: ' + (data.errors ? data.errors.join('\\n') : 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            alert('An error occurred during force commit.');
+            console.error(error);
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-check-double mr-2"></i> Approve & Commit All';
+        });
     }
 </script>
 @endsection

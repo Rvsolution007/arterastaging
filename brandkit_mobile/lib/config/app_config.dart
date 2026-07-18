@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 /// App Environment Configuration
 class AppConfig {
   // Read target environment from build-time dart-define, defaulting to local
-  static const String _rawEnv = String.fromEnvironment('ENV', defaultValue: 'local');
+  static const String _rawEnv = String.fromEnvironment('ENV', defaultValue: 'staging');
 
   static AppEnvironment get currentEnv {
     switch (_rawEnv) {

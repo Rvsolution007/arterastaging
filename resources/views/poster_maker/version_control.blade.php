@@ -139,6 +139,20 @@
         </div>
     </div>
 
+    <!-- Version History & Descriptions -->
+    <div class="table-panel p-4 mb-4">
+        <h5 style="font-weight: 600; color: #1e293b; margin-bottom: 1rem;"><i class="fa-solid fa-code-branch mr-2"></i> Version Changelog</h5>
+        <ul style="font-size: 0.875rem; color: #475569; padding-left: 1.5rem; margin-bottom: 0; line-height: 1.6;">
+            <li><strong style="color: #334155;">V1-V3:</strong> Legacy rendering architectures. (Basic text & image support)</li>
+            <li><strong style="color: #334155;">V4:</strong> Introduced Web Editor normalization (strict width/height baking to prevent platform misalignment).</li>
+            <li><strong style="color: #334155;">V5:</strong> Upgraded text rendering with strict boundaries and auto-font-size boundaries.</li>
+            <li><strong style="color: #334155;">V6:</strong> PSD Clipping Mask Auto-Detection and advanced image masking.</li>
+            <li><strong style="color: #334155;">V7:</strong> Smart Color Adaptation for icons to automatically contrast on dark/light backgrounds.</li>
+            <li><strong style="color: #334155;">V8:</strong> Z-Index accurate collision detection for shape overlapping.</li>
+            <li><strong style="color: #334155;">V9:</strong> Fixes authoritative icon color prioritization (tint_color overrides default black) to ensure icons match web selection exactly.</li>
+        </ul>
+    </div>
+
     <!-- Filter Form -->
     <div class="table-panel p-3 mb-4 d-flex align-items-center justify-content-between">
         <form action="{{ route('admin.poster_maker.version_control') }}" method="GET" class="d-flex align-items-center mb-0 w-100" id="filterForm">

@@ -49,6 +49,7 @@ dependencies:
   google_mobile_ads: ^5.3.0
   google_fonts: ^6.2.1
   cached_network_image: ^3.4.1
+  lottie: ^3.3.1
   lucide_icons: ^0.257.0
   path_provider: ^2.1.5
   gal: ^2.3.2

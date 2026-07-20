@@ -20,7 +20,7 @@
     console.log('[TEMPLATE_BUILDER] v3.0 loaded — fill control + vector paths + complete effects');
     // ── Render Version: ALL rendering logic is versioned. Current code = version 1. ──
     // ── Future rendering changes MUST increment this and add version-gated code paths. ──
-    window.CURRENT_RENDER_VERSION = 8;
+    window.CURRENT_RENDER_VERSION = 9;
     const CURRENT_RENDER_VERSION = window.CURRENT_RENDER_VERSION;
     try {
     

@@ -68,8 +68,21 @@ class EditorCanvasWidget extends StatefulWidget {
 }
 
 class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
-  bool _isReadyToRender = false;
-  Timer? _renderTimer;
+
+  void _logLifecycle(String methodName) {
+    final int timeMs = DateTime.now().millisecondsSinceEpoch;
+    final String widgetHash = identityHashCode(widget).toString();
+    final String frameId = (widget.config['id'] ?? '').toString();
+    final String templateId = (widget.config['info']?['id'] ?? widget.config['zip_name'] ?? '').toString();
+    debugPrint('[DIAGNOSIS_CANVAS] ========================================================');
+    debugPrint('[DIAGNOSIS_CANVAS] SECTION 3 : WIDGET LIFECYCLE - $methodName');
+    debugPrint('[DIAGNOSIS_CANVAS] ========================================================');
+    debugPrint('[DIAGNOSIS_CANVAS] Timestamp: $timeMs');
+    debugPrint('[DIAGNOSIS_CANVAS] Widget Hash: $widgetHash');
+    debugPrint('[DIAGNOSIS_CANVAS] RuntimeType: EditorCanvasWidget');
+    debugPrint('[DIAGNOSIS_CANVAS] Current Frame: $frameId');
+    debugPrint('[DIAGNOSIS_CANVAS] Current Template: $templateId');
+  }
 
   /// GlobalKeys for text layers — used to measure actual rendered heights.
   final Map<String, GlobalKey> _textKeys = {};
@@ -151,11 +164,30 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
   }
 
   @override
+  void setState(VoidCallback fn) {
+    final int timeMs = DateTime.now().millisecondsSinceEpoch;
+    final String widgetHash = identityHashCode(widget).toString();
+    debugPrint('[DIAGNOSIS_CANVAS] ========================================================');
+    debugPrint('[DIAGNOSIS_CANVAS] SECTION 4 : SETSTATE TRACKING');
+    debugPrint('[DIAGNOSIS_CANVAS] ========================================================');
+    debugPrint('[DIAGNOSIS_CANVAS] Timestamp: $timeMs');
+    try {
+      throw Exception();
+    } catch (e, stacktrace) {
+      final String trace = stacktrace.toString().split('\n').take(3).join(' | ');
+      debugPrint('[DIAGNOSIS_CANVAS] Caller/Trace: $trace');
+    }
+    debugPrint('[DIAGNOSIS_CANVAS] Current Widget Hash: $widgetHash');
+    super.setState(fn);
+  }
+
+  @override
   void initState() {
     super.initState();
+    _logLifecycle('initState');
+
     _fetchLogoDimensions();
     _schedulePostFrameMeasurement();
-    _startRevealTimer();
   }
 
   void _fetchLogoDimensions() {
@@ -238,22 +270,34 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     }
   }
 
-  void _startRevealTimer() {
-    _isReadyToRender = false;
-    _renderTimer?.cancel();
-    _renderTimer = Timer(const Duration(milliseconds: 400), () {
-      if (mounted) {
-        setState(() {
-          _isReadyToRender = true;
-        });
-      }
-    });
+  @override
+  void dispose() {
+    _logLifecycle('dispose');
+    super.dispose();
   }
 
   @override
-  void dispose() {
-    _renderTimer?.cancel();
-    super.dispose();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _logLifecycle('didChangeDependencies');
+  }
+
+  @override
+  void deactivate() {
+    _logLifecycle('deactivate');
+    super.deactivate();
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    _logLifecycle('activate');
+  }
+
+  @override
+  void reassemble() {
+    super.reassemble();
+    _logLifecycle('reassemble');
   }
 
   @override
@@ -268,13 +312,73 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     final bool templateChanged = oldWidget.config['info']?['width'] != widget.config['info']?['width'] ||
         (oldWidget.config['layers'] as List?)?.length != (widget.config['layers'] as List?)?.length;
     
+    final String oldWidgetHash = identityHashCode(oldWidget).toString();
+    final String newWidgetHash = identityHashCode(widget).toString();
+    final String oldTemplateId = (oldWidget.config['info']?['id'] ?? oldWidget.config['id'] ?? '').toString();
+    final String newTemplateId = (widget.config['info']?['id'] ?? widget.config['id'] ?? '').toString();
+    final String oldFrameId = (oldWidget.config['id'] ?? '').toString();
+    final String newFrameId = (widget.config['id'] ?? '').toString();
+    final String oldZipName = (oldWidget.config['zip_name'] ?? '').toString();
+    final String newZipName = (widget.config['zip_name'] ?? '').toString();
+    final int oldLayersLength = (oldWidget.config['layers'] as List?)?.length ?? 0;
+    final int newLayersLength = (widget.config['layers'] as List?)?.length ?? 0;
+    final double oldCanvasWidth = oldWidget.width;
+    final double newCanvasWidth = widget.width;
+    final double oldCanvasHeight = oldWidget.config['info']?['height']?.toDouble() ?? 0.0;
+    final double newCanvasHeight = widget.config['info']?['height']?.toDouble() ?? 0.0;
+    final bool frameChanged = oldFrameId != newFrameId;
+    final bool zipChanged = oldZipName != newZipName;
+    _logLifecycle('didUpdateWidget');
+
+    final oldConfigHash = identityHashCode(oldWidget.config).toString();
+    final newConfigHash = identityHashCode(widget.config).toString();
+    final oldLayerIds = ((oldWidget.config['layers'] as List?) ?? []).map((l) => (l['id'] ?? l['name']).toString()).toList();
+    final newLayerIds = ((widget.config['layers'] as List?) ?? []).map((l) => (l['id'] ?? l['name']).toString()).toList();
+
+    debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+    debugPrint('[DIAGNOSIS_CANVAS] didUpdateWidget');
+    debugPrint('[DIAGNOSIS_CANVAS] Timestamp: ${DateTime.now().millisecondsSinceEpoch}');
+    debugPrint('[DIAGNOSIS_CANVAS] Old Config Hash: $oldConfigHash');
+    debugPrint('[DIAGNOSIS_CANVAS] New Config Hash: $newConfigHash');
+    debugPrint('[DIAGNOSIS_CANVAS] Old Layer Count: $oldLayersLength');
+    debugPrint('[DIAGNOSIS_CANVAS] New Layer Count: $newLayersLength');
+    debugPrint('[DIAGNOSIS_CANVAS] Old Layer IDs: $oldLayerIds');
+    debugPrint('[DIAGNOSIS_CANVAS] New Layer IDs: $newLayerIds');
+    debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+
+    debugPrint('[DIAGNOSIS_CANVAS] ========================================================');
+    debugPrint('[DIAGNOSIS_CANVAS] SECTION 2 : CONFIG FLOW');
+    debugPrint('[DIAGNOSIS_CANVAS] ========================================================');
+    debugPrint('[DIAGNOSIS_CANVAS] Old Widget Hash: $oldWidgetHash');
+    debugPrint('[DIAGNOSIS_CANVAS] New Widget Hash: $newWidgetHash');
+    debugPrint('[DIAGNOSIS_CANVAS] Old Config Hash: $oldConfigHash');
+    debugPrint('[DIAGNOSIS_CANVAS] New Config Hash: $newConfigHash');
+    debugPrint('[DIAGNOSIS_CANVAS] Old Template ID: $oldTemplateId');
+    debugPrint('[DIAGNOSIS_CANVAS] New Template ID: $newTemplateId');
+    debugPrint('[DIAGNOSIS_CANVAS] Old Frame ID: $oldFrameId');
+    debugPrint('[DIAGNOSIS_CANVAS] New Frame ID: $newFrameId');
+    debugPrint('[DIAGNOSIS_CANVAS] Old Zip Name: $oldZipName');
+    debugPrint('[DIAGNOSIS_CANVAS] New Zip Name: $newZipName');
+    debugPrint('[DIAGNOSIS_CANVAS] Old Layer Count: $oldLayersLength');
+    debugPrint('[DIAGNOSIS_CANVAS] New Layer Count: $newLayersLength');
+    debugPrint('[DIAGNOSIS_CANVAS] Canvas Width: $newCanvasWidth');
+    debugPrint('[DIAGNOSIS_CANVAS] Canvas Height: $newCanvasHeight');
+    debugPrint('[DIAGNOSIS_CANVAS] templateChanged: $templateChanged');
+    debugPrint('[DIAGNOSIS_CANVAS] frameChanged: $frameChanged');
+    debugPrint('[DIAGNOSIS_CANVAS] zipChanged: $zipChanged');
+    
+    debugPrint('[DIAGNOSIS_CANVAS] ALL LAYER IDS:');
+    final _newLayersList = widget.config['layers'] as List? ?? [];
+    for (final layer in _newLayersList) {
+      debugPrint('[DIAGNOSIS_CANVAS] ${layer['id']} - ${layer['type']} - ${layer['name']}');
+    }
+    
     if (templateChanged || oldWidget.width != widget.width) {
       _origHeights = {};
       _textKeys.clear();
       _hasMeasured = false;
       _measuredShifts = {};
       _fontSizeOverrides = {};
-      _startRevealTimer();
     } else if (oldWidget.aiData != widget.aiData) {
       _hasMeasured = false;
       _measuredShifts = {};
@@ -648,6 +752,33 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
 
   @override
   Widget build(BuildContext context) {
+    _logLifecycle('build');
+    
+    final int buildTime = DateTime.now().millisecondsSinceEpoch;
+    final String widgetHash = identityHashCode(widget).toString();
+    final String configHash = identityHashCode(widget.config).toString();
+    final List<dynamic> layers = widget.config['layers'] ?? [];
+    final layerIds = layers.map((l) => (l['id'] ?? l['name']).toString()).toList();
+    
+    // Save timeline
+    NativeEditorController.timelineCanvasBuild = buildTime;
+
+    debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+    debugPrint('[DIAGNOSIS_CANVAS] CANVAS BUILD');
+    debugPrint('[DIAGNOSIS_CANVAS] Timestamp: $buildTime');
+    debugPrint('[DIAGNOSIS_CANVAS] Config Hash: $configHash');
+    debugPrint('[DIAGNOSIS_CANVAS] Layer Count: ${layers.length}');
+    debugPrint('[DIAGNOSIS_CANVAS] Layer IDs: $layerIds');
+    debugPrint('[DIAGNOSIS_CANVAS] Widget Hash: $widgetHash');
+    debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+
+    final String frameId = (widget.config['id'] ?? '').toString();
+    final String templateId = (widget.config['info']?['id'] ?? widget.config['id'] ?? widget.config['zip_name'] ?? '').toString();
+    
+    debugPrint('[DIAGNOSIS_CANVAS] ========================================================');
+    debugPrint('[DIAGNOSIS_CANVAS] SECTION 8 : BUILD TREE (START)');
+    debugPrint('[DIAGNOSIS_CANVAS] ========================================================');
+    
     // Original design resolution
     // Support both config['info']['width'] (standard) and config['width'] (legacy/fallback)
     final double designW =
@@ -657,8 +788,6 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
 
     final double scale = widget.width / designW;
     final double height = designH * scale;
-
-    final List<dynamic> layers = widget.config['layers'] ?? [];
 
     // ── Read render version from config (default to 1 for legacy frames) ──
     // Future rendering changes will use: if (renderVersion >= 2) { ... }
@@ -766,7 +895,8 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     // BUILD WIDGETS (absolute positioning with adjusted Y)
     // ══════════════════════════════════════════════════════════════
     final List<Widget> stackChildren = [];
-    for (var layer in adjusted) {
+    for (int idx = 0; idx < adjusted.length; idx++) {
+      final layer = adjusted[idx];
       // --- SMART AREA SCALING FOR LOGOS ---
       final String name = (layer['name'] ?? layer['id'] ?? '').toString().toLowerCase();
       final bool isLogo = layer['_businessKey'] == 'logo' || name.contains('logo');
@@ -863,6 +993,18 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         }
       }
 
+      final layerName = layer['name']?.toString() ?? '';
+      final layerType = layer['type']?.toString() ?? '';
+      final layerKeyStr = ObjectKey(layer).toString();
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+      debugPrint('[DIAGNOSIS_CANVAS] For every generated InteractiveLayer:');
+      debugPrint('[DIAGNOSIS_CANVAS] Layer Index: $idx');
+      debugPrint('[DIAGNOSIS_CANVAS] Layer ID: $layerId');
+      debugPrint('[DIAGNOSIS_CANVAS] Layer Name: $layerName');
+      debugPrint('[DIAGNOSIS_CANVAS] Layer Type: $layerType');
+      debugPrint('[DIAGNOSIS_CANVAS] Key: $layerKeyStr');
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+
       stackChildren.add(_buildLayer(layer, scale, renderVersion));
     }
 
@@ -871,27 +1013,35 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     if (!_goldenCaptured && widget.config['_golden_sent'] != true) {
         _captureNativeGolden(stackChildren, scale, renderVersion);
     }
-
-    return AnimatedOpacity(
-      opacity: _isReadyToRender ? 1.0 : 0.0,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeIn,
-      child: Container(
-        width: widget.width,
-        height: height,
-        clipBehavior: Clip.antiAlias,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-        ),
-        child: Stack(
-          clipBehavior: Clip.hardEdge,
-          children: stackChildren,
-        ),
+    
+    final int renderCompleteTime = DateTime.now().millisecondsSinceEpoch;
+    debugPrint('[DIAGNOSIS_CANVAS] ========================================================');
+    debugPrint('[DIAGNOSIS_CANVAS] SECTION 13 : FINAL STATE');
+    debugPrint('[DIAGNOSIS_CANVAS] ========================================================');
+    debugPrint('[DIAGNOSIS_CANVAS] Render Complete Time: $renderCompleteTime');
+    debugPrint('[DIAGNOSIS_CANVAS] Current Widget Tree: EditorCanvas -> Container -> Stack');
+    debugPrint('[DIAGNOSIS_CANVAS] Current Visible Widget: Stack');
+    debugPrint('[DIAGNOSIS_CANVAS] Current Canvas State: Ready');
+    debugPrint('[DIAGNOSIS_CANVAS] Opacity History: Current=1.0');
+    debugPrint('[DIAGNOSIS_CANVAS] Current Frame ID: $frameId');
+    debugPrint('[DIAGNOSIS_CANVAS] Current Template ID: $templateId');
+    debugPrint('[DIAGNOSIS_CANVAS] ========================================================');
+    return Container(
+      width: widget.width,
+      height: height,
+      clipBehavior: Clip.antiAlias,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+      ),
+      child: Stack(
+        clipBehavior: Clip.hardEdge,
+        children: stackChildren,
       ),
     );
   }
 
   Widget _buildLayer(Map<String, dynamic> layer, double scale, int renderVersion) {
+    final allLayers = widget.config['layers'] as List? ?? [];
     final String name =
         (layer['name'] ?? layer['id'] ?? '').toString().toLowerCase();
     final String rawName =
@@ -909,13 +1059,19 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     if (!isFrameLayer && layer['is_background'] == false &&
         (name.contains('background') || name == 'bg' || name == 'image1')) {
       debugPrint('[LAYER_HIDE] Hiding "$name" — is_background explicitly false');
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+      debugPrint('[DIAGNOSIS_CANVAS] EMPTY/FALLBACK WIDGET RETURNED');
+      debugPrint('[DIAGNOSIS_CANVAS] Timestamp: ${DateTime.now().millisecondsSinceEpoch}');
+      debugPrint('[DIAGNOSIS_CANVAS] RuntimeType: SizedBox');
+      debugPrint('[DIAGNOSIS_CANVAS] Reason: Hiding "$name" — is_background explicitly false');
+      debugPrint('[DIAGNOSIS_CANVAS] Layer Count: ${allLayers.length}');
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
       return const SizedBox.shrink();
     }
 
     // ── FIX: Hide mask shape layers that are used as clipPath by another layer ──
     // If any other layer references this layer's name/id as mask_layer_id,
     // this layer serves as a clip path and should NOT render independently.
-    final allLayers = widget.config['layers'] as List;
     final bool isUsedAsMask = layer['_is_used_as_mask'] == true || allLayers.any((otherLayer) {
       final otherMaskId = otherLayer['mask_layer_id'];
       if (otherMaskId == null) return false;
@@ -924,6 +1080,13 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     });
     if (isUsedAsMask) {
       debugPrint('[LAYER_HIDE] Hiding "$name" — used as mask shape by another layer');
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+      debugPrint('[DIAGNOSIS_CANVAS] EMPTY/FALLBACK WIDGET RETURNED');
+      debugPrint('[DIAGNOSIS_CANVAS] Timestamp: ${DateTime.now().millisecondsSinceEpoch}');
+      debugPrint('[DIAGNOSIS_CANVAS] RuntimeType: SizedBox');
+      debugPrint('[DIAGNOSIS_CANVAS] Reason: Hiding "$name" — used as mask shape by another layer');
+      debugPrint('[DIAGNOSIS_CANVAS] Layer Count: ${allLayers.length}');
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
       return const SizedBox.shrink();
     }
 
@@ -950,6 +1113,13 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     // Check visibility / opacity (Do this FIRST so even bg layers can be hidden)
     final double opacity = safeDouble(layer['opacity'] ?? 1.0);
     if (opacity <= 0.0) {
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+      debugPrint('[DIAGNOSIS_CANVAS] EMPTY/FALLBACK WIDGET RETURNED');
+      debugPrint('[DIAGNOSIS_CANVAS] Timestamp: ${DateTime.now().millisecondsSinceEpoch}');
+      debugPrint('[DIAGNOSIS_CANVAS] RuntimeType: SizedBox');
+      debugPrint('[DIAGNOSIS_CANVAS] Reason: Opacity is <= 0.0 ($opacity)');
+      debugPrint('[DIAGNOSIS_CANVAS] Layer Count: ${allLayers.length}');
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
       return const SizedBox.shrink();
     }
 
@@ -1162,6 +1332,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
 
     // Wrap the raw content in InteractiveLayer
     return InteractiveLayer(
+      key: ObjectKey(effectiveLayer),
       layerName: rawName,
       layerConfig: effectiveLayer,
       scale: scale,
@@ -1707,6 +1878,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       double scale, double nativeW, double nativeH) {
     String src = layer['src'] ?? layer['_fallback_src'] ?? '';
     String? mappedImg;
+    final bool isBg = (layer['is_background'] == true || layer['is_background'] == 1);
 
     // Map AI injected images
     if (widget.aiData != null &&
@@ -1769,7 +1941,6 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       fit = BoxFit.cover;
     } else {
       // Custom template OR non-slot image: resolve from ZIP assets
-      final bool isBg = (layer['is_background'] == true || layer['is_background'] == 1);
       final bool isPlaceholder = (layer['is_placeholder'] == true || layer['is_placeholder'] == 1);
       
       // If API already injected a full URL (http/https) into src, use it directly.
@@ -1882,7 +2053,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     final bool hasInjectedImage = (pathType == 'API_INJECTED' || pathType == 'BASE_IMG' || pathType == 'AI_MAPPED');
     bool clipOval = !isShapeLayer && hasInjectedImage && (_lowName.contains('ellipse') || _lowName.contains('circle') || _lowName.contains('round'));
     
-    Widget imgWidget = _buildImage(finalUrl, fit, radius, isSmall: isSmallAsset, tintColor: tintColor, gradientColors: gradientColors, gradientDir: gradientDir, isLocal: isLocal, flipX: flipX, clipOval: clipOval);
+    Widget imgWidget = _buildImage(finalUrl, fit, radius, isSmall: isSmallAsset, tintColor: tintColor, gradientColors: gradientColors, gradientDir: gradientDir, isLocal: isLocal, flipX: flipX, clipOval: clipOval, isFrameBackground: lname == '_frame_bg' || lname == '_frame' || lname == 'frame' || isBg);
     
     // -- Native Fallback for Broken Raster Contact Icons (Bug 1 Fix) --
     // Legacy V1 templates saved Iconify SVGs as broken PNGs if the network failed, resulting in solid white squares when tinted.
@@ -1944,7 +2115,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       imgWidget = _buildImage(finalUrl, BoxFit.cover, null, 
         isSmall: false, tintColor: tintColor, 
         gradientColors: gradientColors, gradientDir: gradientDir, 
-        isLocal: isLocal, flipX: flipX, clipOval: false);
+        isLocal: isLocal, flipX: flipX, clipOval: false, isFrameBackground: lname == '_frame_bg' || lname == '_frame' || lname == 'frame' || isBg);
       
       if (maskShapeLayer.isNotEmpty && (maskShapeLayer['src'] != null || maskShapeLayer['_fallback_src'] != null)) {
         final String maskSrc = maskShapeLayer['src'] ?? maskShapeLayer['_fallback_src'] ?? '';
@@ -1972,10 +2143,57 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
   /// CachedNetworkImage silently fails to render images below ~10 logical px
   /// due to the HTML image element's caching/sizing quirks.
   Widget _buildImage(String url, BoxFit fit, double? radius,
-      {required bool isSmall, Color? tintColor, List<Color>? gradientColors, String gradientDir = 'vertical', bool isLocal = false, bool flipX = false, bool clipOval = false}) {
+      {required bool isSmall, Color? tintColor, List<Color>? gradientColors, String gradientDir = 'vertical', bool isLocal = false, bool flipX = false, bool clipOval = false, bool isFrameBackground = false}) {
     if (url.isEmpty) {
       debugPrint('[IMG_BUILD] SKIP: empty URL');
       return const SizedBox.shrink();
+    }
+
+    final String frameId = (widget.config['id'] ?? '').toString();
+    final String templateId = (widget.config['info']?['id'] ?? widget.config['id'] ?? widget.config['zip_name'] ?? '').toString();
+    final int startTime = DateTime.now().millisecondsSinceEpoch;
+    
+    debugPrint('[DIAGNOSIS_CANVAS] ========================================================');
+    debugPrint('[DIAGNOSIS_CANVAS] SECTION 6 : IMAGE PIPELINE');
+    debugPrint('[DIAGNOSIS_CANVAS] ========================================================');
+    debugPrint('[DIAGNOSIS_CANVAS] Image URL: $url');
+    debugPrint('[DIAGNOSIS_CANVAS] Layer ID: Unknown (inside _buildImage)'); // Optional, since _buildImage doesn't take layerId
+    debugPrint('[DIAGNOSIS_CANVAS] Frame ID: $frameId');
+    debugPrint('[DIAGNOSIS_CANVAS] Template ID: $templateId');
+    debugPrint('[DIAGNOSIS_CANVAS] Loading Started: $startTime');
+
+    try {
+      ImageProvider provider;
+      if (isLocal) {
+        provider = FileImage(File(url));
+      } else if (url.startsWith('data:image')) {
+        provider = MemoryImage(base64Decode(url.split(',').last));
+      } else if (isSmall && kIsWeb) {
+        provider = NetworkImage(url);
+      } else {
+        provider = CachedNetworkImageProvider(url);
+      }
+      
+      final int decodeStartTime = DateTime.now().millisecondsSinceEpoch;
+      debugPrint('[DIAGNOSIS_CANVAS] Decode Started: $decodeStartTime');
+      
+      provider.resolve(const ImageConfiguration()).addListener(
+        ImageStreamListener((ImageInfo info, bool syncCall) {
+          final int endTime = DateTime.now().millisecondsSinceEpoch;
+          debugPrint('[DIAGNOSIS_CANVAS] Decode Finished: $endTime');
+          debugPrint('[DIAGNOSIS_CANVAS] Loading Finished: $endTime');
+          debugPrint('[DIAGNOSIS_CANVAS] Memory Cache Hit?: $syncCall');
+          debugPrint('[DIAGNOSIS_CANVAS] Disk Cache Hit?: Unknown');
+          debugPrint('[DIAGNOSIS_CANVAS] Network Hit?: ${!syncCall}');
+          debugPrint('[DIAGNOSIS_CANVAS] Image Width: ${info.image.width}');
+          debugPrint('[DIAGNOSIS_CANVAS] Image Height: ${info.image.height}');
+          debugPrint('[DIAGNOSIS_CANVAS] Duration: ${endTime - startTime}ms');
+        }, onError: (dynamic exception, StackTrace? stackTrace) {
+          debugPrint('[DIAGNOSIS_CANVAS] Image Load Failed: $url - $exception');
+        }),
+      );
+    } catch(e) {
+      debugPrint('[DIAGNOSIS_CANVAS] Provider resolution error: $e');
     }
 
     Widget imgWidget;
@@ -2054,13 +2272,43 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
           // ── LARGE ASSET PATH ──
           imgWidget = CachedNetworkImage(
             imageUrl: url,
-            imageBuilder: (context, provider) => Image(
-              image: provider,
-              fit: fit,
-              color: tintColor,
-              colorBlendMode: tintColor != null ? BlendMode.srcIn : null,
-              filterQuality: FilterQuality.high,
-            ),
+            imageBuilder: (context, provider) {
+              if (isFrameBackground) {
+                NativeEditorController.timelineImageBuilderCalled = true;
+                debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+                debugPrint('[DIAGNOSIS_CANVAS] imageBuilder called');
+                debugPrint('[DIAGNOSIS_CANVAS] Timestamp: ${DateTime.now().millisecondsSinceEpoch}');
+                debugPrint('[DIAGNOSIS_CANVAS] URL: $url');
+                debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+              }
+              final int paintTime = DateTime.now().millisecondsSinceEpoch;
+              debugPrint('[DIAGNOSIS_CANVAS] paint() equivalent (imageBuilder)');
+              debugPrint('[DIAGNOSIS_CANVAS] frame id: $frameId');
+              debugPrint('[DIAGNOSIS_CANVAS] image == null ? false');
+              debugPrint('[DIAGNOSIS_CANVAS] paint timestamp: $paintTime');
+              return Image(
+                image: provider,
+                fit: fit,
+                color: tintColor,
+                colorBlendMode: tintColor != null ? BlendMode.srcIn : null,
+                filterQuality: FilterQuality.high,
+              );
+            },
+            progressIndicatorBuilder: (context, url, progress) {
+              if (isFrameBackground) {
+                NativeEditorController.timelinePlaceholderCalled = true;
+                debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+                debugPrint('[DIAGNOSIS_CANVAS] placeholder called');
+                debugPrint('[DIAGNOSIS_CANVAS] Timestamp: ${DateTime.now().millisecondsSinceEpoch}');
+                debugPrint('[DIAGNOSIS_CANVAS] URL: $url');
+                debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+                debugPrint('[DIAGNOSIS_CANVAS] progressIndicatorBuilder called');
+                debugPrint('[DIAGNOSIS_CANVAS] Timestamp: ${DateTime.now().millisecondsSinceEpoch}');
+                debugPrint('[DIAGNOSIS_CANVAS] Download Progress: ${progress.progress}');
+                debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+              }
+              return const SizedBox.shrink();
+            },
             fadeInDuration: Duration.zero,
             fadeOutDuration: Duration.zero,
             placeholderFadeInDuration: Duration.zero,
@@ -2068,6 +2316,13 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
               debugPrint('IMAGE LOAD ERROR: $url');
             },
             errorWidget: (context, errorUrl, error) {
+              if (isFrameBackground) {
+                debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+                debugPrint('[DIAGNOSIS_CANVAS] errorWidget called');
+                debugPrint('[DIAGNOSIS_CANVAS] Timestamp: ${DateTime.now().millisecondsSinceEpoch}');
+                debugPrint('[DIAGNOSIS_CANVAS] URL: $url');
+                debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+              }
               if (url.contains('%20')) {
                 final fallbackUrl = url.replaceAll('%20', '-');
                 debugPrint('Retrying image with fallback URL: $fallbackUrl');
@@ -2348,6 +2603,13 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
   }
 
   Widget _buildIconLayer(Map<String, dynamic> layer, String lname, double scale, double nativeW, double nativeH) {
+    if (renderVersion >= 9) {
+      return _buildIconLayerV9(layer, lname, scale, nativeW, nativeH);
+    }
+    return _buildIconLayerV8(layer, lname, scale, nativeW, nativeH);
+  }
+
+  Widget _buildIconLayerV8(Map<String, dynamic> layer, String lname, double scale, double nativeW, double nativeH) {
     String iconName = layer['iconName'] ?? '';
     if (iconName.isEmpty && layer['_source_meta'] is Map && layer['_source_meta']['iconName'] != null) {
       iconName = layer['_source_meta']['iconName'].toString();
@@ -2479,6 +2741,183 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
 
     // Dynamic Theming: prefer font_color (set by brightness detection) over original color
     String colorStr = layer['font_color'] ?? layer['color'] ?? '#000000';
+    debugPrint('[ICON_DIAG] FontAwesome "$lname" → font_color=${layer['font_color']} color=${layer['color']} → resolved colorStr=$colorStr');
+    Color iconColor = _parseColor(colorStr);
+    List<Color>? gradientColors = _parseGradient(colorStr);
+
+    // Default icon size is based on height
+    double size = (safeDouble(layer['size']) ?? (nativeH > 0 ? nativeH : 24.0)) * scale;
+    final double minEnforced = (nativeH > 0 ? nativeH : 24.0) * 0.30;
+    size = math.max(size, minEnforced);
+
+    Widget iconWidget = FaIcon(
+      iconData,
+      color: iconColor,
+      size: size,
+    );
+
+    if (gradientColors != null && gradientColors.length >= 2) {
+      String gradientDir = (layer['gradient_direction'] ?? 'vertical').toString().toLowerCase();
+      Alignment begin = Alignment.topCenter;
+      Alignment end = Alignment.bottomCenter;
+      if (gradientDir == 'horizontal' || gradientDir == 'left_to_right' || gradientDir == 'left') {
+        begin = Alignment.centerLeft;
+        end = Alignment.centerRight;
+      }
+
+      iconWidget = ShaderMask(
+        blendMode: BlendMode.srcIn,
+        shaderCallback: (bounds) {
+          return LinearGradient(
+            begin: begin,
+            end: end,
+            colors: gradientColors,
+          ).createShader(bounds);
+        },
+        child: iconWidget,
+      );
+    }
+
+    if (layer['opacity'] != null) {
+      iconWidget = Opacity(opacity: safeDouble(layer['opacity']), child: iconWidget);
+    }
+
+
+    return Center(child: iconWidget);
+  }
+
+  Widget _buildIconLayerV9(Map<String, dynamic> layer, String lname, double scale, double nativeW, double nativeH) {
+    String iconName = layer['iconName'] ?? '';
+    if (iconName.isEmpty && layer['_source_meta'] is Map && layer['_source_meta']['iconName'] != null) {
+      iconName = layer['_source_meta']['iconName'].toString();
+    }
+    
+    // Attempt to read offline SVG from JSON
+    String offlineSvg = '';
+    if (layer['_source_meta'] is Map && layer['_source_meta']['originalSvg'] != null) {
+      offlineSvg = layer['_source_meta']['originalSvg'].toString();
+    }
+
+    debugPrint("========== ICON DIAG ==========");
+    debugPrint("layerName = $lname");
+    debugPrint("iconName = ${layer['iconName']} (resolved: $iconName)");
+    debugPrint("_originalType = ${layer['_originalType']}");
+    debugPrint("_source_meta = ${layer['_source_meta']}");
+    debugPrint("src = ${layer['src']}");
+    debugPrint("offlineSvg length = ${offlineSvg.length}");
+    if (offlineSvg.isNotEmpty) {
+      debugPrint("offlineSvg starts with: ${offlineSvg.substring(0, offlineSvg.length > 200 ? 200 : offlineSvg.length)}");
+      debugPrint("offlineSvg contains viewBox: ${offlineSvg.contains('viewBox')}");
+    }
+
+    if (iconName.isEmpty && offlineSvg.isEmpty) {
+      // Fallback to image
+      return _buildImageLayer(layer, lname, scale, nativeW, nativeH);
+    }
+
+    FaIconData? iconData = _getFontAwesomeIcon(iconName);
+
+    if (iconData == null) {
+      // 2. Fetch SVG from Iconify API and render with flutter_svg
+      // Dynamic Theming: prefer font_color (set by brightness detection) over original color
+      double size = (safeDouble(layer['size']) ?? (nativeH > 0 ? nativeH : 24.0)) * scale;
+      final double minEnforced = (nativeH > 0 ? nativeH : 24.0) * 0.30;
+      size = math.max(size, minEnforced);
+      
+      final dynamic rawColor = layer['font_color'] ?? layer['tint_color'] ?? layer['color'] ?? '#333333';
+      Color parsedColor = _parseColor(rawColor);
+      
+      Widget svgWidget;
+      
+      if (offlineSvg.isEmpty) {
+        debugPrint('🔴 [SVG LOAD] No offlineSvg found for icon: $iconName, attempting native fallback');
+        // Native fallback for common contact icons
+        final String lowerName = lname.toLowerCase();
+        IconData? fallbackIcon;
+        if (lowerName.contains('phone') || lowerName.contains('call') || lowerName.contains('mobile')) {
+          fallbackIcon = Icons.phone;
+        } else if (lowerName.contains('email') || lowerName.contains('mail')) {
+          fallbackIcon = Icons.email;
+        } else if (lowerName.contains('web') || lowerName.contains('globe') || lowerName.contains('website')) {
+          fallbackIcon = Icons.language;
+        } else if (lowerName.contains('location') || lowerName.contains('address') || lowerName.contains('map')) {
+          fallbackIcon = Icons.location_on;
+        } else if (lowerName.contains('facebook')) {
+          fallbackIcon = Icons.facebook;
+        } else if (lowerName.contains('instagram')) {
+          fallbackIcon = Icons.camera_alt;
+        } else if (lowerName.contains('twitter') || lowerName.contains('x_')) {
+          fallbackIcon = Icons.close;
+        } else if (lowerName.contains('youtube')) {
+          fallbackIcon = Icons.play_circle_filled;
+        } else if (lowerName.contains('linkedin')) {
+          fallbackIcon = Icons.work;
+        }
+
+        if (fallbackIcon != null) {
+          debugPrint('✅ [SVG LOAD] Using native Flutter Icon fallback for "$lname"');
+          return SizedBox(
+            width: math.max(nativeW * scale, nativeW * 0.30),
+            height: math.max(nativeH * scale, nativeH * 0.30),
+            child: FittedBox(
+              fit: BoxFit.contain,
+              child: Icon(
+                fallbackIcon,
+                color: parsedColor,
+              ),
+            ),
+          );
+        }
+
+        debugPrint('🔴 [SVG LOAD] No native fallback found, falling back to image layer');
+        return _buildImageLayer(layer, lname, scale, nativeW, nativeH);
+      }
+      
+      // Convert parsedColor to #RRGGBB
+      String hexColor = '#${(parsedColor.value & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
+
+      // Offline SVG Rendering (Bug 2 Fix)
+      // Inject exact color directly into SVG markup to bypass any flutter_svg colorFilter issues
+      offlineSvg = offlineSvg.replaceAll(RegExp(r'fill="[^"]*"'), 'fill="$hexColor"');
+      offlineSvg = offlineSvg.replaceAll(RegExp(r'stroke="[^"]*"'), 'stroke="$hexColor"');
+      
+      // Inline CSS style replacements
+      offlineSvg = offlineSvg.replaceAll(RegExp(r'fill:[^;"]+'), 'fill:$hexColor');
+      offlineSvg = offlineSvg.replaceAll(RegExp(r'stroke:[^;"]+'), 'stroke:$hexColor');
+      
+      // Standalone currentColor replacements
+      offlineSvg = offlineSvg.replaceAll('fill="currentColor"', 'fill="$hexColor"');
+      offlineSvg = offlineSvg.replaceAll('stroke="currentColor"', 'stroke="$hexColor"');
+      
+      // flutter_svg fails on '1em' or '100%', remove width/height so it falls back to viewBox
+      offlineSvg = offlineSvg.replaceAll(RegExp(r'width="[^"]*"'), '');
+      offlineSvg = offlineSvg.replaceAll(RegExp(r'height="[^"]*"'), '');
+      
+      debugPrint("FINAL SVG: $offlineSvg");
+      
+      try {
+        svgWidget = SvgPicture.string(
+          offlineSvg,
+          width: size,
+          height: size,
+          fit: BoxFit.contain,
+        );
+      } catch (e, stack) {
+        debugPrint("❌ [SVG PICTURE ERROR] Fail parsing SVG: $e");
+        debugPrint(stack.toString());
+        // Fallback to image layer
+        return _buildImageLayer(layer, lname, scale, nativeW, nativeH);
+      }
+      
+      if (layer['opacity'] != null) {
+        svgWidget = Opacity(opacity: safeDouble(layer['opacity']), child: svgWidget);
+      }
+
+      return Center(child: svgWidget);
+    }
+
+    // Dynamic Theming: prefer font_color (set by brightness detection) over original color
+    String colorStr = layer['font_color'] ?? layer['tint_color'] ?? layer['color'] ?? '#000000';
     debugPrint('[ICON_DIAG] FontAwesome "$lname" → font_color=${layer['font_color']} color=${layer['color']} → resolved colorStr=$colorStr');
     Color iconColor = _parseColor(colorStr);
     List<Color>? gradientColors = _parseGradient(colorStr);

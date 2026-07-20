@@ -22,7 +22,7 @@ import '../services/download_service.dart';
 import '../controllers/ad_controller.dart';
 import '../controllers/subscription_controller.dart';
 import '../utils/string_extensions.dart';
-
+import 'package:lottie/lottie.dart';
 class NativeEditorScreen extends StatefulWidget {
   final String type;
   final int id;
@@ -142,6 +142,30 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save design: $e'), backgroundColor: Colors.red));
       }
+    }
+  }
+
+  Future<void> captureCanvasSnapshot() async {
+    try {
+      final boundary = _canvasKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) {
+        debugPrint('[SNAPSHOT] boundary is null');
+        return;
+      }
+      if (boundary.debugNeedsPaint) {
+        debugPrint('[SNAPSHOT] boundary needs paint, skipping to avoid crash');
+        return;
+      }
+      final ui.Image image = await boundary.toImage(pixelRatio: 1.5);
+      final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) {
+        debugPrint('[SNAPSHOT] byteData is null');
+        return;
+      }
+      NativeEditorController.transitionSnapshot.value = byteData.buffer.asUint8List();
+      debugPrint('[SNAPSHOT] Captured snapshot size: ${NativeEditorController.transitionSnapshot.value?.length}');
+    } catch (e, stackTrace) {
+      debugPrint('[SNAPSHOT] Failed to capture: $e\n$stackTrace');
     }
   }
 
@@ -285,6 +309,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
       baseImg,
       widget.type,
     );
+    controller.captureCanvasCallback = captureCanvasSnapshot;
   }
 
   @override
@@ -395,6 +420,19 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       return Obx(() {
+                        final int rebuildTime = DateTime.now().millisecondsSinceEpoch;
+                        final layers = controller.templateConfig['layers'] as List<dynamic>? ?? [];
+                        final layerIds = layers.map((l) => (l['id'] ?? l['name']).toString()).toList();
+                        NativeEditorController.timelineObxRebuild = rebuildTime;
+                        
+                        debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+                        debugPrint('[DIAGNOSIS_CANVAS] OBX REBUILD');
+                        debugPrint('[DIAGNOSIS_CANVAS] Timestamp: $rebuildTime');
+                        debugPrint('[DIAGNOSIS_CANVAS] Layer Count: ${layers.length}');
+                        debugPrint('[DIAGNOSIS_CANVAS] Layer IDs: $layerIds');
+                        debugPrint('[DIAGNOSIS_CANVAS] templateConfig hashCode: ${controller.templateConfig.hashCode}');
+                        debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+
                         if (controller.templateConfig.isEmpty) {
                           return Center(child: Text('no_template_data_found'.trFormat));
                         }
@@ -415,27 +453,44 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                           bestWidth = calcHeight * (designW / designH);
                         }
 
-                        return RepaintBoundary(
-                          key: _canvasKey,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 15,
-                                  offset: const Offset(0, 5),
+                        return Container(
+                          width: bestWidth,
+                          height: calcHeight,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 15,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                          child: Stack(
+                            children: [
+                              RepaintBoundary(
+                                key: _canvasKey,
+                                child: EditorCanvasWidget(
+                                  config: Map<String, dynamic>.from(controller.templateConfig),
+                                  width: bestWidth,
+                                  uploadsBaseUrl: controller.uploadsBaseUrl,
+                                  templateBaseUrl: controller.templateBaseUrl,
+                                  baseImgUrl: controller.baseImgUrl,
+                                  editorType: widget.type,
                                 ),
-                              ],
-                            ),
-                            child: EditorCanvasWidget(
-                              config: Map<String, dynamic>.from(controller.templateConfig),
-                              width: bestWidth,
-                              uploadsBaseUrl: controller.uploadsBaseUrl,
-                              templateBaseUrl: controller.templateBaseUrl,
-                              baseImgUrl: controller.baseImgUrl,
-                              editorType: widget.type,
-                            ),
+                              ),
+                              Obx(() {
+                                final snapshot = NativeEditorController.transitionSnapshot.value;
+                                if (snapshot == null) return const SizedBox.shrink();
+                                return Positioned.fill(
+                                  child: Image.memory(
+                                    snapshot,
+                                    fit: BoxFit.fill,
+                                    gaplessPlayback: true,
+                                  ),
+                                );
+                              }),
+                            ],
                           ),
                         );
                       });
@@ -943,8 +998,40 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                         final thumbUrl = thumbBaseUrl.isNotEmpty && updatedAt.isNotEmpty
                             ? '$thumbBaseUrl?v=${Uri.encodeComponent(updatedAt)}'
                             : thumbBaseUrl;
+                        final frameId = (frame['id'] ?? index).toString();
                         return GestureDetector(
-                          onTap: () {
+                          onTap: () async {
+                            final int tapTimeMs = DateTime.now().millisecondsSinceEpoch;
+                            final String prevFrameId = (controller.templateConfig['id'] ?? '').toString();
+                            final String selectedTemplate = (controller.templateConfig['info']?['id'] ?? controller.templateConfig['zip_name'] ?? '').toString();
+                            final String frameName = (frame['name'] ?? frame['title'] ?? '').toString();
+                            final curLayers = controller.templateConfig['layers'] as List<dynamic>? ?? [];
+                            final frameLayerIds = curLayers.where((l) => l['_is_frame_layer'] == true || l['_isFrameLayer'] == true).map((l) => (l['id'] ?? l['name']).toString()).toList();
+
+                            // Reset static timeline variables
+                            NativeEditorController.timelineTapTime = tapTimeMs;
+                            NativeEditorController.timelineLoadStart = null;
+                            NativeEditorController.timelinePrecacheStart = null;
+                            NativeEditorController.timelinePrecacheEnd = null;
+                            NativeEditorController.timelineMergeComplete = null;
+                            NativeEditorController.timelineConfigUpdated = null;
+                            NativeEditorController.timelineRefreshComplete = null;
+                            NativeEditorController.timelineObxRebuild = null;
+                            NativeEditorController.timelineCanvasBuild = null;
+                            NativeEditorController.timelineInteractiveLayerBuild = null;
+                            NativeEditorController.timelinePlaceholderCalled = false;
+                            NativeEditorController.timelineImageBuilderCalled = false;
+
+                            debugPrint('[DIAGNOSIS_CANVAS] ------------------------------------------------');
+                            debugPrint('[DIAGNOSIS_CANVAS] FRAME TAP START');
+                            debugPrint('[DIAGNOSIS_CANVAS] Timestamp: $tapTimeMs');
+                            debugPrint('[DIAGNOSIS_CANVAS] Selected Frame ID: $frameId');
+                            debugPrint('[DIAGNOSIS_CANVAS] Selected Frame Name: $frameName');
+                            debugPrint('[DIAGNOSIS_CANVAS] Current Template Layer Count: ${curLayers.length}');
+                            debugPrint('[DIAGNOSIS_CANVAS] Current Frame Layer IDs: $frameLayerIds');
+                            debugPrint('[DIAGNOSIS_CANVAS] ------------------------------------------------');
+
+                            controller.loadingFrameId.value = frameId;
                             // Try JSON string first, then parsed config object, then full_url fallback
                             final jsonStr = frame['json'] ?? frame['json_rules'];
                             final configObj = frame['config'];
@@ -954,9 +1041,19 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                                 if (frame['full_url'] != null) {
                                   config['full_url'] = frame['full_url'];
                                 }
-                                controller.loadNewFrame(config);
+                                debugPrint('[DIAGNOSIS_CANVAS] Calling loadNewFrame()');
+                                debugPrint('[DIAGNOSIS_CANVAS] Timestamp: ${DateTime.now().millisecondsSinceEpoch}');
+                                await controller.loadNewFrame(config);
+                                final int afterLoadTime = DateTime.now().millisecondsSinceEpoch;
+                                final postLayers = controller.templateConfig['layers'] as List<dynamic>? ?? [];
+                                final postLayerIds = postLayers.map((l) => (l['id'] ?? l['name']).toString()).toList();
+                                debugPrint('[DIAGNOSIS_CANVAS] loadNewFrame Finished');
+                                debugPrint('[DIAGNOSIS_CANVAS] Timestamp: $afterLoadTime');
+                                debugPrint('[DIAGNOSIS_CANVAS] Current templateConfig layer count: ${postLayers.length}');
+                                debugPrint('[DIAGNOSIS_CANVAS] Current layer IDs: $postLayerIds');
                               } catch (e) {
                                 debugPrint('Error parsing frame JSON: $e');
+                                controller.loadingFrameId.value = '';
                               }
                             } else if (configObj != null) {
                               try {
@@ -981,31 +1078,74 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                                     }
                                   }
                                 }
-                                controller.loadNewFrame(config);
+                                debugPrint('[DIAGNOSIS_CANVAS] Calling loadNewFrame()');
+                                debugPrint('[DIAGNOSIS_CANVAS] Timestamp: ${DateTime.now().millisecondsSinceEpoch}');
+                                await controller.loadNewFrame(config);
+                                final int afterLoadTime = DateTime.now().millisecondsSinceEpoch;
+                                final postLayers = controller.templateConfig['layers'] as List<dynamic>? ?? [];
+                                final postLayerIds = postLayers.map((l) => (l['id'] ?? l['name']).toString()).toList();
+                                debugPrint('[DIAGNOSIS_CANVAS] loadNewFrame Finished');
+                                debugPrint('[DIAGNOSIS_CANVAS] Timestamp: $afterLoadTime');
+                                debugPrint('[DIAGNOSIS_CANVAS] Current templateConfig layer count: ${postLayers.length}');
+                                debugPrint('[DIAGNOSIS_CANVAS] Current layer IDs: $postLayerIds');
                               } catch (e) {
                                 debugPrint('Error parsing frame config: $e');
+                                controller.loadingFrameId.value = '';
                               }
                             } else if (frame['full_url'] != null) {
                               controller.updateLayerProperty('_frame_bg', 'src', frame['full_url']);
                               controller.updateLayerProperty('_frame_bg', 'opacity', 1.0);
+                              controller.loadingFrameId.value = '';
                             }
                           },
-                          child: Container(
-                            width: 80,
-                            height: 80,
-                            margin: const EdgeInsets.only(right: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                            child: thumbUrl.isNotEmpty
-                                ? ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.network(thumbUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.grey)),
-                                  )
-                                : const Icon(Icons.image, color: Colors.grey),
-                          ),
+                          child: Obx(() {
+                            final bool isLoading = controller.loadingFrameId.value == frameId;
+                            return Container(
+                              width: 80,
+                              height: 80,
+                              margin: const EdgeInsets.only(right: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: isLoading ? const Color(0xFF6366F1) : Colors.grey.shade300,
+                                  width: isLoading ? 2 : 1,
+                                ),
+                              ),
+                              child: Stack(
+                                children: [
+                                  if (thumbUrl.isNotEmpty)
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(7),
+                                      child: Image.network(thumbUrl, fit: BoxFit.cover, width: 80, height: 80, errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.grey)),
+                                    )
+                                  else
+                                    const Center(child: Icon(Icons.image, color: Colors.grey)),
+                                  if (isLoading)
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(7),
+                                      child: Container(
+                                        width: 80,
+                                        height: 80,
+                                        color: Colors.white.withOpacity(0.7),
+                                        child: Center(
+                                          child: SizedBox(
+                                            width: 40,
+                                            height: 40,
+                                            child: Lottie.network(
+                                              'https://lottie.host/32745767-f30d-430c-ae50-82ccd2a094a0/ioMpgWMFGw.json',
+                                              animate: true,
+                                              repeat: true,
+                                              frameRate: FrameRate.max,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            );
+                          }),
                         );
                       },
                     ),
@@ -2602,6 +2742,36 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
           }
         );
       },
+    );
+  }
+}
+
+/// Premium Lottie overlay shown during frame transitions.
+/// Displays a smooth animation over the old template while the new
+/// frame downloads and paints — so the user never sees partial rendering.
+class _FrameTransitionOverlay extends StatelessWidget {
+  final double width;
+  final double height;
+  const _FrameTransitionOverlay({required this.width, required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      color: Colors.white.withOpacity(0.75),
+      child: Center(
+        child: SizedBox(
+          width: 80,
+          height: 80,
+          child: Lottie.network(
+            'https://lottie.host/32745767-f30d-430c-ae50-82ccd2a094a0/ioMpgWMFGw.json',
+            animate: true,
+            repeat: true,
+            frameRate: FrameRate.max,
+          ),
+        ),
+      ),
     );
   }
 }

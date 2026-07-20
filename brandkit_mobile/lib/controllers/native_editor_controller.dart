@@ -16,15 +16,37 @@ import '../services/api_service.dart';
 import '../utils/template_json_cache.dart';
 
 import '../controllers/home_controller.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 
 
 class NativeEditorController extends GetxController {
+  static int? timelineTapTime;
+  static int? timelineLoadStart;
+  static int? timelinePrecacheStart;
+  static int? timelinePrecacheEnd;
+  static int? timelineMergeComplete;
+  static int? timelineConfigUpdated;
+  static int? timelineRefreshComplete;
+  static int? timelineObxRebuild;
+  static int? timelineCanvasBuild;
+  static int? timelineInteractiveLayerBuild;
+  static bool timelinePlaceholderCalled = false;
+  static bool timelineImageBuilderCalled = false;
+
+  static final Rx<Uint8List?> transitionSnapshot = Rx<Uint8List?>(null);
+  Future<void> Function()? captureCanvasCallback;
+
   // The complete living JSON configuration of the template
   final RxMap<String, dynamic> templateConfig = <String, dynamic>{}.obs;
 
   // Frame API Integration
   final RxList<dynamic> frames = <dynamic>[].obs;
   final RxBool isLoadingFrames = false.obs;
+  final RxBool isCanvasLoading = false.obs;
+  final RxString loadingFrameId = ''.obs; // ID of the frame currently loading (for thumbnail indicator)
 
   // The ID or name of the currently selected layer
   final RxString selectedLayerId = ''.obs;
@@ -72,7 +94,103 @@ class NativeEditorController extends GetxController {
       debugPrint('Error fetching frames: $e');
     } finally {
       isLoadingFrames.value = false;
+      // Pre-cache ALL frame images in the background for instant switching
+      _backgroundPrecacheAllFrames();
     }
+  }
+
+  /// Silently pre-downloads all images from all frames to disk cache.
+  /// This runs in the background after frame list loads so that when
+  /// a user taps any frame, images are already on disk → instant render.
+  void _backgroundPrecacheAllFrames() {
+    Future(() async {
+      int cachedCount = 0;
+      final String apiBase = ApiService.baseUrl;
+      final Uri baseUri = Uri.parse(apiBase);
+      List<String> segments = baseUri.pathSegments.toList();
+      if (segments.isNotEmpty) segments.removeLast();
+      final String serverBase = baseUri.replace(pathSegments: segments).toString().endsWith('/')
+          ? baseUri.replace(pathSegments: segments).toString()
+          : '${baseUri.replace(pathSegments: segments).toString()}/';
+
+      for (var frame in frames) {
+        // Get layers from config
+        List<dynamic>? layers;
+        final config = frame['config'];
+        final jsonField = frame['json'] ?? frame['json_rules'];
+
+        if (config != null) {
+          if (config is Map && config['layers'] != null) {
+            layers = config['layers'] as List<dynamic>;
+          } else if (config is String) {
+            try { layers = jsonDecode(config)['layers']; } catch (_) {}
+          }
+        } else if (jsonField != null) {
+          if (jsonField is Map && jsonField['layers'] != null) {
+            layers = jsonField['layers'] as List<dynamic>;
+          } else if (jsonField is String) {
+            try { layers = jsonDecode(jsonField)['layers']; } catch (_) {}
+          }
+        }
+
+        // Also pre-cache the full_url (frame overlay image)
+        final String fullUrl = (frame['full_url'] ?? '').toString();
+        if (fullUrl.isNotEmpty && fullUrl.startsWith('http')) {
+          try {
+            final cached = await DefaultCacheManager().getFileFromCache(fullUrl);
+            if (cached == null) {
+              await DefaultCacheManager().downloadFile(fullUrl);
+              cachedCount++;
+            }
+          } catch (_) {}
+        }
+
+        // Pre-cache all image layer sources
+        if (layers != null) {
+          for (var layer in layers) {
+            if (layer['type'] == 'image' && layer['src'] != null) {
+              String src = layer['src'].toString();
+              if (src.isEmpty || src.startsWith('data:')) continue;
+
+              // Resolve relative URL to absolute
+              if (!src.startsWith('http')) {
+                String zipName = (frame['zip_name'] ?? frame['path'] ?? '').toString().replaceAll('/', '').trim();
+                String frameBaseUrl = serverBase;
+                if (zipName.isNotEmpty) {
+                  frameBaseUrl = '${serverBase}uploads/template/$zipName/';
+                } else if (fullUrl.isNotEmpty) {
+                  int skinsIndex = fullUrl.indexOf('/skins/');
+                  if (skinsIndex != -1) {
+                    frameBaseUrl = '${fullUrl.substring(0, skinsIndex)}/';
+                  }
+                }
+
+                if (src.startsWith('/')) {
+                  src = '$serverBase${src.substring(1)}';
+                } else if (src.startsWith('../')) {
+                  src = '$frameBaseUrl${src.replaceFirst('../', '')}';
+                } else if (src.startsWith('uploads/')) {
+                  src = '$serverBase$src';
+                } else {
+                  src = '${frameBaseUrl}skins/$src';
+                }
+              }
+
+              src = src.replaceAll(' ', '-').replaceAll('%20', '-');
+
+              try {
+                final cached = await DefaultCacheManager().getFileFromCache(src);
+                if (cached == null) {
+                  await DefaultCacheManager().downloadFile(src);
+                  cachedCount++;
+                }
+              } catch (_) {}
+            }
+          }
+        }
+      }
+      debugPrint('✅ [PRE-CACHE] Background pre-cached $cachedCount images from ${frames.length} frames');
+    });
   }
 
   Future<Map<String, dynamic>?> fetchTemplateJson(String zipName) async {
@@ -797,8 +915,24 @@ class NativeEditorController extends GetxController {
   }
 
   void updateLayerProperty(String layerName, String property, dynamic value) {
+    debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+    debugPrint('[DIAGNOSIS_CANVAS] updateLayerProperty CALLED');
+    debugPrint('[DIAGNOSIS_CANVAS] Timestamp: ${DateTime.now().millisecondsSinceEpoch}');
+    debugPrint('[DIAGNOSIS_CANVAS] Layer ID: $layerName');
+    debugPrint('[DIAGNOSIS_CANVAS] Property: $property');
+    debugPrint('[DIAGNOSIS_CANVAS] Value: $value');
+    debugPrint('[DIAGNOSIS_CANVAS] Stack Trace:');
+    debugPrint(StackTrace.current.toString());
+    debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+
     final layers = templateConfig['layers'] as List<dynamic>?;
     if (layers == null) return;
+
+    final beforeLayerIds = layers.map((l) => (l['id'] ?? l['name']).toString()).toList();
+    debugPrint('[DIAGNOSIS_CANVAS] Before modifying templateConfig:');
+    debugPrint('[DIAGNOSIS_CANVAS] Current Layer Count: ${layers.length}');
+    debugPrint('[DIAGNOSIS_CANVAS] Layer IDs: $beforeLayerIds');
+    debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
 
     if (layerName == '_frame_bg' && property == 'src') {
       // Clean up old frame layers except _frame_bg (which we are updating/adding)
@@ -842,6 +976,12 @@ class NativeEditorController extends GetxController {
         'z_index': maxZIndex + 1,
       });
     }
+
+    final afterLayerIds = layers.map((l) => (l['id'] ?? l['name']).toString()).toList();
+    debugPrint('[DIAGNOSIS_CANVAS] After modifying templateConfig:');
+    debugPrint('[DIAGNOSIS_CANVAS] Updated Layer Count: ${layers.length}');
+    debugPrint('[DIAGNOSIS_CANVAS] Layer IDs: $afterLayerIds');
+    debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
     
     templateConfig.refresh();
     _pushHistory();
@@ -1013,7 +1153,24 @@ class NativeEditorController extends GetxController {
 
   Future<void> loadNewFrame(Map<String, dynamic> newFrameJson) async {
     try {
+      final int parseStartTime = DateTime.now().millisecondsSinceEpoch;
+      NativeEditorController.timelineLoadStart = parseStartTime;
+
       final currentLayers = templateConfig['layers'] as List<dynamic>? ?? [];
+      final curLayerIds = currentLayers.map((l) => (l['id'] ?? l['name']).toString()).toList();
+      final incomingFrameId = (newFrameJson['id'] ?? '').toString();
+      int incomingLayerCount = 0;
+      var incLayers = newFrameJson['layers'] ?? (newFrameJson['config'] is Map ? newFrameJson['config']['layers'] : null);
+      if (incLayers is List) incomingLayerCount = incLayers.length;
+      
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+      debugPrint('[DIAGNOSIS_CANVAS] LOAD NEW FRAME START');
+      debugPrint('[DIAGNOSIS_CANVAS] Timestamp: $parseStartTime');
+      debugPrint('[DIAGNOSIS_CANVAS] Incoming Frame ID: $incomingFrameId');
+      debugPrint('[DIAGNOSIS_CANVAS] Incoming Layer Count: $incomingLayerCount');
+      debugPrint('[DIAGNOSIS_CANVAS] Current Template Layer Count: ${currentLayers.length}');
+      debugPrint('[DIAGNOSIS_CANVAS] Current Template Layer IDs: $curLayerIds');
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
       
       dynamic rawNewLayers = newFrameJson['layers'];
       if (rawNewLayers == null && newFrameJson['config'] != null) {
@@ -1037,7 +1194,13 @@ class NativeEditorController extends GetxController {
       
       // 3. Fallback to API if not in config and we have a zip_name
       if (rawNewLayers == null && newFrameJson['zip_name'] != null) {
+        debugPrint('[DIAGNOSIS_CANVAS] Future Started (fetchTemplateJson)');
+        final int fetchStart = DateTime.now().millisecondsSinceEpoch;
         final fetchedJson = await fetchTemplateJson(newFrameJson['zip_name']);
+        final int fetchEnd = DateTime.now().millisecondsSinceEpoch;
+        debugPrint('[DIAGNOSIS_CANVAS] Future Finished (fetchTemplateJson)');
+        debugPrint('[DIAGNOSIS_CANVAS] Duration: ${fetchEnd - fetchStart}ms');
+
         if (fetchedJson != null) {
           newFrameJson['config'] = fetchedJson; // save it so we don't fetch again unnecessarily
           rawNewLayers = fetchedJson['layers'];
@@ -1047,6 +1210,11 @@ class NativeEditorController extends GetxController {
       if (rawNewLayers == null) rawNewLayers = [];
 
       final newLayers = jsonDecode(jsonEncode(rawNewLayers)) as List<dynamic>;
+      final parsedLayerIds = newLayers.map((l) => (l['id'] ?? l['name']).toString()).toList();
+      debugPrint('[DIAGNOSIS_CANVAS] Parsed New Layers');
+      debugPrint('[DIAGNOSIS_CANVAS] Count: ${newLayers.length}');
+      debugPrint('[DIAGNOSIS_CANVAS] Layer IDs: $parsedLayerIds');
+      
       debugPrint('🔴 [DIAGNOSIS] loadNewFrame newLayers count: ${newLayers.length}');
       for (var l in newLayers) {
         debugPrint('🔴 [DIAGNOSIS] newLayer: ${l['name']} type=${l['type']}');
@@ -1077,6 +1245,11 @@ class NativeEditorController extends GetxController {
         
         return isBg || isUserAdded;
       }).toList();
+      
+      final preservedLayerIds = preservedLayers.map((l) => (l['id'] ?? l['name']).toString()).toList();
+      debugPrint('[DIAGNOSIS_CANVAS] Preserved Layers');
+      debugPrint('[DIAGNOSIS_CANVAS] Count: ${preservedLayers.length}');
+      debugPrint('[DIAGNOSIS_CANVAS] Layer IDs: $preservedLayerIds');
       
       dynamic configJson = newFrameJson['config'] ?? newFrameJson['json'];
       if (configJson is String) {
@@ -1396,10 +1569,18 @@ class NativeEditorController extends GetxController {
         }
       }
 
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+      debugPrint('[DIAGNOSIS_CANVAS] MERGE START');
+      debugPrint('[DIAGNOSIS_CANVAS] Old Template Layer Count: ${currentLayers.length}');
+      debugPrint('[DIAGNOSIS_CANVAS] New Frame Layer Count: ${newLayers.length}');
+      debugPrint('[DIAGNOSIS_CANVAS] Preserved Layer Count: ${preservedLayers.length}');
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+
       // 4. Add frame layers after preserved layers
       for (var newLayer in newLayers) {
         preservedLayers.add(newLayer);
       }
+      NativeEditorController.timelineMergeComplete = DateTime.now().millisecondsSinceEpoch;
       
       // 5. Deduplicate: within the same source (frame vs native), remove duplicates by name.
       //    Frame layers should NOT overwrite native layers with different purposes even if same name.
@@ -1424,7 +1605,64 @@ class NativeEditorController extends GetxController {
       
       var finalLayersList = uniqueLayers.reversed.toList();
       _deduplicateLayerNames(finalLayersList);
+      
+      final finalLayerIds = finalLayersList.map((l) => (l['id'] ?? l['name']).toString()).toList();
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+      debugPrint('[DIAGNOSIS_CANVAS] FINAL LAYER LIST');
+      debugPrint('[DIAGNOSIS_CANVAS] Count: ${finalLayersList.length}');
+      debugPrint('[DIAGNOSIS_CANVAS] Layer IDs in exact order: $finalLayerIds');
+      for (var layer in finalLayersList) {
+        debugPrint('[DIAGNOSIS_CANVAS] Layer: id=${layer['id'] ?? ''}, name=${layer['name'] ?? ''}, type=${layer['type'] ?? ''}');
+      }
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+
+      final int precacheStartTime = DateTime.now().millisecondsSinceEpoch;
+      final frameLayersForPrecache = finalLayersList.where((l) => l['_is_frame_layer'] == true || l['_isFrameLayer'] == true).toList();
+      NativeEditorController.timelinePrecacheStart = precacheStartTime;
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+      debugPrint('[DIAGNOSIS_CANVAS] PRECACHE START');
+      debugPrint('[DIAGNOSIS_CANVAS] Timestamp: $precacheStartTime');
+      debugPrint('[DIAGNOSIS_CANVAS] Frame Layer Count: ${frameLayersForPrecache.length}');
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+      
+      // PRECACHE ALL IMAGES BEFORE RENDERING
+      debugPrint('[DIAGNOSIS_CANVAS] Future Started (_precacheFrameImages)');
+      final int precacheStart = DateTime.now().millisecondsSinceEpoch;
+      await _precacheFrameImages(finalLayersList);
+      final int precacheEnd = DateTime.now().millisecondsSinceEpoch;
+      debugPrint('[DIAGNOSIS_CANVAS] Future Finished (_precacheFrameImages)');
+      debugPrint('[DIAGNOSIS_CANVAS] Duration: ${precacheEnd - precacheStart}ms');
+
+      final int precacheEndTime = DateTime.now().millisecondsSinceEpoch;
+      NativeEditorController.timelinePrecacheEnd = precacheEndTime;
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+      debugPrint('[DIAGNOSIS_CANVAS] PRECACHE END');
+      debugPrint('[DIAGNOSIS_CANVAS] Timestamp: $precacheEndTime');
+      debugPrint('[DIAGNOSIS_CANVAS] Duration: ${precacheEndTime - precacheStartTime}ms');
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+
+      final int oldLayersCount = (templateConfig['layers'] as List?)?.length ?? 0;
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+      debugPrint('[DIAGNOSIS_CANVAS] WRITING TEMPLATECONFIG');
+      debugPrint('[DIAGNOSIS_CANVAS] Old Count: $oldLayersCount');
+      debugPrint('[DIAGNOSIS_CANVAS] New Count: ${finalLayersList.length}');
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+
+      if (captureCanvasCallback != null) {
+        debugPrint('[SNAPSHOT] Triggering canvas capture before refresh');
+        await captureCanvasCallback!();
+      }
+
       templateConfig['layers'] = finalLayersList;
+      NativeEditorController.timelineConfigUpdated = DateTime.now().millisecondsSinceEpoch;
+
+      final currentList = templateConfig['layers'] as List? ?? [];
+      final currentListIds = currentList.map((l) => (l['id'] ?? l['name']).toString()).toList();
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+      debugPrint('[DIAGNOSIS_CANVAS] TEMPLATECONFIG UPDATED');
+      debugPrint('[DIAGNOSIS_CANVAS] Current Count: ${currentList.length}');
+      debugPrint('[DIAGNOSIS_CANVAS] Current Layer IDs: $currentListIds');
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
 
       int newRenderVersion = 1;
       if (newFrameJson['render_version'] != null) {
@@ -1440,7 +1678,58 @@ class NativeEditorController extends GetxController {
         templateConfig['render_version'] = newRenderVersion;
       }
 
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+      debugPrint('[DIAGNOSIS_CANVAS] REFRESH START');
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+
       templateConfig.refresh();
+      NativeEditorController.timelineRefreshComplete = DateTime.now().millisecondsSinceEpoch;
+
+      final int refreshCompleteTime = DateTime.now().millisecondsSinceEpoch;
+      final int refreshLayersCount = (templateConfig['layers'] as List?)?.length ?? 0;
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+      debugPrint('[DIAGNOSIS_CANVAS] REFRESH COMPLETE');
+      debugPrint('[DIAGNOSIS_CANVAS] Timestamp: $refreshCompleteTime');
+      debugPrint('[DIAGNOSIS_CANVAS] Current Layer Count: $refreshLayersCount');
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+      
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final int renderCompleteTime = DateTime.now().millisecondsSinceEpoch;
+        final String frameIdStr = (newFrameJson['id'] ?? '').toString();
+        debugPrint('[DIAGNOSIS_CANVAS] Render Complete');
+        debugPrint('[DIAGNOSIS_CANVAS] Frame ID: $frameIdStr');
+        debugPrint('[DIAGNOSIS_CANVAS] Timestamp: $renderCompleteTime');
+        debugPrint('[DIAGNOSIS_CANVAS] Total Time Since Tap: ${renderCompleteTime - parseStartTime}ms');
+
+        Future.delayed(const Duration(milliseconds: 100), () {
+          NativeEditorController.transitionSnapshot.value = null;
+          debugPrint('[SNAPSHOT] transitionSnapshot cleared');
+        });
+
+        final int finalCount = (templateConfig['layers'] as List?)?.length ?? 0;
+
+        debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+        debugPrint('[DIAGNOSIS_CANVAS] FRAME SWITCH SUMMARY');
+        debugPrint('[DIAGNOSIS_CANVAS] Tap Time: ${NativeEditorController.timelineTapTime}');
+        debugPrint('[DIAGNOSIS_CANVAS] loadNewFrame Start: ${NativeEditorController.timelineLoadStart}');
+        debugPrint('[DIAGNOSIS_CANVAS] Precache Start: ${NativeEditorController.timelinePrecacheStart}');
+        debugPrint('[DIAGNOSIS_CANVAS] Precache End: ${NativeEditorController.timelinePrecacheEnd}');
+        debugPrint('[DIAGNOSIS_CANVAS] Merge Complete: ${NativeEditorController.timelineMergeComplete}');
+        debugPrint('[DIAGNOSIS_CANVAS] templateConfig Updated: ${NativeEditorController.timelineConfigUpdated}');
+        debugPrint('[DIAGNOSIS_CANVAS] Refresh Complete: ${NativeEditorController.timelineRefreshComplete}');
+        debugPrint('[DIAGNOSIS_CANVAS] Obx Rebuild: ${NativeEditorController.timelineObxRebuild}');
+        debugPrint('[DIAGNOSIS_CANVAS] Canvas Build: ${NativeEditorController.timelineCanvasBuild}');
+        debugPrint('[DIAGNOSIS_CANVAS] InteractiveLayer Build: ${NativeEditorController.timelineInteractiveLayerBuild}');
+        debugPrint('[DIAGNOSIS_CANVAS] CachedNetworkImage placeholder called?: ${NativeEditorController.timelinePlaceholderCalled}');
+        debugPrint('[DIAGNOSIS_CANVAS] CachedNetworkImage imageBuilder called?: ${NativeEditorController.timelineImageBuilderCalled}');
+        debugPrint('[DIAGNOSIS_CANVAS] Final Layer Count: $finalCount');
+        debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+
+        Future.delayed(const Duration(milliseconds: 300), () {
+          loadingFrameId.value = '';
+        });
+      });
+
       _pushHistory();
 
       // 2. Asynchronous Brightness Check
@@ -1448,6 +1737,69 @@ class NativeEditorController extends GetxController {
 
     } catch (e, stack) {
       debugPrint('[LOAD_FRAME] Error: $e\n$stack');
+    }
+  }
+
+  Future<void> _engineDecodeImage(String url) {
+    final completer = Completer<void>();
+    ImageProvider provider;
+    if (kIsWeb) {
+      provider = NetworkImage(url);
+    } else {
+      provider = CachedNetworkImageProvider(url);
+    }
+    
+    final ImageStream stream = provider.resolve(const ImageConfiguration());
+    late ImageStreamListener listener;
+    listener = ImageStreamListener(
+      (ImageInfo info, bool syncCall) {
+        stream.removeListener(listener);
+        completer.complete();
+      },
+      onError: (dynamic error, StackTrace? stackTrace) {
+        stream.removeListener(listener);
+        debugPrint('[ENGINE_DECODE] Error decoding $url: $error');
+        completer.complete(); // complete on error to avoid hanging
+      },
+    );
+    stream.addListener(listener);
+    return completer.future;
+  }
+
+  Future<void> _precacheFrameImages(List<dynamic> layersList) async {
+    final futures = <Future<void>>[];
+    for (var layer in layersList) {
+      if (layer['type'] == 'image' && layer['src'] != null) {
+        String src = layer['src'].toString();
+        if (!src.startsWith('http')) {
+          String baseUrl = templateBaseUrl.isNotEmpty ? templateBaseUrl : AppConfig.baseUrl.replaceAll('/123456', '') + '/public';
+          if (src.startsWith('../')) {
+            src = '$baseUrl/${src.replaceFirst('../', '')}';
+          } else if (src.startsWith('uploads/')) {
+            src = '$baseUrl/$src';
+          } else {
+            src = '$baseUrl/skins/$src';
+          }
+        }
+        
+        futures.add(Future(() async {
+          try {
+            // 1. Ensure file is on disk (should be instant thanks to background pre-cacher)
+            final fileInfo = await DefaultCacheManager().getFileFromCache(src);
+            if (fileInfo == null) {
+              await DefaultCacheManager().downloadFile(src);
+            }
+            // 2. FORCE decode into RAM so when EditorCanvasWidget mounts, it paints synchronously!
+            // No more white flash.
+            await _engineDecodeImage(src);
+          } catch (e) {
+            debugPrint('[PRECACHE] Failed for $src: $e');
+          }
+        }));
+      }
+    }
+    if (futures.isNotEmpty) {
+      await Future.wait(futures);
     }
   }
 
@@ -1883,7 +2235,9 @@ class NativeEditorController extends GetxController {
     }
 
     if (layer['original_color'] == null) {
-      layer['original_color'] = layer['color'] ?? layer['tint_color'] ?? '0xFFFFFFFF';
+      layer['original_color'] = isIcon 
+          ? (layer['tint_color'] ?? layer['font_color'] ?? layer['color'] ?? '0xFFFFFFFF')
+          : (layer['color'] ?? layer['tint_color'] ?? '0xFFFFFFFF');
     }
 
     bool changed = false;

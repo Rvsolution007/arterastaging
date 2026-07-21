@@ -393,6 +393,94 @@ class ProgrammaticSeoController extends Controller
         return view('landing.seo.template-page', compact('template', 'type', 'parentName', 'templateName', 'imageUrl', 'relatedTemplates', 'seo'));
     }
 
+    public function useCaseHub($slug)
+    {
+        $config = config('seo_pages.use_case_hubs.' . $slug);
+        if (!$config) abort(404);
+
+        $templates = \App\Models\CategoryPost::where('status', '1')->latest()->take(24)->get();
+        $seo = $config;
+        $seo['canonical'] = config('seo.site_url') . '/' . $slug;
+        
+        return view('landing.seo.use-case-hub', compact('templates', 'seo'));
+    }
+
+    public function socialPlatformPage($slug)
+    {
+        $config = config('seo_pages.social_platform_pages.' . $slug);
+        if (!$config) abort(404);
+
+        $templates = \App\Models\CategoryPost::where('status', '1')->latest()->take(24)->get();
+        $seo = $config;
+        $seo['canonical'] = config('seo.site_url') . '/' . $slug;
+        
+        return view('landing.seo.social-platform-page', compact('templates', 'seo'));
+    }
+
+    public function industryVanityPage($slug)
+    {
+        $config = config('seo_pages.industry_vanity_urls.' . $slug);
+        if (!$config) abort(404);
+
+        $categorySlug = $config['category_slug'];
+        // Re-use category logic but override SEO
+        $category = BusinessCategory::where('slug', $categorySlug)->firstOrFail();
+        $subCategories = BusinessSubCategory::where('business_category_id', $category->id)->where('status', 1)->withCount('types')->get();
+        $catIds = Category::where('name', 'like', '%' . $category->name . '%')->pluck('id');
+        $templates = CategoryPost::whereIn('category_id', $catIds)->where('status', '1')->latest()->take(24)->get();
+        $templateCount = CategoryPost::whereIn('category_id', $catIds)->where('status', '1')->count();
+        $relatedCategories = BusinessCategory::where('status', 1)->where('id', '!=', $category->id)->inRandomOrder()->take(10)->get();
+
+        $seo = [
+            'title' => $config['primary_keyword'] . ' | Artera',
+            'h1' => $config['h1'],
+            'description' => 'Create stunning ' . strtolower($config['primary_keyword']) . ' posters. AI-powered poster maker.',
+            'canonical' => config('seo.site_url') . '/' . $slug,
+            'keywords' => strtolower($config['primary_keyword']) . ' poster maker, ' . strtolower($config['primary_keyword']),
+            'speakable' => true,
+        ];
+
+        return view('landing.seo.industry-vanity', compact('category', 'subCategories', 'templates', 'templateCount', 'relatedCategories', 'seo'));
+    }
+
+    public function festivalVanityPage($slug)
+    {
+        $config = config('seo_pages.festival_vanity_urls.' . $slug);
+        if (!$config) abort(404);
+
+        $festivalSlug = $config['festival_slug'];
+        $festival = Festivals::where('status', 1)->get()->first(function ($f) use ($festivalSlug) {
+            return Str::slug($f->title) === $festivalSlug;
+        });
+        if (!$festival) abort(404);
+
+        $templates = FestivalsPost::where('festivals_id', $festival->id)->where('status', '1')->latest()->take(48)->get();
+        $templateCount = FestivalsPost::where('festivals_id', $festival->id)->where('status', '1')->count();
+        $relatedFestivals = Festivals::where('status', 1)->where('id', '!=', $festival->id)->inRandomOrder()->take(12)->get();
+
+        $seo = [
+            'title' => $config['primary_keyword'] . ' | Artera',
+            'description' => 'Create stunning ' . strtolower($config['primary_keyword']) . ' for your business.',
+            'canonical' => config('seo.site_url') . '/' . $slug,
+            'keywords' => strtolower($config['primary_keyword']),
+            'speakable' => true,
+        ];
+
+        return view('landing.seo.festival-vanity', compact('festival', 'templates', 'templateCount', 'relatedFestivals', 'seo'));
+    }
+
+    public function longTailPage($slug)
+    {
+        $config = config('seo_pages.long_tail_pages.' . $slug);
+        if (!$config) abort(404);
+
+        $templates = \App\Models\CategoryPost::where('status', '1')->latest()->take(24)->get();
+        $seo = $config;
+        $seo['canonical'] = config('seo.site_url') . '/' . $slug;
+        
+        return view('landing.seo.long-tail', compact('templates', 'seo'));
+    }
+
     /**
      * Build breadcrumbs for template page based on type
      */

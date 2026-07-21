@@ -302,3 +302,23 @@ Whenever making ANY code changes that affect a specific rendering version (e.g.,
 4. If the password is not provided or is incorrect, refuse to make changes.
 
 This rule applies to ALL conversations, ALL agents, and ALL subagents working on this project.
+
+## Frame Template Source Consistency Rule
+
+For every frame, `poster_maker.layers_json` is the canonical payload because
+the native API serves it directly. The extracted JSON file and any Web Editor
+ZIP must contain that same payload; they are never independent sources of
+truth.
+
+1. Use `FrameTemplateSourceSynchronizer` whenever Version Control changes a
+   frame version or its persisted JSON.
+2. The canonical ZIP entry is `json/{zip_name}.json`. Remove every other JSON
+   entry that represents a frame config before writing it.
+3. `loadFrameZip()` must prefer canonical DB JSON and may use ZIP JSON only as
+   a legacy fallback when no canonical source exists. Never select a JSON file
+   based on ZIP entry order.
+4. Before deploying rendering or Version Control changes, verify that DB JSON,
+   extracted JSON, and the Web Editor ZIP agree on `render_version`, layer
+   count, and layer geometry.
+5. Do not run bulk source rewrites automatically during a code deploy. Existing
+   frame migrations remain explicit Version Control actions.

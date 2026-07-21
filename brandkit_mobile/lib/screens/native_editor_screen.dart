@@ -21,7 +21,6 @@ import 'package:gal/gal.dart';
 import '../services/download_service.dart';
 import '../controllers/ad_controller.dart';
 import '../controllers/subscription_controller.dart';
-import '../utils/string_extensions.dart';
 import 'package:lottie/lottie.dart';
 
 class NativeEditorScreen extends StatefulWidget {

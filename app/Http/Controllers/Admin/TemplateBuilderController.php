@@ -263,7 +263,12 @@ class TemplateBuilderController extends Controller
         $zipPath = public_path('uploads/custom_frames_zips/' . $frame->zip_name . '.zip');
         $extractedPath = public_path('uploads/template/' . $frame->zip_name);
         
-        $jsonConfig = null;
+        $sourceSynchronizer = app(\App\Services\FrameTemplateSourceSynchronizer::class);
+        // The API serves layers_json to the native editor. Start the web editor
+        // from that exact payload so both editors use the same coordinates,
+        // icon metadata, and render version.
+        $jsonConfig = $sourceSynchronizer->canonicalJson($frame->zip_name, $frame->layers_json);
+        $hasCanonicalJson = $jsonConfig !== null;
         $images = [];
         $fonts = [];
 
@@ -274,11 +279,11 @@ class TemplateBuilderController extends Controller
                     $name = $zip->getNameIndex($i);
                     $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
                     
-                    if ($ext === 'json') {
+                    if ($ext === 'json' && $jsonConfig === null) {
                         if (strpos($name, '__MACOSX') === false && strpos(basename($name), '._') !== 0) {
                             $decoded = json_decode($zip->getFromIndex($i), true);
                             if ($decoded) {
-                                if (!$jsonConfig || isset($decoded['layers']) || isset($decoded['objects']) || isset($decoded['schema_version'])) {
+                                if (isset($decoded['layers']) || isset($decoded['objects']) || isset($decoded['schema_version'])) {
                                     $jsonConfig = $decoded;
                                 }
                             }
@@ -298,7 +303,7 @@ class TemplateBuilderController extends Controller
             // Load from extracted legacy folder structure
             if (is_dir($extractedPath . '/json')) {
                 $jsonFiles = glob($extractedPath . '/json/*.json');
-                if (!empty($jsonFiles)) {
+                if ($jsonConfig === null && !empty($jsonFiles)) {
                     $decoded = json_decode(file_get_contents($jsonFiles[0]), true);
                     if ($decoded) $jsonConfig = $decoded;
                 }
@@ -357,7 +362,7 @@ class TemplateBuilderController extends Controller
                 // When a frame is imported from staging but the EditorTemplate assets
                 // directory was never synced, the assets/ files will be missing.
                 // In that case, skip the EditorTemplate and use the original ZIP JSON.
-                if ($editorTemplate && is_array($editorTemplate->schema_json)) {
+                if (!$hasCanonicalJson && $editorTemplate && is_array($editorTemplate->schema_json)) {
                     $schemaCandidate = $editorTemplate->schema_json;
                     $hasAllAssets = true;
                     

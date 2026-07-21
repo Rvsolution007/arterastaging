@@ -178,8 +178,39 @@ Route::get('/sitemap-festivals.xml', 'SeoController@sitemapFestivals')->name('se
 Route::get('/sitemap-templates.xml', 'SeoController@sitemapTemplates')->name('seo.sitemap.templates');
 Route::get('/sitemap-blog.xml', 'SeoController@sitemapBlog')->name('seo.sitemap.blog');
 Route::get('/sitemap-images.xml', 'SeoController@sitemapImages')->name('seo.sitemap.images');
+Route::get('/sitemap-usecases.xml', 'SeoController@sitemapUsecases')->name('seo.sitemap.usecases');
 Route::get('/feed', 'SeoController@rssFeed')->name('seo.rss');
 Route::get('/sitemap', 'SeoController@htmlSitemap')->name('seo.sitemap.html');
+
+// ============================================
+// Programmatic SEO — Config-Driven Hubs
+// ============================================
+$seoPages = config('seo_pages', []);
+if (isset($seoPages['use_case_hubs'])) {
+    foreach ($seoPages['use_case_hubs'] as $slug => $data) {
+        Route::get('/' . $slug, 'ProgrammaticSeoController@useCaseHub')->defaults('slug', $slug)->name('seo.usecase.' . str_replace('-', '_', $slug));
+    }
+}
+if (isset($seoPages['social_platform_pages'])) {
+    foreach ($seoPages['social_platform_pages'] as $slug => $data) {
+        Route::get('/' . $slug, 'ProgrammaticSeoController@socialPlatformPage')->defaults('slug', $slug)->name('seo.social.' . str_replace('-', '_', $slug));
+    }
+}
+if (isset($seoPages['industry_vanity_urls'])) {
+    foreach ($seoPages['industry_vanity_urls'] as $slug => $data) {
+        Route::get('/' . $slug, 'ProgrammaticSeoController@industryVanityPage')->defaults('slug', $slug)->name('seo.industry.' . str_replace('-', '_', $slug));
+    }
+}
+if (isset($seoPages['festival_vanity_urls'])) {
+    foreach ($seoPages['festival_vanity_urls'] as $slug => $data) {
+        Route::get('/' . $slug, 'ProgrammaticSeoController@festivalVanityPage')->defaults('slug', $slug)->name('seo.festival_vanity.' . str_replace('-', '_', $slug));
+    }
+}
+if (isset($seoPages['long_tail_pages'])) {
+    foreach ($seoPages['long_tail_pages'] as $slug => $data) {
+        Route::get('/' . $slug, 'ProgrammaticSeoController@longTailPage')->defaults('slug', $slug)->name('seo.long_tail.' . str_replace('-', '_', $slug));
+    }
+}
 
 // ============================================
 // Programmatic SEO — Category & Festival Landing Pages

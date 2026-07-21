@@ -1,6 +1,10 @@
 @extends('landing.layout')
 
-@section('title', 'Artera - Create Stunning Marketing Posts in Seconds')
+@section('title', $seo['title'])
+
+@section('seo')
+    @include('components.seo-head', ['seo' => $seo])
+@endsection
 
 @section('extra_css')
 <style>

@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Models\PosterCategory;
 use App\Models\StorageSetting;
 use App\Http\Controllers\Controller;
+use App\Services\FrameTemplateSourceSynchronizer;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -935,9 +936,39 @@ class PosterMakerController extends Controller
                 $currentVersion = $frame->render_version ?? 1;
                 $targetVersionInt = ($targetVersion !== 'none') ? (int)$targetVersion : $currentVersion;
 
-                // Skip if already at target version
+                // A same-version request is an explicit source-reconciliation
+                // action. It repairs stale ZIP JSON without changing a frame's
+                // render behavior or silently upgrading any version.
                 if ($currentVersion === $targetVersionInt) {
-                    $autoCommitted[] = ['id' => $id, 'name' => $frame->zip_name, 'status' => 'ALREADY_SAME'];
+                    $sourceSynchronizer = app(FrameTemplateSourceSynchronizer::class);
+                    $canonicalJson = $sourceSynchronizer->canonicalJson(
+                        $frame->zip_name,
+                        $frame->layers_json,
+                    );
+
+                    if ($canonicalJson === null) {
+                        $errors[] = "Frame #{$id} ({$frame->zip_name}): Canonical JSON not found";
+                        continue;
+                    }
+
+                    $canonicalJson['render_version'] = $targetVersionInt;
+                    $frame->layers_json = $sourceSynchronizer->synchronize(
+                        $frame->zip_name,
+                        $canonicalJson,
+                    );
+                    $frame->save();
+
+                    \Illuminate\Support\Facades\Cache::forget("template_json:{$frame->zip_name}");
+                    \Illuminate\Support\Facades\Cache::forget("template_json:v2:{$frame->zip_name}");
+                    \Illuminate\Support\Facades\Cache::forget(
+                        "template_json:v2:" . preg_replace('/^Template_/i', '', $frame->zip_name),
+                    );
+
+                    $autoCommitted[] = [
+                        'id' => $id,
+                        'name' => $frame->zip_name,
+                        'status' => 'SOURCES_RECONCILED',
+                    ];
                     continue;
                 }
 
@@ -1097,9 +1128,14 @@ class PosterMakerController extends Controller
                         $jsonModified = true;
                     }
 
-                    // Save back to file
+                    $jsonString = null;
+
+                    // Synchronize every editor/API source from one canonical
+                    // payload. This prevents a stale custom_frames_zips JSON
+                    // from being loaded after a dashboard version migration.
                     if ($jsonModified) {
-                        file_put_contents($jsonPath, json_encode($json, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
+                        $jsonString = app(FrameTemplateSourceSynchronizer::class)
+                            ->synchronize($frame->zip_name, $json);
                     }
 
                     // Update DB column and layers_json
@@ -1108,18 +1144,7 @@ class PosterMakerController extends Controller
                     }
                     
                     if ($jsonModified) {
-                        $jsonString = json_encode($json, JSON_UNESCAPED_SLASHES);
                         $frame->layers_json = $jsonString;
-                        
-                        // Update the ZIP file directly so Web Editor load doesn't revert to old JSON
-                        $zipPath = public_path("uploads/template/{$frame->zip_name}.zip");
-                        if (file_exists($zipPath)) {
-                            $zip = new \ZipArchive();
-                            if ($zip->open($zipPath) === true) {
-                                $zip->addFromString('frame.json', $jsonString);
-                                $zip->close();
-                            }
-                        }
                     }
                     $frame->save();
 

@@ -33,6 +33,7 @@ class SeoController extends Controller
             $xml .= '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
 
             $sitemaps = [
+                'sitemap-usecases.xml',
                 'sitemap-pages.xml',
                 'sitemap-categories.xml',
                 'sitemap-festivals.xml',
@@ -50,6 +51,35 @@ class SeoController extends Controller
 
             $xml .= '</sitemapindex>';
             return $xml;
+        });
+
+        return response($content, 200)->header('Content-Type', 'application/xml');
+    }
+
+    /**
+     * Usecases sitemap (from config)
+     */
+    public function sitemapUsecases()
+    {
+        $content = Cache::remember('sitemap_usecases', 86400, function () {
+            $baseUrl = config('seo.site_url', 'https://arterapixel.com');
+            $pages = [];
+            $seoPages = config('seo_pages', []);
+            
+            $groups = ['use_case_hubs', 'social_platform_pages', 'industry_vanity_urls', 'festival_vanity_urls', 'long_tail_pages'];
+            foreach ($groups as $group) {
+                if (isset($seoPages[$group])) {
+                    foreach ($seoPages[$group] as $slug => $data) {
+                        $pages[] = [
+                            'loc' => '/' . $slug,
+                            'changefreq' => 'weekly',
+                            'priority' => '0.9',
+                        ];
+                    }
+                }
+            }
+
+            return $this->buildUrlSet($baseUrl, $pages);
         });
 
         return response($content, 200)->header('Content-Type', 'application/xml');
@@ -366,7 +396,7 @@ class SeoController extends Controller
      */
     public function clearSitemapCache()
     {
-        $keys = ['sitemap_index', 'sitemap_pages', 'sitemap_categories', 'sitemap_festivals', 'sitemap_templates', 'sitemap_blog', 'sitemap_images', 'rss_feed'];
+        $keys = ['sitemap_index', 'sitemap_usecases', 'sitemap_pages', 'sitemap_categories', 'sitemap_festivals', 'sitemap_templates', 'sitemap_blog', 'sitemap_images', 'rss_feed'];
         foreach ($keys as $key) {
             Cache::forget($key);
         }

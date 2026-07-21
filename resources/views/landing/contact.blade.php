@@ -1,6 +1,10 @@
 @extends('landing.layout')
 
-@section('title', 'Artera - Contact Us')
+@section('title', $seo['title'])
+
+@section('seo')
+    @include('components.seo-head', ['seo' => $seo])
+@endsection
 
 @section('extra_css')
 <style>
@@ -298,7 +302,7 @@
                     </div>
                     <div class="info-text">
                         <h4>Visit Us</h4>
-                        <p>123 Business Avenue, Tech Hub<br>Mumbai, India 400001</p>
+                        <p>Rajkot</p>
                     </div>
                 </div>
 
@@ -308,7 +312,7 @@
                     </div>
                     <div class="info-text">
                         <h4>Email Us</h4>
-                        <p>support@artera.app</p>
+                        <p>arterapixel7@gmail.com</p>
                     </div>
                 </div>
 
@@ -318,7 +322,7 @@
                     </div>
                     <div class="info-text">
                         <h4>Call Us</h4>
-                        <p>+91 98765 43210</p>
+                        <p>+91 6356 720 059</p>
                     </div>
                 </div>
 
@@ -326,9 +330,9 @@
 
                 <div class="social-label">Follow Us</div>
                 <div class="social-links">
-                    <a href="#" class="social-link" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
-                    <a href="#" class="social-link" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
-                    <a href="#" class="social-link" aria-label="LinkedIn"><i class="fa-brands fa-linkedin-in"></i></a>
+                    <a href="https://www.facebook.com/people/ArtEra-Pixel/61590520208495" target="_blank" class="social-link" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+                    <a href="https://www.instagram.com/arterapixel_2026" target="_blank" class="social-link" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+                    <a href="https://www.linkedin.com/company/artera-pixel/" target="_blank" class="social-link" aria-label="LinkedIn"><i class="fa-brands fa-linkedin-in"></i></a>
                 </div>
             </div>
 

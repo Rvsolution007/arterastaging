@@ -30,6 +30,7 @@ Disallow: /update-preferred-languages
 
 # Sitemaps
 Sitemap: https://arterapixel.com/sitemap.xml
+Sitemap: https://arterapixel.com/sitemap-usecases.xml
 
 # Crawl-delay
 Crawl-delay: 1

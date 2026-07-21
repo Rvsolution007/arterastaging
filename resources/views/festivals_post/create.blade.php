@@ -93,7 +93,7 @@
 
     .preview-container {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
         gap: 1rem;
         margin-top: 1rem;
     }
@@ -116,6 +116,24 @@
         max-height: 100%;
         display: block;
         object-fit: contain;
+    }
+
+    .frame-guide {
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 0;
+        border-top: 2px dashed rgba(148, 163, 184, 0.8); /* Light gray #94a3b8 */
+        z-index: 10;
+        pointer-events: none;
+    }
+    
+    .frame-guide.header-guide {
+        top: 12.9629%; /* 140px / 1080px */
+    }
+    
+    .frame-guide.footer-guide {
+        bottom: 12.9629%; /* 140px / 1080px */
     }
 
     /* Select2 Customization */
@@ -333,7 +351,7 @@
 
             for (var i = 0; i < total_file; i++) {
                 var url = URL.createObjectURL(fileInput.files[i]);
-                $('#preview').append("<div class='preview-item'><img src='" + url + "'></div>");
+                $('#preview').append("<div class='preview-item'><img src='" + url + "'><div class='frame-guide header-guide'></div><div class='frame-guide footer-guide'></div></div>");
             }
         }
     </script>

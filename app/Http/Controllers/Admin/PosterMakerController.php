@@ -881,7 +881,7 @@ class PosterMakerController extends Controller
             ->pluck('render_version');
 
         // Current max version (from the JS constant)
-        $currentMaxVersion = 7;
+        $currentMaxVersion = 9;
 
         return view('poster_maker.version_control', [
             'data' => $data,
@@ -903,6 +903,7 @@ class PosterMakerController extends Controller
 
         $targetVersion = $request->target_version;
         $upgradeIcons = filter_var($request->upgrade_icons, FILTER_VALIDATE_BOOLEAN);
+        $forceCommit = filter_var($request->force_commit, FILTER_VALIDATE_BOOLEAN);
         $errors = [];
 
         $validator = new \App\Services\DualEngineValidator();
@@ -941,30 +942,79 @@ class PosterMakerController extends Controller
 
                 $validationResults[] = $result;
 
-                if ($result['status'] === 'MATCH' || $result['status'] === 'MINOR_DRIFT') {
+                if ($forceCommit || $result['status'] === 'MATCH' || $result['status'] === 'MINOR_DRIFT') {
                     $jsonModified = false;
 
                     // Legacy Icon Upgrade Logic
-                    if ($upgradeIcons && isset($json['layers']) && is_array($json['layers'])) {
-                        $iconMap = [
-                            'facebook' => 'facebook.png',
-                            'fb' => 'facebook.png',
-                            'instagram' => 'instagram.png',
-                            'insta' => 'instagram.png',
-                            'twitter' => 'twitter.png',
-                            'youtube' => 'youtube.png',
-                            'whatsapp' => 'whatsapp.png',
-                            'call' => 'call.png',
-                            'phone' => 'call.png',
-                            'mail' => 'email.png',
-                            'email' => 'email.png',
-                            'web' => 'website.png',
-                            'website' => 'website.png',
-                            'location' => 'location.png',
-                            'address' => 'location.png'
+                    $vectorIconsMap = [];
+                    $iconKeywordMap = [];
+                    $upgradeLayerToVector = null;
+
+                    if ($upgradeIcons) {
+                        $vectorIconsMap = [
+                            'facebook' => [
+                                'iconName' => 'ic:baseline-facebook',
+                                'svgPath' => 'M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95',
+                                'originalSvg' => '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95"/></svg>'
+                            ],
+                            'instagram' => [
+                                'iconName' => 'mdi:instagram',
+                                'svgPath' => 'M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2m-.2 2A3.6 3.6 0 0 0 4 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6C20 5.61 18.39 4 16.4 4zm9.65 1.5a1.25 1.25 0 0 1 1.25 1.25A1.25 1.25 0 0 1 17.25 8A1.25 1.25 0 0 1 16 6.75a1.25 1.25 0 0 1 1.25-1.25M12 7a5 5 0 0 1 5 5a5 5 0 0 1-5 5a5 5 0 0 1-5-5a5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3a3 3 0 0 0 3 3a3 3 0 0 0 3-3a3 3 0 0 0-3-3',
+                                'originalSvg' => '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2m-.2 2A3.6 3.6 0 0 0 4 7.6v8.8C4 18.39 5.61 20 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6C20 5.61 18.39 4 16.4 4zm9.65 1.5a1.25 1.25 0 0 1 1.25 1.25A1.25 1.25 0 0 1 17.25 8A1.25 1.25 0 0 1 16 6.75a1.25 1.25 0 0 1 1.25-1.25M12 7a5 5 0 0 1 5 5a5 5 0 0 1-5 5a5 5 0 0 1-5-5a5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3a3 3 0 0 0 3 3a3 3 0 0 0 3-3a3 3 0 0 0-3-3"/></svg>'
+                            ],
+                            'twitter' => [
+                                'iconName' => 'mdi:twitter',
+                                'svgPath' => 'M22.46 6c-.77.35-1.6.58-2.46.69c.88-.53 1.56-1.37 1.88-2.38c-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29c0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15c0 1.49.75 2.81 1.91 3.56c-.71 0-1.37-.2-1.95-.5v.03c0 2.08 1.48 3.82 3.44 4.21a4.2 4.2 0 0 1-1.93.07a4.28 4.28 0 0 0 4 2.98a8.52 8.52 0 0 1-5.33 1.84q-.51 0-1.02-.06C3.44 20.29 5.7 21 8.12 21C16 21 20.33 14.46 20.33 8.79c0-.19 0-.37-.01-.56c.84-.6 1.56-1.36 2.14-2.23',
+                                'originalSvg' => '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="M22.46 6c-.77.35-1.6.58-2.46.69c.88-.53 1.56-1.37 1.88-2.38c-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29c0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15c0 1.49.75 2.81 1.91 3.56c-.71 0-1.37-.2-1.95-.5v.03c0 2.08 1.48 3.82 3.44 4.21a4.2 4.2 0 0 1-1.93.07a4.28 4.28 0 0 0 4 2.98a8.52 8.52 0 0 1-5.33 1.84q-.51 0-1.02-.06C3.44 20.29 5.7 21 8.12 21C16 21 20.33 14.46 20.33 8.79c0-.19 0-.37-.01-.56c.84-.6 1.56-1.36 2.14-2.23"/></svg>'
+                            ],
+                            'youtube' => [
+                                'iconName' => 'mdi:youtube',
+                                'svgPath' => 'm10 15l5.19-3L10 9zm11.56-7.83c.13.47.22 1.1.28 1.9c.07.8.1 1.49.1 2.09L22 12c0 2.19-.16 3.8-.44 4.83c-.25.9-.83 1.48-1.73 1.73c-.47.13-1.33.22-2.65.28c-1.3.07-2.49.1-3.59.1L12 19c-4.19 0-6.8-.16-7.83-.44c-.9-.25-1.48-.83-1.73-1.73c-.13-.47-.22-1.1-.28-1.9c-.07-.8-.1-1.49-.1-2.09L2 12c0-2.19.16-3.8.44-4.83c.25-.9.83-1.48 1.73-1.73c.47-.13 1.33-.22 2.65-.28c1.3-.07 2.49-.1 3.59-.1L12 5c4.19 0 6.8.16 7.83.44c.9.25 1.48.83 1.73 1.73',
+                                'originalSvg' => '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="m10 15l5.19-3L10 9zm11.56-7.83c.13.47.22 1.1.28 1.9c.07.8.1 1.49.1 2.09L22 12c0 2.19-.16 3.8-.44 4.83c-.25.9-.83 1.48-1.73 1.73c-.47.13-1.33.22-2.65.28c-1.3.07-2.49.1-3.59.1L12 19c-4.19 0-6.8-.16-7.83-.44c-.9-.25-1.48-.83-1.73-1.73c-.13-.47-.22-1.1-.28-1.9c-.07-.8-.1-1.49-.1-2.09L2 12c0-2.19.16-3.8.44-4.83c.25-.9.83-1.48 1.73-1.73c.47-.13 1.33-.22 2.65-.28c1.3-.07 2.49-.1 3.59-.1L12 5c4.19 0 6.8.16 7.83.44c.9.25 1.48.83 1.73 1.73"/></svg>'
+                            ],
+                            'whatsapp' => [
+                                'iconName' => 'mdi:whatsapp',
+                                'svgPath' => 'M12.04 2c-5.46 0-9.91 4.45-9.91 9.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21c5.46 0 9.91-4.45 9.91-9.91c0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2m.01 1.67c2.2 0 4.26.86 5.82 2.42a8.23 8.23 0 0 1 2.41 5.83c0 4.54-3.7 8.23-8.24 8.23c-1.48 0-2.93-.39-4.19-1.15l-.3-.17l-3.12.82l.83-3.04l-.2-.32a8.2 8.2 0 0 1-1.26-4.38c.01-4.54 3.7-8.24 8.25-8.24M8.53 7.33c-.16 0-.43.06-.66.31c-.22.25-.87.86-.87 2.07c0 1.22.89 2.39 1 2.56c.14.17 1.76 2.67 4.25 3.73c.59.27 1.05.42 1.41.53c.59.19 1.13.16 1.56.1c.48-.07 1.46-.6 1.67-1.18s.21-1.07.15-1.18c-.07-.1-.23-.16-.48-.27c-.25-.14-1.47-.74-1.69-.82c-.23-.08-.37-.12-.56.12c-.16.25-.64.81-.78.97c-.15.17-.29.19-.53.07c-.26-.13-1.06-.39-2-1.23c-.74-.66-1.23-1.47-1.38-1.72c-.12-.24-.01-.39.11-.5c.11-.11.27-.29.37-.44c.13-.14.17-.25.25-.41c.08-.17.04-.31-.02-.43c-.06-.11-.56-1.35-.77-1.84c-.2-.48-.4-.42-.56-.43c-.14 0-.3-.01-.47-.01',
+                                'originalSvg' => '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21c5.46 0 9.91-4.45 9.91-9.91c0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2m.01 1.67c2.2 0 4.26.86 5.82 2.42a8.23 8.23 0 0 1 2.41 5.83c0 4.54-3.7 8.23-8.24 8.23c-1.48 0-2.93-.39-4.19-1.15l-.3-.17l-3.12.82l.83-3.04l-.2-.32a8.2 8.2 0 0 1-1.26-4.38c.01-4.54 3.7-8.24 8.25-8.24M8.53 7.33c-.16 0-.43.06-.66.31c-.22.25-.87.86-.87 2.07c0 1.22.89 2.39 1 2.56c.14.17 1.76 2.67 4.25 3.73c.59.27 1.05.42 1.41.53c.59.19 1.13.16 1.56.1c.48-.07 1.46-.6 1.67-1.18s.21-1.07.15-1.18c-.07-.1-.23-.16-.48-.27c-.25-.14-1.47-.74-1.69-.82c-.23-.08-.37-.12-.56.12c-.16.25-.64.81-.78.97c-.15.17-.29.19-.53.07c-.26-.13-1.06-.39-2-1.23c-.74-.66-1.23-1.47-1.38-1.72c-.12-.24-.01-.39.11-.5c.11-.11.27-.29.37-.44c.13-.14.17-.25.25-.41c.08-.17.04-.31-.02-.43c-.06-.11-.56-1.35-.77-1.84c-.2-.48-.4-.42-.56-.43c-.14 0-.3-.01-.47-.01"/></svg>'
+                            ],
+                            'call' => [
+                                'iconName' => 'material-symbols:call',
+                                'svgPath' => 'M19.95 21q-3.125 0-6.175-1.362t-5.55-3.863t-3.862-5.55T3 4.05q0-.45.3-.75t.75-.3H8.1q.35 0 .625.238t.325.562l.65 3.5q.05.4-.025.675T9.4 8.45L6.975 10.9q.5.925 1.187 1.787t1.513 1.663q.775.775 1.625 1.438T13.1 17l2.35-2.35q.225-.225.588-.337t.712-.063l3.45.7q.35.1.575.363T21 15.9v4.05q0 .45-.3.75t-.75.3',
+                                'originalSvg' => '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="M19.95 21q-3.125 0-6.175-1.362t-5.55-3.863t-3.862-5.55T3 4.05q0-.45.3-.75t.75-.3H8.1q.35 0 .625.238t.325.562l.65 3.5q.05.4-.025.675T9.4 8.45L6.975 10.9q.5.925 1.187 1.787t1.513 1.663q.775.775 1.625 1.438T13.1 17l2.35-2.35q.225-.225.588-.337t.712-.063l3.45.7q.35.1.575.363T21 15.9v4.05q0 .45-.3.75t-.75.3"/></svg>'
+                            ],
+                            'email' => [
+                                'iconName' => 'material-symbols:mail',
+                                'svgPath' => 'M4 20q-.825 0-1.412-.587T2 18V6q0-.825.588-1.412T4 4h16q.825 0 1.413.588T22 6v12q0 .825-.587 1.413T20 20zm8-7L4 8v10h16V8zm0-2l8-5H4zM4 8V6v12z',
+                                'originalSvg' => '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="M4 20q-.825 0-1.412-.587T2 18V6q0-.825.588-1.412T4 4h16q.825 0 1.413.588T22 6v12q0 .825-.587 1.413T20 20zm8-7L4 8v10h16V8zm0-2l8-5H4zM4 8V6v12z"/></svg>'
+                            ],
+                            'web' => [
+                                'iconName' => 'material-symbols:language',
+                                'svgPath' => 'M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2m6.93 6h-2.95a15.7 15.7 0 0 0-1.38-3.56A8.03 8.03 0 0 1 18.92 8M12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96M4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56A7.99 7.99 0 0 1 5.08 16m2.95-8H5.08a7.99 7.99 0 0 1 3.95-3.56A15.7 15.7 0 0 0 7.65 8m6.17 11.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96M14.34 14H9.66c-.09-.66-.16-1.32-.16-2s.07-1.35.16-2h4.68c.09.65.16 1.32.16 2s-.07 1.34-.16 2m.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 0 1-3.95 3.56q-.18-.17-.38-.04m2.95-8h-3.38c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2',
+                                'originalSvg' => '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2m6.93 6h-2.95a15.7 15.7 0 0 0-1.38-3.56A8.03 8.03 0 0 1 18.92 8M12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96M4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56A7.99 7.99 0 0 1 5.08 16m2.95-8H5.08a7.99 7.99 0 0 1 3.95-3.56A15.7 15.7 0 0 0 7.65 8m6.17 11.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96M14.34 14H9.66c-.09-.66-.16-1.32-.16-2s.07-1.35.16-2h4.68c.09.65.16 1.32.16 2s-.07 1.34-.16 2m.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 0 1-3.95 3.56q-.18-.17-.38-.04m2.95-8h-3.38c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2"/></svg>'
+                            ],
+                            'location' => [
+                                'iconName' => 'material-symbols:location-on',
+                                'svgPath' => 'M12 12q.825 0 1.413-.587T14 10t-.587-1.412T12 8t-1.412.588T10 10t.588 1.413T12 12m0 9.8q-4.025-3.425-6.012-6.362T4 10.2q0-3.75 2.413-5.975T12 2t5.588 2.225T20 10.2q0 2.5-1.987 5.438T12 21.8',
+                                'originalSvg' => '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="M12 12q.825 0 1.413-.587T14 10t-.587-1.412T12 8t-1.412.588T10 10t.588 1.413T12 12m0 9.8q-4.025-3.425-6.012-6.362T4 10.2q0-3.75 2.413-5.975T12 2t5.588 2.225T20 10.2q0 2.5-1.987 5.438T12 21.8"/></svg>'
+                            ],
+                            'linkedin' => [
+                                'iconName' => 'mdi:linkedin',
+                                'svgPath' => 'M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.32 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93zM6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37z',
+                                'originalSvg' => '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><path fill="currentColor" d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.32 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93zM6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37z"/></svg>'
+                            ]
                         ];
 
-                        foreach ($json['layers'] as &$layer) {
+                        $iconKeywordMap = [
+                            'facebook' => 'facebook', 'fb' => 'facebook',
+                            'instagram' => 'instagram', 'insta' => 'instagram',
+                            'twitter' => 'twitter', 'youtube' => 'youtube', 'linkedin' => 'linkedin',
+                            'whatsapp' => 'whatsapp', 'call' => 'call', 'phone' => 'call',
+                            'mail' => 'email', 'email' => 'email',
+                            'web' => 'web', 'website' => 'web',
+                            'location' => 'location', 'address' => 'location'
+                        ];
+
+                        $upgradeLayerToVector = function(&$layer, &$modifiedFlag) use ($vectorIconsMap, $iconKeywordMap) {
                             if (isset($layer['type']) && $layer['type'] === 'image' && isset($layer['src'])) {
                                 $src = strtolower($layer['src']);
                                 $name = strtolower(isset($layer['name']) ? $layer['name'] : '');
@@ -972,37 +1022,53 @@ class PosterMakerController extends Controller
                                 $w = isset($layer['w']) ? $layer['w'] : (isset($layer['width']) ? $layer['width'] : 0);
                                 $h = isset($layer['h']) ? $layer['h'] : (isset($layer['height']) ? $layer['height'] : 0);
                                 
-                                if ($w > 200 || $h > 200) continue;
-                                if (strpos($name, 'bg') !== false || strpos($name, 'background') !== false || strpos($name, 'main') !== false) continue;
+                                if ($w > 200 || $h > 200) return;
+                                if (strpos($name, 'bg') !== false || strpos($name, 'background') !== false || strpos($name, 'main') !== false) return;
 
-                                $matchedIconFile = null;
-                                $isGenericIcon = false;
+                                $matchedKey = null;
 
-                                foreach ($iconMap as $kw => $filename) {
+                                foreach ($iconKeywordMap as $kw => $key) {
                                     if (strpos($src, $kw) !== false || strpos($name, $kw) !== false) {
-                                        $matchedIconFile = $filename;
+                                        $matchedKey = $key;
                                         break;
                                     }
                                 }
 
-                                if (!$matchedIconFile && (strpos($src, 'icon') !== false || strpos($name, 'icon') !== false)) {
-                                    $isGenericIcon = true;
-                                }
-
-                                if (($matchedIconFile || $isGenericIcon) && empty($layer['is_shape'])) {
-                                    $layer['is_shape'] = true;
-                                    $layer['customType'] = 'icon';
+                                if ($matchedKey && isset($vectorIconsMap[$matchedKey])) {
+                                    $vectorData = $vectorIconsMap[$matchedKey];
                                     
-                                    if ($matchedIconFile) {
-                                        $layer['src'] = '/assets/new_icons/' . $matchedIconFile;
-                                        $layer['name'] = 'icon_' . str_replace('.png', '', $matchedIconFile);
-                                    } else {
-                                        if (strpos($name, 'icon_') !== 0) {
-                                            $layer['name'] = 'icon_' . (isset($layer['name']) ? $layer['name'] : 'legacy');
-                                        }
-                                    }
-                                    $jsonModified = true;
+                                    // Transform the layer into a vector icon
+                                    $layer['type'] = 'icon';
+                                    $layer['shapeType'] = 'path';
+                                    $layer['iconName'] = $vectorData['iconName'];
+                                    $layer['iconProvider'] = 'iconify';
+                                    $layer['svgPath'] = $vectorData['svgPath'];
+                                    
+                                    // Use exact previous color
+                                    $oldColor = $layer['tint_color'] ?? $layer['color'] ?? $layer['font_color'] ?? '#333333';
+                                    $layer['color'] = $oldColor;
+                                    
+                                    // Fix specific name to avoid issues
+                                    $layer['name'] = 'icon_' . $matchedKey;
+                                    
+                                    // Safely ensure is_shape is false so it doesn't collide
+                                    $layer['is_shape'] = false;
+
+                                    $layer['_source_meta'] = [
+                                        'type' => 'icon',
+                                        'iconName' => $vectorData['iconName'],
+                                        'provider' => 'iconify',
+                                        'originalSvg' => $vectorData['originalSvg']
+                                    ];
+                                    
+                                    $modifiedFlag = true;
                                 }
+                            }
+                        };
+
+                        if (isset($json['layers']) && is_array($json['layers'])) {
+                            foreach ($json['layers'] as &$layer) {
+                                $upgradeLayerToVector($layer, $jsonModified);
                             }
                         }
                     }
@@ -1018,14 +1084,31 @@ class PosterMakerController extends Controller
                         file_put_contents($jsonPath, json_encode($json, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
                     }
 
-                    // Update DB column
+                    // Update DB column and layers_json
                     if ($targetVersion !== 'none') {
                         $frame->render_version = (int) $targetVersion;
-                        $frame->save();
                     }
+                    
+                    if ($jsonModified) {
+                        $jsonString = json_encode($json, JSON_UNESCAPED_SLASHES);
+                        $frame->layers_json = $jsonString;
+                        
+                        // Update the ZIP file directly so Web Editor load doesn't revert to old JSON
+                        $zipPath = public_path("uploads/template/{$frame->zip_name}.zip");
+                        if (file_exists($zipPath)) {
+                            $zip = new \ZipArchive();
+                            if ($zip->open($zipPath) === true) {
+                                $zip->addFromString('frame.json', $jsonString);
+                                $zip->close();
+                            }
+                        }
+                    }
+                    $frame->save();
 
                     // Invalidate Redis Cache
                     \Illuminate\Support\Facades\Cache::forget("template_json:{$frame->zip_name}");
+                    \Illuminate\Support\Facades\Cache::forget("template_json:v2:{$frame->zip_name}");
+                    \Illuminate\Support\Facades\Cache::forget("template_json:v2:" . preg_replace('/^Template_/i', '', $frame->zip_name));
 
                     // Also update EditorTemplate if exists
                     $editorTemplate = \App\Models\EditorTemplate::where('uuid', $frame->zip_name)->first();
@@ -1034,24 +1117,11 @@ class PosterMakerController extends Controller
                         $legacy = is_string($editorTemplate->legacy_json) ? json_decode($editorTemplate->legacy_json, true) : $editorTemplate->legacy_json;
                         $dbModified = false;
 
-                        if ($upgradeIcons) {
-                            $updateLayers = function(&$layers) use (&$dbModified) {
-                                $socialKeywords = ['facebook', 'fb', 'instagram', 'insta', 'twitter', 'youtube', 'whatsapp', 'call', 'mail', 'email', 'web', 'location'];
+                        if ($upgradeIcons && $upgradeLayerToVector) {
+                            $updateLayers = function(&$layers) use ($upgradeLayerToVector, &$dbModified) {
                                 if (is_array($layers)) {
                                     foreach ($layers as &$layer) {
-                                        if (isset($layer['type']) && $layer['type'] === 'image' && isset($layer['src'])) {
-                                            $src = strtolower($layer['src']);
-                                            $isSocial = false;
-                                            foreach ($socialKeywords as $kw) {
-                                                if (strpos($src, $kw) !== false) { $isSocial = true; break; }
-                                            }
-                                            if ($isSocial && empty($layer['is_shape'])) {
-                                                $layer['is_shape'] = true;
-                                                $layer['customType'] = 'icon';
-                                                $layer['name'] = 'icon_' . (isset($layer['name']) ? $layer['name'] : 'legacy');
-                                                $dbModified = true;
-                                            }
-                                        }
+                                        $upgradeLayerToVector($layer, $dbModified);
                                     }
                                 }
                             };
@@ -1071,6 +1141,8 @@ class PosterMakerController extends Controller
                             if (is_array($legacy)) $editorTemplate->legacy_json = $legacy;
                             $editorTemplate->save();
                             \Illuminate\Support\Facades\Cache::forget("template_json:{$editorTemplate->uuid}");
+                            \Illuminate\Support\Facades\Cache::forget("template_json:v2:{$editorTemplate->uuid}");
+                            \Illuminate\Support\Facades\Cache::forget("template_json:v2:" . preg_replace('/^Template_/i', '', $editorTemplate->uuid));
                         }
                     }
 

@@ -836,6 +836,15 @@ class TemplateBuilderController extends Controller
             }
         }
 
+        if ($existingFrame) {
+            // CRITICAL: Preserve the render_version from the database!
+            // The Web Editor might be sending a stale version (e.g., v7) if it was loaded before a dashboard upgrade to v8.
+            // By overriding it here, we ensure the version can only be changed via the Version Control Dashboard.
+            $dbRenderVersion = (int)($existingFrame->render_version ?? 1);
+            if (is_array($schemaJson)) $schemaJson['render_version'] = $dbRenderVersion;
+            if (is_array($legacyJson)) $legacyJson['render_version'] = $dbRenderVersion;
+        }
+
         if (!$uuid) {
             $uuid = \Illuminate\Support\Str::uuid()->toString();
         }

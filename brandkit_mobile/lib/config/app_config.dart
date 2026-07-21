@@ -4,6 +4,10 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 class AppConfig {
   // Read target environment from build-time dart-define, defaulting to local
   static const String _rawEnv = String.fromEnvironment('ENV', defaultValue: 'production');
+  static const String _localBaseUrl = String.fromEnvironment(
+    'LOCAL_API_BASE_URL',
+    defaultValue: 'http://192.168.1.37/Artera/123456',
+  );
 
   static AppEnvironment get currentEnv {
     switch (_rawEnv) {
@@ -20,7 +24,7 @@ class AppConfig {
   static String get baseUrl {
     switch (currentEnv) {
       case AppEnvironment.local:
-        return 'http://192.168.1.34/Artera/123456';
+        return _localBaseUrl;
       case AppEnvironment.staging:
         return 'https://stagingartera.arterapixel.com/123456';
       case AppEnvironment.production:

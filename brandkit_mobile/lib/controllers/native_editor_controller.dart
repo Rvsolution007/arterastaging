@@ -9,41 +9,60 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'dart:ui' as ui;
-import 'dart:math';
 import '../config/app_config.dart';
 
 import '../services/api_service.dart';
+import '../utils/dynamic_color_resolver.dart';
 import '../utils/template_json_cache.dart';
 
 import '../controllers/home_controller.dart';
-
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 
 class NativeEditorController extends GetxController {
+  static int? timelineTapTime;
+  static int? timelineLoadStart;
+  static int? timelinePrecacheStart;
+  static int? timelinePrecacheEnd;
+  static int? timelineMergeComplete;
+  static int? timelineConfigUpdated;
+  static int? timelineRefreshComplete;
+  static int? timelineObxRebuild;
+  static int? timelineCanvasBuild;
+  static int? timelineInteractiveLayerBuild;
+  static bool timelinePlaceholderCalled = false;
+  static bool timelineImageBuilderCalled = false;
+
+  static final Rx<Uint8List?> transitionSnapshot = Rx<Uint8List?>(null);
+  Future<void> Function()? captureCanvasCallback;
+
   // The complete living JSON configuration of the template
   final RxMap<String, dynamic> templateConfig = <String, dynamic>{}.obs;
 
   // Frame API Integration
   final RxList<dynamic> frames = <dynamic>[].obs;
   final RxBool isLoadingFrames = false.obs;
+  final RxBool isCanvasLoading = false.obs;
+  final RxString loadingFrameId =
+      ''.obs; // ID of the frame currently loading (for thumbnail indicator)
 
   // The ID or name of the currently selected layer
   final RxString selectedLayerId = ''.obs;
-  
+
   // The currently active contextual tool (e.g. 'Edit', 'Font', 'Nudge')
   final RxString activeTool = ''.obs;
-  final RxInt layerUpdateTrigger = 0.obs; // Forces Obx rebuild on layer property changes
-  
+  final RxInt layerUpdateTrigger =
+      0.obs; // Forces Obx rebuild on layer property changes
+
   // Flag used to differentiate between canvas background taps and layer taps
 
   @override
   void onInit() {
     super.onInit();
     // Default config if none is provided
-    templateConfig.value = {
-      'width': 1080,
-      'height': 1080,
-      'layers': []
-    };
+    templateConfig.value = {'width': 1080, 'height': 1080, 'layers': []};
     _pushHistory();
     fetchFramesList();
   }
@@ -57,7 +76,9 @@ class NativeEditorController extends GetxController {
       }
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('userId') ?? '';
-      final response = await ApiService.get('/get-all-frames?business_category_id=$bcId&userId=$userId');
+      final response = await ApiService.get(
+        '/get-all-frames?business_category_id=$bcId&userId=$userId',
+      );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data is Map && data['success'] == true) {
@@ -72,7 +93,117 @@ class NativeEditorController extends GetxController {
       debugPrint('Error fetching frames: $e');
     } finally {
       isLoadingFrames.value = false;
+      // Pre-cache ALL frame images in the background for instant switching
+      _backgroundPrecacheAllFrames();
     }
+  }
+
+  /// Silently pre-downloads all images from all frames to disk cache.
+  /// This runs in the background after frame list loads so that when
+  /// a user taps any frame, images are already on disk → instant render.
+  void _backgroundPrecacheAllFrames() {
+    Future(() async {
+      int cachedCount = 0;
+      final String apiBase = ApiService.baseUrl;
+      final Uri baseUri = Uri.parse(apiBase);
+      List<String> segments = baseUri.pathSegments.toList();
+      if (segments.isNotEmpty) segments.removeLast();
+      final String serverBase =
+          baseUri.replace(pathSegments: segments).toString().endsWith('/')
+          ? baseUri.replace(pathSegments: segments).toString()
+          : '${baseUri.replace(pathSegments: segments).toString()}/';
+
+      for (var frame in frames) {
+        // Get layers from config
+        List<dynamic>? layers;
+        final config = frame['config'];
+        final jsonField = frame['json'] ?? frame['json_rules'];
+
+        if (config != null) {
+          if (config is Map && config['layers'] != null) {
+            layers = config['layers'] as List<dynamic>;
+          } else if (config is String) {
+            try {
+              layers = jsonDecode(config)['layers'];
+            } catch (_) {}
+          }
+        } else if (jsonField != null) {
+          if (jsonField is Map && jsonField['layers'] != null) {
+            layers = jsonField['layers'] as List<dynamic>;
+          } else if (jsonField is String) {
+            try {
+              layers = jsonDecode(jsonField)['layers'];
+            } catch (_) {}
+          }
+        }
+
+        // Also pre-cache the full_url (frame overlay image)
+        final String fullUrl = (frame['full_url'] ?? '').toString();
+        if (fullUrl.isNotEmpty && fullUrl.startsWith('http')) {
+          try {
+            final cached = await DefaultCacheManager().getFileFromCache(
+              fullUrl,
+            );
+            if (cached == null) {
+              await DefaultCacheManager().downloadFile(fullUrl);
+              cachedCount++;
+            }
+          } catch (_) {}
+        }
+
+        // Pre-cache all image layer sources
+        if (layers != null) {
+          for (var layer in layers) {
+            if (layer['type'] == 'image' && layer['src'] != null) {
+              String src = layer['src'].toString();
+              if (src.isEmpty || src.startsWith('data:')) continue;
+
+              // Resolve relative URL to absolute
+              if (!src.startsWith('http')) {
+                String zipName = (frame['zip_name'] ?? frame['path'] ?? '')
+                    .toString()
+                    .replaceAll('/', '')
+                    .trim();
+                String frameBaseUrl = serverBase;
+                if (zipName.isNotEmpty) {
+                  frameBaseUrl = '${serverBase}uploads/template/$zipName/';
+                } else if (fullUrl.isNotEmpty) {
+                  int skinsIndex = fullUrl.indexOf('/skins/');
+                  if (skinsIndex != -1) {
+                    frameBaseUrl = '${fullUrl.substring(0, skinsIndex)}/';
+                  }
+                }
+
+                if (src.startsWith('/')) {
+                  src = '$serverBase${src.substring(1)}';
+                } else if (src.startsWith('../')) {
+                  src = '$frameBaseUrl${src.replaceFirst('../', '')}';
+                } else if (src.startsWith('uploads/')) {
+                  src = '$serverBase$src';
+                } else {
+                  src = '${frameBaseUrl}skins/$src';
+                }
+              }
+
+              src = src.replaceAll(' ', '-').replaceAll('%20', '-');
+
+              try {
+                final cached = await DefaultCacheManager().getFileFromCache(
+                  src,
+                );
+                if (cached == null) {
+                  await DefaultCacheManager().downloadFile(src);
+                  cachedCount++;
+                }
+              } catch (_) {}
+            }
+          }
+        }
+      }
+      debugPrint(
+        '✅ [PRE-CACHE] Background pre-cached $cachedCount images from ${frames.length} frames',
+      );
+    });
   }
 
   Future<Map<String, dynamic>?> fetchTemplateJson(String zipName) async {
@@ -95,7 +226,11 @@ class NativeEditorController extends GetxController {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true && data['json'] != null) {
-          await TemplateJsonCache.save(zipName, jsonEncode(data['json']), data['updated_at']);
+          await TemplateJsonCache.save(
+            zipName,
+            jsonEncode(data['json']),
+            data['updated_at'],
+          );
           return data['json'];
         }
       }
@@ -108,18 +243,26 @@ class NativeEditorController extends GetxController {
   List<dynamic> get filteredFrames {
     if (!Get.isRegistered<HomeController>()) return frames;
     final hc = Get.find<HomeController>();
-    
-    int activeEmails = (hc.businessEmail.value.isNotEmpty ? 1 : 0) + hc.extraEmails.length;
-    int activePhones = (hc.businessPhone.value.isNotEmpty ? 1 : 0) + hc.extraPhones.length;
-    int activeWebsites = (hc.businessWebsite.value.isNotEmpty ? 1 : 0) + hc.extraWebsites.length;
-    int activeAddresses = (hc.businessAddress.value.isNotEmpty ? 1 : 0) + hc.extraAddresses.length;
-    
+
+    int activeEmails =
+        (hc.businessEmail.value.isNotEmpty ? 1 : 0) + hc.extraEmails.length;
+    int activePhones =
+        (hc.businessPhone.value.isNotEmpty ? 1 : 0) + hc.extraPhones.length;
+    int activeWebsites =
+        (hc.businessWebsite.value.isNotEmpty ? 1 : 0) + hc.extraWebsites.length;
+    int activeAddresses =
+        (hc.businessAddress.value.isNotEmpty ? 1 : 0) +
+        hc.extraAddresses.length;
+
     final hf = hc.hiddenFrameFields;
     if (hf['emails'] != null) activeEmails -= (hf['emails'] as List).length;
-    if (hf['mobile_numbers'] != null) activePhones -= (hf['mobile_numbers'] as List).length;
-    if (hf['websites'] != null) activeWebsites -= (hf['websites'] as List).length;
-    if (hf['addresses'] != null) activeAddresses -= (hf['addresses'] as List).length;
-    
+    if (hf['mobile_numbers'] != null)
+      activePhones -= (hf['mobile_numbers'] as List).length;
+    if (hf['websites'] != null)
+      activeWebsites -= (hf['websites'] as List).length;
+    if (hf['addresses'] != null)
+      activeAddresses -= (hf['addresses'] as List).length;
+
     activeEmails = activeEmails.clamp(0, 99);
     activePhones = activePhones.clamp(0, 99);
     activeWebsites = activeWebsites.clamp(0, 99);
@@ -129,13 +272,14 @@ class NativeEditorController extends GetxController {
       int reqEmail = int.tryParse(frame['req_email']?.toString() ?? '0') ?? 0;
       int reqPhone = int.tryParse(frame['req_phone']?.toString() ?? '0') ?? 0;
       int reqWeb = int.tryParse(frame['req_website']?.toString() ?? '0') ?? 0;
-      int reqAddress = int.tryParse(frame['req_address']?.toString() ?? '0') ?? 0;
-      
+      int reqAddress =
+          int.tryParse(frame['req_address']?.toString() ?? '0') ?? 0;
+
       if (reqEmail != activeEmails) return false;
       if (reqPhone != activePhones) return false;
       if (reqWeb != activeWebsites) return false;
       if (reqAddress != activeAddresses) return false;
-      
+
       return true;
     }).toList();
   }
@@ -150,8 +294,16 @@ class NativeEditorController extends GetxController {
   String? baseImgUrl;
 
   /// Initializes the editor with the starting JSON configuration
-  void initConfig(Map<String, dynamic> initialConfig, String tplBaseUrl, String upBaseUrl, String? baseImg, String editorType) {
-    templateConfig.assignAll(jsonDecode(jsonEncode(initialConfig))); // deep copy
+  void initConfig(
+    Map<String, dynamic> initialConfig,
+    String tplBaseUrl,
+    String upBaseUrl,
+    String? baseImg,
+    String editorType,
+  ) {
+    templateConfig.assignAll(
+      jsonDecode(jsonEncode(initialConfig)),
+    ); // deep copy
     templateBaseUrl = tplBaseUrl;
     uploadsBaseUrl = upBaseUrl;
     baseImgUrl = baseImg;
@@ -192,7 +344,15 @@ class NativeEditorController extends GetxController {
       }
 
       // Self-heal frameBaseUrl if it does not contain /uploads/template/
-      String zipName = (initialConfig['zip_name'] ?? initialConfig['path'] ?? templateConfig['zip_name'] ?? templateConfig['path'] ?? '').toString().replaceAll('/', '').trim();
+      String zipName =
+          (initialConfig['zip_name'] ??
+                  initialConfig['path'] ??
+                  templateConfig['zip_name'] ??
+                  templateConfig['path'] ??
+                  '')
+              .toString()
+              .replaceAll('/', '')
+              .trim();
       if (zipName.isEmpty && templateConfig['layers'] is List) {
         final reg = RegExp(r'(?:\.\./)?skins/([^/]+)/');
         for (var layer in (templateConfig['layers'] as List)) {
@@ -211,31 +371,39 @@ class NativeEditorController extends GetxController {
         }
       }
 
-      if (zipName.isNotEmpty && !frameBaseUrl.contains('/uploads/template/$zipName')) {
+      if (zipName.isNotEmpty &&
+          !frameBaseUrl.contains('/uploads/template/$zipName')) {
         frameBaseUrl = '${base}uploads/template/$zipName/';
         this.templateBaseUrl = frameBaseUrl;
-      } else if (this.templateBaseUrl.isEmpty || !this.templateBaseUrl.contains('/uploads/template/')) {
+      } else if (this.templateBaseUrl.isEmpty ||
+          !this.templateBaseUrl.contains('/uploads/template/')) {
         this.templateBaseUrl = frameBaseUrl;
       }
 
       for (var layer in (templateConfig['layers'] as List)) {
         if (layer is Map<String, dynamic>) {
           for (var urlField in ['src', '_fallback_src']) {
-            if (layer[urlField] != null && layer[urlField].toString().isNotEmpty) {
+            if (layer[urlField] != null &&
+                layer[urlField].toString().isNotEmpty) {
               String srcStr = layer[urlField].toString();
               if (srcStr.startsWith('data:') || srcStr.startsWith('http')) {
                 if (srcStr.contains('/skins/skins/')) {
                   srcStr = srcStr.replaceAll('/skins/skins/', '/skins/');
                   layer[urlField] = srcStr;
                 }
-                if (zipName.isNotEmpty && srcStr.contains('/uploads/skins/$zipName/')) {
-                  srcStr = srcStr.replaceAll('/uploads/skins/$zipName/', '/uploads/template/$zipName/skins/$zipName/');
+                if (zipName.isNotEmpty &&
+                    srcStr.contains('/uploads/skins/$zipName/')) {
+                  srcStr = srcStr.replaceAll(
+                    '/uploads/skins/$zipName/',
+                    '/uploads/template/$zipName/skins/$zipName/',
+                  );
                   layer[urlField] = srcStr;
                 }
               } else if (srcStr.startsWith('/')) {
                 layer[urlField] = '$base${srcStr.substring(1)}';
               } else if (srcStr.startsWith('../')) {
-                layer[urlField] = '$frameBaseUrl${srcStr.replaceFirst('../', '')}';
+                layer[urlField] =
+                    '$frameBaseUrl${srcStr.replaceFirst('../', '')}';
               } else if (srcStr.startsWith('skins/')) {
                 layer[urlField] = '$frameBaseUrl$srcStr';
               } else if (srcStr.startsWith('uploads/')) {
@@ -247,8 +415,12 @@ class NativeEditorController extends GetxController {
                   layer[urlField] = '${frameBaseUrl}skins/$srcStr';
                 }
               }
-              if (layer[urlField] != null && !layer[urlField].toString().startsWith('data:')) {
-                layer[urlField] = layer[urlField].toString().replaceAll(' ', '-').replaceAll('%20', '-');
+              if (layer[urlField] != null &&
+                  !layer[urlField].toString().startsWith('data:')) {
+                layer[urlField] = layer[urlField]
+                    .toString()
+                    .replaceAll(' ', '-')
+                    .replaceAll('%20', '-');
               }
             }
           }
@@ -259,7 +431,7 @@ class NativeEditorController extends GetxController {
     }
 
     _pushHistory();
-    
+
     // Run brightness detection on initial load too (not just on frame switch)
     _applyInitialBrightness();
 
@@ -291,27 +463,37 @@ class NativeEditorController extends GetxController {
   void _injectDynamicBusinessFrame() {
     if (!Get.isRegistered<HomeController>()) return;
     final homeCtrl = Get.find<HomeController>();
-    
+
     List<dynamic> layers = templateConfig['layers'] ?? [];
     templateConfig['layers'] = layers;
 
     // Check if frame layers already exist (so we don't duplicate)
-    bool hasFrame = layers.any((l) => l['_businessKey'] != null || l['_isFrameLayer'] == true);
+    bool hasFrame = layers.any(
+      (l) => l['_businessKey'] != null || l['_isFrameLayer'] == true,
+    );
     if (hasFrame) return;
 
-    final double cW = safeDouble((templateConfig['info']?['width'] ?? templateConfig['width'] ?? 1080) as num);
-    final double cH = safeDouble((templateConfig['info']?['height'] ?? templateConfig['height'] ?? 1080) as num);
+    final double cW = safeDouble(
+      (templateConfig['info']?['width'] ?? templateConfig['width'] ?? 1080)
+          as num,
+    );
+    final double cH = safeDouble(
+      (templateConfig['info']?['height'] ?? templateConfig['height'] ?? 1080)
+          as num,
+    );
 
     // Default business layers (matching web editor addBusinessElements)
-    
+
     // Logo
     if (homeCtrl.businessLogo.value.isNotEmpty) {
       layers.add({
         'name': '_b_logo',
         'type': 'image',
         'src': homeCtrl.businessLogo.value,
-        'x': cW * 0.08, 'y': cH * 0.08,
-        'w': cW * 0.15, 'h': cW * 0.15,
+        'x': cW * 0.08,
+        'y': cH * 0.08,
+        'w': cW * 0.15,
+        'h': cW * 0.15,
         'z_index': 99,
         '_isFrameLayer': true,
         '_businessKey': 'logo',
@@ -343,8 +525,10 @@ class NativeEditorController extends GetxController {
         'name': '_b_phone',
         'type': 'text',
         'text': homeCtrl.businessPhone.value.replaceAll(' ', '\u00A0'),
-        'x': cW * 0.12, 'y': cH * 0.88,
-        'w': cW * 0.4, 'h': 26,
+        'x': cW * 0.12,
+        'y': cH * 0.88,
+        'w': cW * 0.4,
+        'h': 26,
         'fontSize': 22,
         'fontFamily': 'Inter',
         'weight': 'bold',
@@ -362,8 +546,10 @@ class NativeEditorController extends GetxController {
         'name': '_b_email',
         'type': 'text',
         'text': homeCtrl.businessEmail.value,
-        'x': cW * 0.08, 'y': cH * 0.92,
-        'w': cW * 0.5, 'h': 26,
+        'x': cW * 0.08,
+        'y': cH * 0.92,
+        'w': cW * 0.5,
+        'h': 26,
         'fontSize': 18,
         'fontFamily': 'Inter',
         'weight': 'normal',
@@ -381,8 +567,10 @@ class NativeEditorController extends GetxController {
         'name': '_b_website',
         'type': 'text',
         'text': homeCtrl.businessWebsite.value,
-        'x': cW * 0.5, 'y': cH * 0.88,
-        'w': cW * 0.45, 'h': 26,
+        'x': cW * 0.5,
+        'y': cH * 0.88,
+        'w': cW * 0.45,
+        'h': 26,
         'fontSize': 18,
         'fontFamily': 'Inter',
         'weight': 'normal',
@@ -400,8 +588,10 @@ class NativeEditorController extends GetxController {
         'name': '_b_address',
         'type': 'text',
         'text': homeCtrl.businessAddress.value,
-        'x': cW * 0.5, 'y': cH * 0.92,
-        'w': cW * 0.45, 'h': 26,
+        'x': cW * 0.5,
+        'y': cH * 0.92,
+        'w': cW * 0.45,
+        'h': 26,
         'fontSize': 16,
         'fontFamily': 'Inter',
         'weight': 'normal',
@@ -424,7 +614,10 @@ class NativeEditorController extends GetxController {
     if (layers.isEmpty) return;
 
     Map<String, int> bizKeyCounter = {
-      'phone': 0, 'email': 0, 'website': 0, 'address': 0,
+      'phone': 0,
+      'email': 0,
+      'website': 0,
+      'address': 0,
     };
 
     bool updated = false;
@@ -441,9 +634,15 @@ class NativeEditorController extends GetxController {
             int idx = bizKeyCounter['phone']!;
             String targetVal = '';
             if (idx == 0) {
-              targetVal = homeCtrl.businessPhone.value.replaceAll(' ', '\u00A0');
+              targetVal = homeCtrl.businessPhone.value.replaceAll(
+                ' ',
+                '\u00A0',
+              );
             } else if (idx - 1 < homeCtrl.extraPhones.length) {
-              targetVal = homeCtrl.extraPhones[idx - 1].replaceAll(' ', '\u00A0');
+              targetVal = homeCtrl.extraPhones[idx - 1].replaceAll(
+                ' ',
+                '\u00A0',
+              );
             }
             bizKeyCounter['phone'] = idx + 1;
             if (targetVal.isNotEmpty && layer['text'] != targetVal) {
@@ -494,7 +693,10 @@ class NativeEditorController extends GetxController {
           if (key == 'logo' && homeCtrl.businessLogo.value.isNotEmpty) {
             String logoPath = homeCtrl.businessLogo.value;
             if (!logoPath.startsWith('http')) {
-              logoPath = ApiService.baseUrl.replaceAll('/api', '') + '/' + (logoPath.startsWith('/') ? logoPath.substring(1) : logoPath);
+              logoPath =
+                  ApiService.baseUrl.replaceAll('/api', '') +
+                  '/' +
+                  (logoPath.startsWith('/') ? logoPath.substring(1) : logoPath);
             }
             if (layer['src'] != logoPath) {
               layer['src'] = logoPath;
@@ -522,9 +724,14 @@ class NativeEditorController extends GetxController {
             // Skip if it already has a business key
             if (imgLayer['_businessKey'] != null) continue;
 
-            double iw = safeDouble((imgLayer['w'] ?? imgLayer['width'] ?? 0) as num);
-            double ih = safeDouble((imgLayer['h'] ?? imgLayer['height'] ?? 0) as num);
-            if (iw <= 0 || ih <= 0 || iw > 80 || ih > 80) continue; // Must be a small icon asset
+            double iw = safeDouble(
+              (imgLayer['w'] ?? imgLayer['width'] ?? 0) as num,
+            );
+            double ih = safeDouble(
+              (imgLayer['h'] ?? imgLayer['height'] ?? 0) as num,
+            );
+            if (iw <= 0 || ih <= 0 || iw > 80 || ih > 80)
+              continue; // Must be a small icon asset
 
             double ix = safeDouble((imgLayer['x'] ?? 0) as num);
             double iy = safeDouble((imgLayer['y'] ?? 0) as num);
@@ -534,21 +741,40 @@ class NativeEditorController extends GetxController {
             double bestDist = 999999;
 
             for (var txtLayer in layers) {
-              if (txtLayer is Map<String, dynamic> && txtLayer['type'] == 'text') {
+              if (txtLayer is Map<String, dynamic> &&
+                  txtLayer['type'] == 'text') {
                 String? txtBizKey = txtLayer['_businessKey']?.toString();
                 if (txtBizKey == null || txtBizKey.isEmpty) {
-                  final String tname = (txtLayer['name'] ?? txtLayer['id'] ?? '').toString().toLowerCase();
-                  if (tname.contains('phone') || tname.contains('mobile') || tname.contains('whatsapp') || tname.contains('number') || tname.contains('tel')) txtBizKey = 'phone';
-                  else if (tname.contains('email') || tname.contains('mail')) txtBizKey = 'email';
-                  else if (tname.contains('website') || tname.contains('web') || tname.contains('url')) txtBizKey = 'website';
-                  else if (tname.contains('address') || tname.contains('location')) txtBizKey = 'address';
+                  final String tname =
+                      (txtLayer['name'] ?? txtLayer['id'] ?? '')
+                          .toString()
+                          .toLowerCase();
+                  if (tname.contains('phone') ||
+                      tname.contains('mobile') ||
+                      tname.contains('whatsapp') ||
+                      tname.contains('number') ||
+                      tname.contains('tel'))
+                    txtBizKey = 'phone';
+                  else if (tname.contains('email') || tname.contains('mail'))
+                    txtBizKey = 'email';
+                  else if (tname.contains('website') ||
+                      tname.contains('web') ||
+                      tname.contains('url'))
+                    txtBizKey = 'website';
+                  else if (tname.contains('address') ||
+                      tname.contains('location'))
+                    txtBizKey = 'address';
                 }
                 if (txtBizKey == null || txtBizKey.isEmpty) continue;
 
                 double tx = safeDouble((txtLayer['x'] ?? 0) as num);
                 double ty = safeDouble((txtLayer['y'] ?? 0) as num);
-                double tw = safeDouble((txtLayer['w'] ?? txtLayer['width'] ?? 0) as num);
-                double th = safeDouble((txtLayer['h'] ?? txtLayer['height'] ?? 0) as num);
+                double tw = safeDouble(
+                  (txtLayer['w'] ?? txtLayer['width'] ?? 0) as num,
+                );
+                double th = safeDouble(
+                  (txtLayer['h'] ?? txtLayer['height'] ?? 0) as num,
+                );
                 double tcY = ty + th / 2;
 
                 // Check vertical alignment (diff in center Y <= 35)
@@ -578,15 +804,31 @@ class NativeEditorController extends GetxController {
             if (bestTextLayer != null) {
               String bizKey = bestTextLayer['_businessKey']?.toString() ?? '';
               if (bizKey.isEmpty) {
-                final String tname = (bestTextLayer['name'] ?? bestTextLayer['id'] ?? '').toString().toLowerCase();
-                if (tname.contains('phone') || tname.contains('mobile') || tname.contains('whatsapp') || tname.contains('number') || tname.contains('tel')) bizKey = 'phone';
-                else if (tname.contains('email') || tname.contains('mail')) bizKey = 'email';
-                else if (tname.contains('website') || tname.contains('web') || tname.contains('url')) bizKey = 'website';
-                else if (tname.contains('address') || tname.contains('location')) bizKey = 'address';
+                final String tname =
+                    (bestTextLayer['name'] ?? bestTextLayer['id'] ?? '')
+                        .toString()
+                        .toLowerCase();
+                if (tname.contains('phone') ||
+                    tname.contains('mobile') ||
+                    tname.contains('whatsapp') ||
+                    tname.contains('number') ||
+                    tname.contains('tel'))
+                  bizKey = 'phone';
+                else if (tname.contains('email') || tname.contains('mail'))
+                  bizKey = 'email';
+                else if (tname.contains('website') ||
+                    tname.contains('web') ||
+                    tname.contains('url'))
+                  bizKey = 'website';
+                else if (tname.contains('address') ||
+                    tname.contains('location'))
+                  bizKey = 'address';
               }
               if (bizKey.isNotEmpty) {
                 imgLayer['_businessKey'] = bizKey;
-                debugPrint('[ICON_AUTO_DETECT] Coupled icon "${imgLayer['name']}" to text "${bestTextLayer['name']}" (key=$bizKey, dist=${bestDist.toInt()})');
+                debugPrint(
+                  '[ICON_AUTO_DETECT] Coupled icon "${imgLayer['name']}" to text "${bestTextLayer['name']}" (key=$bizKey, dist=${bestDist.toInt()})',
+                );
               }
             }
           }
@@ -601,38 +843,63 @@ class NativeEditorController extends GetxController {
   Future<void> _applyInitialBrightness() async {
     final layers = templateConfig['layers'] as List<dynamic>? ?? [];
     if (layers.isEmpty) return;
-    
+
     _autoDetectContactIcons(layers);
-    
+
     // Build shape layers list (same logic as loadNewFrame)
     List<Map<String, dynamic>> shapeLayers = [];
     for (var layer in layers) {
-      final String layerName = (layer['name'] ?? layer['id'] ?? '').toString().toLowerCase();
-      final bool isBg = layer['is_background'] == true || 
-                        (layer['is_background'] == null && ['image1', 'main_image', 'bg', 'background', '_frame_bg'].contains(layerName));
-      
-      if (!isBg && (layer['type'] == 'image' || layer['type'] == 'rect' || layer['type'] == 'shape')) {
-        bool isContactIcon = ['phone', 'email', 'website', 'address', 'social'].any((e) => layerName.contains(e));
+      final String layerName = (layer['name'] ?? layer['id'] ?? '')
+          .toString()
+          .toLowerCase();
+      final bool isBg =
+          layer['is_background'] == true ||
+          (layer['is_background'] == null &&
+              [
+                'image1',
+                'main_image',
+                'bg',
+                'background',
+                '_frame_bg',
+              ].contains(layerName));
+
+      if (!isBg &&
+          (layer['type'] == 'image' ||
+              layer['type'] == 'rect' ||
+              layer['type'] == 'shape')) {
+        bool isContactIcon = [
+          'phone',
+          'email',
+          'website',
+          'address',
+          'social',
+        ].any((e) => layerName.contains(e));
         if (!isContactIcon || layer['type'] != 'image') {
           double rawW = safeDouble((layer['w'] ?? layer['width'] ?? 0) as num);
           double rawH = safeDouble((layer['h'] ?? layer['height'] ?? 0) as num);
           bool isShapeMarked = layer['is_shape'] == true;
-          if (layer['type'] != 'image' || rawW > 200 || rawH > 200 || isShapeMarked) {
+          if (layer['type'] != 'image' ||
+              rawW > 200 ||
+              rawH > 200 ||
+              isShapeMarked) {
             if (rawW > 20 && rawH > 10) {
               shapeLayers.add({
+                'name': layerName,
+                'id': layer['id']?.toString() ?? '',
                 'x': safeDouble((layer['x'] ?? 0) as num),
                 'y': safeDouble((layer['y'] ?? 0) as num),
                 'w': rawW,
                 'h': rawH,
                 'fill': layer['fill'] ?? layer['tint_color'] ?? layer['color'],
                 'src': layer['src'],
+                'z_index': safeDouble((layer['z_index'] ?? 0) as num).toInt(),
               });
             }
           }
         }
       }
     }
-    
+
     // Run async brightness detection - pass layers as the "newLayers" parameter
     final layerMaps = layers.whereType<Map<String, dynamic>>().toList();
     _asyncApplyBrightness({}, layerMaps, layers, shapeLayers);
@@ -681,7 +948,14 @@ class NativeEditorController extends GetxController {
     activeTool.value = '';
   }
 
-  void updateLayerBounds(String layerName, double x, double y, double w, double h, double angle) {
+  void updateLayerBounds(
+    String layerName,
+    double x,
+    double y,
+    double w,
+    double h,
+    double angle,
+  ) {
     final layers = templateConfig['layers'] as List<dynamic>?;
     if (layers == null) return;
 
@@ -697,7 +971,7 @@ class NativeEditorController extends GetxController {
         break;
       }
     }
-    
+
     // Force Obx rebuild in InteractiveLayer — templateConfig.refresh() alone
     // doesn't trigger deep nested Map property changes for GetX tracking.
     layerUpdateTrigger.value++;
@@ -713,12 +987,21 @@ class NativeEditorController extends GetxController {
     final layers = templateConfig['layers'] as List<dynamic>?;
     if (layers == null) return;
 
-    final targets = layerName.split(',').map((e) => e.trim().toLowerCase()).toList();
+    final targets = layerName
+        .split(',')
+        .map((e) => e.trim().toLowerCase())
+        .toList();
 
     for (var layer in layers) {
-      final String rawName = (layer['name'] ?? layer['id']).toString().toLowerCase().trim();
-      final String nameWithoutSpaces = rawName.replaceAll(RegExp(r'[\s\-_]'), '');
-      
+      final String rawName = (layer['name'] ?? layer['id'])
+          .toString()
+          .toLowerCase()
+          .trim();
+      final String nameWithoutSpaces = rawName.replaceAll(
+        RegExp(r'[\s\-_]'),
+        '',
+      );
+
       bool matches = false;
       for (String target in targets) {
         final t = target.replaceAll(RegExp(r'[\s\-_]'), '');
@@ -727,10 +1010,13 @@ class NativeEditorController extends GetxController {
           break;
         }
       }
-      
+
       // Also match by _businessKey (frame layers have arbitrary names but tagged _businessKey)
       if (!matches && layer['_businessKey'] != null) {
-        final String bizKey = layer['_businessKey'].toString().toLowerCase().trim();
+        final String bizKey = layer['_businessKey']
+            .toString()
+            .toLowerCase()
+            .trim();
         for (String target in targets) {
           final t = target.replaceAll(RegExp(r'[\s\-_]'), '');
           if (bizKey == t || t.contains(bizKey) || bizKey.contains(t)) {
@@ -739,12 +1025,12 @@ class NativeEditorController extends GetxController {
           }
         }
       }
-      
+
       if (matches) {
         layer['opacity'] = isVisible ? 1.0 : 0.0;
       }
     }
-    
+
     layerUpdateTrigger.value++; // Force explicit UI rebuild
     templateConfig.refresh();
     _pushHistory();
@@ -754,12 +1040,21 @@ class NativeEditorController extends GetxController {
     final layers = templateConfig['layers'] as List<dynamic>?;
     if (layers == null) return false;
 
-    final targets = layerName.split(',').map((e) => e.trim().toLowerCase()).toList();
+    final targets = layerName
+        .split(',')
+        .map((e) => e.trim().toLowerCase())
+        .toList();
 
     for (var layer in layers) {
-      final String rawName = (layer['name'] ?? layer['id']).toString().toLowerCase().trim();
-      final String nameWithoutSpaces = rawName.replaceAll(RegExp(r'[\s\-_]'), '');
-      
+      final String rawName = (layer['name'] ?? layer['id'])
+          .toString()
+          .toLowerCase()
+          .trim();
+      final String nameWithoutSpaces = rawName.replaceAll(
+        RegExp(r'[\s\-_]'),
+        '',
+      );
+
       bool matches = false;
       for (String target in targets) {
         final t = target.replaceAll(RegExp(r'[\s\-_]'), '');
@@ -768,24 +1063,33 @@ class NativeEditorController extends GetxController {
           break;
         }
       }
-      
+
       // Also match by _businessKey (frame layers have arbitrary names but tagged _businessKey)
       if (!matches && layer['_businessKey'] != null) {
-        final String bizKey = layer['_businessKey'].toString().toLowerCase().trim();
+        final String bizKey = layer['_businessKey']
+            .toString()
+            .toLowerCase()
+            .trim();
         for (String target in targets) {
           final t = target.replaceAll(RegExp(r'[\s\-_]'), '');
           if (bizKey == t || t.contains(bizKey) || bizKey.contains(t)) {
             matches = true;
-            debugPrint('[VISIBLE_CHECK] "$rawName" MATCHED via bizKey="$bizKey" target="$t" opacity=${layer['opacity']}');
+            debugPrint(
+              '[VISIBLE_CHECK] "$rawName" MATCHED via bizKey="$bizKey" target="$t" opacity=${layer['opacity']}',
+            );
             break;
           }
         }
       }
-      
+
       if (matches) {
         final opacity = layer['opacity'];
-        final result = (opacity ?? 1.0) is num ? (opacity ?? 1.0 as num) > 0.0 : true;
-        debugPrint('[VISIBLE_CHECK] "$rawName" → opacity=$opacity result=$result (targets=$targets)');
+        final result = (opacity ?? 1.0) is num
+            ? (opacity ?? 1.0 as num) > 0.0
+            : true;
+        debugPrint(
+          '[VISIBLE_CHECK] "$rawName" → opacity=$opacity result=$result (targets=$targets)',
+        );
         return result;
       }
     }
@@ -794,12 +1098,42 @@ class NativeEditorController extends GetxController {
   }
 
   void updateLayerProperty(String layerName, String property, dynamic value) {
+    debugPrint(
+      '[DIAGNOSIS_CANVAS] --------------------------------------------',
+    );
+    debugPrint('[DIAGNOSIS_CANVAS] updateLayerProperty CALLED');
+    debugPrint(
+      '[DIAGNOSIS_CANVAS] Timestamp: ${DateTime.now().millisecondsSinceEpoch}',
+    );
+    debugPrint('[DIAGNOSIS_CANVAS] Layer ID: $layerName');
+    debugPrint('[DIAGNOSIS_CANVAS] Property: $property');
+    debugPrint('[DIAGNOSIS_CANVAS] Value: $value');
+    debugPrint('[DIAGNOSIS_CANVAS] Stack Trace:');
+    debugPrint(StackTrace.current.toString());
+    debugPrint(
+      '[DIAGNOSIS_CANVAS] --------------------------------------------',
+    );
+
     final layers = templateConfig['layers'] as List<dynamic>?;
     if (layers == null) return;
 
+    final beforeLayerIds = layers
+        .map((l) => (l['id'] ?? l['name']).toString())
+        .toList();
+    debugPrint('[DIAGNOSIS_CANVAS] Before modifying templateConfig:');
+    debugPrint('[DIAGNOSIS_CANVAS] Current Layer Count: ${layers.length}');
+    debugPrint('[DIAGNOSIS_CANVAS] Layer IDs: $beforeLayerIds');
+    debugPrint(
+      '[DIAGNOSIS_CANVAS] --------------------------------------------',
+    );
+
     if (layerName == '_frame_bg' && property == 'src') {
       // Clean up old frame layers except _frame_bg (which we are updating/adding)
-      layers.removeWhere((l) => (l['_is_frame_layer'] == true || l['_isFrameLayer'] == true) && (l['name'] ?? l['id']).toString() != '_frame_bg');
+      layers.removeWhere(
+        (l) =>
+            (l['_is_frame_layer'] == true || l['_isFrameLayer'] == true) &&
+            (l['name'] ?? l['id']).toString() != '_frame_bg',
+      );
     }
 
     bool found = false;
@@ -810,18 +1144,24 @@ class NativeEditorController extends GetxController {
         break;
       }
     }
-    
+
     // Inject _frame_bg if missing and we are trying to update its src (simple PNG frame swap)
     if (!found && layerName == '_frame_bg' && property == 'src') {
-      final double canvasW = safeDouble(templateConfig['info']?['width'] ?? templateConfig['width'] ?? 1080);
-      final double canvasH = safeDouble(templateConfig['info']?['height'] ?? templateConfig['height'] ?? 1080);
-      
+      final double canvasW = safeDouble(
+        templateConfig['info']?['width'] ?? templateConfig['width'] ?? 1080,
+      );
+      final double canvasH = safeDouble(
+        templateConfig['info']?['height'] ?? templateConfig['height'] ?? 1080,
+      );
+
       int maxZIndex = 0;
       for (var l in layers) {
-        int z = (l['z_index'] ?? 0) is int ? (l['z_index'] ?? 0) : ((l['z_index'] ?? 0) as num).toInt();
+        int z = (l['z_index'] ?? 0) is int
+            ? (l['z_index'] ?? 0)
+            : ((l['z_index'] ?? 0) as num).toInt();
         if (z > maxZIndex) maxZIndex = z;
       }
-      
+
       layers.add({
         'name': '_frame_bg',
         'id': '_frame_bg',
@@ -839,12 +1179,25 @@ class NativeEditorController extends GetxController {
         'z_index': maxZIndex + 1,
       });
     }
-    
+
+    final afterLayerIds = layers
+        .map((l) => (l['id'] ?? l['name']).toString())
+        .toList();
+    debugPrint('[DIAGNOSIS_CANVAS] After modifying templateConfig:');
+    debugPrint('[DIAGNOSIS_CANVAS] Updated Layer Count: ${layers.length}');
+    debugPrint('[DIAGNOSIS_CANVAS] Layer IDs: $afterLayerIds');
+    debugPrint(
+      '[DIAGNOSIS_CANVAS] --------------------------------------------',
+    );
+
     templateConfig.refresh();
     _pushHistory();
   }
 
-  void updateLayerProperties(String layerName, Map<String, dynamic> properties) {
+  void updateLayerProperties(
+    String layerName,
+    Map<String, dynamic> properties,
+  ) {
     final layers = templateConfig['layers'] as List<dynamic>?;
     if (layers == null) return;
 
@@ -856,18 +1209,31 @@ class NativeEditorController extends GetxController {
         break;
       }
     }
-    
+
     templateConfig.refresh();
     _pushHistory();
+  }
+
+  /// Applies a deliberate user color selection to every color field consumed
+  /// by text and icon renderers, while making it the new dynamic-color source.
+  void setLayerColor(String layerName, String color) {
+    updateLayerProperties(layerName, {
+      'color': color,
+      'font_color': color,
+      'tint_color': color,
+      'original_color': color,
+    });
   }
 
   void deleteLayer(String layerName) {
     final layers = templateConfig['layers'] as List<dynamic>?;
     if (layers == null) return;
 
-    layers.removeWhere((layer) => (layer['name'] ?? layer['id']).toString() == layerName);
+    layers.removeWhere(
+      (layer) => (layer['name'] ?? layer['id']).toString() == layerName,
+    );
     if (selectedLayerId.value == layerName) selectedLayerId.value = '';
-    
+
     templateConfig.refresh();
     _pushHistory();
   }
@@ -894,7 +1260,7 @@ class NativeEditorController extends GetxController {
       if (newIndex > layers.length) newIndex = layers.length;
       if (newIndex < 0) newIndex = 0;
       layers.insert(newIndex, layer);
-      
+
       templateConfig.refresh();
       _pushHistory();
     }
@@ -902,65 +1268,104 @@ class NativeEditorController extends GetxController {
 
   // --- API INTEGRATIONS ---
 
-  Future<Map<String, dynamic>?> generateAIText(String prompt, String language, {Map<String, dynamic>? product}) async {
+  Future<Map<String, dynamic>?> generateAIText(
+    String prompt,
+    String language, {
+    Map<String, dynamic>? product,
+  }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('userId') ?? '';
-      
+
       // Collect text layers
       final List<Map<String, dynamic>> canvasLayers = [];
       final layers = templateConfig['layers'] as List<dynamic>? ?? [];
-      
+
       for (var rawLayer in layers) {
         final layer = Map<String, dynamic>.from(rawLayer);
         if (layer['type'] == 'text') {
-          final String lname = (layer['name'] ?? layer['id'] ?? '').toString().toLowerCase();
-          
+          final String lname = (layer['name'] ?? layer['id'] ?? '')
+              .toString()
+              .toLowerCase();
+
           // Skip if hidden or contact details
           final bool isContactInfo = [
-            'phone', 'email', 'website', 'address', 'call', 'mobile', 'contact', 'whatsapp', 'tel',
-            'mail', 'web', 'url', 'location', 'facebook', 'instagram', 'twitter', 'youtube', 'linkedin'
+            'phone',
+            'email',
+            'website',
+            'address',
+            'call',
+            'mobile',
+            'contact',
+            'whatsapp',
+            'tel',
+            'mail',
+            'web',
+            'url',
+            'location',
+            'facebook',
+            'instagram',
+            'twitter',
+            'youtube',
+            'linkedin',
           ].any((key) => lname.contains(key));
-          
+
           if (!isContactInfo) {
             final String currentText = (layer['text'] ?? '').toString().trim();
-            final bool isSkippable = ['www.', 'http', '.com', '.in', '@', '+91'].any((p) => currentText.toLowerCase().contains(p));
-            final bool isAiProtected = layer['ai_protected'] == true || layer['ai_protected'] == '1' || layer['ai_protected'] == 1;
-            
+            final bool isSkippable = [
+              'www.',
+              'http',
+              '.com',
+              '.in',
+              '@',
+              '+91',
+            ].any((p) => currentText.toLowerCase().contains(p));
+            final bool isAiProtected =
+                layer['ai_protected'] == true ||
+                layer['ai_protected'] == '1' ||
+                layer['ai_protected'] == 1;
+
             if (!isSkippable && currentText.isNotEmpty && !isAiProtected) {
-              int maxChars = (layer['ai_max_chars'] != null) ? int.tryParse(layer['ai_max_chars'].toString()) ?? 0 
-                           : (layer['_ai_max_chars'] != null) ? int.tryParse(layer['_ai_max_chars'].toString()) ?? 0 : 0;
-                           
+              int maxChars = (layer['ai_max_chars'] != null)
+                  ? int.tryParse(layer['ai_max_chars'].toString()) ?? 0
+                  : (layer['_ai_max_chars'] != null)
+                  ? int.tryParse(layer['_ai_max_chars'].toString()) ?? 0
+                  : 0;
+
               if (maxChars <= 0) {
                 // Auto-calculate maximum capacity based on physical dimensions
                 double w = double.tryParse(layer['w']?.toString() ?? '0') ?? 0;
                 double h = double.tryParse(layer['h']?.toString() ?? '0') ?? 0;
-                double size = double.tryParse(layer['size']?.toString() ?? '20') ?? 20;
-                
+                double size =
+                    double.tryParse(layer['size']?.toString() ?? '20') ?? 20;
+
                 if (w > 0 && h > 0 && size > 0) {
                   // Average character width is roughly 55% of font size
                   double charWidth = size * 0.55;
                   int charsPerLine = (w / charWidth).floor();
-                  
+
                   // Average line height is roughly 1.2x font size
                   double lineHeight = size * 1.2;
                   int lines = (h / lineHeight).floor();
                   if (lines < 1) lines = 1;
-                  
+
                   maxChars = charsPerLine * lines;
                 }
-                
+
                 // Fallback if dimensions are missing or very weird
                 if (maxChars <= 0) {
                   maxChars = (currentText.length * 2).clamp(50, 1000);
                 }
               }
-              
+
               canvasLayers.add({
-                'name': layer['name'] ?? layer['id'] ?? 'text_${canvasLayers.length}',
+                'name':
+                    layer['name'] ??
+                    layer['id'] ??
+                    'text_${canvasLayers.length}',
                 'current_text': currentText,
                 'max_chars': maxChars,
-                'ai_role': layer['ai_role'] ?? layer['_ai_role'] ?? ''
+                'ai_role': layer['ai_role'] ?? layer['_ai_role'] ?? '',
               });
             }
           }
@@ -982,16 +1387,32 @@ class NativeEditorController extends GetxController {
       // Add product data if available
       if (product != null) {
         payload['product_id'] = (product['id'] ?? '').toString();
-        payload['product_name'] = (product['_display_name'] ?? product['title'] ?? product['name'] ?? '').toString();
-        payload['product_description'] = (product['description'] ?? product['short_description'] ?? '').toString();
-        payload['product_price'] = (product['_display_price'] ?? product['price'] ?? '').toString();
-        payload['product_category'] = (product['_display_category'] ?? product['category_name'] ?? product['category'] ?? '').toString();
+        payload['product_name'] =
+            (product['_display_name'] ??
+                    product['title'] ??
+                    product['name'] ??
+                    '')
+                .toString();
+        payload['product_description'] =
+            (product['description'] ?? product['short_description'] ?? '')
+                .toString();
+        payload['product_price'] =
+            (product['_display_price'] ?? product['price'] ?? '').toString();
+        payload['product_category'] =
+            (product['_display_category'] ??
+                    product['category_name'] ??
+                    product['category'] ??
+                    '')
+                .toString();
         payload['product_sku'] = (product['sku'] ?? '').toString();
       }
 
       debugPrint('[AI Generate] Payload: $payload');
 
-      final response = await ApiService.post('/editor/ai-content/generate?userId=$userId', payload);
+      final response = await ApiService.post(
+        '/editor/ai-content/generate?userId=$userId',
+        payload,
+      );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -1010,8 +1431,39 @@ class NativeEditorController extends GetxController {
 
   Future<void> loadNewFrame(Map<String, dynamic> newFrameJson) async {
     try {
+      final int parseStartTime = DateTime.now().millisecondsSinceEpoch;
+      NativeEditorController.timelineLoadStart = parseStartTime;
+
       final currentLayers = templateConfig['layers'] as List<dynamic>? ?? [];
-      
+      final curLayerIds = currentLayers
+          .map((l) => (l['id'] ?? l['name']).toString())
+          .toList();
+      final incomingFrameId = (newFrameJson['id'] ?? '').toString();
+      int incomingLayerCount = 0;
+      var incLayers =
+          newFrameJson['layers'] ??
+          (newFrameJson['config'] is Map
+              ? newFrameJson['config']['layers']
+              : null);
+      if (incLayers is List) incomingLayerCount = incLayers.length;
+
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] --------------------------------------------',
+      );
+      debugPrint('[DIAGNOSIS_CANVAS] LOAD NEW FRAME START');
+      debugPrint('[DIAGNOSIS_CANVAS] Timestamp: $parseStartTime');
+      debugPrint('[DIAGNOSIS_CANVAS] Incoming Frame ID: $incomingFrameId');
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] Incoming Layer Count: $incomingLayerCount',
+      );
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] Current Template Layer Count: ${currentLayers.length}',
+      );
+      debugPrint('[DIAGNOSIS_CANVAS] Current Template Layer IDs: $curLayerIds');
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] --------------------------------------------',
+      );
+
       dynamic rawNewLayers = newFrameJson['layers'];
       if (rawNewLayers == null && newFrameJson['config'] != null) {
         if (newFrameJson['config'] is Map) {
@@ -1019,7 +1471,7 @@ class NativeEditorController extends GetxController {
         } else if (newFrameJson['config'] is String) {
           try {
             rawNewLayers = jsonDecode(newFrameJson['config'])['layers'];
-          } catch(e) {}
+          } catch (e) {}
         }
       }
       if (rawNewLayers == null && newFrameJson['json'] != null) {
@@ -1028,15 +1480,22 @@ class NativeEditorController extends GetxController {
         } else if (newFrameJson['json'] is String) {
           try {
             rawNewLayers = jsonDecode(newFrameJson['json'])['layers'];
-          } catch(e) {}
+          } catch (e) {}
         }
       }
-      
+
       // 3. Fallback to API if not in config and we have a zip_name
       if (rawNewLayers == null && newFrameJson['zip_name'] != null) {
+        debugPrint('[DIAGNOSIS_CANVAS] Future Started (fetchTemplateJson)');
+        final int fetchStart = DateTime.now().millisecondsSinceEpoch;
         final fetchedJson = await fetchTemplateJson(newFrameJson['zip_name']);
+        final int fetchEnd = DateTime.now().millisecondsSinceEpoch;
+        debugPrint('[DIAGNOSIS_CANVAS] Future Finished (fetchTemplateJson)');
+        debugPrint('[DIAGNOSIS_CANVAS] Duration: ${fetchEnd - fetchStart}ms');
+
         if (fetchedJson != null) {
-          newFrameJson['config'] = fetchedJson; // save it so we don't fetch again unnecessarily
+          newFrameJson['config'] =
+              fetchedJson; // save it so we don't fetch again unnecessarily
           rawNewLayers = fetchedJson['layers'];
         }
       }
@@ -1044,13 +1503,22 @@ class NativeEditorController extends GetxController {
       if (rawNewLayers == null) rawNewLayers = [];
 
       final newLayers = jsonDecode(jsonEncode(rawNewLayers)) as List<dynamic>;
-      debugPrint('🔴 [DIAGNOSIS] loadNewFrame newLayers count: ${newLayers.length}');
+      final parsedLayerIds = newLayers
+          .map((l) => (l['id'] ?? l['name']).toString())
+          .toList();
+      debugPrint('[DIAGNOSIS_CANVAS] Parsed New Layers');
+      debugPrint('[DIAGNOSIS_CANVAS] Count: ${newLayers.length}');
+      debugPrint('[DIAGNOSIS_CANVAS] Layer IDs: $parsedLayerIds');
+
+      debugPrint(
+        '🔴 [DIAGNOSIS] loadNewFrame newLayers count: ${newLayers.length}',
+      );
       for (var l in newLayers) {
         debugPrint('🔴 [DIAGNOSIS] newLayer: ${l['name']} type=${l['type']}');
       }
-      
+
       _autoDetectContactIcons(newLayers);
-      
+
       Map<String, String> userTexts = {};
       for (var l in currentLayers) {
         final name = (l['name'] ?? l['id'] ?? '').toString();
@@ -1059,50 +1527,99 @@ class NativeEditorController extends GetxController {
         }
       }
 
-      final type = Get.parameters['type'] ?? templateConfig['type'] ?? 'business_custom_frame';
+      final type =
+          Get.parameters['type'] ??
+          templateConfig['type'] ??
+          'business_custom_frame';
 
       final preservedLayers = currentLayers.where((l) {
         if (l['_is_frame_layer'] == true) return false;
-        
+
         final name = (l['name'] ?? l['id'] ?? '').toString().toLowerCase();
-        final bool isBg = l['is_background'] == true || (l['is_background'] == null && (name == 'image1' || name == 'main_image' || name == 'bg' || name.contains('background')));
-        final bool isUserAdded = name.startsWith('new ') || name.startsWith('logo ') || name.startsWith('product ') || name.startsWith('sticker ') || name.startsWith('text ');
-        
+        final bool isBg =
+            l['is_background'] == true ||
+            (l['is_background'] == null &&
+                (name == 'image1' ||
+                    name == 'main_image' ||
+                    name == 'bg' ||
+                    name.contains('background')));
+        final bool isUserAdded =
+            name.startsWith('new ') ||
+            name.startsWith('logo ') ||
+            name.startsWith('product ') ||
+            name.startsWith('sticker ') ||
+            name.startsWith('text ');
+
         if (type == 'business_custom_frame' || type == 'custom') {
-            return true; // Preserve all native layers of the custom post
+          return true; // Preserve all native layers of the custom post
         }
-        
+
         return isBg || isUserAdded;
       }).toList();
-      
+
+      final preservedLayerIds = preservedLayers
+          .map((l) => (l['id'] ?? l['name']).toString())
+          .toList();
+      debugPrint('[DIAGNOSIS_CANVAS] Preserved Layers');
+      debugPrint('[DIAGNOSIS_CANVAS] Count: ${preservedLayers.length}');
+      debugPrint('[DIAGNOSIS_CANVAS] Layer IDs: $preservedLayerIds');
+
       dynamic configJson = newFrameJson['config'] ?? newFrameJson['json'];
       if (configJson is String) {
-        try { configJson = jsonDecode(configJson); } catch(e) {}
+        try {
+          configJson = jsonDecode(configJson);
+        } catch (e) {}
       }
 
       dynamic templateInfo = templateConfig['info'];
       if (templateInfo is String) {
-        try { templateInfo = jsonDecode(templateInfo); } catch(e) {}
+        try {
+          templateInfo = jsonDecode(templateInfo);
+        } catch (e) {}
       }
-      double canvasW = safeDouble(templateInfo?['width'] ?? templateConfig['width'] ?? 1080);
-      double canvasH = safeDouble(templateInfo?['height'] ?? templateConfig['height'] ?? 1080);
-      
+      double canvasW = safeDouble(
+        templateInfo?['width'] ?? templateConfig['width'] ?? 1080,
+      );
+      double canvasH = safeDouble(
+        templateInfo?['height'] ?? templateConfig['height'] ?? 1080,
+      );
+
       dynamic frameInfo = newFrameJson['info'];
       if (frameInfo is String) {
-        try { frameInfo = jsonDecode(frameInfo); } catch(e) {}
+        try {
+          frameInfo = jsonDecode(frameInfo);
+        } catch (e) {}
       }
       dynamic configInfo = configJson?['info'];
       if (configInfo is String) {
-        try { configInfo = jsonDecode(configInfo); } catch(e) {}
+        try {
+          configInfo = jsonDecode(configInfo);
+        } catch (e) {}
       }
 
-      double frameW = safeDouble(newFrameJson['width'] ?? frameInfo?['width'] ?? configInfo?['width'] ?? configJson?['width'] ?? 0);
-      double frameH = safeDouble(newFrameJson['height'] ?? frameInfo?['height'] ?? configInfo?['height'] ?? configJson?['height'] ?? 0);
-      
+      double frameW = safeDouble(
+        newFrameJson['width'] ??
+            frameInfo?['width'] ??
+            configInfo?['width'] ??
+            configJson?['width'] ??
+            0,
+      );
+      double frameH = safeDouble(
+        newFrameJson['height'] ??
+            frameInfo?['height'] ??
+            configInfo?['height'] ??
+            configJson?['height'] ??
+            0,
+      );
+
       if (frameW <= 0 || frameH <= 0) {
         for (var layer in newLayers) {
-          double r = safeDouble((layer['x'] ?? 0) as num) + safeDouble((layer['width'] ?? layer['w'] ?? 0) as num);
-          double b = safeDouble((layer['y'] ?? 0) as num) + safeDouble((layer['height'] ?? layer['h'] ?? 0) as num);
+          double r =
+              safeDouble((layer['x'] ?? 0) as num) +
+              safeDouble((layer['width'] ?? layer['w'] ?? 0) as num);
+          double b =
+              safeDouble((layer['y'] ?? 0) as num) +
+              safeDouble((layer['height'] ?? layer['h'] ?? 0) as num);
           if (r > frameW) frameW = r;
           if (b > frameH) frameH = b;
         }
@@ -1112,16 +1629,22 @@ class NativeEditorController extends GetxController {
 
       bool hasBg = newLayers.any((l) {
         String n = (l['name'] ?? l['id'] ?? '').toString().toLowerCase();
-        return n == 'bg' || n == '_frame_bg' || n.contains('background') || l['is_background'] == true;
+        return n == 'bg' ||
+            n == '_frame_bg' ||
+            n.contains('background') ||
+            l['is_background'] == true;
       });
 
       // FIX: If the frame JSON lacks a background layer, but provides a full_url, auto-create the frame background
       // Only do this for legacy frames (V1-V3) since V4+ frames are fully constructed from component layers.
-      final int renderVersion = (newFrameJson['render_version'] is int) 
-          ? newFrameJson['render_version'] 
+      final int renderVersion = (newFrameJson['render_version'] is int)
+          ? newFrameJson['render_version']
           : safeDouble(newFrameJson['render_version'] ?? 1).toInt();
 
-      if (renderVersion < 4 && !hasBg && newFrameJson['full_url'] != null && newFrameJson['full_url'].toString().isNotEmpty) {
+      if (renderVersion < 4 &&
+          !hasBg &&
+          newFrameJson['full_url'] != null &&
+          newFrameJson['full_url'].toString().isNotEmpty) {
         newLayers.insert(0, {
           'name': '_frame_bg',
           'id': '_frame_bg',
@@ -1147,7 +1670,8 @@ class NativeEditorController extends GetxController {
         if (newFrameJson['info'] != null) {
           if (newFrameJson['info'] is String) {
             final parsedInfo = jsonDecode(newFrameJson['info']);
-            if (parsedInfo['ppi'] != null) docPPI = safeDouble(parsedInfo['ppi'] as num);
+            if (parsedInfo['ppi'] != null)
+              docPPI = safeDouble(parsedInfo['ppi'] as num);
           } else if (newFrameJson['info']['ppi'] != null) {
             docPPI = safeDouble(newFrameJson['info']['ppi'] as num);
           }
@@ -1159,19 +1683,27 @@ class NativeEditorController extends GetxController {
 
       // Counters for multi-value business fields
       Map<String, int> bizKeyCounter = {
-        'phone': 0, 'email': 0, 'website': 0, 'address': 0,
+        'phone': 0,
+        'email': 0,
+        'website': 0,
+        'address': 0,
       };
 
       for (var newLayer in newLayers) {
-        double rawW = safeDouble((newLayer['w'] ?? newLayer['width'] ?? 0) as num);
-        double rawH = safeDouble((newLayer['h'] ?? newLayer['height'] ?? 0) as num);
+        double rawW = safeDouble(
+          (newLayer['w'] ?? newLayer['width'] ?? 0) as num,
+        );
+        double rawH = safeDouble(
+          (newLayer['h'] ?? newLayer['height'] ?? 0) as num,
+        );
         String name = (newLayer['name'] ?? newLayer['id'] ?? '').toString();
         String layerName = name.toLowerCase();
 
         newLayer['_is_frame_layer'] = true;
 
         for (String urlField in ['src', '_fallback_src']) {
-          if (newLayer[urlField] != null && newLayer[urlField].toString().isNotEmpty) {
+          if (newLayer[urlField] != null &&
+              newLayer[urlField].toString().isNotEmpty) {
             String srcStr = newLayer[urlField].toString();
             if (!srcStr.startsWith('http') && !srcStr.startsWith('data:')) {
               String base = ApiService.baseUrl;
@@ -1184,8 +1716,12 @@ class NativeEditorController extends GetxController {
               if (!base.endsWith('/')) {
                 base += '/';
               }
-              
-              String zipName = (newFrameJson['zip_name'] ?? newFrameJson['path'] ?? '').toString().replaceAll('/', '').trim();
+
+              String zipName =
+                  (newFrameJson['zip_name'] ?? newFrameJson['path'] ?? '')
+                      .toString()
+                      .replaceAll('/', '')
+                      .trim();
               String frameBaseUrl = base;
               if (zipName.isNotEmpty) {
                 frameBaseUrl = '${base}uploads/template/$zipName/';
@@ -1202,62 +1738,99 @@ class NativeEditorController extends GetxController {
               } else if (srcStr.startsWith('/')) {
                 newLayer[urlField] = '$base${srcStr.substring(1)}';
               } else if (srcStr.startsWith('../')) {
-                newLayer[urlField] = '$frameBaseUrl${srcStr.replaceFirst('../', '')}';
+                newLayer[urlField] =
+                    '$frameBaseUrl${srcStr.replaceFirst('../', '')}';
               } else if (srcStr.startsWith('uploads/')) {
                 newLayer[urlField] = '$base$srcStr';
               } else {
                 newLayer[urlField] = '${frameBaseUrl}skins/$srcStr';
               }
             }
-            
+
             // Server zip extraction replaces spaces with hyphens.
             // Replace proactively to avoid a 404 delay before the fallback kicks in.
             if (!newLayer[urlField].toString().startsWith('data:')) {
-              newLayer[urlField] = newLayer[urlField].toString().replaceAll(' ', '-').replaceAll('%20', '-');
+              newLayer[urlField] = newLayer[urlField]
+                  .toString()
+                  .replaceAll(' ', '-')
+                  .replaceAll('%20', '-');
             }
           }
         }
 
-        if ((layerName == '_frame_bg' || layerName == '_frame' || layerName == 'frame') && (rawW <= 0 || rawH <= 0)) {
+        if ((layerName == '_frame_bg' ||
+                layerName == '_frame' ||
+                layerName == 'frame') &&
+            (rawW <= 0 || rawH <= 0)) {
           rawW = frameW;
           rawH = frameH;
         }
 
-        if (newLayer['x'] != null) newLayer['x'] = safeDouble(newLayer['x'] as num) * scaleX;
-        if (newLayer['y'] != null) newLayer['y'] = safeDouble(newLayer['y'] as num) * scaleY;
-        
+        if (newLayer['x'] != null)
+          newLayer['x'] = safeDouble(newLayer['x'] as num) * scaleX;
+        if (newLayer['y'] != null)
+          newLayer['y'] = safeDouble(newLayer['y'] as num) * scaleY;
+
         if (newLayer['w'] != null) newLayer['w'] = rawW * scaleX;
         if (newLayer['width'] != null) newLayer['width'] = rawW * scaleX;
         if (newLayer['h'] != null) newLayer['h'] = rawH * scaleY;
         if (newLayer['height'] != null) newLayer['height'] = rawH * scaleY;
-        
-        if (newLayer['fontSize'] != null) newLayer['fontSize'] = safeDouble(newLayer['fontSize'] as num) * ppiScale * scaleY;
-        if (newLayer['font_size'] != null) newLayer['font_size'] = safeDouble(newLayer['font_size'] as num) * ppiScale * scaleY;
-        if (newLayer['size'] != null) newLayer['size'] = safeDouble(newLayer['size'] as num) * ppiScale * scaleY;
+
+        if (newLayer['fontSize'] != null)
+          newLayer['fontSize'] =
+              safeDouble(newLayer['fontSize'] as num) * ppiScale * scaleY;
+        if (newLayer['font_size'] != null)
+          newLayer['font_size'] =
+              safeDouble(newLayer['font_size'] as num) * ppiScale * scaleY;
+        if (newLayer['size'] != null)
+          newLayer['size'] =
+              safeDouble(newLayer['size'] as num) * ppiScale * scaleY;
 
         newLayer['_isFrameLayer'] = true;
-        
+
         String bLow = layerName;
         if (newLayer['type'] == 'text') {
-          if (bLow.contains('name') || bLow.contains('business_name')) newLayer['_businessKey'] = 'name';
-          else if (bLow.contains('phone') || bLow.contains('mobile') || bLow.contains('whatsapp') || bLow.contains('number') || bLow.contains('tel')) newLayer['_businessKey'] = 'phone';
-          else if (bLow.contains('email') || bLow.contains('mail')) newLayer['_businessKey'] = 'email';
-          else if (bLow.contains('website') || bLow.contains('web') || bLow.contains('url')) newLayer['_businessKey'] = 'website';
-          else if (bLow.contains('address') || bLow.contains('location')) newLayer['_businessKey'] = 'address';
-          bool hasValidUserText = userTexts.containsKey(name) && userTexts[name] != null && userTexts[name]!.trim().isNotEmpty;
-          
-          if (hasValidUserText && (name.startsWith('_b_') || newLayer['_businessKey'] != null)) {
-            newLayer['text'] = userTexts[name]; 
-          } else if (Get.isRegistered<HomeController>() && newLayer['_businessKey'] != null) {
+          if (bLow.contains('name') || bLow.contains('business_name'))
+            newLayer['_businessKey'] = 'name';
+          else if (bLow.contains('phone') ||
+              bLow.contains('mobile') ||
+              bLow.contains('whatsapp') ||
+              bLow.contains('number') ||
+              bLow.contains('tel'))
+            newLayer['_businessKey'] = 'phone';
+          else if (bLow.contains('email') || bLow.contains('mail'))
+            newLayer['_businessKey'] = 'email';
+          else if (bLow.contains('website') ||
+              bLow.contains('web') ||
+              bLow.contains('url'))
+            newLayer['_businessKey'] = 'website';
+          else if (bLow.contains('address') || bLow.contains('location'))
+            newLayer['_businessKey'] = 'address';
+          bool hasValidUserText =
+              userTexts.containsKey(name) &&
+              userTexts[name] != null &&
+              userTexts[name]!.trim().isNotEmpty;
+
+          if (hasValidUserText &&
+              (name.startsWith('_b_') || newLayer['_businessKey'] != null)) {
+            newLayer['text'] = userTexts[name];
+          } else if (Get.isRegistered<HomeController>() &&
+              newLayer['_businessKey'] != null) {
             final homeCtrl = Get.find<HomeController>();
             if (newLayer['_businessKey'] == 'name') {
               newLayer['text'] = homeCtrl.businessName.value;
             } else if (newLayer['_businessKey'] == 'phone') {
               int idx = bizKeyCounter['phone']!;
               if (idx == 0) {
-                newLayer['text'] = homeCtrl.businessPhone.value.replaceAll(' ', '\u00A0');
+                newLayer['text'] = homeCtrl.businessPhone.value.replaceAll(
+                  ' ',
+                  '\u00A0',
+                );
               } else if (idx - 1 < homeCtrl.extraPhones.length) {
-                newLayer['text'] = homeCtrl.extraPhones[idx - 1].replaceAll(' ', '\u00A0');
+                newLayer['text'] = homeCtrl.extraPhones[idx - 1].replaceAll(
+                  ' ',
+                  '\u00A0',
+                );
               }
               bizKeyCounter['phone'] = idx + 1;
             } else if (newLayer['_businessKey'] == 'email') {
@@ -1288,13 +1861,36 @@ class NativeEditorController extends GetxController {
           }
         } else if (newLayer['type'] == 'image') {
           if (newLayer['_businessKey'] == null) {
-            if (bLow.contains('phone') || bLow.contains('call') || bLow.contains('mobile') || bLow.contains('contact') || bLow.contains('whatsapp') || bLow.contains('tel') || bLow.contains('ph')) newLayer['_businessKey'] = 'phone';
-            else if (bLow.contains('email') || bLow.contains('mail')) newLayer['_businessKey'] = 'email';
-            else if (bLow.contains('website') || bLow.contains('web') || bLow.contains('url')) newLayer['_businessKey'] = 'website';
-            else if (bLow.contains('address') || bLow.contains('location')) newLayer['_businessKey'] = 'address';
-            else if (bLow.contains('icon') || bLow.contains('facebook') || bLow.contains('instagram') || bLow.contains('twitter') || bLow.contains('youtube') || bLow.contains('social') || bLow.contains('linkedin')) newLayer['_businessKey'] = 'social';
+            if (bLow.contains('phone') ||
+                bLow.contains('call') ||
+                bLow.contains('mobile') ||
+                bLow.contains('contact') ||
+                bLow.contains('whatsapp') ||
+                bLow.contains('tel') ||
+                bLow.contains('ph'))
+              newLayer['_businessKey'] = 'phone';
+            else if (bLow.contains('email') || bLow.contains('mail'))
+              newLayer['_businessKey'] = 'email';
+            else if (bLow.contains('website') ||
+                bLow.contains('web') ||
+                bLow.contains('url'))
+              newLayer['_businessKey'] = 'website';
+            else if (bLow.contains('address') || bLow.contains('location'))
+              newLayer['_businessKey'] = 'address';
+            else if (bLow.contains('icon') ||
+                bLow.contains('facebook') ||
+                bLow.contains('instagram') ||
+                bLow.contains('twitter') ||
+                bLow.contains('youtube') ||
+                bLow.contains('social') ||
+                bLow.contains('linkedin'))
+              newLayer['_businessKey'] = 'social';
           }
-          if (bLow.contains('logo') && !bLow.contains('email') && !bLow.contains('call') && !bLow.contains('phone') && !bLow.contains('web')) {
+          if (bLow.contains('logo') &&
+              !bLow.contains('email') &&
+              !bLow.contains('call') &&
+              !bLow.contains('phone') &&
+              !bLow.contains('web')) {
             newLayer['_businessKey'] = 'logo';
             if (Get.isRegistered<HomeController>()) {
               final homeCtrl = Get.find<HomeController>();
@@ -1317,23 +1913,55 @@ class NativeEditorController extends GetxController {
           }
         }
 
-        if (newLayer['type'] == 'image' || newLayer['type'] == 'rect' || newLayer['type'] == 'shape') {
-          if (newLayer['is_background'] != true && !(newLayer['is_background'] == null && ['image1', 'main_image', 'bg', 'background', '_frame_bg'].contains(layerName))) {
-            if (newLayer['type'] != 'image' || !['phone', 'email', 'website', 'address', 'social'].any((e) => layerName.contains(e))) {
+        if (newLayer['type'] == 'image' ||
+            newLayer['type'] == 'rect' ||
+            newLayer['type'] == 'shape') {
+          if (newLayer['is_background'] != true &&
+              !(newLayer['is_background'] == null &&
+                  [
+                    'image1',
+                    'main_image',
+                    'bg',
+                    'background',
+                    '_frame_bg',
+                  ].contains(layerName))) {
+            if (newLayer['type'] != 'image' ||
+                ![
+                  'phone',
+                  'email',
+                  'website',
+                  'address',
+                  'social',
+                ].any((e) => layerName.contains(e))) {
               bool isShapeMarked = newLayer['is_shape'] == true;
-              if (newLayer['type'] != 'image' || rawW > 200 || rawH > 200 || isShapeMarked) {
-               double px = safeDouble((newLayer['x'] ?? 0) as num);
-               double py = safeDouble((newLayer['y'] ?? 0) as num);
-               double pw = safeDouble((newLayer['w'] ?? newLayer['width'] ?? 0) as num);
-               double ph = safeDouble((newLayer['h'] ?? newLayer['height'] ?? 0) as num);
+              if (newLayer['type'] != 'image' ||
+                  rawW > 200 ||
+                  rawH > 200 ||
+                  isShapeMarked) {
+                double px = safeDouble((newLayer['x'] ?? 0) as num);
+                double py = safeDouble((newLayer['y'] ?? 0) as num);
+                double pw = safeDouble(
+                  (newLayer['w'] ?? newLayer['width'] ?? 0) as num,
+                );
+                double ph = safeDouble(
+                  (newLayer['h'] ?? newLayer['height'] ?? 0) as num,
+                );
                 if (pw > 20 && ph > 10) {
                   shapeLayers.add({
+                    'name': layerName,
+                    'id': newLayer['id']?.toString() ?? '',
                     'x': px,
                     'y': py,
                     'w': pw,
                     'h': ph,
-                    'fill': newLayer['fill'] ?? newLayer['tint_color'] ?? newLayer['color'],
+                    'fill':
+                        newLayer['fill'] ??
+                        newLayer['tint_color'] ??
+                        newLayer['color'],
                     'src': newLayer['src'],
+                    'z_index': safeDouble(
+                      (newLayer['z_index'] ?? 0) as num,
+                    ).toInt(),
                   });
                 }
               }
@@ -1350,20 +1978,26 @@ class NativeEditorController extends GetxController {
         debugPrint('║ fill=${newLayer['fill']}');
         debugPrint('║ color=${newLayer['color']}');
         debugPrint('║ is_shape=${newLayer['is_shape']}');
-        debugPrint('║ src=${newLayer['src']?.toString().substring(0, (newLayer['src']?.toString().length ?? 0) > 60 ? 60 : (newLayer['src']?.toString().length ?? 0))}...');
+        debugPrint(
+          '║ src=${newLayer['src']?.toString().substring(0, (newLayer['src']?.toString().length ?? 0) > 60 ? 60 : (newLayer['src']?.toString().length ?? 0))}...',
+        );
         debugPrint('╚══════════════════════════════════════════════════════');
       }
 
       // 1. Find the maximum z_index from native/preserved layers
       int maxNativeZIndex = 0;
       for (var l in preservedLayers) {
-        int z = (l['z_index'] ?? 0) is int ? (l['z_index'] ?? 0) : ((l['z_index'] ?? 0) as num).toInt();
+        int z = (l['z_index'] ?? 0) is int
+            ? (l['z_index'] ?? 0)
+            : ((l['z_index'] ?? 0) as num).toInt();
         if (z > maxNativeZIndex) maxNativeZIndex = z;
       }
 
       // 2. Boost all frame layer z_index values so they render ON TOP of native layers
       for (var newLayer in newLayers) {
-        int frameZ = (newLayer['z_index'] ?? 0) is int ? (newLayer['z_index'] ?? 0) : ((newLayer['z_index'] ?? 0) as num).toInt();
+        int frameZ = (newLayer['z_index'] ?? 0) is int
+            ? (newLayer['z_index'] ?? 0)
+            : ((newLayer['z_index'] ?? 0) as num).toInt();
         newLayer['z_index'] = maxNativeZIndex + frameZ + 1;
       }
 
@@ -1379,10 +2013,13 @@ class NativeEditorController extends GetxController {
         }
         if (frameBusinessKeys.isNotEmpty) {
           preservedLayers.removeWhere((l) {
-            if (l['_is_frame_layer'] == true) return false; // Don't touch other frame layers
+            if (l['_is_frame_layer'] == true)
+              return false; // Don't touch other frame layers
             final bk = l['_businessKey'];
             if (bk != null && frameBusinessKeys.contains(bk.toString())) {
-              debugPrint('[FRAME] Removing native layer with businessKey=$bk to avoid duplicate');
+              debugPrint(
+                '[FRAME] Removing native layer with businessKey=$bk to avoid duplicate',
+              );
               return true;
             }
             return false;
@@ -1390,11 +2027,30 @@ class NativeEditorController extends GetxController {
         }
       }
 
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] --------------------------------------------',
+      );
+      debugPrint('[DIAGNOSIS_CANVAS] MERGE START');
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] Old Template Layer Count: ${currentLayers.length}',
+      );
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] New Frame Layer Count: ${newLayers.length}',
+      );
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] Preserved Layer Count: ${preservedLayers.length}',
+      );
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] --------------------------------------------',
+      );
+
       // 4. Add frame layers after preserved layers
       for (var newLayer in newLayers) {
         preservedLayers.add(newLayer);
       }
-      
+      NativeEditorController.timelineMergeComplete =
+          DateTime.now().millisecondsSinceEpoch;
+
       // 5. Deduplicate: within the same source (frame vs native), remove duplicates by name.
       //    Frame layers should NOT overwrite native layers with different purposes even if same name.
       final seenNames = <String>{};
@@ -1402,7 +2058,9 @@ class NativeEditorController extends GetxController {
       for (var layer in preservedLayers.reversed) {
         final name = (layer['name'] ?? layer['id'] ?? '').toString();
         if (name.isNotEmpty) {
-          String dedupeKey = layer['_is_frame_layer'] == true ? 'frame_$name' : 'native_$name';
+          String dedupeKey = layer['_is_frame_layer'] == true
+              ? 'frame_$name'
+              : 'native_$name';
           int suffix = 1;
           String finalKey = dedupeKey;
           while (seenNames.contains(finalKey)) {
@@ -1415,33 +2073,301 @@ class NativeEditorController extends GetxController {
           uniqueLayers.add(layer);
         }
       }
-      
+
       var finalLayersList = uniqueLayers.reversed.toList();
       _deduplicateLayerNames(finalLayersList);
+
+      final finalLayerIds = finalLayersList
+          .map((l) => (l['id'] ?? l['name']).toString())
+          .toList();
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] --------------------------------------------',
+      );
+      debugPrint('[DIAGNOSIS_CANVAS] FINAL LAYER LIST');
+      debugPrint('[DIAGNOSIS_CANVAS] Count: ${finalLayersList.length}');
+      debugPrint('[DIAGNOSIS_CANVAS] Layer IDs in exact order: $finalLayerIds');
+      for (var layer in finalLayersList) {
+        debugPrint(
+          '[DIAGNOSIS_CANVAS] Layer: id=${layer['id'] ?? ''}, name=${layer['name'] ?? ''}, type=${layer['type'] ?? ''}',
+        );
+      }
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] --------------------------------------------',
+      );
+
+      final int precacheStartTime = DateTime.now().millisecondsSinceEpoch;
+      final frameLayersForPrecache = finalLayersList
+          .where(
+            (l) => l['_is_frame_layer'] == true || l['_isFrameLayer'] == true,
+          )
+          .toList();
+      NativeEditorController.timelinePrecacheStart = precacheStartTime;
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] --------------------------------------------',
+      );
+      debugPrint('[DIAGNOSIS_CANVAS] PRECACHE START');
+      debugPrint('[DIAGNOSIS_CANVAS] Timestamp: $precacheStartTime');
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] Frame Layer Count: ${frameLayersForPrecache.length}',
+      );
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] --------------------------------------------',
+      );
+
+      // PRECACHE ALL IMAGES BEFORE RENDERING
+      debugPrint('[DIAGNOSIS_CANVAS] Future Started (_precacheFrameImages)');
+      final int precacheStart = DateTime.now().millisecondsSinceEpoch;
+      await _precacheFrameImages(finalLayersList);
+      final int precacheEnd = DateTime.now().millisecondsSinceEpoch;
+      debugPrint('[DIAGNOSIS_CANVAS] Future Finished (_precacheFrameImages)');
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] Duration: ${precacheEnd - precacheStart}ms',
+      );
+
+      final int precacheEndTime = DateTime.now().millisecondsSinceEpoch;
+      NativeEditorController.timelinePrecacheEnd = precacheEndTime;
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] --------------------------------------------',
+      );
+      debugPrint('[DIAGNOSIS_CANVAS] PRECACHE END');
+      debugPrint('[DIAGNOSIS_CANVAS] Timestamp: $precacheEndTime');
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] Duration: ${precacheEndTime - precacheStartTime}ms',
+      );
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] --------------------------------------------',
+      );
+
+      final int oldLayersCount =
+          (templateConfig['layers'] as List?)?.length ?? 0;
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] --------------------------------------------',
+      );
+      debugPrint('[DIAGNOSIS_CANVAS] WRITING TEMPLATECONFIG');
+      debugPrint('[DIAGNOSIS_CANVAS] Old Count: $oldLayersCount');
+      debugPrint('[DIAGNOSIS_CANVAS] New Count: ${finalLayersList.length}');
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] --------------------------------------------',
+      );
+
+      if (captureCanvasCallback != null) {
+        debugPrint('[SNAPSHOT] Triggering canvas capture before refresh');
+        await captureCanvasCallback!();
+      }
+
       templateConfig['layers'] = finalLayersList;
+      NativeEditorController.timelineConfigUpdated =
+          DateTime.now().millisecondsSinceEpoch;
+
+      final currentList = templateConfig['layers'] as List? ?? [];
+      final currentListIds = currentList
+          .map((l) => (l['id'] ?? l['name']).toString())
+          .toList();
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] --------------------------------------------',
+      );
+      debugPrint('[DIAGNOSIS_CANVAS] TEMPLATECONFIG UPDATED');
+      debugPrint('[DIAGNOSIS_CANVAS] Current Count: ${currentList.length}');
+      debugPrint('[DIAGNOSIS_CANVAS] Current Layer IDs: $currentListIds');
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] --------------------------------------------',
+      );
 
       int newRenderVersion = 1;
       if (newFrameJson['render_version'] != null) {
-        newRenderVersion = (newFrameJson['render_version'] is int) ? newFrameJson['render_version'] : safeDouble(newFrameJson['render_version'] as num).toInt();
+        newRenderVersion = (newFrameJson['render_version'] is int)
+            ? newFrameJson['render_version']
+            : safeDouble(newFrameJson['render_version'] as num).toInt();
       } else if (configJson != null && configJson['render_version'] != null) {
-        newRenderVersion = (configJson['render_version'] is int) ? configJson['render_version'] : safeDouble(configJson['render_version'] as num).toInt();
-      } else if (newFrameJson['info'] != null && newFrameJson['info'] is Map && newFrameJson['info']['render_version'] != null) {
-        newRenderVersion = (newFrameJson['info']['render_version'] is int) ? newFrameJson['info']['render_version'] : safeDouble(newFrameJson['info']['render_version'] as num).toInt();
+        newRenderVersion = (configJson['render_version'] is int)
+            ? configJson['render_version']
+            : safeDouble(configJson['render_version'] as num).toInt();
+      } else if (newFrameJson['info'] != null &&
+          newFrameJson['info'] is Map &&
+          newFrameJson['info']['render_version'] != null) {
+        newRenderVersion = (newFrameJson['info']['render_version'] is int)
+            ? newFrameJson['info']['render_version']
+            : safeDouble(newFrameJson['info']['render_version'] as num).toInt();
       }
       if (newRenderVersion > (templateConfig['render_version'] as int? ?? 1)) {
         templateConfig['render_version'] = newRenderVersion;
-      } else if (newFrameJson['render_version'] != null || (configJson != null && configJson['render_version'] != null)) {
+      } else if (newFrameJson['render_version'] != null ||
+          (configJson != null && configJson['render_version'] != null)) {
         templateConfig['render_version'] = newRenderVersion;
       }
 
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] --------------------------------------------',
+      );
+      debugPrint('[DIAGNOSIS_CANVAS] REFRESH START');
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] --------------------------------------------',
+      );
+
       templateConfig.refresh();
+      NativeEditorController.timelineRefreshComplete =
+          DateTime.now().millisecondsSinceEpoch;
+
+      final int refreshCompleteTime = DateTime.now().millisecondsSinceEpoch;
+      final int refreshLayersCount =
+          (templateConfig['layers'] as List?)?.length ?? 0;
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] --------------------------------------------',
+      );
+      debugPrint('[DIAGNOSIS_CANVAS] REFRESH COMPLETE');
+      debugPrint('[DIAGNOSIS_CANVAS] Timestamp: $refreshCompleteTime');
+      debugPrint('[DIAGNOSIS_CANVAS] Current Layer Count: $refreshLayersCount');
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] --------------------------------------------',
+      );
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final int renderCompleteTime = DateTime.now().millisecondsSinceEpoch;
+        final String frameIdStr = (newFrameJson['id'] ?? '').toString();
+        debugPrint('[DIAGNOSIS_CANVAS] Render Complete');
+        debugPrint('[DIAGNOSIS_CANVAS] Frame ID: $frameIdStr');
+        debugPrint('[DIAGNOSIS_CANVAS] Timestamp: $renderCompleteTime');
+        debugPrint(
+          '[DIAGNOSIS_CANVAS] Total Time Since Tap: ${renderCompleteTime - parseStartTime}ms',
+        );
+
+        Future.delayed(const Duration(milliseconds: 100), () {
+          NativeEditorController.transitionSnapshot.value = null;
+          debugPrint('[SNAPSHOT] transitionSnapshot cleared');
+        });
+
+        final int finalCount = (templateConfig['layers'] as List?)?.length ?? 0;
+
+        debugPrint(
+          '[DIAGNOSIS_CANVAS] --------------------------------------------',
+        );
+        debugPrint('[DIAGNOSIS_CANVAS] FRAME SWITCH SUMMARY');
+        debugPrint(
+          '[DIAGNOSIS_CANVAS] Tap Time: ${NativeEditorController.timelineTapTime}',
+        );
+        debugPrint(
+          '[DIAGNOSIS_CANVAS] loadNewFrame Start: ${NativeEditorController.timelineLoadStart}',
+        );
+        debugPrint(
+          '[DIAGNOSIS_CANVAS] Precache Start: ${NativeEditorController.timelinePrecacheStart}',
+        );
+        debugPrint(
+          '[DIAGNOSIS_CANVAS] Precache End: ${NativeEditorController.timelinePrecacheEnd}',
+        );
+        debugPrint(
+          '[DIAGNOSIS_CANVAS] Merge Complete: ${NativeEditorController.timelineMergeComplete}',
+        );
+        debugPrint(
+          '[DIAGNOSIS_CANVAS] templateConfig Updated: ${NativeEditorController.timelineConfigUpdated}',
+        );
+        debugPrint(
+          '[DIAGNOSIS_CANVAS] Refresh Complete: ${NativeEditorController.timelineRefreshComplete}',
+        );
+        debugPrint(
+          '[DIAGNOSIS_CANVAS] Obx Rebuild: ${NativeEditorController.timelineObxRebuild}',
+        );
+        debugPrint(
+          '[DIAGNOSIS_CANVAS] Canvas Build: ${NativeEditorController.timelineCanvasBuild}',
+        );
+        debugPrint(
+          '[DIAGNOSIS_CANVAS] InteractiveLayer Build: ${NativeEditorController.timelineInteractiveLayerBuild}',
+        );
+        debugPrint(
+          '[DIAGNOSIS_CANVAS] CachedNetworkImage placeholder called?: ${NativeEditorController.timelinePlaceholderCalled}',
+        );
+        debugPrint(
+          '[DIAGNOSIS_CANVAS] CachedNetworkImage imageBuilder called?: ${NativeEditorController.timelineImageBuilderCalled}',
+        );
+        debugPrint('[DIAGNOSIS_CANVAS] Final Layer Count: $finalCount');
+        debugPrint(
+          '[DIAGNOSIS_CANVAS] --------------------------------------------',
+        );
+
+        Future.delayed(const Duration(milliseconds: 300), () {
+          loadingFrameId.value = '';
+        });
+      });
+
       _pushHistory();
 
       // 2. Asynchronous Brightness Check
-      _asyncApplyBrightness(newFrameJson, newLayers, preservedLayers, shapeLayers);
-
+      _asyncApplyBrightness(
+        newFrameJson,
+        newLayers,
+        preservedLayers,
+        shapeLayers,
+      );
     } catch (e, stack) {
       debugPrint('[LOAD_FRAME] Error: $e\n$stack');
+    }
+  }
+
+  Future<void> _engineDecodeImage(String url) {
+    final completer = Completer<void>();
+    ImageProvider provider;
+    if (kIsWeb) {
+      provider = NetworkImage(url);
+    } else {
+      provider = CachedNetworkImageProvider(url);
+    }
+
+    final ImageStream stream = provider.resolve(const ImageConfiguration());
+    late ImageStreamListener listener;
+    listener = ImageStreamListener(
+      (ImageInfo info, bool syncCall) {
+        stream.removeListener(listener);
+        completer.complete();
+      },
+      onError: (dynamic error, StackTrace? stackTrace) {
+        stream.removeListener(listener);
+        debugPrint('[ENGINE_DECODE] Error decoding $url: $error');
+        completer.complete(); // complete on error to avoid hanging
+      },
+    );
+    stream.addListener(listener);
+    return completer.future;
+  }
+
+  Future<void> _precacheFrameImages(List<dynamic> layersList) async {
+    final futures = <Future<void>>[];
+    for (var layer in layersList) {
+      if (layer['type'] == 'image' && layer['src'] != null) {
+        String src = layer['src'].toString();
+        if (!src.startsWith('http')) {
+          String baseUrl = templateBaseUrl.isNotEmpty
+              ? templateBaseUrl
+              : AppConfig.baseUrl.replaceAll('/123456', '') + '/public';
+          if (src.startsWith('../')) {
+            src = '$baseUrl/${src.replaceFirst('../', '')}';
+          } else if (src.startsWith('uploads/')) {
+            src = '$baseUrl/$src';
+          } else {
+            src = '$baseUrl/skins/$src';
+          }
+        }
+
+        futures.add(
+          Future(() async {
+            try {
+              // 1. Ensure file is on disk (should be instant thanks to background pre-cacher)
+              final fileInfo = await DefaultCacheManager().getFileFromCache(
+                src,
+              );
+              if (fileInfo == null) {
+                await DefaultCacheManager().downloadFile(src);
+              }
+              // 2. FORCE decode into RAM so when EditorCanvasWidget mounts, it paints synchronously!
+              // No more white flash.
+              await _engineDecodeImage(src);
+            } catch (e) {
+              debugPrint('[PRECACHE] Failed for $src: $e');
+            }
+          }),
+        );
+      }
+    }
+    if (futures.isNotEmpty) {
+      await Future.wait(futures);
     }
   }
 
@@ -1449,16 +2375,20 @@ class NativeEditorController extends GetxController {
     Map<String, dynamic> newFrameJson,
     List<dynamic> newLayers,
     List<dynamic> preservedLayers,
-    List<Map<String, dynamic>> shapeLayers
+    List<Map<String, dynamic>> shapeLayers,
   ) async {
     try {
       // Process shape images to find their actual brightness
       for (var shape in shapeLayers) {
-        if (shape['fill'] == null && shape['src'] != null && shape['src'].toString().isNotEmpty) {
+        if (shape['fill'] == null &&
+            shape['src'] != null &&
+            shape['src'].toString().isNotEmpty) {
           String sUrl = shape['src'].toString();
           // Normalize URL
           if (!sUrl.startsWith('http')) {
-            String baseUrl = templateBaseUrl.isNotEmpty ? templateBaseUrl : AppConfig.baseUrl.replaceAll('/123456', '') + '/public';
+            String baseUrl = templateBaseUrl.isNotEmpty
+                ? templateBaseUrl
+                : AppConfig.baseUrl.replaceAll('/123456', '') + '/public';
             if (sUrl.startsWith('../')) {
               sUrl = '$baseUrl/${sUrl.replaceFirst('../', '')}';
             } else if (sUrl.startsWith('uploads/')) {
@@ -1467,9 +2397,19 @@ class NativeEditorController extends GetxController {
               sUrl = '$baseUrl/skins/$sUrl';
             }
           }
-          
+
           bool shapeIsDark = false;
-          if (_brightnessCache.containsKey(sUrl)) {
+          if (shape['tint_color'] != null &&
+              shape['tint_color'].toString().isNotEmpty) {
+            final Color tint = _parseColor(
+              shape['tint_color'].toString(),
+              fallback: Colors.white,
+            );
+            final double luminance =
+                (0.299 * tint.red + 0.587 * tint.green + 0.114 * tint.blue);
+            shapeIsDark = luminance < 160;
+            _brightnessCache[sUrl] = shapeIsDark;
+          } else if (_brightnessCache.containsKey(sUrl)) {
             shapeIsDark = _brightnessCache[sUrl]!;
           } else {
             try {
@@ -1483,17 +2423,23 @@ class NativeEditorController extends GetxController {
                   double totalLuminance = 0;
                   int sampleCount = 0;
                   for (int i = 0; i < data.length; i += 4 * 10) {
-                    int r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
-                    if (a > 30) { // Only sample non-transparent pixels
+                    int r = data[i],
+                        g = data[i + 1],
+                        b = data[i + 2],
+                        a = data[i + 3];
+                    if (a > 30) {
+                      // Only sample non-transparent pixels
                       totalLuminance += (0.299 * r + 0.587 * g + 0.114 * b);
                       sampleCount++;
                     }
                   }
                   if (sampleCount > 0) {
                     double avgBrightness = totalLuminance / sampleCount;
-                    shapeIsDark = avgBrightness < 128;
+                    shapeIsDark = avgBrightness < 160;
                     _brightnessCache[sUrl] = shapeIsDark;
-                    debugPrint('[SHAPE_BRIGHTNESS] Computed for ${shape['src']} -> avg=$avgBrightness, isDark=$shapeIsDark');
+                    debugPrint(
+                      '[SHAPE_BRIGHTNESS] Computed for ${shape['src']} -> avg=$avgBrightness, isDark=$shapeIsDark',
+                    );
                   }
                 }
               }
@@ -1507,33 +2453,41 @@ class NativeEditorController extends GetxController {
       }
 
       bool templateIsDark = false;
-      
+
       // Priority 1: Use the controller's stored baseImgUrl (set at init from designUrl)
       String imgUrl = baseImgUrl ?? '';
       debugPrint('[BRIGHTNESS] Step 1 - controller.baseImgUrl = "$imgUrl"');
-      
+
       // Priority 2: Check templateConfig for designUrl
-      if (imgUrl.isEmpty && templateConfig['designUrl'] != null && templateConfig['designUrl'].toString().isNotEmpty) {
+      if (imgUrl.isEmpty &&
+          templateConfig['designUrl'] != null &&
+          templateConfig['designUrl'].toString().isNotEmpty) {
         imgUrl = templateConfig['designUrl'].toString();
-        debugPrint('[BRIGHTNESS] Step 2 - templateConfig.designUrl = "$imgUrl"');
+        debugPrint(
+          '[BRIGHTNESS] Step 2 - templateConfig.designUrl = "$imgUrl"',
+        );
       }
-      
+
       // Priority 3: Check newFrameJson for image
-      if (imgUrl.isEmpty && newFrameJson['image'] != null && newFrameJson['image'].toString().isNotEmpty) {
+      if (imgUrl.isEmpty &&
+          newFrameJson['image'] != null &&
+          newFrameJson['image'].toString().isNotEmpty) {
         imgUrl = newFrameJson['image'].toString();
         debugPrint('[BRIGHTNESS] Step 3 - newFrameJson.image = "$imgUrl"');
       }
-      
+
       // Priority 4: Find background layer
       if (imgUrl.isEmpty) {
         dynamic bgLayer;
         try {
           bgLayer = preservedLayers.firstWhere(
-            (l) => l['is_background'] == true || 
-                   (l['is_background'] == null && (l['name'] == 'image1' || 
-                   l['name'] == 'main_image' || 
-                   l['name'] == 'bg' || 
-                   l['name'] == 'background')),
+            (l) =>
+                l['is_background'] == true ||
+                (l['is_background'] == null &&
+                    (l['name'] == 'image1' ||
+                        l['name'] == 'main_image' ||
+                        l['name'] == 'bg' ||
+                        l['name'] == 'background')),
           );
         } catch (_) {
           bgLayer = null;
@@ -1545,7 +2499,9 @@ class NativeEditorController extends GetxController {
       }
 
       if (imgUrl.isEmpty) {
-        debugPrint('[BRIGHTNESS] ERROR: No image URL found for brightness detection!');
+        debugPrint(
+          '[BRIGHTNESS] ERROR: No image URL found for brightness detection!',
+        );
         // Default to dark since most templates are dark
         templateIsDark = true;
         debugPrint('[BRIGHTNESS] Defaulting templateIsDark=true');
@@ -1554,7 +2510,9 @@ class NativeEditorController extends GetxController {
       if (imgUrl.isNotEmpty) {
         // Make URL absolute if needed
         if (!imgUrl.startsWith('http')) {
-          String baseUrl = templateBaseUrl.isNotEmpty ? templateBaseUrl : AppConfig.baseUrl.replaceAll('/123456', '') + '/public';
+          String baseUrl = templateBaseUrl.isNotEmpty
+              ? templateBaseUrl
+              : AppConfig.baseUrl.replaceAll('/123456', '') + '/public';
           if (imgUrl.startsWith('../')) {
             imgUrl = '$baseUrl/${imgUrl.replaceFirst('../', '')}';
           } else if (imgUrl.startsWith('uploads/')) {
@@ -1564,14 +2522,18 @@ class NativeEditorController extends GetxController {
           }
         }
         debugPrint('[BRIGHTNESS] Final URL = "$imgUrl"');
-        
+
         if (_brightnessCache.containsKey(imgUrl)) {
           templateIsDark = _brightnessCache[imgUrl]!;
-          debugPrint('[BRIGHTNESS] CACHED result: templateIsDark=$templateIsDark');
+          debugPrint(
+            '[BRIGHTNESS] CACHED result: templateIsDark=$templateIsDark',
+          );
         } else {
           try {
             final resp = await http.get(Uri.parse(imgUrl));
-            debugPrint('[BRIGHTNESS] HTTP status=${resp.statusCode}, bodyLen=${resp.bodyBytes.length}');
+            debugPrint(
+              '[BRIGHTNESS] HTTP status=${resp.statusCode}, bodyLen=${resp.bodyBytes.length}',
+            );
             if (resp.statusCode == 200) {
               final codec = await ui.instantiateImageCodec(resp.bodyBytes);
               final frameInfo = await codec.getNextFrame();
@@ -1582,7 +2544,7 @@ class NativeEditorController extends GetxController {
                 int sampleCount = 0;
                 // Sample the ENTIRE image, not just bottom 30%
                 for (int i = 0; i < data.length; i += 4 * 20) {
-                  int r = data[i], g = data[i+1], b = data[i+2];
+                  int r = data[i], g = data[i + 1], b = data[i + 2];
                   totalLuminance += (0.299 * r + 0.587 * g + 0.114 * b);
                   sampleCount++;
                 }
@@ -1590,7 +2552,9 @@ class NativeEditorController extends GetxController {
                   double avgBrightness = totalLuminance / sampleCount;
                   templateIsDark = avgBrightness < 128;
                   _brightnessCache[imgUrl] = templateIsDark;
-                  debugPrint('[BRIGHTNESS] COMPUTED: avgBrightness=${avgBrightness.toStringAsFixed(1)}, templateIsDark=$templateIsDark (samples=$sampleCount)');
+                  debugPrint(
+                    '[BRIGHTNESS] COMPUTED: avgBrightness=${avgBrightness.toStringAsFixed(1)}, templateIsDark=$templateIsDark (samples=$sampleCount)',
+                  );
                 }
               }
             }
@@ -1602,50 +2566,55 @@ class NativeEditorController extends GetxController {
       }
 
       // Apply colors and refresh UI
-      debugPrint('[BRIGHTNESS] Applying colors: templateIsDark=$templateIsDark, shapeLayers=${shapeLayers.length}, textLayers=${newLayers.where((l) => l['type'] == 'text').length}');
+      debugPrint(
+        '[BRIGHTNESS] Applying colors: templateIsDark=$templateIsDark, shapeLayers=${shapeLayers.length}, textLayers=${newLayers.where((l) => l['type'] == 'text').length}',
+      );
       bool needsRefresh = false;
-      
+
       // PASS 0: Logo Background Plate (auto-detect dark background)
       // When background is dark, inject a white rectangle behind the frame's logo
       // so it remains visible on any background color.
       if (templateIsDark) {
         final layers = templateConfig['layers'] as List;
-        
+
         // Find the frame logo layer
         Map<String, dynamic>? logoLayer;
         int logoIndex = -1;
         for (int i = 0; i < layers.length; i++) {
           final l = layers[i];
-          if (l['_businessKey'] == 'logo' && 
+          if (l['_businessKey'] == 'logo' &&
               (l['_isFrameLayer'] == true || l['_is_frame_layer'] == true)) {
             logoLayer = l;
             logoIndex = i;
             break;
           }
         }
-        
+
         if (logoLayer != null && logoIndex >= 0) {
           // Remove any existing plate (prevents duplicates on frame switch)
           layers.removeWhere((l) => l['name'] == '_logo_bg_plate');
-          
+
           // Recalculate logoIndex after removal
           logoIndex = layers.indexOf(logoLayer);
-          
+
           // Calculate plate dimensions
           double logoX = safeDouble(logoLayer['x'] ?? 0);
           double logoY = safeDouble(logoLayer['y'] ?? 0);
           double logoW = safeDouble(logoLayer['w'] ?? logoLayer['width'] ?? 0);
           double logoH = safeDouble(logoLayer['h'] ?? logoLayer['height'] ?? 0);
-          
+
           double paddingX = 10.0;
           double paddingBottom = 10.0;
           double paddingTop = 20.0;
-          
-          double plateX = logoX - paddingX;          // 10px left gap
-          double plateY = logoY - paddingTop;        // 20px top gap
-          double plateW = logoW + (paddingX * 2);    // 10px left + 10px right
-          double plateH = logoH + paddingTop + paddingBottom;   // 20px top + logo + 10px bottom
-          
+
+          double plateX = logoX - paddingX; // 10px left gap
+          double plateY = logoY - paddingTop; // 20px top gap
+          double plateW = logoW + (paddingX * 2); // 10px left + 10px right
+          double plateH =
+              logoH +
+              paddingTop +
+              paddingBottom; // 20px top + logo + 10px bottom
+
           // Create the plate layer
           Map<String, dynamic> plateLayer = {
             'name': '_logo_bg_plate',
@@ -1655,27 +2624,31 @@ class NativeEditorController extends GetxController {
             'w': plateW,
             'h': plateH,
             'color': '#FFFFFF',
-            'z_index': (logoLayer['z_index'] ?? 99) is int 
-                ? (logoLayer['z_index'] ?? 99) - 1 
+            'z_index': (logoLayer['z_index'] ?? 99) is int
+                ? (logoLayer['z_index'] ?? 99) - 1
                 : ((logoLayer['z_index'] ?? 99) as num).toInt() - 1,
             '_isFrameLayer': true,
             '_is_logo_plate': true,
           };
-          
+
           // Insert BEFORE the logo so it renders behind it
           if (logoIndex >= 0 && logoIndex <= layers.length) {
             layers.insert(logoIndex, plateLayer);
           }
           needsRefresh = true;
-          
-          debugPrint('[LOGO_PLATE] ✅ Injected white plate: '
+
+          debugPrint(
+            '[LOGO_PLATE] ✅ Injected white plate: '
             'x=$plateX y=$plateY w=$plateW h=$plateH '
-            'logoAt=($logoX,$logoY,$logoW,$logoH)');
+            'logoAt=($logoX,$logoY,$logoW,$logoH)',
+          );
         }
       } else {
         // Light background: remove any existing plate
         final layers = templateConfig['layers'] as List;
-        final removed = layers.where((l) => l['name'] == '_logo_bg_plate').length;
+        final removed = layers
+            .where((l) => l['name'] == '_logo_bg_plate')
+            .length;
         layers.removeWhere((l) => l['name'] == '_logo_bg_plate');
         if (removed > 0) {
           needsRefresh = true;
@@ -1683,77 +2656,61 @@ class NativeEditorController extends GetxController {
         }
       }
 
-      int renderVersion = (templateConfig['render_version'] ?? 1) as int;
-
       // PASS 1: Apply colors to TEXT layers first
       for (var newLayer in newLayers) {
         if (newLayer['type'] == 'text') {
-          if (_applyDynamicTextColor(newLayer, templateIsDark, shapeLayers, renderVersion: renderVersion)) {
+          if (_applyDynamicTextColor(newLayer, templateIsDark, shapeLayers)) {
             needsRefresh = true;
           }
         }
       }
-      
-      // PASS 2: Apply colors to ICON layers - match paired text color (same as web editor)
+
+      // PASS 2: Apply colors to ICON layers from each icon's own background.
       for (var newLayer in newLayers) {
-        final String lname = (newLayer['name'] ?? newLayer['id'] ?? '').toString().toLowerCase();
-        bool isIcon = (newLayer['type'] == 'image' || newLayer['type'] == 'icon') && (
-          ['phone', 'email', 'website', 'address', 'social'].contains(newLayer['_businessKey']) ||
-          ['phone', 'email', 'website', 'address', 'call', 'mobile', 'contact', 'whatsapp', 'tel',
-           'mail', 'web', 'url', 'location', 'icon', 'facebook', 'instagram', 'twitter', 'youtube',
-           'social', 'linkedin'].any((key) => lname.contains(key)) ||
-          newLayer['_originalType'] == 'icon' ||
-          (newLayer['_source_meta'] is Map && newLayer['_source_meta']['type'] == 'icon')
-        );
+        final String lname = (newLayer['name'] ?? newLayer['id'] ?? '')
+            .toString()
+            .toLowerCase();
+        final bool isIcon =
+            newLayer['type'] == 'icon' ||
+            ((newLayer['type'] == 'image') &&
+                ([
+                      'phone',
+                      'email',
+                      'website',
+                      'address',
+                      'social',
+                    ].contains(newLayer['_businessKey']) ||
+                    [
+                      'phone',
+                      'email',
+                      'website',
+                      'address',
+                      'call',
+                      'mobile',
+                      'contact',
+                      'whatsapp',
+                      'tel',
+                      'mail',
+                      'web',
+                      'url',
+                      'location',
+                      'icon',
+                      'facebook',
+                      'instagram',
+                      'twitter',
+                      'youtube',
+                      'social',
+                      'linkedin',
+                    ].any((key) => lname.contains(key)) ||
+                    newLayer['_originalType'] == 'icon' ||
+                    (newLayer['_source_meta'] is Map &&
+                        newLayer['_source_meta']['type'] == 'icon')));
         if (!isIcon) continue;
-        
-        // Determine the business key for this icon to find matching text
-        String? iconBizKey = newLayer['_businessKey']?.toString();
-        if (iconBizKey == null || iconBizKey.isEmpty) {
-          if (lname.contains('phone') || lname.contains('call') || lname.contains('mobile') || lname.contains('contact') || lname.contains('whatsapp') || lname.contains('tel')) iconBizKey = 'phone';
-          else if (lname.contains('email') || lname.contains('mail')) iconBizKey = 'email';
-          else if (lname.contains('web') || lname.contains('url')) iconBizKey = 'website';
-          else if (lname.contains('address') || lname.contains('location')) iconBizKey = 'address';
-          else iconBizKey = 'social';
-        }
-        
-        // Try to find matching text layer and copy its color
-        String? matchedTextColor;
-        if (iconBizKey != 'social') {
-          for (var textLayer in newLayers) {
-            if (textLayer['type'] != 'text') continue;
-            String? textBizKey = textLayer['_businessKey']?.toString();
-            if (textBizKey == null || textBizKey.isEmpty) {
-              final String tname = (textLayer['name'] ?? textLayer['id'] ?? '').toString().toLowerCase();
-              if (tname.contains('phone') || tname.contains('mobile') || tname.contains('number') || tname.contains('call')) textBizKey = 'phone';
-              else if (tname.contains('email') || tname.contains('mail')) textBizKey = 'email';
-              else if (tname.contains('web') || tname.contains('url')) textBizKey = 'website';
-              else if (tname.contains('address') || tname.contains('location')) textBizKey = 'address';
-            }
-            if (textBizKey == iconBizKey) {
-              matchedTextColor = textLayer['font_color'] ?? textLayer['color'];
-              break;
-            }
-          }
-        }
-        
-        String layerName = (newLayer['name'] ?? '').toString();
-        if (_applyDynamicTextColor(newLayer, templateIsDark, shapeLayers, matchedColor: matchedTextColor, renderVersion: renderVersion)) {
+        if (_applyDynamicTextColor(newLayer, templateIsDark, shapeLayers)) {
           needsRefresh = true;
         }
       }
-      
-      // PASS 3: Apply colors to general ICON-TYPE layers (V7+)
-      if (renderVersion >= 7) {
-        for (var newLayer in newLayers) {
-          if (newLayer['type'] == 'icon' && newLayer['_pass2_colored'] != true) {
-            if (_applyDynamicTextColor(newLayer, templateIsDark, shapeLayers, renderVersion: renderVersion)) {
-              needsRefresh = true;
-            }
-          }
-        }
-      }
-      
+
       debugPrint('[BRIGHTNESS] needsRefresh=$needsRefresh');
       if (needsRefresh) {
         templateConfig.refresh();
@@ -1767,39 +2724,82 @@ class NativeEditorController extends GetxController {
     Map<String, dynamic> layer,
     bool templateIsDark,
     List<Map<String, dynamic>> shapeLayers,
-    {String? matchedColor, int renderVersion = 1}
   ) {
     final String diagName = (layer['name'] ?? layer['id'] ?? '').toString();
-    debugPrint('[COLOR_DIAG] Starting _applyDynamicTextColor for layer: "$diagName" (type: ${layer['type']})');
-    
+    debugPrint(
+      '[COLOR_DIAG] Starting _applyDynamicTextColor for layer: "$diagName" (type: ${layer['type']})',
+    );
+
     // DO NOT override user colors for Custom templates / frames!
-    final type = Get.parameters['type'] ?? templateConfig['type'] ?? 'business_custom_frame';
+    final type =
+        Get.parameters['type'] ??
+        templateConfig['type'] ??
+        'business_custom_frame';
     final tLow = type.toString().toLowerCase();
     debugPrint('[COLOR_DIAG] Editor Type: $type ($tLow)');
-    if (tLow.contains('custom') || tLow == 'post' || tLow == 'business_custom_frame') {
-      debugPrint('[COLOR_DIAG] ❌ SKIPPED: Template type is custom or business_custom_frame');
+    if (tLow.contains('custom') ||
+        tLow == 'post' ||
+        tLow == 'business_custom_frame') {
+      debugPrint(
+        '[COLOR_DIAG] ❌ SKIPPED: Template type is custom or business_custom_frame',
+      );
       return false; // Skip auto-color for custom templates to preserve original ZIP colors
     }
 
     bool isText = layer['type'] == 'text';
-    final String lname = (layer['name'] ?? layer['id'] ?? '').toString().toLowerCase();
-    
-    // Only target true contact/social icons. Do not broadly target all "icon" layers.
-    bool isContactIcon = (layer['type'] == 'image' || layer['type'] == 'icon') && (
-                  ['phone', 'email', 'website', 'address', 'social'].contains(layer['_businessKey']) ||
-                  ['phone', 'email', 'website', 'address', 'call', 'mobile', 'contact', 'whatsapp', 'tel',
-                   'mail', 'web', 'url', 'location', 'facebook', 'instagram', 'twitter', 'youtube',
-                   'social', 'linkedin'].any((key) => lname.contains(key))
-                  );
+    final String lname = (layer['name'] ?? layer['id'] ?? '')
+        .toString()
+        .toLowerCase();
 
-    // For V7+, we allow all icons to be processed by the Smart Color Adaptation logic.
-    bool isIcon = renderVersion >= 7 ? (layer['type'] == 'icon' || isContactIcon) : isContactIcon;
-    debugPrint('[COLOR_DIAG] isText=$isText, isContactIcon=$isContactIcon, isIcon=$isIcon');
+    // Only target true contact/social icons. Do not broadly target all "icon" layers.
+    bool isContactIcon =
+        (layer['type'] == 'image' || layer['type'] == 'icon') &&
+        ([
+              'phone',
+              'email',
+              'website',
+              'address',
+              'social',
+            ].contains(layer['_businessKey']) ||
+            [
+              'phone',
+              'email',
+              'website',
+              'address',
+              'call',
+              'mobile',
+              'contact',
+              'whatsapp',
+              'tel',
+              'mail',
+              'web',
+              'url',
+              'location',
+              'facebook',
+              'instagram',
+              'twitter',
+              'youtube',
+              'social',
+              'linkedin',
+            ].any((key) => lname.contains(key)));
+
+    // All render versions evaluate each true icon independently.
+    bool isIcon =
+        layer['type'] == 'icon' ||
+        isContactIcon ||
+        layer['_originalType'] == 'icon' ||
+        (layer['_source_meta'] is Map &&
+            layer['_source_meta']['type'] == 'icon');
+    debugPrint(
+      '[COLOR_DIAG] isText=$isText, isContactIcon=$isContactIcon, isIcon=$isIcon',
+    );
 
     // DO NOT override colors for frame layers — EXCEPT for text and contact icons.
     if (layer['_is_frame_layer'] == true || layer['_isFrameLayer'] == true) {
       if (!isText && !isIcon) {
-        debugPrint('[COLOR_DIAG] ❌ SKIPPED: Regular frame layer that is not text or icon');
+        debugPrint(
+          '[COLOR_DIAG] ❌ SKIPPED: Regular frame layer that is not text or icon',
+        );
         return false;
       }
     }
@@ -1810,8 +2810,10 @@ class NativeEditorController extends GetxController {
     }
 
     final String layerName = (layer['name'] ?? layer['id'] ?? '').toString();
-    debugPrint('[COLOR_DIAG] ✅ PROCEEDING for "$layerName" (isText=$isText, isIcon=$isIcon)');
-    
+    debugPrint(
+      '[COLOR_DIAG] ✅ PROCEEDING for "$layerName" (isText=$isText, isIcon=$isIcon)',
+    );
+
     final double textX = safeDouble(layer['x'] ?? 0);
     final double textY = safeDouble(layer['y'] ?? 0);
     final double textW = safeDouble(layer['w'] ?? layer['width'] ?? 0);
@@ -1821,107 +2823,91 @@ class NativeEditorController extends GetxController {
 
     bool overlapsShape = false;
     bool shapeIsDark = false;
-    for (var shape in shapeLayers) {
-      final String shapeName = (shape['name'] ?? shape['id'] ?? '').toString().toLowerCase();
-      final String currentName = (layer['name'] ?? layer['id'] ?? '').toString().toLowerCase();
+
+    // Inspect the nearest overlapping shape that is not above this layer.
+    final int layerZIndex = _layerZIndex(layer);
+    final List<Map<String, dynamic>> shapesToCheck = List.from(shapeLayers)
+      ..sort((a, b) => _layerZIndex(b).compareTo(_layerZIndex(a)));
+
+    for (var shape in shapesToCheck) {
+      final String shapeName = (shape['name'] ?? shape['id'] ?? '')
+          .toString()
+          .toLowerCase();
+      final String currentName = (layer['name'] ?? layer['id'] ?? '')
+          .toString()
+          .toLowerCase();
       if (shapeName == currentName && shapeName.isNotEmpty) {
         continue;
       }
-      
+
+      if (_layerZIndex(shape) > layerZIndex) {
+        continue;
+      }
+
       final double sx = safeDouble(shape['x'] ?? 0);
       final double sy = safeDouble(shape['y'] ?? 0);
       final double sw = safeDouble(shape['w'] ?? shape['width'] ?? 0);
       final double sh = safeDouble(shape['h'] ?? shape['height'] ?? 0);
 
-      if (textCenterX >= sx && textCenterX <= (sx + sw) &&
-          textCenterY >= sy && textCenterY <= (sy + sh)) {
+      if (textCenterX >= sx &&
+          textCenterX <= (sx + sw) &&
+          textCenterY >= sy &&
+          textCenterY <= (sy + sh)) {
         overlapsShape = true;
-        
+
         if (shape['hasComputedBrightness'] == true) {
           shapeIsDark = shape['shapeIsDark'] == true;
-          debugPrint('[COLOR] "$layerName" overlaps image shape with computed shapeIsDark=$shapeIsDark (src=${shape['src']})');
+          debugPrint(
+            '[COLOR] "$layerName" overlaps image shape with computed shapeIsDark=$shapeIsDark (src=${shape['src']})',
+          );
         } else {
           // Parse the shape's fill color to determine its brightness
           final fillVal = shape['fill']?.toString() ?? '#FFFFFF';
           final Color shapeColor = _parseColor(fillVal, fallback: Colors.white);
-          
+
           // Compute brightness (standard formula)
-          final double luminance = (0.299 * shapeColor.red + 0.587 * shapeColor.green + 0.114 * shapeColor.blue);
-          shapeIsDark = luminance < 128;
-          
-          debugPrint('[COLOR] "$layerName" overlaps shape at (${sx.toInt()},${sy.toInt()},${sw.toInt()},${sh.toInt()}) with fill="$fillVal" (shapeIsDark=$shapeIsDark)');
+          final double luminance =
+              (0.299 * shapeColor.red +
+              0.587 * shapeColor.green +
+              0.114 * shapeColor.blue);
+          shapeIsDark = luminance < 160;
+
+          debugPrint(
+            '[COLOR] "$layerName" overlaps shape at (${sx.toInt()},${sy.toInt()},${sw.toInt()},${sh.toInt()}) with fill="$fillVal" (shapeIsDark=$shapeIsDark)',
+          );
         }
         break;
       }
     }
 
-    if (layer['original_color'] == null) {
-      layer['original_color'] = layer['color'] ?? layer['tint_color'] ?? '0xFFFFFFFF';
+    if (layer['original_color'] == null ||
+        layer['original_color'].toString().trim().isEmpty) {
+      layer['original_color'] = _canonicalOriginalColor(layer, isIcon: isIcon);
     }
 
     bool changed = false;
-    String newColor;
-    if (matchedColor != null) {
-      newColor = matchedColor;
-    } else if (overlapsShape) {
-      newColor = shapeIsDark ? '0xFFFFFFFF' : '0xFF000000';
-    } else {
-      bool isBgDark = overlapsShape ? shapeIsDark : templateIsDark;
-      final String origColorStr = layer['original_color'].toString();
-      final Color origColor = _parseColor(origColorStr, fallback: isBgDark ? Colors.white : Colors.black);
-
-      if (renderVersion >= 7) {
-        // V7+ WCAG Smart Contrast Logic
-        Color bgColor = overlapsShape 
-            ? _parseColor((shapeLayers.firstWhere((s) {
-                final double sx = safeDouble(s['x'] ?? 0);
-                final double sy = safeDouble(s['y'] ?? 0);
-                final double sw = safeDouble(s['w'] ?? s['width'] ?? 0);
-                final double sh = safeDouble(s['h'] ?? s['height'] ?? 0);
-                return textCenterX >= sx && textCenterX <= (sx + sw) && textCenterY >= sy && textCenterY <= (sy + sh);
-              }, orElse: () => {'fill': isBgDark ? '#000000' : '#FFFFFF'})['fill'] ?? (isBgDark ? '#000000' : '#FFFFFF')).toString(), fallback: isBgDark ? Colors.black : Colors.white)
-            : (isBgDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF));
-        
-        double contrastRatio = _computeContrastRatio(origColor, bgColor);
-        
-        if (contrastRatio >= 2.0) {
-          // It's readable! Keep the original color.
-          newColor = origColorStr;
-        } else {
-          // Clash! It's not readable. Override to White or Black based on background.
-          newColor = isBgDark ? '0xFFFFFFFF' : '0xFF000000';
-        }
-        debugPrint('[COLOR_DIAG] V7 SmartColor: bgIsDark=$isBgDark, origColor=$origColor, bgColor=$bgColor, contrast=$contrastRatio -> Result: $newColor');
-      } else {
-        // V1-V6 Legacy Logic
-        final double origLuminance = (0.299 * origColor.red + 0.587 * origColor.green + 0.114 * origColor.blue);
-        bool isOrigDark = origLuminance < 128;
-        
-        if (isBgDark) {
-          // Background is Dark. Needs Light color.
-          if (!isOrigDark) {
-            newColor = origColorStr; // Already light, keep original
-          } else {
-            newColor = '0xFFFFFFFF'; // Dark on dark, force white
-          }
-        } else {
-          // Background is Light. Needs Dark color.
-          if (isOrigDark) {
-            newColor = origColorStr; // Already dark, keep original
-          } else {
-            newColor = '0xFF000000'; // Light on light, force black
-          }
-        }
-      }
-    }
+    final bool isBgDark = overlapsShape ? shapeIsDark : templateIsDark;
+    final String originalColor = layer['original_color'].toString();
+    final String newColor = DynamicColorResolver.resolve(
+      originalColor: originalColor,
+      backgroundIsDark: isBgDark,
+    );
+    debugPrint(
+      '[COLOR_DIAG] OriginalColor: bgIsDark=$isBgDark, original=$originalColor -> result=$newColor',
+    );
     if (isText) {
-      debugPrint('[COLOR] TEXT "$layerName" → templateIsDark=$templateIsDark overlapsShape=$overlapsShape → color=$newColor (was: ${layer['color']})');
+      debugPrint(
+        '[COLOR] TEXT "$layerName" → templateIsDark=$templateIsDark overlapsShape=$overlapsShape → color=$newColor (was: ${layer['color']})',
+      );
       if (layer['color'] != newColor) changed = true;
       layer['color'] = newColor;
       layer['font_color'] = newColor;
     } else if (isIcon) {
-      debugPrint('[COLOR] ICON "$layerName" → templateIsDark=$templateIsDark overlapsShape=$overlapsShape → tint=$newColor (was: ${layer['tint_color']})');
-      if (layer['tint_color'] != newColor || layer['color'] != newColor) changed = true;
+      debugPrint(
+        '[COLOR] ICON "$layerName" → templateIsDark=$templateIsDark overlapsShape=$overlapsShape → tint=$newColor (was: ${layer['tint_color']})',
+      );
+      if (layer['tint_color'] != newColor || layer['color'] != newColor)
+        changed = true;
       layer['tint_color'] = newColor;
       layer['color'] = newColor;
       // All icons use font_color in _buildIconLayer (both type=='icon' and type=='image' with icon metadata)
@@ -1930,9 +2916,34 @@ class NativeEditorController extends GetxController {
     return changed;
   }
 
-  Color _parseColor(String colorStr, {Color fallback = const Color(0xFF000000)}) {
+  int _layerZIndex(Map<String, dynamic> layer) {
+    final dynamic value = layer['z_index'];
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  String _canonicalOriginalColor(
+    Map<String, dynamic> layer, {
+    required bool isIcon,
+  }) {
+    final values = isIcon
+        ? [layer['tint_color'], layer['color'], layer['font_color']]
+        : [layer['color'], layer['font_color'], layer['tint_color']];
+
+    for (final value in values) {
+      final color = value?.toString().trim() ?? '';
+      if (color.isNotEmpty) return color;
+    }
+
+    return DynamicColorResolver.white;
+  }
+
+  Color _parseColor(
+    String colorStr, {
+    Color fallback = const Color(0xFF000000),
+  }) {
     if (colorStr.isEmpty) return fallback;
-    
+
     // Handle rgb(r,g,b) format
     if (colorStr.startsWith('rgb') && !colorStr.startsWith('rgba')) {
       try {
@@ -1950,7 +2961,7 @@ class NativeEditorController extends GetxController {
       } catch (_) {}
       return fallback;
     }
-    
+
     // Handle rgba(r,g,b,a) format
     if (colorStr.startsWith('rgba')) {
       try {
@@ -1968,35 +2979,18 @@ class NativeEditorController extends GetxController {
       } catch (_) {}
       return fallback;
     }
-    
-    String hex = colorStr.replaceAll('#', '').replaceAll('0x', '').replaceAll('0X', '');
+
+    String hex = colorStr
+        .replaceAll('#', '')
+        .replaceAll('0x', '')
+        .replaceAll('0X', '');
     if (hex.length == 6) hex = 'FF$hex';
-    
+
     if (hex.length == 8) {
       int? parsed = int.tryParse(hex, radix: 16);
       if (parsed != null) return Color(parsed);
     }
-    
+
     return fallback;
   }
-
-  double _computeContrastRatio(Color fg, Color bg) {
-    double fgL = _relativeLuminance(fg);
-    double bgL = _relativeLuminance(bg);
-    double lighter = max(fgL, bgL);
-    double darker = min(fgL, bgL);
-    return (lighter + 0.05) / (darker + 0.05);
-  }
-
-  double _relativeLuminance(Color c) {
-    double r = c.red / 255.0;
-    double g = c.green / 255.0;
-    double b = c.blue / 255.0;
-    r = r <= 0.03928 ? r / 12.92 : pow((r + 0.055) / 1.055, 2.4) as double;
-    g = g <= 0.03928 ? g / 12.92 : pow((g + 0.055) / 1.055, 2.4) as double;
-    b = b <= 0.03928 ? b / 12.92 : pow((b + 0.055) / 1.055, 2.4) as double;
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  }
 }
-
-

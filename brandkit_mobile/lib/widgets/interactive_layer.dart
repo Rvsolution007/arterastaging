@@ -46,6 +46,40 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
   Widget build(BuildContext context) {
     final controller = Get.find<NativeEditorController>();
 
+    final int buildTime = DateTime.now().millisecondsSinceEpoch;
+    final String layerType = (widget.layerConfig['type'] ?? '').toString();
+    final String keyStr = widget.key.toString();
+    
+    // Save timeline
+    NativeEditorController.timelineInteractiveLayerBuild = buildTime;
+
+    debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+    debugPrint('[DIAGNOSIS_CANVAS] INTERACTIVE LAYER BUILD');
+    debugPrint('[DIAGNOSIS_CANVAS] Timestamp: $buildTime');
+    debugPrint('[DIAGNOSIS_CANVAS] Layer ID: ${widget.layerName}');
+    debugPrint('[DIAGNOSIS_CANVAS] Layer Type: $layerType');
+    debugPrint('[DIAGNOSIS_CANVAS] Widget Key: $keyStr');
+    debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+    
+    if (layerType == 'image') {
+      final String imgUrl = (widget.layerConfig['src'] ?? '').toString();
+      final bool isFrameLayer = widget.layerConfig['_is_frame_layer'] == true || widget.layerConfig['_isFrameLayer'] == true;
+      final String _lName = widget.layerName.toLowerCase();
+      final bool isFrameBg = isFrameLayer && (
+        widget.layerConfig['is_background'] == true ||
+        _lName == '_frame_bg' ||
+        _lName == '_frame' ||
+        _lName == 'frame' ||
+        _lName == 'background' ||
+        _lName == 'bg' ||
+        _lName.contains('background')
+      );
+      debugPrint('[DIAGNOSIS_CANVAS] Image URL: $imgUrl');
+      debugPrint('[DIAGNOSIS_CANVAS] isFrameBackground ?: $isFrameBg');
+      debugPrint('[DIAGNOSIS_CANVAS] CachedNetworkImage URL: $imgUrl');
+      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+    }
+
     return Obx(() {
       final _layerUpdate = controller.layerUpdateTrigger.value;
       final _ = controller.templateConfig.values.toList();

@@ -105,17 +105,12 @@
         border: 1px solid #e2e8f0;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         background: #fff;
-        height: 120px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
     }
 
     .preview-item img {
-        max-width: 100%;
-        max-height: 100%;
+        width: 100%;
+        height: auto;
         display: block;
-        object-fit: contain;
     }
 
     .frame-guide {

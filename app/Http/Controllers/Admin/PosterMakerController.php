@@ -880,8 +880,17 @@ class PosterMakerController extends Controller
         if ($request->has('search') && $request->search !== null && $request->search !== '') {
             $query->where('zip_name', 'like', '%' . $request->search . '%');
         }
-
-        $data = $query->orderBy('id', 'DESC')->paginate(50)->withQueryString();
+        $data = $query->orderByRaw("
+            IF(zip_name LIKE 'Frame_%', 0, 1) ASC,
+            (
+                CAST(SUBSTRING(SUBSTRING_INDEX(SUBSTRING_INDEX(zip_name, '_', -2), '_', 1), 1, 1) AS UNSIGNED) +
+                CAST(SUBSTRING(SUBSTRING_INDEX(SUBSTRING_INDEX(zip_name, '_', -2), '_', 1), 2, 1) AS UNSIGNED) +
+                CAST(SUBSTRING(SUBSTRING_INDEX(SUBSTRING_INDEX(zip_name, '_', -2), '_', 1), 3, 1) AS UNSIGNED) +
+                CAST(SUBSTRING(SUBSTRING_INDEX(SUBSTRING_INDEX(zip_name, '_', -2), '_', 1), 4, 1) AS UNSIGNED)
+            ) ASC,
+            CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(zip_name, '_', -2), '_', 1) AS UNSIGNED) DESC,
+            CAST(SUBSTRING_INDEX(zip_name, '_', -1) AS UNSIGNED) ASC
+        ")->paginate(50)->withQueryString();
 
         // Get distinct versions for filter dropdown
         $versions = PosterMaker::select('render_version')

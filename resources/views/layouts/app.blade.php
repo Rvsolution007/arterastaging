@@ -41,7 +41,7 @@
   <link rel="stylesheet" href="{{asset('assets/plugins/bootstrap-wysihtml5/bootstrap3-wysihtml5.min.css')}}">
   <!-- Google Font: Source Sans Pro -->
   <link href="{{ asset('assets/css/fonts/fonts.css') }}" rel="stylesheet">
-  <link rel="stylesheet" href="//code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-colorpicker/2.5.3/css/bootstrap-colorpicker.min.css"
     rel="stylesheet">
   <link href="{{ asset('assets/css/pnotify.custom.min.css')}}" media="all" rel="stylesheet" type="text/css" />
@@ -1312,7 +1312,7 @@
         columnDefs: [{ orderable: false, targets: [0] }],
         // individual column search
         "initComplete": function () {
-          table.columns().every(function () {
+          this.api().columns().every(function () {
             var that = this;
             $('input', this.footer()).on('keyup change', function () {
               // console.log($(this).parent().index());

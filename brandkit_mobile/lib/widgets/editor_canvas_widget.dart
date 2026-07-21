@@ -1266,7 +1266,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
 
       if (_hasIconMeta || _hasOrigTypeIcon || _hasTopIconName) {
         debugPrint('[ICON_ROUTE] type=image but detected icon metadata → routing to _buildIconLayer (meta=$_hasIconMeta origType=$_hasOrigTypeIcon topName=$_hasTopIconName)');
-        content = _buildIconLayer(effectiveLayer, name, scale, nativeW, nativeH);
+        content = _buildIconLayer(effectiveLayer, name, scale, nativeW, nativeH, renderVersion);
       } else {
         content =
             _buildImageLayer(effectiveLayer, name, scale, nativeW, nativeH);
@@ -1293,7 +1293,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       debugPrint('└─────────────────────────────────────────────────────────');
       // ── RENDER V4: Native vector shape rendering ──
       if (renderVersion >= 4) {
-        content = _buildVectorShape(effectiveLayer, name, scale, nativeW, nativeH);
+        content = _buildVectorShape(effectiveLayer, name, scale, nativeW, nativeH, renderVersion);
       } else {
         // V1-V3: Treat shape as image (old rasterized PNG behavior)
         content = _buildImageLayer(effectiveLayer, name, scale, nativeW, nativeH);
@@ -1318,7 +1318,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       debugPrint('│   finalW=${nativeW * scale}  finalH=${nativeH * scale}');
       debugPrint('└─────────────────────────────────────────────────────────');
       content =
-          _buildIconLayer(effectiveLayer, name, scale, nativeW, nativeH);
+          _buildIconLayer(effectiveLayer, name, scale, nativeW, nativeH, renderVersion);
     } else if (type == 'solid_rect') {
       // Native solid rectangle (e.g., logo background plate)
       String colorStr = effectiveLayer['color'] ?? '#FFFFFF';
@@ -2398,7 +2398,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
   /// Supports: rect, ellipse/circle, triangle, line, icon
   /// Fallback: For complex shapes (polygon, path), uses _fallback_src PNG
   Widget _buildVectorShape(Map<String, dynamic> layer, String lname,
-      double scale, double nativeW, double nativeH) {
+      double scale, double nativeW, double nativeH, int renderVersion) {
     
     final String shapeType = (layer['shapeType'] ?? 'rect').toString().toLowerCase();
     debugPrint('🔴 [DIAGNOSIS-SHAPE] name="$lname" shapeType="$shapeType" fallback=${layer['_fallback_src'] != null}');
@@ -2406,7 +2406,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     // If it's an icon shape, delegate to _buildIconLayer
     final bool hasMetaIcon = layer['_source_meta'] is Map && layer['_source_meta']['iconName'] != null;
     if (shapeType == 'icon' || layer['iconName'] != null || hasMetaIcon) {
-      return _buildIconLayer(layer, lname, scale, nativeW, nativeH);
+      return _buildIconLayer(layer, lname, scale, nativeW, nativeH, renderVersion);
     }
 
     final double w = nativeW * scale;
@@ -2602,7 +2602,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     }
   }
 
-  Widget _buildIconLayer(Map<String, dynamic> layer, String lname, double scale, double nativeW, double nativeH) {
+  Widget _buildIconLayer(Map<String, dynamic> layer, String lname, double scale, double nativeW, double nativeH, int renderVersion) {
     if (renderVersion >= 9) {
       return _buildIconLayerV9(layer, lname, scale, nativeW, nativeH);
     }

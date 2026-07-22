@@ -29,6 +29,10 @@ class UserController extends Controller
 
     public function index(Request $request)
     {
+        // NEW tag logic: grab last seen max ID before updating
+        $lastSeenUserId = session('admin_last_seen_user_id', 0);
+        $currentMaxUserId = User::max('id') ?? 0;
+
         if($request->search)
         {
             $index['data'] = User::where('name','like', '%'.$request->search.'%')
@@ -36,14 +40,19 @@ class UserController extends Controller
             ->orWhere('mobile_no','like', '%'.$request->search.'%')
             ->select('id','name','email','mobile_no','is_subscribe','subscription_end_date','user_type','login_type','image','created_at','status')->orderBy('id', 'desc')->paginate(10);
             $index['whatsapp_messages'] = WhatsappMessage::get();
-            return view("user.index", $index);
         }
         else
         {
             $index['data'] = User::select('id','name','email','mobile_no','is_subscribe','subscription_end_date','user_type','login_type','image','created_at','status')->orderBy('id', 'desc')->paginate(10);
             $index['whatsapp_messages'] = WhatsappMessage::get();
-            return view("user.index", $index);
         }
+
+        $index['last_seen_user_id'] = $lastSeenUserId;
+
+        // Update session with current max ID so next visit won't show NEW for these
+        session(['admin_last_seen_user_id' => $currentMaxUserId]);
+
+        return view("user.index", $index);
     }
 
     public function create()

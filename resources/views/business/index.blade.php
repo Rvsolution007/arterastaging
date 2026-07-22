@@ -175,6 +175,26 @@
     .btn-delete { background: #fee2e2; color: #e11d48; }
 
     .action-btn:hover { transform: scale(1.1); }
+
+    .badge-new {
+        display: inline-block;
+        padding: 0.15rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: #fff;
+        margin-left: 6px;
+        animation: newPulse 2s ease-in-out infinite;
+        vertical-align: middle;
+    }
+
+    @keyframes newPulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
 </style>
 @endsection
 
@@ -213,7 +233,12 @@
                         <tbody>
                             @forelse($data as $row)
                             <tr>
-                                <td><span class="text-muted">#{{$row->id}}</span></td>
+                                <td>
+                                    <span class="text-muted">#{{$row->id}}</span>
+                                    @if($row->id > $last_seen_business_id)
+                                    <span class="badge-new">NEW</span>
+                                    @endif
+                                </td>
                                 <td>
                                     <div class="d-flex align-items-center">
                                         <img class="business-logo mr-3" src="@if($row->logo) @if(App\Models\StorageSetting::getStorageSetting('storage') == 'DigitalOcean'){{\Storage::disk('spaces')->url('uploads/'.$row->logo)}} @else {{asset('uploads/'.$row->logo)}} @endif @else {{asset('assets/images/no-user.jpg')}} @endif">

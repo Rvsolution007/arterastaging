@@ -198,6 +198,26 @@
 
     .action-btn:hover { transform: scale(1.1); }
 
+    .badge-new {
+        display: inline-block;
+        padding: 0.15rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: #fff;
+        margin-left: 6px;
+        animation: newPulse 2s ease-in-out infinite;
+        vertical-align: middle;
+    }
+
+    @keyframes newPulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+
     /* DataTables Alignment */
     .dataTables_wrapper .dataTables_length,
     .dataTables_wrapper .dataTables_info {
@@ -241,6 +261,7 @@
                         <thead>
                             <tr>
                                 <th style="width: 40px;"><input type="checkbox" id="selectAll"></th>
+                                <th style="width: 70px;"># ID</th>
                                 <th>User Profile</th>
                                 <th>Email</th>
                                 <th>Mobile</th>
@@ -257,6 +278,12 @@
                                 <td>
                                     @if($row->user_type != "Super Admin")
                                     <input type="checkbox" class="user-checkbox" value="{{$row->id}}">
+                                    @endif
+                                </td>
+                                <td>
+                                    <span class="text-muted">#{{$row->id}}</span>
+                                    @if($row->id > $last_seen_user_id)
+                                    <span class="badge-new">NEW</span>
                                     @endif
                                 </td>
                                 <td>

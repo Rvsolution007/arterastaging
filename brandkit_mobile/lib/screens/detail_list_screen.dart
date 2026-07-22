@@ -14,6 +14,7 @@ import '../controllers/auth_controller.dart';
 import '../controllers/subscription_controller.dart';
 import '../utils/app_colors.dart';
 import '../utils/template_json_cache.dart';
+import '../utils/template_access.dart';
 import 'editor_screen.dart';
 import 'package:http/http.dart' as http;
 import 'package:gal/gal.dart';
@@ -72,15 +73,19 @@ class _DetailListScreenState extends State<DetailListScreen> {
 
         // Language filtering:
         final frameLang = (f['language'] ?? '').toString().trim().toLowerCase();
-        
+
         if (selectedLanguage != 'All') {
           if (frameLang != selectedLanguage.toLowerCase()) return false;
         } else {
           if (preferredLanguages.isNotEmpty) {
-            bool hasAll = preferredLanguages.any((pref) => pref.trim().toLowerCase() == 'all');
+            bool hasAll = preferredLanguages.any(
+              (pref) => pref.trim().toLowerCase() == 'all',
+            );
             if (!hasAll) {
               if (frameLang != 'all' && frameLang.isNotEmpty) {
-                bool match = preferredLanguages.any((pref) => pref.trim().toLowerCase() == frameLang);
+                bool match = preferredLanguages.any(
+                  (pref) => pref.trim().toLowerCase() == frameLang,
+                );
                 if (!match) return false;
               }
             }
@@ -88,7 +93,9 @@ class _DetailListScreenState extends State<DetailListScreen> {
         }
         return true;
       }).toList();
-      debugPrint('[DetailList] Filtered frames: ${filtered.length} out of ${frames.length}');
+      debugPrint(
+        '[DetailList] Filtered frames: ${filtered.length} out of ${frames.length}',
+      );
       return filtered;
     }
     return videos;
@@ -128,13 +135,13 @@ class _DetailListScreenState extends State<DetailListScreen> {
     if (Get.find<SubscriptionController>().isSubscribe.value) {
       return;
     }
-    
+
     // Skip if no valid native ad ID is provided from the backend (to prevent test ID validator in prod)
     if (!AdService.hasValidNativeAdId) {
       debugPrint('[DetailList] Native ad skipped (No valid ID provided).');
       return;
     }
-    
+
     _nativeAd = NativeAd(
       adUnitId: AdService.nativeAdUnitId,
       request: const AdRequest(),
@@ -176,21 +183,27 @@ class _DetailListScreenState extends State<DetailListScreen> {
   Future<void> fetchFrames() async {
     try {
       setState(() => isLoading = true);
-      
+
       http.Response response;
       if (widget.type == 'greeting') {
-        response = await ApiService.get('/get_greetings_by_category?id=${widget.id}');
+        response = await ApiService.get(
+          '/get_greetings_by_category?id=${widget.id}',
+        );
       } else {
-        response = await ApiService.get('/get-frames?type=${widget.type}&id=${widget.id}');
+        response = await ApiService.get(
+          '/get-frames?type=${widget.type}&id=${widget.id}',
+        );
       }
-      
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        debugPrint('[DetailList] Fetched frames! Total count: ${data['frames']?.length ?? 0}');
+        debugPrint(
+          '[DetailList] Fetched frames! Total count: ${data['frames']?.length ?? 0}',
+        );
         setState(() {
           frames = data['frames'] ?? [];
           videos = data['videos'] ?? [];
-          
+
           Set<String> langs = {'All'};
           for (var f in frames) {
             String l = (f['language'] ?? '').toString().trim();
@@ -200,7 +213,7 @@ class _DetailListScreenState extends State<DetailListScreen> {
             }
           }
           availableLanguages = langs.toList();
-          
+
           itemName = data['itemName'] ?? widget.title;
           itemImage = data['itemImage'] ?? '';
           selectedIndex = 0;
@@ -209,7 +222,9 @@ class _DetailListScreenState extends State<DetailListScreen> {
         // Background prefetch for hybrid renderer
         _prefetchTemplates(frames);
       } else {
-        debugPrint('Failed to fetch frames: ${response.statusCode} ${response.body}');
+        debugPrint(
+          'Failed to fetch frames: ${response.statusCode} ${response.body}',
+        );
       }
     } catch (e) {
       debugPrint('Error fetching frames: $e');
@@ -241,7 +256,8 @@ class _DetailListScreenState extends State<DetailListScreen> {
                 tpl['updated_at'],
               );
               for (var f in fetchedFrames) {
-                if (f is Map && f['frameId']?.toString() == tpl['id']?.toString()) {
+                if (f is Map &&
+                    f['frameId']?.toString() == tpl['id']?.toString()) {
                   f['zip_name'] = tpl['zip_name'];
                   f['templateBaseUrl'] = tpl['templateBaseUrl'];
                   f['json'] = tpl['json'];
@@ -274,7 +290,11 @@ class _DetailListScreenState extends State<DetailListScreen> {
   Future<void> _handleDownload() async {
     final url = selectedImageUrl;
     if (url.isEmpty) {
-      Get.snackbar('Error', 'No design selected to download.', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Error',
+        'No design selected to download.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
       return;
     }
 
@@ -283,32 +303,30 @@ class _DetailListScreenState extends State<DetailListScreen> {
     bool isPaid = false;
     final list = currentFrames;
     if (list.isNotEmpty && selectedIndex < list.length) {
-      isPaid = list[selectedIndex]['isPaid'] == true;
+      isPaid = isPremiumTemplate(
+        Map<dynamic, dynamic>.from(list[selectedIndex]),
+      );
     }
     if (widget.type == 'custom' || widget.type == 'business_custom') {
       isPaid = true; // All custom templates are paid
     }
 
-    String featureKey = 'festival_post';
-    if (widget.type == 'category' || widget.type == 'business_custom') {
-      featureKey = 'category_post';
-    }
-    if (widget.type == 'custom') {
-      featureKey = 'custom_post';
-    }
+    final String featureKey = subscriptionFeatureForTemplateType(widget.type);
 
     final adController = Get.find<AdController>();
-    adController.handlePremiumDownloadAd(
-      feature: featureKey,
-      isPaid: isPaid,
+    adController.handlePremiumDownloadAd(feature: featureKey, isPaid: isPaid);
+
+    Get.snackbar(
+      'Download',
+      'Downloading design...',
+      snackPosition: SnackPosition.BOTTOM,
     );
 
-    Get.snackbar('Download', 'Downloading design...', snackPosition: SnackPosition.BOTTOM);
-    
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
-        final fileName = "artera_design_${DateTime.now().millisecondsSinceEpoch}";
+        final fileName =
+            "artera_design_${DateTime.now().millisecondsSinceEpoch}";
         final isVideo = url.toLowerCase().endsWith('.mp4');
         if (isVideo) {
           final tempDir = await getTemporaryDirectory();
@@ -316,12 +334,9 @@ class _DetailListScreenState extends State<DetailListScreen> {
           await tempFile.writeAsBytes(response.bodyBytes);
           await Gal.putVideo(tempFile.path);
         } else {
-          await Gal.putImageBytes(
-            response.bodyBytes,
-            name: fileName,
-          );
+          await Gal.putImageBytes(response.bodyBytes, name: fileName);
         }
-        
+
         await DownloadService.saveDownload(
           response.bodyBytes,
           isVideo: isVideo,
@@ -329,10 +344,12 @@ class _DetailListScreenState extends State<DetailListScreen> {
         );
         String trackItemId = widget.id.toString();
         if (list.isNotEmpty && selectedIndex < list.length) {
-          trackItemId = list[selectedIndex]['frameId']?.toString() ?? widget.id.toString();
+          trackItemId =
+              list[selectedIndex]['frameId']?.toString() ??
+              widget.id.toString();
         }
 
-        ApiService.trackActivity(
+        await ApiService.trackActivity(
           action: 'download_template',
           itemType: widget.type,
           itemId: trackItemId,
@@ -344,13 +361,25 @@ class _DetailListScreenState extends State<DetailListScreen> {
           await Get.find<SubscriptionController>().refreshFromApi();
         } catch (_) {}
 
-        Get.snackbar('Success', 'Design saved to gallery successfully!', snackPosition: SnackPosition.BOTTOM);
+        Get.snackbar(
+          'Success',
+          'Design saved to gallery successfully!',
+          snackPosition: SnackPosition.BOTTOM,
+        );
       } else {
-        Get.snackbar('Error', 'Failed to download file.', snackPosition: SnackPosition.BOTTOM);
+        Get.snackbar(
+          'Error',
+          'Failed to download file.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
       }
     } catch (e) {
       debugPrint('Download error: $e');
-      Get.snackbar('Error', 'Failed to save design.', snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Error',
+        'Failed to save design.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
     }
   }
 
@@ -358,7 +387,7 @@ class _DetailListScreenState extends State<DetailListScreen> {
   List<Widget> _buildGridItems() {
     List<Widget> items = [];
     int nativeAdInsertIndex = 6; // Insert native ad after 6th frame
-    
+
     final currentList = currentFrames;
 
     for (int i = 0; i < currentList.length; i++) {
@@ -401,21 +430,37 @@ class _DetailListScreenState extends State<DetailListScreen> {
                 fit: StackFit.expand,
                 children: [
                   const Center(
-                    child: Icon(Icons.play_circle_fill, color: Colors.white70, size: 48),
+                    child: Icon(
+                      Icons.play_circle_fill,
+                      color: Colors.white70,
+                      size: 48,
+                    ),
                   ),
                   // Paid badge
                   Positioned(
                     top: 6,
                     right: 6,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
-                        color: item['isPaid'] == true ? Colors.black45 : Colors.green.withOpacity(0.8),
+                        color: isPremiumTemplate(Map<dynamic, dynamic>.from(item))
+                            ? Colors.black45
+                            : Colors.green.withOpacity(0.8),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        item['isPaid'] == true ? 'PREMIUM' : 'FREE',
-                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.5),
+                        isPremiumTemplate(Map<dynamic, dynamic>.from(item))
+                            ? 'PREMIUM'
+                            : 'FREE',
+                        style: const TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                     ),
                   ),
@@ -431,7 +476,11 @@ class _DetailListScreenState extends State<DetailListScreen> {
                           color: AppColors.primary,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.check, color: Colors.white, size: 14),
+                        child: const Icon(
+                          Icons.check,
+                          color: Colors.white,
+                          size: 14,
+                        ),
                       ),
                     ),
                 ],
@@ -463,23 +512,45 @@ class _DetailListScreenState extends State<DetailListScreen> {
                       ? CachedNetworkImage(
                           imageUrl: imgUrl,
                           fit: BoxFit.cover,
-                          placeholder: (context, url) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                          errorWidget: (context, url, error) => const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+                          placeholder: (context, url) => const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          errorWidget: (context, url, error) => const Center(
+                            child: Icon(Icons.broken_image, color: Colors.grey),
+                          ),
                         )
-                      : const Center(child: Icon(Icons.image, color: Colors.grey, size: 30)),
+                      : const Center(
+                          child: Icon(
+                            Icons.image,
+                            color: Colors.grey,
+                            size: 30,
+                          ),
+                        ),
                   // Paid badge
                   Positioned(
                     top: 4,
                     right: 4,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
-                        color: item['isPaid'] == true ? Colors.black45 : Colors.green.withOpacity(0.8),
+                        color: isPremiumTemplate(Map<dynamic, dynamic>.from(item))
+                            ? Colors.black45
+                            : Colors.green.withOpacity(0.8),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        item['isPaid'] == true ? 'PREMIUM' : 'FREE',
-                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.5),
+                        isPremiumTemplate(Map<dynamic, dynamic>.from(item))
+                            ? 'PREMIUM'
+                            : 'FREE',
+                        style: const TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
+                        ),
                       ),
                     ),
                   ),
@@ -495,7 +566,11 @@ class _DetailListScreenState extends State<DetailListScreen> {
                           color: AppColors.primary,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.check, color: Colors.white, size: 14),
+                        child: const Icon(
+                          Icons.check,
+                          color: Colors.white,
+                          size: 14,
+                        ),
                       ),
                     ),
                 ],
@@ -524,19 +599,29 @@ class _DetailListScreenState extends State<DetailListScreen> {
                     height: 56,
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
+                      border: Border(
+                        bottom: BorderSide(color: Colors.grey.shade100),
+                      ),
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     child: Row(
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.chevron_left, color: Color(0xFF334155), size: 28),
+                          icon: const Icon(
+                            Icons.chevron_left,
+                            color: Color(0xFF334155),
+                            size: 28,
+                          ),
                           onPressed: () => Navigator.pop(context),
                         ),
                         Expanded(
                           child: Text(
                             'Select Design',
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1E293B),
+                            ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -551,49 +636,80 @@ class _DetailListScreenState extends State<DetailListScreen> {
                               });
                             },
                             offset: const Offset(0, 40),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                             color: Colors.white,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF1F5F9),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.language, size: 18, color: Color(0xFF475569)),
+                                  const Icon(
+                                    Icons.language,
+                                    size: 18,
+                                    color: Color(0xFF475569),
+                                  ),
                                   const SizedBox(width: 6),
                                   Text(
                                     selectedLanguage,
-                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF475569),
+                                    ),
                                   ),
                                   const SizedBox(width: 4),
-                                  const Icon(Icons.arrow_drop_down, size: 16, color: Color(0xFF475569)),
+                                  const Icon(
+                                    Icons.arrow_drop_down,
+                                    size: 16,
+                                    color: Color(0xFF475569),
+                                  ),
                                 ],
                               ),
                             ),
-                            itemBuilder: (BuildContext context) => availableLanguages.map((String lang) {
-                              return PopupMenuItem<String>(
-                                value: lang,
-                                child: Text(lang, style: TextStyle(
-                                  fontWeight: selectedLanguage == lang ? FontWeight.bold : FontWeight.normal,
-                                  color: selectedLanguage == lang ? AppColors.primary : Colors.black87,
-                                )),
-                              );
-                            }).toList(),
+                            itemBuilder: (BuildContext context) =>
+                                availableLanguages.map((String lang) {
+                                  return PopupMenuItem<String>(
+                                    value: lang,
+                                    child: Text(
+                                      lang,
+                                      style: TextStyle(
+                                        fontWeight: selectedLanguage == lang
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                        color: selectedLanguage == lang
+                                            ? AppColors.primary
+                                            : Colors.black87,
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
                           ),
                         const SizedBox(width: 8),
                         // Next button (opens editor)
                         GestureDetector(
                           onTap: () async {
                             if (activeTab == 'videos') {
-                              Get.snackbar('Notice', 'Videos cannot be edited. Please download directly.', snackPosition: SnackPosition.BOTTOM);
+                              Get.snackbar(
+                                'Notice',
+                                'Videos cannot be edited. Please download directly.',
+                                snackPosition: SnackPosition.BOTTOM,
+                              );
                               return;
                             }
 
                             Map<String, dynamic>? frameData;
                             final list = currentFrames;
-                            if (activeTab == 'images' && list.isNotEmpty && selectedIndex < list.length) {
+                            if (activeTab == 'images' &&
+                                list.isNotEmpty &&
+                                selectedIndex < list.length) {
                               frameData = list[selectedIndex];
                             } else if (itemImage.isNotEmpty) {
                               // Fallback to the category image if no frames are available
@@ -611,41 +727,48 @@ class _DetailListScreenState extends State<DetailListScreen> {
                               };
                             }
 
-                              if (frameData != null) {
-                              final AdController adController = Get.find<AdController>();
-                              
+                            if (frameData != null) {
+                              final AdController adController =
+                                  Get.find<AdController>();
+
                               bool isPaid = false;
-                              if (list.isNotEmpty && selectedIndex < list.length) {
+                              if (list.isNotEmpty &&
+                                  selectedIndex < list.length) {
                                 final item = list[selectedIndex];
-                                isPaid = item['isPaid'] == true || item['isPaid'] == '1' || item['isPaid'] == 1 || item['premium'] == true || item['premium'] == '1' || item['premium'] == 1;
+                                isPaid = isPremiumTemplate(
+                                  Map<dynamic, dynamic>.from(item),
+                                );
                               }
-                              if (widget.type == 'custom' || widget.type == 'business_custom') {
+                              if (widget.type == 'custom' ||
+                                  widget.type == 'business_custom') {
                                 isPaid = true; // All custom templates are paid
                               }
-                              
-                              // Map widget.type to feature key
-                              String featureKey = 'festival_post';
-                              if (widget.type == 'category' || widget.type == 'business_custom') {
-                                featureKey = 'category_post';
-                              }
-                              if (widget.type == 'custom') {
-                                featureKey = 'custom_post';
-                              }
 
-                              final fc = adController.adConfig.value?.features[featureKey];
-                              
+                              final String featureKey =
+                                  subscriptionFeatureForTemplateType(
+                                    widget.type,
+                                  );
+
+                              final fc = adController
+                                  .adConfig
+                                  .value
+                                  ?.features[featureKey];
+
                               void goToEditor() {
-                                final editorQuery = Uri(queryParameters: {
-                                  'type': widget.type,
-                                  'id': widget.id.toString(),
-                                  'designUrl': selectedImageUrl.isNotEmpty ? selectedImageUrl : itemImage,
-                                }).query;
-                                Get.find<AuthController>().checkAndNavigateToEditor(
-                                  '/editor?$editorQuery',
-                                  arguments: {
-                                    'frameData': frameData!,
+                                final editorQuery = Uri(
+                                  queryParameters: {
+                                    'type': widget.type,
+                                    'id': widget.id.toString(),
+                                    'designUrl': selectedImageUrl.isNotEmpty
+                                        ? selectedImageUrl
+                                        : itemImage,
                                   },
-                                );
+                                ).query;
+                                Get.find<AuthController>()
+                                    .checkAndNavigateToEditor(
+                                      '/editor?$editorQuery',
+                                      arguments: {'frameData': frameData!},
+                                    );
                               }
 
                               // ── FREE TEMPLATES ──
@@ -668,14 +791,16 @@ class _DetailListScreenState extends State<DetailListScreen> {
                               }
 
                               // Within base limit → direct access, no ad
-                              final bool withinBase = fc.baseLimit > 0 && fc.used < fc.baseLimit;
+                              final bool withinBase =
+                                  fc.baseLimit > 0 && fc.used < fc.baseLimit;
                               if (withinBase) {
                                 goToEditor();
                                 return;
                               }
 
                               // Base limit exhausted (or base = 0) but ad slots remain → show ad
-                              final bool adAvailable = fc.maxAdUses > 0 && fc.adUsed < fc.maxAdUses;
+                              final bool adAvailable =
+                                  fc.maxAdUses > 0 && fc.adUsed < fc.maxAdUses;
                               if (adAvailable) {
                                 await adController.handlePostAccess(
                                   context: context,
@@ -694,12 +819,17 @@ class _DetailListScreenState extends State<DetailListScreen> {
                                 onAccessGranted: goToEditor,
                               );
                             } else {
-                              Get.snackbar('Notice', 'No design available to edit.');
-
+                              Get.snackbar(
+                                'Notice',
+                                'No design available to edit.',
+                              );
                             }
                           },
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.primary,
                               borderRadius: BorderRadius.circular(8),
@@ -708,7 +838,14 @@ class _DetailListScreenState extends State<DetailListScreen> {
                               children: const [
                                 Icon(Icons.edit, color: Colors.white, size: 18),
                                 SizedBox(width: 6),
-                                Text('Next', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
+                                Text(
+                                  'Next',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -729,8 +866,16 @@ class _DetailListScreenState extends State<DetailListScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 30, offset: const Offset(0, 10))],
-                        border: Border.all(color: Colors.black.withOpacity(0.05)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 30,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                        border: Border.all(
+                          color: Colors.black.withOpacity(0.05),
+                        ),
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: selectedImageUrl.isNotEmpty
@@ -738,8 +883,11 @@ class _DetailListScreenState extends State<DetailListScreen> {
                               imageUrl: selectedImageUrl,
                               fit: BoxFit.cover,
                               width: double.infinity,
-                              placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
-                              errorWidget: (context, url, error) => _buildPreviewPlaceholder(),
+                              placeholder: (context, url) => const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                              errorWidget: (context, url, error) =>
+                                  _buildPreviewPlaceholder(),
                             )
                           : _buildPreviewPlaceholder(),
                     ),
@@ -753,67 +901,142 @@ class _DetailListScreenState extends State<DetailListScreen> {
                       // Filter Tabs (Images / Videos)
                       if (widget.type != 'greeting')
                         Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          border: Border(bottom: BorderSide(color: const Color(0xFFF8FAFC))),
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () => setState(() {
-                                  activeTab = 'images';
-                                  selectedIndex = 0;
-                                }),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
-                                  decoration: BoxDecoration(
-                                    color: activeTab == 'images' ? AppColors.primary : Colors.white,
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(color: activeTab == 'images' ? AppColors.primary : const Color(0xFFF1F5F9), width: 1.5),
-                                    boxShadow: activeTab == 'images' ? [BoxShadow(color: AppColors.primary.withOpacity(0.2), blurRadius: 12, offset: const Offset(0, 4))] : null,
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.image, size: 16, color: activeTab == 'images' ? Colors.white : const Color(0xFF64748B)),
-                                      const SizedBox(width: 8),
-                                      Text('Images', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: activeTab == 'images' ? Colors.white : const Color(0xFF64748B))),
-                                    ],
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border(
+                              bottom: BorderSide(
+                                color: const Color(0xFFF8FAFC),
+                              ),
+                            ),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () => setState(() {
+                                    activeTab = 'images';
+                                    selectedIndex = 0;
+                                  }),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 10,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: activeTab == 'images'
+                                          ? AppColors.primary
+                                          : Colors.white,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: activeTab == 'images'
+                                            ? AppColors.primary
+                                            : const Color(0xFFF1F5F9),
+                                        width: 1.5,
+                                      ),
+                                      boxShadow: activeTab == 'images'
+                                          ? [
+                                              BoxShadow(
+                                                color: AppColors.primary
+                                                    .withOpacity(0.2),
+                                                blurRadius: 12,
+                                                offset: const Offset(0, 4),
+                                              ),
+                                            ]
+                                          : null,
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.image,
+                                          size: 16,
+                                          color: activeTab == 'images'
+                                              ? Colors.white
+                                              : const Color(0xFF64748B),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Images',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 14,
+                                            color: activeTab == 'images'
+                                                ? Colors.white
+                                                : const Color(0xFF64748B),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () => setState(() {
-                                  activeTab = 'videos';
-                                  selectedIndex = 0;
-                                }),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
-                                  decoration: BoxDecoration(
-                                    color: activeTab == 'videos' ? AppColors.primary : Colors.white,
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(color: activeTab == 'videos' ? AppColors.primary : const Color(0xFFF1F5F9), width: 1.5),
-                                    boxShadow: activeTab == 'videos' ? [BoxShadow(color: AppColors.primary.withOpacity(0.2), blurRadius: 12, offset: const Offset(0, 4))] : null,
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.play_arrow, size: 16, color: activeTab == 'videos' ? Colors.white : const Color(0xFF64748B)),
-                                      const SizedBox(width: 8),
-                                      Text('Videos', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: activeTab == 'videos' ? Colors.white : const Color(0xFF64748B))),
-                                    ],
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () => setState(() {
+                                    activeTab = 'videos';
+                                    selectedIndex = 0;
+                                  }),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 10,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: activeTab == 'videos'
+                                          ? AppColors.primary
+                                          : Colors.white,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                        color: activeTab == 'videos'
+                                            ? AppColors.primary
+                                            : const Color(0xFFF1F5F9),
+                                        width: 1.5,
+                                      ),
+                                      boxShadow: activeTab == 'videos'
+                                          ? [
+                                              BoxShadow(
+                                                color: AppColors.primary
+                                                    .withOpacity(0.2),
+                                                blurRadius: 12,
+                                                offset: const Offset(0, 4),
+                                              ),
+                                            ]
+                                          : null,
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.play_arrow,
+                                          size: 16,
+                                          color: activeTab == 'videos'
+                                              ? Colors.white
+                                              : const Color(0xFF64748B),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Videos',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 14,
+                                            color: activeTab == 'videos'
+                                                ? Colors.white
+                                                : const Color(0xFF64748B),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
 
                       // AI Filter (Only for Images) - Removed as per request
 
@@ -823,31 +1046,74 @@ class _DetailListScreenState extends State<DetailListScreen> {
                             ? Center(
                                 child: activeTab == 'images'
                                     ? Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
                                         children: [
-                                          Icon(Icons.image_not_supported_outlined, size: 64, color: Colors.grey.shade300),
+                                          Icon(
+                                            Icons.image_not_supported_outlined,
+                                            size: 64,
+                                            color: Colors.grey.shade300,
+                                          ),
                                           const SizedBox(height: 16),
-                                          Text('No designs found', style: TextStyle(fontSize: 16, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+                                          Text(
+                                            'No designs found',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              color: AppColors.textSecondary,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
                                           const SizedBox(height: 8),
-                                          Text('Designs for "${widget.title}" will appear here', style: TextStyle(fontSize: 13, color: AppColors.textMuted)),
+                                          Text(
+                                            'Designs for "${widget.title}" will appear here',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: AppColors.textMuted,
+                                            ),
+                                          ),
                                         ],
                                       )
                                     : Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
                                         children: [
                                           Container(
                                             width: 72,
                                             height: 72,
                                             decoration: const BoxDecoration(
                                               shape: BoxShape.circle,
-                                              gradient: LinearGradient(colors: [Color(0xFFF1F5F9), Color(0xFFE2E8F0)]),
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  Color(0xFFF1F5F9),
+                                                  Color(0xFFE2E8F0),
+                                                ],
+                                              ),
                                             ),
-                                            child: const Icon(Icons.videocam_off_outlined, size: 32, color: Color(0xFF94A3B8)),
+                                            child: const Icon(
+                                              Icons.videocam_off_outlined,
+                                              size: 32,
+                                              color: Color(0xFF94A3B8),
+                                            ),
                                           ),
                                           const SizedBox(height: 16),
-                                          const Text('No Videos Yet', style: TextStyle(fontSize: 16, color: Color(0xFF475569), fontWeight: FontWeight.w700)),
+                                          const Text(
+                                            'No Videos Yet',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              color: Color(0xFF475569),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
                                           const SizedBox(height: 8),
-                                          const Text('Videos for this post will appear here\nonce they\'re added', textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8), height: 1.5)),
+                                          const Text(
+                                            'Videos for this post will appear here\nonce they\'re added',
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: Color(0xFF94A3B8),
+                                              height: 1.5,
+                                            ),
+                                          ),
                                         ],
                                       ),
                               )
@@ -856,7 +1122,9 @@ class _DetailListScreenState extends State<DetailListScreen> {
                                 crossAxisCount: activeTab == 'videos' ? 2 : 3,
                                 crossAxisSpacing: 10,
                                 mainAxisSpacing: 10,
-                                childAspectRatio: activeTab == 'videos' ? 9 / 16 : 4 / 5,
+                                childAspectRatio: activeTab == 'videos'
+                                    ? 9 / 16
+                                    : 4 / 5,
                                 children: _buildGridItems(),
                               ),
                       ),
@@ -876,7 +1144,10 @@ class _DetailListScreenState extends State<DetailListScreen> {
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSelected ? AppColors.primary : Colors.grey.shade300, width: 1.5),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : Colors.grey.shade300,
+            width: 1.5,
+          ),
         ),
         child: Text(
           label,
@@ -890,13 +1161,21 @@ class _DetailListScreenState extends State<DetailListScreen> {
     );
   }
 
-  Widget _buildHeaderButton({required IconData icon, required Color bgColor, required Color iconColor, required VoidCallback onTap}) {
+  Widget _buildHeaderButton({
+    required IconData icon,
+    required Color bgColor,
+    required Color iconColor,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 38,
         height: 38,
-        decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(8),
+        ),
         child: Icon(icon, size: 20, color: iconColor),
       ),
     );
@@ -911,15 +1190,26 @@ class _DetailListScreenState extends State<DetailListScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.play_circle_fill, size: 64, color: Colors.white70),
+              const Icon(
+                Icons.play_circle_fill,
+                size: 64,
+                color: Colors.white70,
+              ),
               const SizedBox(height: 12),
-              Text('Video Preview', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+              Text(
+                'Video Preview',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
             ],
           ),
         ),
       );
     }
-    
+
     return Container(
       height: 250,
       color: const Color(0xFFF1F5F9),
@@ -929,7 +1219,14 @@ class _DetailListScreenState extends State<DetailListScreen> {
           children: [
             Icon(Icons.image_outlined, size: 64, color: Colors.grey.shade300),
             const SizedBox(height: 12),
-            Text(widget.title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+            Text(
+              widget.title,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
           ],
         ),
       ),

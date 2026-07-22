@@ -2480,9 +2480,13 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         finalUrl = _resolveAssetUrl(src);
       }
 
-      // Add cache buster to invalidate old transparent PNGs in memory cache
+      // Keep the cache key stable for one published asset. A timestamp generated
+      // during every build made Flutter re-download every frame layer, which in
+      // turn caused partial canvas exports and the "still downloading" message.
       if (finalUrl.startsWith('http') && !finalUrl.contains('?')) {
-        finalUrl = '$finalUrl?cb=${DateTime.now().millisecondsSinceEpoch}';
+        final dynamic revision =
+            layer['asset_version'] ?? layer['updated_at'] ?? widget.config['updated_at'] ?? 1;
+        finalUrl = '$finalUrl?cb=${Uri.encodeQueryComponent(revision.toString())}';
       }
 
       final bool isShape = layer['is_shape'] == true;

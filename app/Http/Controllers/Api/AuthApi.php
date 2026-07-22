@@ -1368,6 +1368,21 @@ class AuthApi extends Controller
                             // Within base limit → increment base usage
                             $user->increment($limitMap[$featureKey]['used']);
                             \Log::info("trackActivity: consumed base for $featureKey (used=$used, limit=$baseLimit)");
+                        } elseif (($rewardUnlock = \Illuminate\Support\Facades\DB::table('reward_credit_unlocks')
+                            ->where('user_id', $user->id)
+                            ->where('feature_key', $featureKey)
+                            ->whereNull('consumed_at')
+                            ->where(function ($query) {
+                                $query->whereNull('expires_at')->orWhere('expires_at', '>', now());
+                            })
+                            ->orderBy('id')
+                            ->first()) && \Illuminate\Support\Facades\DB::table('reward_credit_unlocks')
+                                ->where('id', $rewardUnlock->id)
+                                ->whereNull('consumed_at')
+                                ->update(['consumed_at' => now(), 'updated_at' => now()])) {
+                            // A reward point is reserved on unlock and consumed
+                            // only after this premium download succeeds.
+                            \Log::info("trackActivity: consumed reward-credit unlock for $featureKey");
                         } elseif ($user->isAdRewardEnabledForFeature($featureKey)) {
                             // Base limit exhausted (or 0) → consume ad reward slot
                             $user->consumeAdReward($featureKey);
@@ -1520,36 +1535,37 @@ class AuthApi extends Controller
             return response()->json(['status' => 'error', 'message' => 'User not found'], 404);
         }
 
-        if ($user->reward_points < 1) {
+        $remainingRewardPoints = \Illuminate\Support\Facades\DB::transaction(function () use ($user, $featureKey) {
+            // Guard the decrement in SQL so two taps cannot spend one credit twice.
+            $decremented = User::whereKey($user->id)
+                ->where('reward_points', '>', 0)
+                ->decrement('reward_points');
+
+            if ($decremented !== 1) {
+                return null;
+            }
+
+            // Persist the bypass in SQL. Cache is not a source of entitlement and
+            // is not read by the download-consumption path.
+            \Illuminate\Support\Facades\DB::table('reward_credit_unlocks')->insert([
+                'user_id' => $user->id,
+                'feature_key' => $featureKey,
+                'expires_at' => now()->endOfMonth(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            return (int) User::whereKey($user->id)->value('reward_points');
+        });
+
+        if ($remainingRewardPoints === null) {
             return response()->json(['status' => 'error', 'message' => 'Insufficient reward credits'], 400);
-        }
-
-        // Deduct 1 point
-        $user->decrement('reward_points', 1);
-
-        // Grant +1 ad-free limit bypass by injecting a temporary ad reward record
-        // This is equivalent to having watched an ad for this feature.
-        $cacheKey = "user_{$userId}_ad_used_{$featureKey}_" . date('Y_m_d');
-        // If they use a reward credit, we can simulate an ad watch by storing an "extra" limit or we can just 
-        // decrement the daily ad usage limit so they have +1 remaining.
-        // The easiest way is to decrement the current day's tracked ad uses for this feature so it goes below max.
-        
-        $currentUses = \Illuminate\Support\Facades\Cache::get($cacheKey, 0);
-        if ($currentUses > 0) {
-            \Illuminate\Support\Facades\Cache::decrement($cacheKey);
-        } else {
-            // If they haven't used ads but are out of base limit, we just temporarily boost their base limit?
-            // Actually, if they are out of base limit, they would fall into Ad logic. So they just need the Ad logic to succeed.
-            // By doing this, we basically simulate that they watched an ad, and the mobile app will immediately try to download.
-            // But wait, the mobile app expects to just bypass the ad block and call trackActivity.
-            // trackActivity will consume the base limit (making it negative or further negative).
-            // That is perfectly fine! The base limit will just go more negative, and they still bypassed the ad.
         }
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Reward credit used successfully',
-            'rewardPoints' => $user->reward_points
+            'message' => 'Reward credit reserved for your next premium download',
+            'rewardPoints' => $remainingRewardPoints
         ]);
     }
 

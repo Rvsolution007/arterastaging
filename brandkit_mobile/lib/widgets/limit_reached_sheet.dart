@@ -8,12 +8,14 @@ import 'package:get/get.dart';
 class LimitReachedSheet extends StatelessWidget {
   final FeatureUsageInfo feature;
   final VoidCallback? onWatchAd;
+  final VoidCallback? onRewardCreditUnlocked;
   final VoidCallback onUpgrade;
 
   const LimitReachedSheet({
     super.key,
     required this.feature,
     this.onWatchAd,
+    this.onRewardCreditUnlocked,
     required this.onUpgrade,
   });
 
@@ -22,6 +24,7 @@ class LimitReachedSheet extends StatelessWidget {
     required BuildContext context,
     required FeatureUsageInfo feature,
     VoidCallback? onWatchAd,
+    VoidCallback? onRewardCreditUnlocked,
     required VoidCallback onUpgrade,
   }) {
     showModalBottomSheet(
@@ -31,6 +34,7 @@ class LimitReachedSheet extends StatelessWidget {
       builder: (context) => LimitReachedSheet(
         feature: feature,
         onWatchAd: onWatchAd,
+        onRewardCreditUnlocked: onRewardCreditUnlocked,
         onUpgrade: onUpgrade,
       ),
     );
@@ -72,7 +76,11 @@ class LimitReachedSheet extends StatelessWidget {
                   ),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.lock_outline_rounded, color: Colors.red.shade400, size: 32),
+                child: Icon(
+                  Icons.lock_outline_rounded,
+                  color: Colors.red.shade400,
+                  size: 32,
+                ),
               ),
               const SizedBox(height: 16),
 
@@ -90,7 +98,10 @@ class LimitReachedSheet extends StatelessWidget {
 
               // ── Feature Name + Usage ──
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.gray50,
                   borderRadius: BorderRadius.circular(16),
@@ -103,7 +114,11 @@ class LimitReachedSheet extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            Icon(feature.icon, color: AppColors.indigo600, size: 18),
+                            Icon(
+                              feature.icon,
+                              color: AppColors.indigo600,
+                              size: 18,
+                            ),
                             const SizedBox(width: 10),
                             Text(
                               feature.name,
@@ -116,7 +131,10 @@ class LimitReachedSheet extends StatelessWidget {
                           ],
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.red.shade50,
                             borderRadius: BorderRadius.circular(8),
@@ -124,7 +142,9 @@ class LimitReachedSheet extends StatelessWidget {
                           child: Text(
                             feature.limit > 0
                                 ? '${feature.used}/${feature.limit} used'
-                                : (feature.maxAdUses > 0 ? '${feature.adUsed}/${feature.maxAdUses} used' : 'Limit Reached'),
+                                : (feature.maxAdUses > 0
+                                      ? '${feature.adUsed}/${feature.maxAdUses} used'
+                                      : 'Limit Reached'),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w800,
@@ -148,7 +168,10 @@ class LimitReachedSheet extends StatelessWidget {
                         child: Container(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [Colors.orange.shade400, Colors.red.shade500],
+                              colors: [
+                                Colors.orange.shade400,
+                                Colors.red.shade500,
+                              ],
                             ),
                             borderRadius: BorderRadius.circular(4),
                           ),
@@ -176,16 +199,18 @@ class LimitReachedSheet extends StatelessWidget {
               Obx(() {
                 final subController = Get.find<SubscriptionController>();
                 final rewardPoints = subController.rewardPoints.value;
-                if (rewardPoints > 0) {
+                if (rewardPoints > 0 && onRewardCreditUnlocked != null) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: GestureDetector(
                       onTap: () async {
                         // show loading or just call API directly
-                        bool success = await subController.useRewardCredit(feature.key);
-                        if (success && onWatchAd != null) {
+                        bool success = await subController.useRewardCredit(
+                          feature.key,
+                        );
+                        if (success) {
                           Navigator.pop(context);
-                          onWatchAd!(); // triggers the bypass
+                          onRewardCreditUnlocked?.call();
                         }
                       },
                       child: Container(
@@ -198,7 +223,9 @@ class LimitReachedSheet extends StatelessWidget {
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+                              color: const Color(
+                                0xFFF59E0B,
+                              ).withValues(alpha: 0.3),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),
@@ -209,7 +236,11 @@ class LimitReachedSheet extends StatelessWidget {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.stars, color: Colors.white, size: 20),
+                                const Icon(
+                                  Icons.stars,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
                                 const SizedBox(width: 8),
                                 const Text(
                                   'Use 1 Reward Credit to Unlock',
@@ -267,7 +298,11 @@ class LimitReachedSheet extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.play_circle_filled, color: Colors.white, size: 20),
+                            const Icon(
+                              Icons.play_circle_filled,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                             const SizedBox(width: 8),
                             Text(
                               'Watch Ad to Unlock +1 ${feature.name}',

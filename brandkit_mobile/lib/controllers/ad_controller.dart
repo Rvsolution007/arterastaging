@@ -38,7 +38,7 @@ class AdController extends GetxController {
     super.onInit();
     // Periodically check rewarded ad readiness
     ever(isRewardedReady, (_) {});
-    
+
     // Listen for ad config changes
     ever(adConfig, (config) {
       if (config != null) {
@@ -114,7 +114,7 @@ class AdController extends GetxController {
     customBannerAd.value?.dispose();
     aiTrendsBannerAd.value?.dispose();
     moreBannerAd.value?.dispose();
-    
+
     homeBannerAd.value = null;
     customBannerAd.value = null;
     aiTrendsBannerAd.value = null;
@@ -147,7 +147,7 @@ class AdController extends GetxController {
     }
 
     final config = _getFeatureConfig(feature);
-    
+
     if (config == null || config.isLocked) {
       _showLockedDialog(context, feature);
       return false;
@@ -158,7 +158,7 @@ class AdController extends GetxController {
       return true;
     }
 
-    // For all_ads or rewarded_interstitial on standard features, 
+    // For all_ads or rewarded_interstitial on standard features,
     // we use a rewarded ad if available, fallback to interstitial
     if (_adService.isRewardedReady) {
       bool rewardEarned = false;
@@ -185,7 +185,7 @@ class AdController extends GetxController {
     required VoidCallback onAccessGranted,
   }) async {
     final config = _getFeatureConfig(feature);
-    
+
     final prefs = await SharedPreferences.getInstance();
     final isGuest = prefs.getBool('isGuest') ?? false;
 
@@ -204,15 +204,25 @@ class AdController extends GetxController {
 
     // --- PAID (PRO) TEMPLATE RULES ---
     if (config == null) {
-      _showLockedDialog(context, feature);
+      _showLockedDialog(
+        context,
+        feature,
+        onRewardCreditUnlocked: onAccessGranted,
+      );
       return false;
     }
 
     // Check if the user has truly exhausted both base limit AND ad limits
-    bool isTrulyLocked = (config.used >= config.baseLimit) && (config.adUsed >= config.maxAdUses);
-    
+    bool isTrulyLocked =
+        (config.used >= config.baseLimit) &&
+        (config.adUsed >= config.maxAdUses);
+
     if (isTrulyLocked) {
-      _showLockedDialog(context, feature);
+      _showLockedDialog(
+        context,
+        feature,
+        onRewardCreditUnlocked: onAccessGranted,
+      );
       return false;
     }
 
@@ -259,7 +269,7 @@ class AdController extends GetxController {
     if (!isPaid) {
       if (config.baseLimit > 0) {
         // If package base limit > 0, NO ads for free templates
-        return true; 
+        return true;
       } else {
         // If package base limit == 0, show ad at download time
         _adService.showInterstitialAd();
@@ -274,13 +284,17 @@ class AdController extends GetxController {
 
     // Base limit reached -> show interstitial on download for paid templates
     _adService.showInterstitialAd();
-    
+
     return true;
   }
 
   /// Show premium bottom sheet informing the user they have reached their limit.
   /// Provides "Watch Ad" option (if available) and "Upgrade" button.
-  void _showLockedDialog(BuildContext context, String feature) {
+  void _showLockedDialog(
+    BuildContext context,
+    String feature, {
+    VoidCallback? onRewardCreditUnlocked,
+  }) {
     final sc = Get.find<SubscriptionController>();
     final usageList = sc.getFeatureUsageList();
     final featureInfo = usageList.where((f) => f.key == feature).firstOrNull;
@@ -295,6 +309,7 @@ class AdController extends GetxController {
                 _showRewardedAd(context, feature);
               }
             : null,
+        onRewardCreditUnlocked: onRewardCreditUnlocked,
         onUpgrade: () {
           Navigator.push(
             context,
@@ -304,7 +319,8 @@ class AdController extends GetxController {
       );
     } else {
       // Fallback for unknown features
-      String featureName = feature.replaceAll('_', ' ').capitalizeFirst ?? 'Feature';
+      String featureName =
+          feature.replaceAll('_', ' ').capitalizeFirst ?? 'Feature';
       LimitReachedSheet.show(
         context: context,
         feature: FeatureUsageInfo(

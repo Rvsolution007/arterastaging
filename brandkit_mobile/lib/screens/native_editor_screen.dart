@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import '../config/app_config.dart';
 import '../controllers/native_editor_controller.dart';
 import '../services/api_service.dart';
@@ -22,6 +21,7 @@ import '../services/download_service.dart';
 import '../controllers/ad_controller.dart';
 import '../controllers/subscription_controller.dart';
 import 'package:lottie/lottie.dart';
+import '../utils/template_access.dart';
 
 class NativeEditorScreen extends StatefulWidget {
   final String type;
@@ -66,6 +66,37 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
   /// Returns true if all assets are loaded, false if any are still loading.
   Future<bool> _checkAssetsReady(Map<String, dynamic> config) async {
     final layers = config['layers'] as List<dynamic>? ?? [];
+    final Set<String> assetUrls = <String>{};
+    for (final dynamic rawLayer in layers) {
+      if (rawLayer is! Map || rawLayer['type'] != 'image') continue;
+      final String src = (rawLayer['src'] ?? rawLayer['_fallback_src'] ?? '')
+          .toString()
+          .trim();
+      if (src.isNotEmpty) assetUrls.add(_resolveExportAssetUrl(config, src));
+    }
+
+    try {
+      await Future.wait(
+        assetUrls.where((url) => url.isNotEmpty).map((url) async {
+          final ImageProvider provider;
+          if (url.startsWith('data:image')) {
+            provider = MemoryImage(base64Decode(url.split(',').last));
+          } else if (url.startsWith('http')) {
+            provider = CachedNetworkImageProvider(url);
+          } else {
+            return;
+          }
+          await precacheImage(provider, context);
+        }),
+      ).timeout(const Duration(seconds: 20));
+      await WidgetsBinding.instance.endOfFrame;
+      await WidgetsBinding.instance.endOfFrame;
+      return true;
+    } catch (e) {
+      debugPrint('[EXPORT_CHECK] Asset decode failed: $e');
+      return false;
+    }
+    /*
     for (var layer in layers) {
       if (layer['type'] == 'image' && layer['src'] != null) {
         String src = layer['src'].toString();
@@ -86,6 +117,26 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
       }
     }
     return true;
+    */
+  }
+
+  String _resolveExportAssetUrl(Map<String, dynamic> config, String src) {
+    if (src.startsWith('http') || src.startsWith('data:')) {
+      return src.contains(' ') ? Uri.encodeFull(src) : src;
+    }
+    final String baseUrl = controller.templateBaseUrl;
+    final String zipName =
+        (config['zip_name'] ??
+                config['info']?['zip_name'] ??
+                widget.frameData['zip_name'] ??
+                '')
+            .toString();
+    if (src.startsWith('../')) return '$baseUrl${src.replaceFirst('../', '')}';
+    if (src.startsWith('uploads/')) {
+      return '${ApiService.baseUrl.replaceAll('/123456', '')}/$src';
+    }
+    if (src.contains('/')) return '$baseUrl$src';
+    return zipName.isEmpty ? '$baseUrl$src' : '${baseUrl}skins/$zipName/$src';
   }
 
   Future<void> _exportAndSave() async {
@@ -123,20 +174,10 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
         isVideo: false,
         fileName: fileName,
       );
-      bool isPaid = false;
-      if (widget.type == 'festival' || widget.type == 'category') {
-        isPaid = widget.frameData['isPaid'] == true;
-      } else {
-        isPaid = true; // Custom templates are always paid
-      }
-
-      String featureKey = 'festival_post';
-      if (widget.type == 'category' || widget.type == 'business_custom') {
-        featureKey = 'category_post';
-      }
-      if (widget.type == 'custom') {
-        featureKey = 'custom_post';
-      }
+      final String featureKey = subscriptionFeatureForTemplateType(widget.type);
+      final bool isPaid = featureKey == 'custom_post'
+          ? true
+          : isPremiumTemplate(widget.frameData);
 
       final adController = Get.find<AdController>();
       adController.handlePremiumDownloadAd(feature: featureKey, isPaid: isPaid);

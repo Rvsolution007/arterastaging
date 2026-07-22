@@ -42,6 +42,14 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
   bool _activeHandleIsLeft = false;
   bool _activeHandleIsTop = false;
 
+  bool _matchesThisLayer(dynamic rawLayer) {
+    if (rawLayer is! Map) return false;
+    if (widget.renderVersion == 10) {
+      return rawLayer['id']?.toString() == widget.layerName;
+    }
+    return (rawLayer['name'] ?? rawLayer['id']).toString() == widget.layerName;
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<NativeEditorController>();
@@ -49,35 +57,43 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
     final int buildTime = DateTime.now().millisecondsSinceEpoch;
     final String layerType = (widget.layerConfig['type'] ?? '').toString();
     final String keyStr = widget.key.toString();
-    
+
     // Save timeline
     NativeEditorController.timelineInteractiveLayerBuild = buildTime;
 
-    debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+    debugPrint(
+      '[DIAGNOSIS_CANVAS] --------------------------------------------',
+    );
     debugPrint('[DIAGNOSIS_CANVAS] INTERACTIVE LAYER BUILD');
     debugPrint('[DIAGNOSIS_CANVAS] Timestamp: $buildTime');
     debugPrint('[DIAGNOSIS_CANVAS] Layer ID: ${widget.layerName}');
     debugPrint('[DIAGNOSIS_CANVAS] Layer Type: $layerType');
     debugPrint('[DIAGNOSIS_CANVAS] Widget Key: $keyStr');
-    debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
-    
+    debugPrint(
+      '[DIAGNOSIS_CANVAS] --------------------------------------------',
+    );
+
     if (layerType == 'image') {
       final String imgUrl = (widget.layerConfig['src'] ?? '').toString();
-      final bool isFrameLayer = widget.layerConfig['_is_frame_layer'] == true || widget.layerConfig['_isFrameLayer'] == true;
+      final bool isFrameLayer =
+          widget.layerConfig['_is_frame_layer'] == true ||
+          widget.layerConfig['_isFrameLayer'] == true;
       final String _lName = widget.layerName.toLowerCase();
-      final bool isFrameBg = isFrameLayer && (
-        widget.layerConfig['is_background'] == true ||
-        _lName == '_frame_bg' ||
-        _lName == '_frame' ||
-        _lName == 'frame' ||
-        _lName == 'background' ||
-        _lName == 'bg' ||
-        _lName.contains('background')
-      );
+      final bool isFrameBg =
+          isFrameLayer &&
+          (widget.layerConfig['is_background'] == true ||
+              _lName == '_frame_bg' ||
+              _lName == '_frame' ||
+              _lName == 'frame' ||
+              _lName == 'background' ||
+              _lName == 'bg' ||
+              _lName.contains('background'));
       debugPrint('[DIAGNOSIS_CANVAS] Image URL: $imgUrl');
       debugPrint('[DIAGNOSIS_CANVAS] isFrameBackground ?: $isFrameBg');
       debugPrint('[DIAGNOSIS_CANVAS] CachedNetworkImage URL: $imgUrl');
-      debugPrint('[DIAGNOSIS_CANVAS] --------------------------------------------');
+      debugPrint(
+        '[DIAGNOSIS_CANVAS] --------------------------------------------',
+      );
     }
 
     return Obx(() {
@@ -89,23 +105,45 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
       double y = safeDouble(widget.layerConfig['y'] ?? 0) * widget.scale;
 
       // The Y-offset correction is now handled universally at the JSON exporter level.
-      double rawW = safeDouble(widget.layerConfig['w'] ?? widget.layerConfig['width'] ?? 0);
-      double rawH = safeDouble(widget.layerConfig['h'] ?? widget.layerConfig['height'] ?? 0);
+      double rawW = safeDouble(
+        widget.layerConfig['w'] ?? widget.layerConfig['width'] ?? 0,
+      );
+      double rawH = safeDouble(
+        widget.layerConfig['h'] ?? widget.layerConfig['height'] ?? 0,
+      );
 
       // For frames lacking explicit dimensions, force them to 100% canvas size
-      if ((widget.layerName == '_frame_bg' || widget.layerName == '_frame' || widget.layerName == 'frame') && (rawW <= 0 || rawH <= 0)) {
-        rawW = safeDouble(controller.templateConfig['info']?['width'] ?? controller.templateConfig['width'] ?? 1080);
-        rawH = safeDouble(controller.templateConfig['info']?['height'] ?? controller.templateConfig['height'] ?? 1080);
+      if ((widget.layerName == '_frame_bg' ||
+              widget.layerName == '_frame' ||
+              widget.layerName == 'frame') &&
+          (rawW <= 0 || rawH <= 0)) {
+        rawW = safeDouble(
+          controller.templateConfig['info']?['width'] ??
+              controller.templateConfig['width'] ??
+              1080,
+        );
+        rawH = safeDouble(
+          controller.templateConfig['info']?['height'] ??
+              controller.templateConfig['height'] ??
+              1080,
+        );
       }
 
       final double opacity = safeDouble(widget.layerConfig['opacity'] ?? 1.0);
       if (opacity <= 0.0) return const SizedBox.shrink();
 
-      final double layerScaleX = safeDouble(widget.layerConfig['scaleX'] ?? 1.0);
-      final double layerScaleY = safeDouble(widget.layerConfig['scaleY'] ?? 1.0);
+      final double layerScaleX = safeDouble(
+        widget.layerConfig['scaleX'] ?? 1.0,
+      );
+      final double layerScaleY = safeDouble(
+        widget.layerConfig['scaleY'] ?? 1.0,
+      );
 
-      if (widget.renderVersion >= 3 && (layerScaleX != 1.0 || layerScaleY != 1.0)) {
-          debugPrint('⚠️ [V3] Layer "${widget.layerName}" has scaleX=$layerScaleX, scaleY=$layerScaleY — expected 1.0 for baked dimensions');
+      if (widget.renderVersion >= 3 &&
+          (layerScaleX != 1.0 || layerScaleY != 1.0)) {
+        debugPrint(
+          '⚠️ [V3] Layer "${widget.layerName}" has scaleX=$layerScaleX, scaleY=$layerScaleY — expected 1.0 for baked dimensions',
+        );
       }
 
       final double w = rawW * layerScaleX * widget.scale;
@@ -113,38 +151,45 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
       final double angle = safeDouble(widget.layerConfig['angle'] ?? 0);
 
       final bool isText = widget.layerConfig['type'] == 'text';
-      final bool isSingleLine = isText && widget.layerConfig['_is_single_line'] == true;
+      final bool isSingleLine =
+          isText && widget.layerConfig['_is_single_line'] == true;
       final double? posW = w > 0 ? w : null;
       final double? posH = (h > 0 && !isText) ? h : null;
 
       // Proportional minimum container size enforcement for icons
       final bool isIconLayer = widget.layerConfig['type'] == 'icon';
-      final double? finalPosW = (isIconLayer && posW != null) ? math.max(posW, rawW * 0.30) : posW;
-      final double? finalPosH = (isIconLayer && posH != null) ? math.max(posH, rawH * 0.30) : posH;
+      final double? finalPosW = (isIconLayer && posW != null)
+          ? math.max(posW, rawW * 0.30)
+          : posW;
+      final double? finalPosH = (isIconLayer && posH != null)
+          ? math.max(posH, rawH * 0.30)
+          : posH;
 
-      final bool isFrameLayer = widget.layerConfig['_is_frame_layer'] == true || widget.layerConfig['_isFrameLayer'] == true;
+      final bool isFrameLayer =
+          widget.layerConfig['_is_frame_layer'] == true ||
+          widget.layerConfig['_isFrameLayer'] == true;
 
       // Only block interaction on STRUCTURAL frame layers (bg, overlay, frame border).
       // Content layers from frames (text, logo, icons, contact info) should be interactive.
       final String _lName = widget.layerName.toLowerCase();
-      final bool isFrameStructural = isFrameLayer && (
-        widget.layerConfig['is_background'] == true ||
-        _lName == '_frame_bg' ||
-        _lName == '_frame' ||
-        _lName == 'frame' ||
-        _lName == 'background' ||
-        _lName == 'bg' ||
-        _lName.contains('background')
-      );
+      final bool isFrameStructural =
+          isFrameLayer &&
+          (widget.layerConfig['is_background'] == true ||
+              _lName == '_frame_bg' ||
+              _lName == '_frame' ||
+              _lName == 'frame' ||
+              _lName == 'background' ||
+              _lName == 'bg' ||
+              _lName.contains('background'));
 
       // Block interaction on the main template background image (Festival post main image etc)
-      final bool isMainBackground = !isFrameLayer && (
-        widget.layerConfig['is_background'] == true ||
-        widget.layerConfig['is_background'] == 1 ||
-        _lName == '_bg_image' ||
-        _lName == 'background' ||
-        _lName == 'bg'
-      );
+      final bool isMainBackground =
+          !isFrameLayer &&
+          (widget.layerConfig['is_background'] == true ||
+              widget.layerConfig['is_background'] == 1 ||
+              _lName == '_bg_image' ||
+              _lName == 'background' ||
+              _lName == 'bg');
 
       final bool canInteract = !isFrameStructural && !isMainBackground;
 
@@ -163,11 +208,7 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
               height: posH != null ? math.max(posH, 40.0) : 40.0,
               color: Colors.transparent,
             ),
-          SizedBox(
-            width: finalPosW,
-            height: finalPosH,
-            child: widget.child,
-          ),
+          SizedBox(width: finalPosW, height: finalPosH, child: widget.child),
           if (isSelected)
             Positioned.fill(
               child: Container(
@@ -176,17 +217,20 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
                 ),
               ),
             ),
-          if (isSelected)
-            ..._buildHandles(),
+          if (isSelected) ..._buildHandles(),
         ],
       );
 
       if (_isScaling) {
         Alignment scaleAlignment = Alignment.topLeft;
-        if (_activeHandleIsLeft && _activeHandleIsTop) scaleAlignment = Alignment.bottomRight;
-        else if (_activeHandleIsLeft && !_activeHandleIsTop) scaleAlignment = Alignment.topRight;
-        else if (!_activeHandleIsLeft && _activeHandleIsTop) scaleAlignment = Alignment.bottomLeft;
-        else scaleAlignment = Alignment.topLeft;
+        if (_activeHandleIsLeft && _activeHandleIsTop)
+          scaleAlignment = Alignment.bottomRight;
+        else if (_activeHandleIsLeft && !_activeHandleIsTop)
+          scaleAlignment = Alignment.topRight;
+        else if (!_activeHandleIsLeft && _activeHandleIsTop)
+          scaleAlignment = Alignment.bottomLeft;
+        else
+          scaleAlignment = Alignment.topLeft;
 
         gestureChild = Transform.scale(
           scale: _scaleFactor,
@@ -197,79 +241,102 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
 
       Widget layerContent = Transform.rotate(
         angle: angle * math.pi / 180,
-        child: canInteract ? GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () {
-            debugPrint('[LAYER_TAP] ✅ onTap FIRED for "${widget.layerName}"');
-            controller.selectLayer(widget.layerName);
-          },
-          onPanStart: (details) {
-            debugPrint('[LAYER_PAN] ✅ onPanStart for "${widget.layerName}"');
-            if (controller.selectedLayerId.value != widget.layerName) {
-              controller.selectLayer(widget.layerName);
-            }
-            setState(() {
-              _isDragging = true;
-              _dragDx = 0.0;
-              _dragDy = 0.0;
-            });
-          },
-          onPanUpdate: (details) {
-            if (controller.selectedLayerId.value != widget.layerName) return;
-            // Accumulate drag offset locally for instant visual feedback
-            setState(() {
-              _dragDx += details.delta.dx;
-              _dragDy += details.delta.dy;
-            });
-          },
-          onPanEnd: (_) {
-            debugPrint('[LAYER_PAN] onPanEnd for "${widget.layerName}" dx=$_dragDx dy=$_dragDy');
-            if (controller.selectedLayerId.value == widget.layerName) {
-              // Commit the accumulated drag to the controller
-              final layers = controller.templateConfig['layers'] as List<dynamic>?;
-              Map<String, dynamic>? currentLayer;
-              if (layers != null) {
-                for (var l in layers) {
-                  if ((l['name'] ?? l['id']).toString() == widget.layerName) {
-                    currentLayer = l as Map<String, dynamic>;
-                    break;
+        child: canInteract
+            ? GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  debugPrint(
+                    '[LAYER_TAP] ✅ onTap FIRED for "${widget.layerName}"',
+                  );
+                  controller.selectLayer(widget.layerName);
+                },
+                onPanStart: (details) {
+                  debugPrint(
+                    '[LAYER_PAN] ✅ onPanStart for "${widget.layerName}"',
+                  );
+                  if (controller.selectedLayerId.value != widget.layerName) {
+                    controller.selectLayer(widget.layerName);
                   }
-                }
-              }
-              if (currentLayer != null) {
-                final currentX = safeDouble(currentLayer['x'] ?? 0);
-                final currentY = safeDouble(currentLayer['y'] ?? 0);
-                controller.updateLayerBounds(
-                  widget.layerName,
-                  currentX + _dragDx / widget.scale,
-                  currentY + _dragDy / widget.scale,
-                  safeDouble(currentLayer['w'] ?? currentLayer['width'] ?? 0),
-                  safeDouble(currentLayer['h'] ?? currentLayer['height'] ?? 0),
-                  angle,
-                );
-              }
-              controller.commitLayerChange();
-            }
-            setState(() {
-              _isDragging = false;
-              _dragDx = 0.0;
-              _dragDy = 0.0;
-            });
-          },
-          child: gestureChild,
-        ) : widget.child,
+                  setState(() {
+                    _isDragging = true;
+                    _dragDx = 0.0;
+                    _dragDy = 0.0;
+                  });
+                },
+                onPanUpdate: (details) {
+                  if (controller.selectedLayerId.value != widget.layerName)
+                    return;
+                  // Accumulate drag offset locally for instant visual feedback
+                  setState(() {
+                    _dragDx += details.delta.dx;
+                    _dragDy += details.delta.dy;
+                  });
+                },
+                onPanEnd: (_) {
+                  debugPrint(
+                    '[LAYER_PAN] onPanEnd for "${widget.layerName}" dx=$_dragDx dy=$_dragDy',
+                  );
+                  if (controller.selectedLayerId.value == widget.layerName) {
+                    // Commit the accumulated drag to the controller
+                    final layers =
+                        controller.templateConfig['layers'] as List<dynamic>?;
+                    Map<String, dynamic>? currentLayer;
+                    if (layers != null) {
+                      for (var l in layers) {
+                        if (_matchesThisLayer(l)) {
+                          currentLayer = l as Map<String, dynamic>;
+                          break;
+                        }
+                      }
+                    }
+                    if (currentLayer != null) {
+                      final currentX = safeDouble(currentLayer['x'] ?? 0);
+                      final currentY = safeDouble(currentLayer['y'] ?? 0);
+                      controller.updateLayerBounds(
+                        widget.layerName,
+                        currentX + _dragDx / widget.scale,
+                        currentY + _dragDy / widget.scale,
+                        safeDouble(
+                          currentLayer['w'] ?? currentLayer['width'] ?? 0,
+                        ),
+                        safeDouble(
+                          currentLayer['h'] ?? currentLayer['height'] ?? 0,
+                        ),
+                        angle,
+                      );
+                    }
+                    controller.commitLayerChange();
+                  }
+                  setState(() {
+                    _isDragging = false;
+                    _dragDx = 0.0;
+                    _dragDy = 0.0;
+                  });
+                },
+                child: gestureChild,
+              )
+            : widget.child,
       );
 
       final dynamic fontObj = widget.layerConfig['font'];
-      final String just = (widget.layerConfig['justification'] ?? 
-                          (fontObj is Map ? fontObj['justification'] : null) ?? 
-                          widget.layerConfig['textAlign'] ?? 'left').toString().toLowerCase().trim();
+      final String just =
+          (widget.layerConfig['justification'] ??
+                  (fontObj is Map ? fontObj['justification'] : null) ??
+                  widget.layerConfig['textAlign'] ??
+                  'left')
+              .toString()
+              .toLowerCase()
+              .trim();
       double? finalLeft;
       double? finalRight;
 
       // Adjust positioning to keep the center aligned if size was increased due to minimum size enforcement
-      final double xOffset = (finalPosW != null && posW != null) ? (finalPosW - posW) / 2 : 0.0;
-      final double yOffset = (finalPosH != null && posH != null) ? (finalPosH - posH) / 2 : 0.0;
+      final double xOffset = (finalPosW != null && posW != null)
+          ? (finalPosW - posW) / 2
+          : 0.0;
+      final double yOffset = (finalPosH != null && posH != null)
+          ? (finalPosH - posH) / 2
+          : 0.0;
       final double adjustedVisualX = visualX - xOffset;
       final double adjustedVisualY = visualY - yOffset;
 
@@ -277,7 +344,13 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
         finalLeft = adjustedVisualX;
       } else {
         if (just == 'right') {
-          final double canvasW = safeDouble(controller.templateConfig['info']?['width'] ?? controller.templateConfig['width'] ?? 1080) * widget.scale;
+          final double canvasW =
+              safeDouble(
+                controller.templateConfig['info']?['width'] ??
+                    controller.templateConfig['width'] ??
+                    1080,
+              ) *
+              widget.scale;
           finalRight = canvasW - adjustedVisualX;
         } else if (just == 'center') {
           finalLeft = adjustedVisualX;
@@ -301,12 +374,29 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
     return [
       _buildHandle(left: 0, top: 0, isLeft: true, isTop: true), // Top-left
       _buildHandle(right: 0, top: 0, isLeft: false, isTop: true), // Top-right
-      _buildHandle(left: 0, bottom: 0, isLeft: true, isTop: false), // Bottom-left
-      _buildHandle(right: 0, bottom: 0, isLeft: false, isTop: false), // Bottom-right
+      _buildHandle(
+        left: 0,
+        bottom: 0,
+        isLeft: true,
+        isTop: false,
+      ), // Bottom-left
+      _buildHandle(
+        right: 0,
+        bottom: 0,
+        isLeft: false,
+        isTop: false,
+      ), // Bottom-right
     ];
   }
 
-  Widget _buildHandle({double? left, double? top, double? right, double? bottom, required bool isLeft, required bool isTop}) {
+  Widget _buildHandle({
+    double? left,
+    double? top,
+    double? right,
+    double? bottom,
+    required bool isLeft,
+    required bool isTop,
+  }) {
     double? posLeft = left != null ? left - 12 : null;
     double? posTop = top != null ? top - 12 : null;
     double? posRight = right != null ? right - 12 : null;
@@ -338,16 +428,25 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
         },
         onPanUpdate: (details) {
           setState(() {
-            double rotatedDx = details.delta.dx * math.cos(-angleRad) - details.delta.dy * math.sin(-angleRad);
-            double rotatedDy = details.delta.dx * math.sin(-angleRad) + details.delta.dy * math.cos(-angleRad);
-            
+            double rotatedDx =
+                details.delta.dx * math.cos(-angleRad) -
+                details.delta.dy * math.sin(-angleRad);
+            double rotatedDy =
+                details.delta.dx * math.sin(-angleRad) +
+                details.delta.dy * math.cos(-angleRad);
+
             _scaleDx += rotatedDx;
             _scaleDy += rotatedDy;
-            
+
             double dx = _scaleDx;
             if (isLeft) dx = -dx;
-            
-            double initialW = safeDouble(widget.layerConfig['w'] ?? widget.layerConfig['width'] ?? 0) * safeDouble(widget.layerConfig['scaleX'] ?? 1.0) * widget.scale;
+
+            double initialW =
+                safeDouble(
+                  widget.layerConfig['w'] ?? widget.layerConfig['width'] ?? 0,
+                ) *
+                safeDouble(widget.layerConfig['scaleX'] ?? 1.0) *
+                widget.scale;
             if (initialW <= 0 && context.size != null) {
               initialW = context.size!.width;
             }
@@ -355,7 +454,9 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
 
             _scaleFactor = 1.0 + (dx / initialW);
             if (_scaleFactor < 0.1) _scaleFactor = 0.1;
-            debugPrint('[LAYER_RESIZE] onPanUpdate dx: $dx, initialW: $initialW, scaleFactor: $_scaleFactor');
+            debugPrint(
+              '[LAYER_RESIZE] onPanUpdate dx: $dx, initialW: $initialW, scaleFactor: $_scaleFactor',
+            );
           });
         },
         onPanEnd: (_) {
@@ -364,7 +465,7 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
           Map<String, dynamic>? currentLayer;
           if (layers != null) {
             for (var l in layers) {
-              if ((l['name'] ?? l['id']).toString() == widget.layerName) {
+              if (_matchesThisLayer(l)) {
                 currentLayer = l as Map<String, dynamic>;
                 break;
               }
@@ -373,32 +474,40 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
           if (currentLayer != null) {
             final double currentX = safeDouble(currentLayer['x'] ?? 0);
             final double currentY = safeDouble(currentLayer['y'] ?? 0);
-            final double currentScaleX = safeDouble(currentLayer['scaleX'] ?? 1.0);
-            final double currentScaleY = safeDouble(currentLayer['scaleY'] ?? 1.0);
-            
-            double initialW = safeDouble(currentLayer['w'] ?? currentLayer['width'] ?? 0) * currentScaleX;
-            double initialH = safeDouble(currentLayer['h'] ?? currentLayer['height'] ?? 0) * currentScaleY;
-            
+            final double currentScaleX = safeDouble(
+              currentLayer['scaleX'] ?? 1.0,
+            );
+            final double currentScaleY = safeDouble(
+              currentLayer['scaleY'] ?? 1.0,
+            );
+
+            double initialW =
+                safeDouble(currentLayer['w'] ?? currentLayer['width'] ?? 0) *
+                currentScaleX;
+            double initialH =
+                safeDouble(currentLayer['h'] ?? currentLayer['height'] ?? 0) *
+                currentScaleY;
+
             if (initialW <= 0 && context.size != null) {
               initialW = context.size!.width / widget.scale;
             }
             if (initialH <= 0 && context.size != null) {
               initialH = context.size!.height / widget.scale;
             }
-            
+
             double newW = initialW * _scaleFactor;
             double newH = initialH * _scaleFactor;
-            
+
             double finalX = currentX;
             double finalY = currentY;
-            
+
             if (isLeft) {
               finalX = currentX - (newW - initialW);
             }
             if (isTop) {
               finalY = currentY - (newH - initialH);
             }
-            
+
             controller.updateLayerProperties(widget.layerName, {
               'x': finalX,
               'y': finalY,

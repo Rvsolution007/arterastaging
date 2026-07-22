@@ -22,6 +22,130 @@
     // ── Future rendering changes MUST increment this and add version-gated code paths. ──
     window.CURRENT_RENDER_VERSION = 10;
     const CURRENT_RENDER_VERSION = window.CURRENT_RENDER_VERSION;
+
+    // V10 is deliberately opt-in.  The editor may contain code for newer
+    // renderers, but a V1-V9 frame must continue to use its original export
+    // and import contracts until it is explicitly migrated in Version Control.
+    function isV10RenderVersion(version) {
+        return Number(version) === 10;
+    }
+
+    function makeV10LayerId() {
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+            return 'v10_' + window.crypto.randomUUID();
+        }
+        return 'v10_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+    }
+
+    function normaliseV10IconSvg(svgMarkup) {
+        if (!svgMarkup || typeof svgMarkup !== 'string') return null;
+        // Keep transparent/hollow parts hollow.  Only paintable fills and
+        // strokes become currentColor so a saved icon can be coloured without
+        // rasterising it on either editor.
+        return svgMarkup
+            .replace(/\b(fill|stroke)\s*=\s*(["'])(?!none\b|transparent\b|url\()[^"']*\2/gi, '$1="currentColor"')
+            .replace(/\b(fill|stroke)\s*:\s*(?!none\b|transparent\b|url\()[^;"']+/gi, '$1:currentColor');
+    }
+
+    function iconColorFromObject(obj) {
+        if (obj && typeof obj._originalColor === 'string' && obj._originalColor) return obj._originalColor;
+        if (obj && typeof obj.fill === 'string' && obj.fill && obj.fill !== 'none') return obj.fill;
+        if (obj && typeof obj.getObjects === 'function') {
+            const child = obj.getObjects().find(function(item) {
+                return item && typeof item.fill === 'string' && item.fill && item.fill !== 'none';
+            });
+            if (child) return child.fill;
+        }
+        return '#333333';
+    }
+
+    function applyV10IconColor(obj, color) {
+        if (!obj) return;
+        obj.set('fill', color);
+        if (typeof obj.getObjects === 'function') {
+            obj.getObjects().forEach(function(child) {
+                if (!child || !child.set) return;
+                if (child.fill && child.fill !== 'none') child.set('fill', color);
+                if (child.stroke && child.stroke !== 'none') child.set('stroke', color);
+            });
+        }
+        obj._originalColor = color;
+        obj.dirty = true;
+    }
+
+    function serialiseV10Icon(obj, z, x, y, w, h) {
+        if (!obj.id) obj.id = makeV10LayerId();
+        const color = iconColorFromObject(obj);
+        const svg = normaliseV10IconSvg(obj._originalSvgMarkup);
+        return {
+            id: obj.id,
+            name: obj.customName || ('icon_' + z),
+            type: 'icon',
+            iconName: obj._iconName || null,
+            iconProvider: obj._iconProvider || 'iconify',
+            x: x, y: y, w: w, h: h, width: w, height: h,
+            scaleX: 1, scaleY: 1,
+            rotation: obj.angle || 0,
+            angle: obj.angle || 0,
+            opacity: obj.opacity == null ? 1 : obj.opacity,
+            flipX: obj.flipX || false,
+            flipY: obj.flipY || false,
+            flip_x: obj.flipX || false,
+            flip_y: obj.flipY || false,
+            z_index: z,
+            visible: obj.visible !== false,
+            is_background: obj.is_background || false,
+            is_placeholder: obj.is_placeholder || false,
+            is_slot: obj.is_slot || false,
+            // Canonical source and canonical colour are intentionally separate
+            // from the runtime/native resolved colour.
+            original_color: color,
+            color: color,
+            tint_color: color,
+            font_color: color,
+            _source_meta: {
+                type: 'icon',
+                iconName: obj._iconName || null,
+                provider: obj._iconProvider || 'iconify',
+                originalSvg: svg,
+                original_color: color
+            }
+        };
+    }
+
+    // V10 stores each rectangle corner explicitly.  Fabric's native `rx` /
+    // `ry` only represent one shared value, while the editor lets an admin
+    // unlock and edit all four corners independently.
+    function v10CornerRadiiFromObject(obj) {
+        const uniform = Number(obj && obj.rx) || 0;
+        return {
+            top_left: Number(obj && obj.rx_tl !== undefined ? obj.rx_tl : uniform) || 0,
+            top_right: Number(obj && obj.rx_tr !== undefined ? obj.rx_tr : uniform) || 0,
+            bottom_right: Number(obj && obj.rx_br !== undefined ? obj.rx_br : uniform) || 0,
+            bottom_left: Number(obj && obj.rx_bl !== undefined ? obj.rx_bl : uniform) || 0
+        };
+    }
+
+    function v10CornerRadiiFromLayer(layer) {
+        const source = (layer && (layer.corner_radii || layer.cornerRadii)) || {};
+        const fallback = Number(layer && (layer.corner_radius ?? layer.cornerRadius ?? layer.rx ?? 0)) || 0;
+        const pick = function() {
+            for (let i = 0; i < arguments.length; i++) {
+                const value = arguments[i];
+                if (value !== undefined && value !== null && value !== '') {
+                    const parsed = Number(value);
+                    if (Number.isFinite(parsed)) return Math.max(0, parsed);
+                }
+            }
+            return fallback;
+        };
+        return {
+            top_left: pick(source.top_left, source.topLeft, source.tl, layer && layer.rx_tl),
+            top_right: pick(source.top_right, source.topRight, source.tr, layer && layer.rx_tr),
+            bottom_right: pick(source.bottom_right, source.bottomRight, source.br, layer && layer.rx_br),
+            bottom_left: pick(source.bottom_left, source.bottomLeft, source.bl, layer && layer.rx_bl)
+        };
+    }
     try {
     
     // Fix fabric.js alphabetical warning globally
@@ -827,7 +951,7 @@
 
         updateCoords();
 
-        if (obj.type === 'group') {
+        if (obj.type === 'group' && obj.customType !== 'icon') {
             if (textProps) textProps.style.display = 'none';
             if (imageProps) imageProps.style.display = 'none';
             if (shapeProps) shapeProps.style.display = 'none';
@@ -940,7 +1064,7 @@
                 });
             }
 
-        } else if (obj.customType === 'shape' || obj.is_shape || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type)) {
+        } else if (obj.customType === 'shape' || obj.customType === 'icon' || obj.is_shape || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type)) {
             if (textProps) textProps.style.display = 'none';
             if (imageProps) imageProps.style.display = 'none';
             if (shapeProps) shapeProps.style.display = 'block';
@@ -978,7 +1102,7 @@
                     });
                 }
             } else {
-                const rawFill = obj.fill || '#6366f1';
+                const rawFill = obj.customType === 'icon' ? iconColorFromObject(obj) : (obj.fill || '#6366f1');
                 let hexFill = '#6366f1';
                 if (typeof rawFill === 'string') {
                     if (rawFill.startsWith('#') && rawFill.length >= 7) hexFill = rawFill.substring(0,7);
@@ -1545,11 +1669,15 @@
         const objs = canvas.getActiveObjects();
         if (objs.length) {
             objs.forEach(obj => {
-                if (obj.customType === 'shape' || obj.is_shape || ['rect','circle','triangle','path','polygon','line','ellipse', 'group'].includes(obj.type)) { 
+                if (obj.customType === 'shape' || obj.customType === 'icon' || obj.is_shape || ['rect','circle','triangle','path','polygon','line','ellipse', 'group'].includes(obj.type)) { 
                     if (obj.fill === this.value && obj.type !== 'group') return; // Prevent infinite loop
-                    obj.set('fill', this.value); 
+                    if (obj.customType === 'icon' && isV10RenderVersion(window._originalRenderVersion)) {
+                        applyV10IconColor(obj, this.value);
+                    } else {
+                        obj.set('fill', this.value);
+                    }
                     
-                    if (obj.type === 'group' && typeof obj.getObjects === 'function') {
+                    if (obj.type === 'group' && obj.customType !== 'icon' && typeof obj.getObjects === 'function') {
                         obj.getObjects().forEach(child => {
                             if (child.set) child.set('fill', this.value);
                         });
@@ -1577,7 +1705,7 @@
                     if (obj.stroke === this.value && obj.type !== 'group') return; // Prevent infinite loop
                     obj.set('stroke', this.value); 
                     
-                    if (obj.type === 'group' && typeof obj.getObjects === 'function') {
+                    if (obj.type === 'group' && obj.customType !== 'icon' && typeof obj.getObjects === 'function') {
                         obj.getObjects().forEach(child => {
                             if (child.set) child.set('stroke', this.value);
                         });
@@ -2096,19 +2224,24 @@
                                     return;
                                 }
                                 const obj = fabric.util.groupSVGElements(objects, options);
+                                const initialColor = '#333333';
                                 obj.set({
                                     left: 150,
                                     top: 150,
                                     scaleX: 2,
                                     scaleY: 2,
                                     customType: 'icon',
-                                    customName: getNextLayerName('Icon'),
-                                    fill: '#333333'
+                                    customName: getNextLayerName('icon_' + iconName.replace(/[^a-zA-Z0-9]/g, '_')),
+                                    fill: initialColor
                                 });
                                 // ── Non-Destructive Metadata (Phase 1A) ──
                                 obj._iconName = iconName;
                                 obj._iconProvider = 'iconify';
                                 obj._originalSvgMarkup = svgText;
+                                if (isV10RenderVersion(window._originalRenderVersion)) {
+                                    obj.id = makeV10LayerId();
+                                    applyV10IconColor(obj, initialColor);
+                                }
                                 canvas.add(obj);
                                 canvas.setActiveObject(obj);
                                 updateLayersList();
@@ -4408,6 +4541,71 @@
                 layer._v10LegacyRasterShape = true;
             }
 
+            // V10 keeps library icons as vectors.  Do this before the legacy
+            // shape/image coercion so a publish → refresh cycle never converts
+            // an SVG icon into a tinted PNG again.
+            if (isV10RenderVersion(renderVersion) &&
+                layer.type === 'icon' &&
+                layer._source_meta &&
+                layer._source_meta.originalSvg) {
+                totalAsyncLoads++;
+                const sourceMeta = layer._source_meta;
+                fabric.loadSVGFromString(sourceMeta.originalSvg, function(objects, options) {
+                    if (!objects || objects.length === 0) {
+                        completedAsyncLoads++;
+                        checkAllLoaded();
+                        return;
+                    }
+                    const group = fabric.util.groupSVGElements(objects, options);
+                    const iconColor = layer.original_color || sourceMeta.original_color || layer.tint_color || layer.color || '#333333';
+                    group.set({
+                        left: layer.x || 0,
+                        top: layer.y || 0,
+                        originX: 'left',
+                        originY: 'top',
+                        angle: rotation,
+                        opacity: opacity,
+                        flipX: layer.flipX === true || layer.flip_x === true,
+                        flipY: layer.flipY === true || layer.flip_y === true,
+                        customType: 'icon',
+                        customName: layer.name || layer.id,
+                        id: layer.id || makeV10LayerId(),
+                        is_background: layer.is_background,
+                        is_placeholder: layer.is_placeholder,
+                        is_slot: layer.is_slot,
+                        mask_layer_id: layer.mask_layer_id,
+                        visible: visible,
+                        z_index: layer.z_index || idx
+                    });
+                    group._iconName = layer.iconName || sourceMeta.iconName || null;
+                    group._iconProvider = layer.iconProvider || sourceMeta.provider || 'iconify';
+                    group._originalSvgMarkup = sourceMeta.originalSvg;
+                    applyV10IconColor(group, iconColor);
+                    const originalW = Math.max(1, group.width || 1);
+                    const originalH = Math.max(1, group.height || 1);
+                    group.set({
+                        scaleX: Math.max(1, Number(layer.w || layer.width || originalW)) / originalW,
+                        scaleY: Math.max(1, Number(layer.h || layer.height || originalH)) / originalH
+                    });
+                    canvas.add(group);
+                    if (typeof sortCanvasLayers === 'function') sortCanvasLayers();
+                    canvas.renderAll();
+                    updateLayersList();
+                    completedAsyncLoads++;
+                    checkAllLoaded();
+                });
+                return;
+            }
+
+            // A corrupt/incomplete V10 icon still has a safe visual fallback,
+            // but it is never reclassified as a shape for native colour logic.
+            if (isV10RenderVersion(renderVersion) && layer.type === 'icon') {
+                layer.type = 'image';
+                layer.src = layer._fallback_src || layer.src || '';
+                layer._originalType = 'icon';
+                layer.is_shape = false;
+            }
+
             // Shapes with valid src should prioritize rendering as images to preserve PSD layer effects
             if (layer.is_shape === true && layer.src && layer.src !== '') {
                 layer.type = 'image';
@@ -4422,6 +4620,42 @@
             // ─────────────────────────────────────────────────────────────────
             if (layer.type === 'image' && layer.is_shape !== true) {
                 totalAsyncLoads++;
+                
+                // --- V10 ICON RECONSTRUCTION ---
+                if (isV10RenderVersion(renderVersion) && layer._originalType === 'icon' && layer._source_meta && layer._source_meta.originalSvg) {
+                    fabric.loadSVGFromString(layer._source_meta.originalSvg, function(objects, options) {
+                        var group = fabric.util.groupSVGElements(objects, options);
+                        group.set({
+                            left: layer.x, top: layer.y,
+                            originX: 'left', originY: 'top',
+                            angle: rotation, opacity: opacity,
+                            customType: 'icon',
+                            customName: layer.name,
+                            is_background: layer.is_background,
+                            is_placeholder: layer.is_placeholder,
+                            is_slot: layer.is_slot,
+                            mask_layer_id: layer.mask_layer_id,
+                            visible: visible,
+                            z_index: layer.z_index || idx,
+                            id: layer.id || makeV10LayerId()
+                        });
+                        group.set({ scaleX: layer.w / group.width, scaleY: layer.h / group.height });
+                        
+                        group._iconName = layer._source_meta.iconName;
+                        group._iconProvider = layer._source_meta.provider;
+                        group._originalSvgMarkup = layer._source_meta.originalSvg;
+                        applyV10IconColor(group, layer.original_color || layer._source_meta.original_color || layer.tint_color || '#333333');
+                        
+                        canvas.add(group);
+                        if (typeof sortCanvasLayers === 'function') sortCanvasLayers();
+                        canvas.renderAll();
+                        updateLayersList();
+                        completedAsyncLoads++;
+                        checkAllLoaded();
+                    });
+                    return; // Skip raster image load
+                }
+
                 const imgSrc = resolveImageSrc(layer.src);
                 console.log('[DEBUG] Image "' + layer.name + '": src=' + (layer.src || '').substring(0,60) + ' → resolved=' + (imgSrc || '').substring(0,80) + (imgSrc && imgSrc.startsWith('data:') ? ' [BASE64 len=' + imgSrc.length + ']' : ''));
 
@@ -4708,6 +4942,12 @@
                     ? parseFloat(layer.fillOpacity) / 100 : 1;
                 const st         = (layer.shapeType || layer.shape_type || 'rectangle').toLowerCase();
                 let obj = null;
+                // V10 uses `rect` for both square and rounded rectangles.
+                // Keep the saved radii separate from the legacy renderer so
+                // V1-V9 continue to reload with their existing contract.
+                const v10CornerRadii = isV10RenderVersion(renderVersion)
+                    ? v10CornerRadiiFromLayer(layer)
+                    : null;
 
                 const baseProps = {
                     left:        layer.x,
@@ -4736,7 +4976,10 @@
                 // ── ROUNDED RECT ──────────────────────────────────────────────
                 else if (st === 'roundedrect' || st === 'rounded_rect' || st === 'rounded-rect') {
                     let rx = 0, ry = 0;
-                    if (layer.cornerRadius !== undefined && layer.cornerRadius !== null) {
+                    if (v10CornerRadii) {
+                        rx = v10CornerRadii.top_left;
+                        ry = rx;
+                    } else if (layer.cornerRadius !== undefined && layer.cornerRadius !== null) {
                         const cr = layer.cornerRadius;
                         if (typeof cr === 'number') { rx = cr; ry = cr; }
                         else if (typeof cr === 'object') {
@@ -4757,7 +5000,13 @@
                         width:  layer.w,
                         height: layer.h,
                         rx:     rx,
-                        ry:     ry
+                        ry:     ry,
+                        ...(v10CornerRadii ? {
+                            rx_tl: v10CornerRadii.top_left,
+                            rx_tr: v10CornerRadii.top_right,
+                            rx_br: v10CornerRadii.bottom_right,
+                            rx_bl: v10CornerRadii.bottom_left
+                        } : {})
                     });
                 }
                 // ── RECTANGLE ─────────────────────────────────────────────────
@@ -4766,7 +5015,14 @@
                         ...baseProps,
                         width:  layer.w,
                         height: layer.h,
-                        rx: 0, ry: 0
+                        rx: v10CornerRadii ? v10CornerRadii.top_left : 0,
+                        ry: v10CornerRadii ? v10CornerRadii.top_left : 0,
+                        ...(v10CornerRadii ? {
+                            rx_tl: v10CornerRadii.top_left,
+                            rx_tr: v10CornerRadii.top_right,
+                            rx_br: v10CornerRadii.bottom_right,
+                            rx_bl: v10CornerRadii.bottom_left
+                        } : {})
                     });
                 }
                 // ── POLYGON / TRIANGLE ────────────────────────────────────────
@@ -5011,7 +5267,10 @@
 
     // --- Export Schemas ---
     function exportArteraSchema(objects, title) {
-        const targetRenderVer = window._originalRenderVersion || 4;
+        // Existing frames preserve their dashboard-approved version.  A newly
+        // created frame starts at the current renderer (V10), rather than
+        // silently falling back to the historical V4 contract.
+        const targetRenderVer = window._originalRenderVersion || CURRENT_RENDER_VERSION;
         return {
             schema_version: 1, render_version: targetRenderVer, template_id: 'tpl_' + Date.now(),
             canvas: { width: baseWidth, height: baseHeight, background_color: canvas.backgroundColor || '#FFFFFF' },
@@ -5048,6 +5307,21 @@
 
                 let o = { id:'el_'+z, name:obj.customName||(obj.type==='image'?'layer_'+z:'text_'+z), type:(obj.type==='i-text'||obj.type==='textbox')?'text':((obj.customType==='shape' && obj.type!=='image')?'shape':obj.type),
                     x:x, y:y, w:w, h:h, width:w, height:h, scaleX:1, scaleY:1, originX:'left', originY:'top', rotation:obj.angle||0, opacity:obj.opacity??1, z_index:z, locked:!obj.selectable, visible:obj.visible!==false };
+                
+                if (isV10RenderVersion(targetRenderVer)) {
+                    if (!obj.id) obj.id = makeV10LayerId();
+                    o.id = obj.id;
+                    o.rotation = obj.angle || 0;
+                    o.flip_x = obj.flipX || false;
+                    o.flip_y = obj.flipY || false;
+                }
+
+                // V10 icons use a canonical SVG contract.  Do not let this
+                // fall through to the historical image/PNG export below.
+                if (isV10RenderVersion(targetRenderVer) && obj.customType === 'icon') {
+                    return serialiseV10Icon(obj, z, x, y, w, h);
+                }
+
                 if (obj.type === 'image' || obj.customType === 'icon' || (obj.customType === 'shape' && obj.type === 'group') || (obj.customType === 'image' && obj.is_image_placeholder)) { 
                     o.type = 'image';
                     let isShapeRaster = (obj.customType === 'shape' || obj.customType === 'icon' || obj.is_shape);
@@ -5119,6 +5393,11 @@
                             provider: obj._iconProvider || 'iconify',
                             originalSvg: svgMarkup
                         };
+                        if (isV10RenderVersion(targetRenderVer)) {
+                            o._source_meta.original_color = obj._originalColor || '#000000';
+                            o.tint_color = obj.fill || '#000000';
+                            o._fallback_src = o.src;
+                        }
                     } else if (obj.customType === 'shape' && obj.type === 'group') {
                         o._source_meta = {
                             type: 'shape_group',
@@ -5133,6 +5412,11 @@
                     o.placeholder=obj.customType==='placeholder'?{field_type:obj.placeholderKey,required:true}:null;
                     o.kind = (obj.type === 'textbox') ? 'Paragraph' : 'Point';
                     o.textKind = (obj.type === 'textbox') ? 'paragraph' : 'point';
+                    if (isV10RenderVersion(targetRenderVer)) {
+                        o.word_spacing = obj.wordSpacing || 0;
+                        o.letter_spacing = obj.charSpacing || 0;
+                        o.line_height = obj.lineHeight || 1.16;
+                    }
                 } else if (!obj.is_image_placeholder && obj.customType !== 'image' && (obj.customType==='shape' || ['rect','circle','triangle','path','polygon','line','ellipse'].includes(obj.type))) {
                     o.type = 'shape';
                     o.shapeType = obj.type; // e.g. 'rect', 'ellipse'
@@ -5153,6 +5437,20 @@
                     o.width=w; o.height=h;
                     if (obj.rx) o.rx = obj.rx;
                     if (obj.ry) o.ry = obj.ry;
+
+                    if (isV10RenderVersion(targetRenderVer)) {
+                        const cornerRadii = obj.type === 'rect'
+                            ? v10CornerRadiiFromObject(obj)
+                            : null;
+                        o.stroke_color = obj.stroke || 'none';
+                        o.stroke_width = obj.strokeWidth || 0;
+                        o.fill_color = typeof obj.fill === 'string' ? obj.fill : 'none';
+                        o.corner_radius = cornerRadii ? cornerRadii.top_left : 0;
+                        // Canonical V10 representation.  Keep `corner_radius`
+                        // above for V10 clients that only support a uniform
+                        // radius, while the web editor round-trips each corner.
+                        if (cornerRadii) o.corner_radii = cornerRadii;
+                    }
 
                     // ── Save polygon points as absolute coordinates for round-trip ──
                     if ((obj.type === 'polygon' || obj.type === 'polyline') && obj.points && obj.points.length >= 3) {
@@ -5189,7 +5487,7 @@
     }
 
     function exportLegacyJson(objects, title) {
-        const targetRenderVer = window._originalRenderVersion || 4;
+        const targetRenderVer = window._originalRenderVersion || CURRENT_RENDER_VERSION;
         const j = { name: title.replace(/\s+/g,'_'), render_version: targetRenderVer, info:{width:baseWidth,height:baseHeight}, layers:[] };
         objects.forEach((obj,i) => {
             const z=i+1;
@@ -5221,11 +5519,37 @@
                 y = Math.round(obj.top + yOffset);
             }
 
+            // V10 never serialises a library icon as a PNG.  A vector SVG,
+            // the displayed bounds, and a stable id are the complete source
+            // of truth for both editors.
+            if (isV10RenderVersion(targetRenderVer) && obj.customType === 'icon') {
+                j.layers.push(serialiseV10Icon(obj, z, x, y, w, h));
+                return;
+            }
+
             if (obj.type==='image' || (obj.customType === 'image' && obj.is_image_placeholder)) {
                 let srcToUse = obj.is_image_placeholder ? (obj._src || '') : obj.getSrc();
                 let imgData = {name:obj.customName||'layer_'+z,type:'image',src:srcToUse,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,is_background:obj.is_background||false,is_placeholder:obj.is_placeholder||false,is_slot:obj.is_slot||false, image_type: obj.image_type||'', is_shape: obj.customType === 'shape' || obj.customType === 'icon' || obj.is_shape === true, flipX:obj.flipX||false, flipY:obj.flipY||false, opacity:obj.opacity??1};
                 if (obj.mask_layer_id) imgData.mask_layer_id = obj.mask_layer_id;
                 if ((obj.customType==='shape' || obj.customType==='icon' || obj.is_shape) && obj.fill && typeof obj.fill === 'string') imgData.tint_color = obj.fill;
+                
+                if (isV10RenderVersion(targetRenderVer) && obj.customType === 'icon') {
+                    let svgMarkup = obj._originalSvgMarkup || null;
+                    if (svgMarkup) {
+                        svgMarkup = svgMarkup.replace(/fill="[^"]*"/gi, 'fill="currentColor"');
+                        svgMarkup = svgMarkup.replace(/stroke="[^"]*"/gi, 'stroke="currentColor"');
+                    }
+                    imgData._source_meta = {
+                        type: 'icon',
+                        iconName: obj._iconName || null,
+                        provider: obj._iconProvider || 'iconify',
+                        originalSvg: svgMarkup,
+                        original_color: obj._originalColor || '#000000'
+                    };
+                    imgData.tint_color = obj.fill || '#000000';
+                    imgData._fallback_src = imgData.src;
+                }
+
                 j.layers.push(imgData);
             }
             else if (obj.type==='i-text'||obj.type==='text'||obj.type==='textbox') j.layers.push({name:obj.customName||'text_'+z,type:'text',kind: (obj.type==='textbox'?'Paragraph':'Point'),textKind: (obj.type==='textbox'?'paragraph':'point'),text:obj.text,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,color:obj.fill,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,size:fontSize,font_size:fontSize,font:obj.fontFamily,font_name:obj.fontFamily,justification:obj.textAlign||'left',letterSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16,opacity:obj.opacity??1,rotation:obj.angle||0,visible:obj.visible!==false,flipX:obj.flipX||false,flipY:obj.flipY||false,ai_role:obj.ai_role||null,ai_max_chars:obj.ai_max_chars||null});
@@ -5274,6 +5598,12 @@
                     is_shape: true,
                     visible: obj.visible !== false
                 };
+
+                if (isV10RenderVersion(targetRenderVer) && obj.type === 'rect') {
+                    var legacyCornerRadii = v10CornerRadiiFromObject(obj);
+                    vectorData.corner_radius = legacyCornerRadii.top_left;
+                    vectorData.corner_radii = legacyCornerRadii;
+                }
 
                 // ── Icon-specific metadata ──
                 if (obj.customType === 'icon') {

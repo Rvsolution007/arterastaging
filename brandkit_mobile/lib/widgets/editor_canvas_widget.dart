@@ -50,8 +50,6 @@ class EditorCanvasWidget extends StatefulWidget {
   final String templateBaseUrl;
   final String? baseImgUrl;
   final String editorType;
-  final int frameTransitionGeneration;
-  final ValueChanged<int>? onFramePainted;
 
   const EditorCanvasWidget({
     super.key,
@@ -62,8 +60,6 @@ class EditorCanvasWidget extends StatefulWidget {
     required this.templateBaseUrl,
     this.baseImgUrl,
     this.editorType = 'business_custom_frame',
-    this.frameTransitionGeneration = 0,
-    this.onFramePainted,
   });
 
   @override
@@ -213,7 +209,6 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
 
     _fetchLogoDimensions();
     _schedulePostFrameMeasurement();
-    _notifyFramePainted();
   }
 
   void _fetchLogoDimensions() {
@@ -347,10 +342,6 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     // Always schedule a measurement on update because widget.config is a mutable Map
     // and manual edits (like font size changes) won't trigger oldWidget.config != widget.config
     _schedulePostFrameMeasurement();
-    if (oldWidget.frameTransitionGeneration !=
-        widget.frameTransitionGeneration) {
-      _notifyFramePainted();
-    }
 
     // Only reset baselines if the template itself changed (different template loaded)
     final bool templateChanged =
@@ -458,95 +449,6 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
       if (!mounted) return;
       _measureAndApplyShifts();
     });
-  }
-
-  void _notifyFramePainted() {
-    final int generation = widget.frameTransitionGeneration;
-    if (generation == 0 || widget.onFramePainted == null) return;
-    unawaited(_waitForV10FrameAssetsAndNotify(generation));
-  }
-
-  /// V10 atomic frame-swap barrier.
-  ///
-  /// A post-frame callback only tells us that the widget tree exists; it does
-  /// not mean each CachedNetworkImage has decoded. Keep the old canvas snapshot
-  /// above this canvas until every raster asset is available and two compositor
-  /// frames have completed. That prevents the white/partial/layer-by-layer
-  /// transition seen during frame changes.
-  Future<void> _waitForV10FrameAssetsAndNotify(int generation) async {
-    final int renderVersion =
-        int.tryParse(widget.config['render_version']?.toString() ?? '1') ?? 1;
-    if (renderVersion < 10) return;
-
-    final Set<String> assetUrls = <String>{};
-    final List<dynamic> layers =
-        widget.config['layers'] as List<dynamic>? ?? [];
-    for (final dynamic rawLayer in layers) {
-      if (rawLayer is! Map) continue;
-      final Map<String, dynamic> layer = Map<String, dynamic>.from(rawLayer);
-      final String type = (layer['type'] ?? '').toString();
-      if (type != 'image' && layer['is_shape'] != true) continue;
-
-      final String src = (layer['src'] ?? layer['_fallback_src'] ?? '')
-          .toString()
-          .trim();
-      if (src.isEmpty) continue;
-      String resolved = _resolveAssetUrl(src);
-      if (resolved.startsWith('http') && resolved.contains(' ')) {
-        resolved = Uri.encodeFull(resolved);
-      }
-      if (resolved.isNotEmpty) assetUrls.add(resolved);
-    }
-
-    final int startedAt = DateTime.now().millisecondsSinceEpoch;
-    debugPrint(
-      '[V10_FRAME_SWAP] generation=$generation waiting for ${assetUrls.length} raster assets',
-    );
-
-    try {
-      await Future.wait(assetUrls.map(_precacheV10FrameAsset)).timeout(
-        const Duration(seconds: 8),
-        onTimeout: () {
-          debugPrint(
-            '[V10_FRAME_SWAP] asset barrier timed out; using decoded assets available so far',
-          );
-          return <void>[];
-        },
-      );
-    } catch (error) {
-      // Individual asset failures are handled by their layer error widgets.
-      // They must not hold the old design on screen forever.
-      debugPrint('[V10_FRAME_SWAP] asset barrier error: $error');
-    }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || widget.frameTransitionGeneration != generation) return;
-      // One callback is only the first layout frame. A second end-of-frame
-      // waits for the decoded image providers to be composited into the canvas.
-      WidgetsBinding.instance.endOfFrame.then((_) {
-        if (!mounted || widget.frameTransitionGeneration != generation) return;
-        debugPrint(
-          '[V10_FRAME_SWAP] generation=$generation ready after ${DateTime.now().millisecondsSinceEpoch - startedAt}ms',
-        );
-        widget.onFramePainted!(generation);
-      });
-    });
-  }
-
-  Future<void> _precacheV10FrameAsset(String url) async {
-    try {
-      final ImageProvider provider;
-      if (url.startsWith('data:image')) {
-        provider = MemoryImage(base64Decode(url.split(',').last));
-      } else if (url.startsWith('http')) {
-        provider = CachedNetworkImageProvider(url);
-      } else {
-        return;
-      }
-      await precacheImage(provider, context);
-    } catch (error) {
-      debugPrint('[V10_FRAME_SWAP] unable to decode $url: $error');
-    }
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -1750,9 +1652,12 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     }
 
     // Wrap the raw content in InteractiveLayer
+    final String interactionId = renderVersion == 10
+        ? (effectiveLayer['id']?.toString() ?? rawName)
+        : rawName;
     return InteractiveLayer(
       key: ObjectKey(effectiveLayer),
-      layerName: rawName,
+      layerName: interactionId,
       layerConfig: effectiveLayer,
       scale: scale,
       renderVersion: renderVersion,
@@ -1761,6 +1666,14 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
   }
 
   Widget _buildText(Map<String, dynamic> layer, double scale) {
+    int renderVersion = (widget.config['render_version'] is int)
+        ? widget.config['render_version']
+        : int.tryParse(widget.config['render_version']?.toString() ?? '1') ?? 1;
+
+    if (renderVersion == 10) {
+      return _buildTextV10(layer, scale, renderVersion);
+    }
+
     final String layerName = (layer['name'] ?? layer['id'] ?? '').toString();
     String textValue = layer['text']?.toString() ?? '';
 
@@ -1775,7 +1688,11 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     // Color conversion (handles hex and 0x formats)
     // Dynamic Theming writes to 'font_color', original JSON uses 'color'
     String colorStr =
-        layer['font_color'] ?? layer['color'] ?? layer['fill'] ?? '#000000';
+        layer['_resolved_color'] ??
+        layer['color'] ??
+        layer['font_color'] ??
+        layer['fill'] ??
+        '#000000';
     Color fontColor = _parseColor(colorStr);
     List<Color>? gradientColors = _parseGradient(colorStr);
 
@@ -2469,13 +2386,9 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         finalUrl = _resolveAssetUrl(src);
       }
 
-      // Keep the cache key stable for one published asset. A timestamp generated
-      // during every build made Flutter re-download every frame layer, which in
-      // turn caused partial canvas exports and the "still downloading" message.
+      // Add cache buster to invalidate old transparent PNGs in memory cache
       if (finalUrl.startsWith('http') && !finalUrl.contains('?')) {
-        final dynamic revision =
-            layer['asset_version'] ?? layer['updated_at'] ?? widget.config['updated_at'] ?? 1;
-        finalUrl = '$finalUrl?cb=${Uri.encodeQueryComponent(revision.toString())}';
+        finalUrl = '$finalUrl?cb=${DateTime.now().millisecondsSinceEpoch}';
       }
 
       final bool isShape = layer['is_shape'] == true;
@@ -2566,7 +2479,21 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         ((widget.config['render_version'] ?? 1) as int) < 2 &&
         layer['tint_color'] == null;
 
-    if (layer['tint_color'] != null && !skipRasterTint) {
+    int renderVersion = (widget.config['render_version'] is int)
+        ? widget.config['render_version']
+        : int.tryParse(widget.config['render_version']?.toString() ?? '1') ?? 1;
+
+    if (renderVersion == 10 &&
+        (layer['_resolved_color'] != null ||
+            (layer['_source_meta'] is Map &&
+                layer['_source_meta']['original_color'] != null))) {
+      final dynamic rawTint =
+          layer['_resolved_color'] ??
+          (layer['_source_meta'] as Map)['original_color'];
+      tintColor = _parseColor(rawTint, fallback: const Color(0xFFFFFFFF));
+      gradientColors = _parseGradient(rawTint.toString());
+      debugPrint('[TINT] "$lname" PARSED originalColor (V10) → $tintColor');
+    } else if (layer['tint_color'] != null && !skipRasterTint) {
       final dynamic rawTint = layer['tint_color'];
       tintColor = _parseColor(rawTint, fallback: const Color(0xFFFFFFFF));
       gradientColors = _parseGradient(rawTint.toString());
@@ -3075,6 +3002,17 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     double nativeH,
     int renderVersion,
   ) {
+    if (renderVersion == 10) {
+      return _buildVectorShapeV10(
+        layer,
+        lname,
+        scale,
+        nativeW,
+        nativeH,
+        renderVersion,
+      );
+    }
+
     final String shapeType = (layer['shapeType'] ?? 'rect')
         .toString()
         .toLowerCase();
@@ -3302,6 +3240,706 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     }
   }
 
+  Widget _buildTextV10(
+    Map<String, dynamic> layer,
+    double scale,
+    int renderVersion,
+  ) {
+    final String layerName = (layer['name'] ?? layer['id'] ?? '').toString();
+    String textValue = layer['text']?.toString() ?? '';
+
+    // Override with AI Data if available
+    if (widget.aiData != null && widget.aiData![layerName] != null) {
+      textValue = widget.aiData![layerName].toString();
+    }
+
+    // Normalize newlines consistently (shared with _measureTextHeight)
+    textValue = _normalizeText(textValue, layer);
+
+    // Color conversion (handles hex and 0x formats)
+    // Dynamic Theming writes to 'font_color', original JSON uses 'color'
+    String colorStr =
+        layer['font_color'] ?? layer['color'] ?? layer['fill'] ?? '#000000';
+    Color fontColor = _parseColor(colorStr);
+    List<Color>? gradientColors = _parseGradient(colorStr);
+
+    // Font size — matches web editor's Adobe Standard Point-to-Pixel Conversion
+    // Formula: pixel_size = point_size × (document_ppi / 72)
+    final double layerScaleY = safeDouble(
+      layer['scaleY'] ?? layer['scaleX'] ?? 1.0,
+    );
+    double rawSize = safeDouble(
+      layer['fontSize'] ?? layer['font_size'] ?? layer['size'] ?? 16,
+    );
+    if (rawSize <= 0) rawSize = 20.0; // Web Editor fallback for 0 or missing
+    // Apply PPI conversion (web editor: origSize = rawFontPt * (docPPI / 72))
+    final double docPPI = safeDouble(widget.config['info']?['ppi'] ?? 72);
+    final double ppiScale = docPPI / 72.0;
+    final double fontSize = rawSize * ppiScale * layerScaleY * scale;
+
+    // Font weight and style
+    final String weightStr = (layer['weight'] ?? '').toString();
+    final String styleStr = (layer['style'] ?? '').toString();
+    String fontName =
+        (layer['fontFamily'] ?? layer['font_name'] ?? layer['font'] ?? '')
+            .toString();
+    fontName = fontName.replaceAll("'", "").replaceAll('"', '');
+
+    // CSS font-stack: take only the first font from comma-separated list
+    // e.g. "Font Awesome 6 Brands, Font Awesome 5 Brands" → "Font Awesome 6 Brands"
+    if (fontName.contains(',')) {
+      fontName = fontName.split(',').first.trim();
+    }
+
+    // Map Web Editor FontAwesome names to Flutter's font_awesome_flutter package families
+    bool isPackageFont = false;
+    String? fontPackage;
+
+    bool isBrand = fontName.toLowerCase().contains('brands');
+    if (!isBrand &&
+        (fontName.toLowerCase().contains('font awesome') ||
+            fontName.toLowerCase().contains('fontawesome'))) {
+      // Fallback for PSDs that exported as "Font Awesome 5 Free" but contain brand icons
+      final List<int> brandRunes = [
+        0xf09a,
+        0xf39e,
+        0xf082,
+        0xf16d,
+        0xfe66,
+        0xf167,
+        0xf431,
+        0xf099,
+        0xf081,
+        0xe61b,
+        0xf232,
+        0xf08c,
+        0xf0e1,
+        0xe07b,
+        0xf2c6,
+        0xf2ab,
+        0xf0d2,
+        0xf231,
+      ];
+      for (var rune in textValue.runes) {
+        if (brandRunes.contains(rune)) {
+          isBrand = true;
+          break;
+        }
+      }
+    }
+
+    if (isBrand) {
+      fontName = 'FontAwesomeBrands';
+      fontPackage = 'font_awesome_flutter';
+      isPackageFont = true;
+    } else if (fontName.toLowerCase().contains('font awesome') ||
+        fontName.toLowerCase().contains('fontawesome')) {
+      fontName = 'FontAwesomeSolid';
+      fontPackage = 'font_awesome_flutter';
+      isPackageFont = true;
+    }
+
+    FontWeight fontWeight = FontWeight.normal;
+    FontStyle fontStyle =
+        (styleStr == 'italic' || fontName.toLowerCase().contains('italic'))
+        ? FontStyle.italic
+        : FontStyle.normal;
+
+    String cleanFontFamily = fontName;
+
+    if (!fontName.startsWith('packages/') && fontName.contains('-')) {
+      final parts = fontName.split('-');
+      cleanFontFamily = parts[0];
+      final weightPart = parts.sublist(1).join('-').toLowerCase();
+
+      if (weightPart.contains('bold'))
+        fontWeight = FontWeight.bold;
+      else if (weightPart.contains('medium'))
+        fontWeight = FontWeight.w500;
+      else if (weightPart.contains('semibold') || weightPart.contains('semi'))
+        fontWeight = FontWeight.w600;
+      else if (weightPart.contains('light'))
+        fontWeight = FontWeight.w300;
+      else if (weightPart.contains('thin'))
+        fontWeight = FontWeight.w100;
+      else if (weightPart.contains('black'))
+        fontWeight = FontWeight.w900;
+    }
+
+    // Add spaces for PascalCase fonts like BebasNeue -> Bebas Neue to match Google Fonts
+    if (!cleanFontFamily.startsWith('packages/')) {
+      cleanFontFamily = cleanFontFamily.replaceAllMapped(
+        RegExp(r'([a-z])([A-Z])'),
+        (Match m) => '${m[1]} ${m[2]}',
+      );
+    }
+
+    if (weightStr == 'bold' || fontName.toLowerCase().contains('bold')) {
+      fontWeight = FontWeight.bold;
+    }
+    if (weightStr == 'normal' && !fontName.toLowerCase().contains('bold')) {
+      fontWeight = FontWeight.normal;
+    }
+    // RC-8: Handle numeric weight strings from web editor (e.g., "500", "600", "300")
+    final int? numericWeight = int.tryParse(weightStr);
+    if (numericWeight != null) {
+      const Map<int, FontWeight> weightMap = {
+        100: FontWeight.w100,
+        200: FontWeight.w200,
+        300: FontWeight.w300,
+        400: FontWeight.w400,
+        500: FontWeight.w500,
+        600: FontWeight.w600,
+        700: FontWeight.w700,
+        800: FontWeight.w800,
+        900: FontWeight.w900,
+      };
+      fontWeight = weightMap[numericWeight] ?? FontWeight.w400;
+    }
+
+    // V10 text spacing enhancements
+    double? letterSpacing;
+    final dynamic rawCharSpacing =
+        layer['letterSpacing'] ??
+        layer['letter_spacing'] ??
+        layer['char_spacing'];
+    if (rawCharSpacing != null) {
+      final double charSpacing = safeDouble(rawCharSpacing);
+      letterSpacing = (charSpacing / 1000) * fontSize;
+    }
+
+    double? wordSpacing;
+    final dynamic rawWordSpacing =
+        layer['wordSpacing'] ?? layer['word_spacing'];
+    if (rawWordSpacing != null) {
+      wordSpacing = safeDouble(rawWordSpacing);
+    }
+
+    // Shadow
+    List<Shadow>? shadows;
+    if (layer['shadow'] != null) {
+      final Map<String, dynamic> shadowMap = layer['shadow'];
+      final double ox = safeDouble(shadowMap['offsetX'] ?? 0) * scale;
+      final double oy = safeDouble(shadowMap['offsetY'] ?? 0) * scale;
+      final double bl = safeDouble(shadowMap['blur'] ?? 0) * scale;
+
+      String sColorStr = (shadowMap['color'] ?? '#000000').toString();
+      Color sColor = _parseColor(sColorStr);
+
+      shadows = [Shadow(offset: Offset(ox, oy), blurRadius: bl, color: sColor)];
+    }
+
+    // Justification — web legacy JSON doesn't export this at top level,
+    // Artera Schema puts it in font.justification. Also check textAlign. (RC-7)
+    final dynamic fontObj = layer['font'];
+    final String just =
+        (layer['justification'] ??
+                (fontObj is Map ? fontObj['justification'] : null) ??
+                layer['textAlign'] ??
+                'left')
+            .toString()
+            .toLowerCase()
+            .trim();
+    TextAlign textAlign = TextAlign.left;
+    Alignment alignment = Alignment.centerLeft;
+    if (just == 'center') {
+      textAlign = TextAlign.center;
+      alignment = Alignment.center;
+    } else if (just == 'right') {
+      textAlign = TextAlign.right;
+      alignment = Alignment.centerRight;
+    } else if (just == 'justify' || just == 'full') {
+      textAlign = TextAlign.justify;
+      alignment = Alignment.centerLeft;
+    }
+
+    debugPrint(
+      '[TEXT_LAYER] name="${layer['name']}" text="$textValue" font="$fontName" color="$colorStr" fontSize=$fontSize fontWeight=$fontWeight fontStyle=$fontStyle',
+    );
+
+    double? strokeWidth;
+    if (layer['stroke_width'] != null) {
+      strokeWidth = safeDouble(layer['stroke_width']) * scale;
+    } else if (layer['border_width'] != null) {
+      strokeWidth = safeDouble(layer['border_width']) * scale;
+    }
+
+    Color? strokeColor;
+    bool outlineOnly =
+        layer['outline_only'] == true || layer['transparent_fill'] == true;
+
+    if (strokeWidth != null && strokeWidth > 0) {
+      String strokeStr =
+          layer['stroke_color'] ?? layer['border_color'] ?? '#000000';
+      strokeColor = _parseColor(strokeStr);
+
+      // If the text is outline only, apply the gradient to the outline
+      if (outlineOnly) {
+        List<Color>? borderGradient = _parseGradient(strokeStr);
+        if (borderGradient != null) {
+          gradientColors = borderGradient;
+        }
+      }
+    }
+
+    TextStyle textStyle = TextStyle(
+      color: outlineOnly ? null : fontColor,
+      foreground: (outlineOnly && strokeWidth != null && strokeWidth > 0)
+          ? (Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = strokeWidth
+              ..color = strokeColor!)
+          : null,
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      fontStyle: fontStyle,
+      letterSpacing: letterSpacing,
+      wordSpacing: wordSpacing,
+      shadows: shadows,
+      package: fontPackage,
+      fontFamily: isPackageFont ? fontName : null,
+      // RC-1: Web exports 'lineHeight' (camelCase), PSD ZIP uses 'line_height'. Default 1.16 matches Fabric.js.
+      // Guard: corrupted lineHeight values (e.g. 0.0387 from legacy export dividing multiplier by fontSize)
+      // are clamped to default 1.16. Valid Fabric multipliers range ~0.5–10.
+      height: () {
+        final double? raw = safeDouble(
+          layer['lineHeight'] ?? layer['line_height'],
+        );
+        if (raw == null || raw < 0.5 || raw > 10.0) return 1.16;
+        return raw;
+      }(),
+    );
+
+    if (!isPackageFont && cleanFontFamily.isNotEmpty) {
+      try {
+        textStyle = GoogleFonts.getFont(cleanFontFamily, textStyle: textStyle);
+      } catch (_) {
+        textStyle = textStyle.copyWith(fontFamily: fontName);
+      }
+    }
+
+    final String lname = (layer['name'] ?? layer['id'] ?? '')
+        .toString()
+        .toLowerCase();
+
+    // ── RC-2: Point vs Paragraph text detection (matches web editor) ──
+    debugPrint(
+      '[TEXT_DIAG_CODEPOINTS] name="$lname" text="$textValue" codePoints="${textValue.runes.map((r) => r.toRadixString(16)).join(',')}"',
+    );
+
+    // Web editor exports 'kind': 'Point' (fabric.Text, no wrap) or 'Paragraph' (fabric.Textbox, wraps within w).
+    // Use kind from JSON first, fall back to heuristic for old templates.
+    final String? textKind = layer['kind']?.toString().toLowerCase();
+
+    bool noSpaces = !textValue.trim().contains(' ');
+
+    // Check height to font-size ratio. If the bounding box can only hold ~1 line, it's a single line.
+    final double layerH = safeDouble(layer['h'] ?? layer['height'] ?? 0);
+    final double ratio = layerH > 0 && rawSize > 0 ? (layerH / rawSize) : 2.0;
+    final bool hasExplicitNewlines =
+        textValue.contains('\n') || textValue.contains('\r');
+
+    final String aiRole =
+        (layer['ai_role'] ?? layer['ai_field'] ?? layer['_businessKey'] ?? '')
+            .toString()
+            .toLowerCase();
+    final bool isFrameLayer =
+        layer['_is_frame_layer'] == true || layer['_isFrameLayer'] == true;
+    final bool isKnownSingleLineField =
+        lname.contains('name') ||
+        lname.contains('email') ||
+        lname.contains('phone') ||
+        lname.contains('mobile') ||
+        lname.contains('web') ||
+        lname.contains('address') ||
+        aiRole.contains('name') ||
+        aiRole.contains('email') ||
+        aiRole.contains('phone') ||
+        aiRole.contains('mobile') ||
+        aiRole.contains('web') ||
+        aiRole.contains('address') ||
+        (isFrameLayer && !hasExplicitNewlines) ||
+        noSpaces;
+
+    bool fitsOnSingleLine = false;
+    final double tpW = safeDouble(layer['w'] ?? layer['width'] ?? 0);
+    if (tpW > 0 && textValue.isNotEmpty) {
+      final tp = TextPainter(
+        textDirection: TextDirection.ltr,
+        textScaler: TextScaler.noScaling,
+        maxLines: 1,
+      );
+      tp.text = TextSpan(text: textValue, style: textStyle);
+      tp.layout();
+      if (tp.width <= tpW * 1.1) {
+        fitsOnSingleLine = true;
+      }
+    }
+
+    bool isSingleLine;
+    if (textKind == 'point') {
+      // Explicitly marked as Point Text by web editor — never wraps, scales down
+      isSingleLine = true;
+    } else if (isKnownSingleLineField ||
+        (!hasExplicitNewlines && (ratio <= 2.2 || fitsOnSingleLine))) {
+      // Even if marked as 'paragraph' (Textbox for alignment), fields like email/phone/web/name,
+      // frame layers, or boxes without explicit newlines must NEVER wrap to multiple lines; they must scale down via FittedBox!
+      isSingleLine = true;
+    } else if (textKind == 'paragraph') {
+      // Explicitly marked as Paragraph Text by web editor — wraps within layer width
+      isSingleLine = false;
+    } else {
+      isSingleLine = false;
+    }
+
+    // Inject single-line flag so InteractiveLayer knows not to constrain width
+    layer['_is_single_line'] = isSingleLine;
+
+    // --- OVERFLOW PREVENTION (Fabric.js textbox word-wrap fix) ---
+    // In Flutter, if a single word is wider than the container, it wraps mid-character.
+    // In the Web Editor, it shrinks the font size until the longest word fits.
+    final double layerW = safeDouble(layer['w'] ?? layer['width'] ?? 0);
+    if (!isSingleLine && layerW > 0 && textValue.isNotEmpty) {
+      final double posW = layerW * scale;
+      final words = textValue.split(RegExp(r'\s+'));
+      double maxWordWidth = 0;
+
+      final tp = TextPainter(
+        textDirection: TextDirection.ltr,
+        // Disable system font scaling for measurement
+        textScaler: TextScaler.noScaling,
+      );
+      for (var word in words) {
+        tp.text = TextSpan(text: word, style: textStyle);
+        tp.layout();
+        if (tp.width > maxWordWidth) maxWordWidth = tp.width;
+      }
+
+      if (maxWordWidth > posW) {
+        // Removed font shrinking logic as per user request to never shrink multi-line text font sizes
+        // and let the height auto-adjust instead.
+      }
+    }
+
+    Widget textWidget = Text(
+      textValue,
+      textAlign: textAlign,
+      style: textStyle,
+      softWrap: !isSingleLine,
+      // CRITICAL: Disable system accessibility font scaling so canvas designs don't break
+      textScaler: TextScaler.noScaling,
+    );
+
+    final double rawW = safeDouble(layer['w'] ?? layer['width'] ?? 0);
+    if (rawW > 0 && !isSingleLine) {
+      textWidget = Container(
+        width: double.infinity,
+        alignment: alignment,
+        child: textWidget,
+      );
+    } else if (isSingleLine && rawW > 0) {
+      // Point text (single-line) needs a fixed-width container so alignment (right/center/left)
+      // takes effect, and FittedBox(scaleDown) ensures long text (like email) shrinks without overlapping.
+      textWidget = SizedBox(
+        width: rawW * scale,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: alignment,
+          child: textWidget,
+        ),
+      );
+    }
+
+    if (gradientColors != null && gradientColors.length >= 2) {
+      String gradientDir = (layer['gradient_direction'] ?? 'vertical')
+          .toString()
+          .toLowerCase();
+      Alignment begin = Alignment.topCenter;
+      Alignment end = Alignment.bottomCenter;
+      if (gradientDir == 'horizontal' ||
+          gradientDir == 'left_to_right' ||
+          gradientDir == 'left') {
+        begin = Alignment.centerLeft;
+        end = Alignment.centerRight;
+      }
+
+      textWidget = ShaderMask(
+        blendMode: BlendMode.srcIn,
+        shaderCallback: (bounds) {
+          return LinearGradient(
+            begin: begin,
+            end: end,
+            colors: gradientColors!,
+          ).createShader(bounds);
+        },
+        child: textWidget,
+      );
+    }
+
+    bool flipX =
+        layer['flip_x'] == true ||
+        layer['flipX'] == 'true' ||
+        layer['flipX'] == true;
+    bool flipY =
+        layer['flip_y'] == true ||
+        layer['flipY'] == 'true' ||
+        layer['flipY'] == true;
+    double rotation = safeDouble(layer['rotation'] ?? layer['angle'] ?? 0);
+
+    if (flipX) {
+      textWidget = Transform(
+        alignment: Alignment.center,
+        transform: Matrix4.rotationY(3.1415926535897932), // pi
+        child: textWidget,
+      );
+    }
+    if (flipY) {
+      textWidget = Transform(
+        alignment: Alignment.center,
+        transform: Matrix4.rotationX(3.1415926535897932), // pi
+        child: textWidget,
+      );
+    }
+    if (rotation != 0) {
+      textWidget = Transform.rotate(
+        angle: rotation * 3.1415926535897932 / 180,
+        child: textWidget,
+      );
+    }
+
+    return textWidget;
+  }
+
+  Widget _buildVectorShapeV10(
+    Map<String, dynamic> layer,
+    String lname,
+    double scale,
+    double nativeW,
+    double nativeH,
+    int renderVersion,
+  ) {
+    final String shapeType = (layer['shapeType'] ?? 'rect')
+        .toString()
+        .toLowerCase();
+    debugPrint(
+      '🔴 [DIAGNOSIS-SHAPE] name="$lname" shapeType="$shapeType" fallback=${layer['_fallback_src'] != null}',
+    );
+
+    // If it's an icon shape, delegate to _buildIconLayer
+    final bool hasMetaIcon =
+        layer['_source_meta'] is Map &&
+        layer['_source_meta']['iconName'] != null;
+    if (shapeType == 'icon' || layer['iconName'] != null || hasMetaIcon) {
+      return _buildIconLayer(
+        layer,
+        lname,
+        scale,
+        nativeW,
+        nativeH,
+        renderVersion,
+      );
+    }
+
+    final double w = nativeW * scale;
+    final double h = nativeH * scale;
+    final double opacity = safeDouble(layer['opacity'] ?? 1.0);
+    final double rotation = safeDouble(layer['rotation'] ?? 0);
+
+    // ── Parse Fill Color ──
+    Color fillColor = Colors.transparent;
+    List<Color>? gradientColors;
+    Gradient? gradient;
+
+    // V10 Stroke and Fill parsing
+    final dynamic fillVal = layer['fill_color'] ?? layer['fill'];
+    if (fillVal is String && fillVal.isNotEmpty && fillVal != 'none') {
+      fillColor = _parseColor(fillVal, fallback: Colors.transparent);
+      gradientColors = _parseGradient(fillVal);
+    } else if (fillVal is Map) {
+      gradient = _fabricGradientToFlutter(fillVal, w, h);
+    }
+
+    // Parse Stroke
+    Color strokeColor = Colors.transparent;
+    double strokeWidth = 0;
+    final dynamic strokeVal = layer['stroke_color'] ?? layer['stroke'];
+    if (strokeVal != null &&
+        strokeVal.toString() != 'null' &&
+        strokeVal.toString() != 'none') {
+      strokeColor = _parseColor(strokeVal.toString());
+      strokeWidth =
+          safeDouble(layer['stroke_width'] ?? layer['strokeWidth'] ?? 0) *
+          scale;
+    }
+
+    // Parse Border Radius.  V10 may carry four independent corners from the
+    // web editor; pre-V10 data remains on the existing rx/ry path.
+    final dynamic rawCornerRadii =
+        layer['corner_radii'] ?? layer['cornerRadii'];
+    final Map<dynamic, dynamic>? cornerRadii =
+        rawCornerRadii is Map ? rawCornerRadii : null;
+    double readCornerRadius(List<String> keys, double fallback) {
+      if (cornerRadii == null) return fallback;
+      for (final key in keys) {
+        final value = cornerRadii[key];
+        if (value != null) return safeDouble(value) * scale;
+      }
+      return fallback;
+    }
+
+    final double cornerRadius =
+        safeDouble(layer['corner_radius'] ?? 0) * scale;
+    final double rx = cornerRadius > 0
+        ? cornerRadius
+        : safeDouble(layer['rx'] ?? 0) * scale;
+    final double ry = cornerRadius > 0
+        ? cornerRadius
+        : safeDouble(layer['ry'] ?? 0) * scale;
+    final double topLeftRadius =
+        readCornerRadius(['top_left', 'topLeft', 'tl'], rx);
+    final double topRightRadius =
+        readCornerRadius(['top_right', 'topRight', 'tr'], rx);
+    final double bottomRightRadius =
+        readCornerRadius(['bottom_right', 'bottomRight', 'br'], rx);
+    final double bottomLeftRadius =
+        readCornerRadius(['bottom_left', 'bottomLeft', 'bl'], rx);
+    final BorderRadius? rectangleBorderRadius = cornerRadii != null
+        ? (topLeftRadius > 0 ||
+                topRightRadius > 0 ||
+                bottomRightRadius > 0 ||
+                bottomLeftRadius > 0)
+            ? BorderRadius.only(
+                topLeft: Radius.circular(topLeftRadius),
+                topRight: Radius.circular(topRightRadius),
+                bottomRight: Radius.circular(bottomRightRadius),
+                bottomLeft: Radius.circular(bottomLeftRadius),
+              )
+            : null
+        : (rx > 0 || ry > 0)
+            ? BorderRadius.all(Radius.elliptical(rx, ry))
+            : null;
+
+    Widget shapeWidget;
+
+    // ═══════════════════════════════════════════════════════
+    // RECT / ROUNDED RECT
+    // ═══════════════════════════════════════════════════════
+    if (shapeType == 'rect' || shapeType == 'rectangle') {
+      shapeWidget = Container(
+        width: w,
+        height: h,
+        decoration: BoxDecoration(
+          color: gradient == null ? fillColor : null,
+          gradient: gradient,
+          borderRadius: rectangleBorderRadius,
+          border: strokeWidth > 0
+              ? Border.all(color: strokeColor, width: strokeWidth)
+              : null,
+        ),
+      );
+    }
+    // ═══════════════════════════════════════════════════════
+    // ELLIPSE / CIRCLE
+    // ═══════════════════════════════════════════════════════
+    else if (shapeType == 'ellipse' || shapeType == 'circle') {
+      shapeWidget = Container(
+        width: w,
+        height: h,
+        decoration: BoxDecoration(
+          color: gradient == null ? fillColor : null,
+          gradient: gradient,
+          shape: (w == h) ? BoxShape.circle : BoxShape.rectangle,
+          borderRadius: (w != h)
+              ? BorderRadius.all(Radius.elliptical(w / 2, h / 2))
+              : null,
+          border: strokeWidth > 0
+              ? Border.all(color: strokeColor, width: strokeWidth)
+              : null,
+        ),
+      );
+    }
+    // ═══════════════════════════════════════════════════════
+    // TRIANGLE
+    // ═══════════════════════════════════════════════════════
+    else if (shapeType == 'triangle') {
+      shapeWidget = SizedBox(
+        width: w,
+        height: h,
+        child: CustomPaint(
+          painter: _TrianglePainter(
+            fillColor: fillColor,
+            strokeColor: strokeColor,
+            strokeWidth: strokeWidth,
+            gradient: gradient,
+          ),
+        ),
+      );
+    }
+    // ═══════════════════════════════════════════════════════
+    // LINE
+    // ═══════════════════════════════════════════════════════
+    else if (shapeType == 'line') {
+      shapeWidget = SizedBox(
+        width: w,
+        height: h.clamp(1.0, double.infinity),
+        child: CustomPaint(
+          painter: _LinePainter(
+            color: strokeColor != Colors.transparent ? strokeColor : fillColor,
+            strokeWidth: strokeWidth > 0 ? strokeWidth : 1.0 * scale,
+          ),
+        ),
+      );
+    }
+    // ═══════════════════════════════════════════════════════
+    // COMPLEX SHAPES (polygon, path) — use fallback PNG
+    // ═══════════════════════════════════════════════════════
+    else {
+      final String fallbackSrc = layer['_fallback_src'] ?? layer['src'] ?? '';
+      if (fallbackSrc.isNotEmpty) {
+        return _buildImageLayer(layer, lname, scale, nativeW, nativeH);
+      }
+      shapeWidget = Container(width: w, height: h, color: fillColor);
+    }
+
+    // ── Apply Gradient via ShaderMask if fill is string gradient ──
+    if (gradientColors != null &&
+        gradientColors.length >= 2 &&
+        gradient == null) {
+      String gradientDir = (layer['gradient_direction'] ?? 'vertical')
+          .toString();
+      Alignment begin = Alignment.topCenter;
+      Alignment end = Alignment.bottomCenter;
+      if (gradientDir.contains('horizontal') || gradientDir.contains('left')) {
+        begin = Alignment.centerLeft;
+        end = Alignment.centerRight;
+      }
+      shapeWidget = ShaderMask(
+        blendMode: BlendMode.srcIn,
+        shaderCallback: (bounds) => LinearGradient(
+          begin: begin,
+          end: end,
+          colors: gradientColors!,
+        ).createShader(bounds),
+        child: shapeWidget,
+      );
+    }
+
+    // ── Apply Opacity ──
+    if (opacity < 1.0 && opacity >= 0.0) {
+      shapeWidget = Opacity(opacity: opacity, child: shapeWidget);
+    }
+
+    // ── Apply Rotation ──
+    if (rotation != 0) {
+      shapeWidget = Transform.rotate(
+        angle: rotation * 3.1415926535897932 / 180,
+        child: shapeWidget,
+      );
+    }
+
+    return shapeWidget;
+  }
+
   Widget _buildIconLayer(
     Map<String, dynamic> layer,
     String lname,
@@ -3310,10 +3948,107 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     double nativeH,
     int renderVersion,
   ) {
+    if (renderVersion == 10) {
+      return _buildIconLayerV10(layer, lname, scale, nativeW, nativeH);
+    }
     if (renderVersion >= 9) {
       return _buildIconLayerV9(layer, lname, scale, nativeW, nativeH);
     }
     return _buildIconLayerV8(layer, lname, scale, nativeW, nativeH);
+  }
+
+  /// V10 icon contract: raw SVG + immutable original colour + exact bounds.
+  /// This intentionally does not use the V8/V9 "minimum icon size" code,
+  /// which was the source of icons becoming smaller/larger after a reload.
+  Widget _buildIconLayerV10(
+    Map<String, dynamic> layer,
+    String lname,
+    double scale,
+    double nativeW,
+    double nativeH,
+  ) {
+    final Map<dynamic, dynamic>? sourceMeta = layer['_source_meta'] is Map
+        ? layer['_source_meta'] as Map<dynamic, dynamic>
+        : null;
+    String svg = sourceMeta?['originalSvg']?.toString() ?? '';
+    if (svg.isEmpty)
+      return _buildImageLayer(layer, lname, scale, nativeW, nativeH);
+
+    final String color =
+        (layer['_resolved_color'] ??
+                layer['original_color'] ??
+                layer['tint_color'] ??
+                layer['color'] ??
+                layer['font_color'] ??
+                '#333333')
+            .toString();
+    final Color parsedColor = _parseColor(
+      color,
+      fallback: const Color(0xFF333333),
+    );
+    final String hex =
+        '#${(parsedColor.value & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
+
+    // Preserve transparent/hollow paths.  The prior renderer replaced
+    // fill="none" too, turning some icons into a dark square/solid blob.
+    svg = svg
+        .replaceAllMapped(
+          RegExp(
+            r'''\b(fill|stroke)\s*=\s*(["'])(?!none\b|transparent\b|url\()[^"']*\2''',
+            caseSensitive: false,
+          ),
+          (match) => '${match[1]}="$hex"',
+        )
+        .replaceAllMapped(
+          RegExp(
+            r'''\b(fill|stroke)\s*:\s*(?!none\b|transparent\b|url\()[^;"']+''',
+            caseSensitive: false,
+          ),
+          (match) => '${match[1]}:$hex',
+        )
+        .replaceAll(
+          RegExp(r'''\bwidth\s*=\s*["'][^"']*["']''', caseSensitive: false),
+          '',
+        )
+        .replaceAll(
+          RegExp(r'''\bheight\s*=\s*["'][^"']*["']''', caseSensitive: false),
+          '',
+        );
+
+    final double width = nativeW > 0 ? nativeW * scale : 48 * scale;
+    final double height = nativeH > 0 ? nativeH * scale : 48 * scale;
+    Widget icon = SvgPicture.string(
+      svg,
+      width: width,
+      height: height,
+      fit: BoxFit.contain,
+    );
+
+    if (layer['flipX'] == true || layer['flip_x'] == true) {
+      icon = Transform(
+        alignment: Alignment.center,
+        transform: Matrix4.rotationY(math.pi),
+        child: icon,
+      );
+    }
+    if (layer['flipY'] == true || layer['flip_y'] == true) {
+      icon = Transform(
+        alignment: Alignment.center,
+        transform: Matrix4.rotationX(math.pi),
+        child: icon,
+      );
+    }
+    final double rotation = safeDouble(
+      layer['rotation'] ?? layer['angle'] ?? 0,
+    );
+    if (rotation != 0) {
+      icon = Transform.rotate(angle: rotation * math.pi / 180, child: icon);
+    }
+    final double opacity = safeDouble(layer['opacity'] ?? 1.0);
+    if (opacity < 1.0)
+      icon = Opacity(opacity: opacity.clamp(0.0, 1.0), child: icon);
+
+    return SizedBox(width: width, height: height, child: icon);
   }
 
   Widget _buildIconLayerV8(
@@ -4186,12 +4921,6 @@ class _CustomImageMaskWidgetState extends State<CustomImageMaskWidget> {
     return ShaderMask(
       blendMode: BlendMode.dstIn,
       shaderCallback: (Rect bounds) {
-        // The mask PNG is the shape rendered at its exact bounds (e.g. 824x1804).
-        // NOT a full-canvas mask. So we simply scale the mask image
-        // to fill the widget bounds — the shape's alpha channel does the clipping.
-        // ImageShader matrix scales the IMAGE. So to fit a maskW image into bounds.width,
-        // we scale by (bounds.width / maskW).
-
         final double scaleX = maskW > 0 ? bounds.width / maskW : 1.0;
         final double scaleY = maskH > 0 ? bounds.height / maskH : 1.0;
 

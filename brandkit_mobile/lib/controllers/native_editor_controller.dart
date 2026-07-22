@@ -314,6 +314,7 @@ class NativeEditorController extends GetxController {
 
     // Default render_version to 1 for legacy frames without versioning
     templateConfig['render_version'] ??= 1;
+    _ensureV10LayerIds(templateConfig['layers']);
 
     if (editorType == 'business_custom_frame') {
       _injectDynamicBusinessFrame();
@@ -963,7 +964,7 @@ class NativeEditorController extends GetxController {
     if (layers == null) return;
 
     for (var layer in layers) {
-      if ((layer['name'] ?? layer['id']).toString() == layerName) {
+      if (_matchesLayerReference(layer, layerName)) {
         layer['x'] = x;
         layer['y'] = y;
         layer['w'] = w;
@@ -989,6 +990,19 @@ class NativeEditorController extends GetxController {
   void toggleVisibility(String layerName, bool isVisible) {
     final layers = templateConfig['layers'] as List<dynamic>?;
     if (layers == null) return;
+
+    if (_renderVersion() == 10) {
+      for (final layer in layers) {
+        if (_matchesLayerReference(layer, layerName)) {
+          layer['opacity'] = isVisible ? 1.0 : 0.0;
+          layerUpdateTrigger.value++;
+          templateConfig.refresh();
+          _pushHistory();
+          return;
+        }
+      }
+      return;
+    }
 
     final targets = layerName
         .split(',')
@@ -1141,7 +1155,7 @@ class NativeEditorController extends GetxController {
 
     bool found = false;
     for (var layer in layers) {
-      if ((layer['name'] ?? layer['id']).toString() == layerName) {
+      if (_matchesLayerReference(layer, layerName)) {
         layer[property] = value;
         found = true;
         break;
@@ -1205,7 +1219,7 @@ class NativeEditorController extends GetxController {
     if (layers == null) return;
 
     for (var layer in layers) {
-      if ((layer['name'] ?? layer['id']).toString() == layerName) {
+      if (_matchesLayerReference(layer, layerName)) {
         properties.forEach((key, value) {
           layer[key] = value;
         });
@@ -1225,6 +1239,7 @@ class NativeEditorController extends GetxController {
       'font_color': color,
       'tint_color': color,
       'original_color': color,
+      '_resolved_color': color,
     });
   }
 
@@ -1232,9 +1247,7 @@ class NativeEditorController extends GetxController {
     final layers = templateConfig['layers'] as List<dynamic>?;
     if (layers == null) return;
 
-    layers.removeWhere(
-      (layer) => (layer['name'] ?? layer['id']).toString() == layerName,
-    );
+    layers.removeWhere((layer) => _matchesLayerReference(layer, layerName));
     if (selectedLayerId.value == layerName) selectedLayerId.value = '';
 
     templateConfig.refresh();
@@ -1248,6 +1261,10 @@ class NativeEditorController extends GetxController {
       layers = templateConfig['layers'];
     }
 
+    if (_renderVersion() == 10 &&
+        (newLayer['id'] == null || newLayer['id'].toString().trim().isEmpty)) {
+      newLayer['id'] = 'v10_user_${DateTime.now().microsecondsSinceEpoch}';
+    }
     layers!.add(newLayer);
     templateConfig.refresh();
     _pushHistory();
@@ -1257,7 +1274,9 @@ class NativeEditorController extends GetxController {
     final layers = templateConfig['layers'] as List<dynamic>?;
     if (layers == null) return;
 
-    int oldIndex = layers.indexWhere((l) => l['name'] == layerName);
+    int oldIndex = layers.indexWhere(
+      (l) => _matchesLayerReference(l, layerName),
+    );
     if (oldIndex != -1) {
       final layer = layers.removeAt(oldIndex);
       if (newIndex > layers.length) newIndex = layers.length;
@@ -1266,6 +1285,49 @@ class NativeEditorController extends GetxController {
 
       templateConfig.refresh();
       _pushHistory();
+    }
+  }
+
+  int _renderVersion() {
+    final value = templateConfig['render_version'];
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 1;
+  }
+
+  bool _matchesLayerReference(dynamic rawLayer, String reference) {
+    if (rawLayer is! Map) return false;
+    // V10 assigns a UUID to every editable layer.  Names are presentation
+    // labels and may repeat, so using one cannot be allowed to update/delete
+    // a different icon.
+    if (_renderVersion() == 10) {
+      return rawLayer['id']?.toString() == reference;
+    }
+    return (rawLayer['name'] ?? rawLayer['id']).toString() == reference;
+  }
+
+  void _ensureV10LayerIds(dynamic rawLayers) {
+    if (_renderVersion() != 10 || rawLayers is! List) return;
+    final Set<String> used = <String>{};
+    for (int index = 0; index < rawLayers.length; index++) {
+      final layer = rawLayers[index];
+      if (layer is! Map) continue;
+      final String existing = layer['id']?.toString().trim() ?? '';
+      if (existing.isNotEmpty && !used.contains(existing)) {
+        used.add(existing);
+        continue;
+      }
+      final String safeName = (layer['name'] ?? 'layer').toString().replaceAll(
+        RegExp(r'[^a-zA-Z0-9]+'),
+        '_',
+      );
+      String id = 'v10_runtime_${index}_$safeName';
+      int suffix = 1;
+      while (used.contains(id)) {
+        id = 'v10_runtime_${index}_${safeName}_$suffix';
+        suffix++;
+      }
+      layer['id'] = id;
+      used.add(id);
     }
   }
 
@@ -2213,6 +2275,7 @@ class NativeEditorController extends GetxController {
           (configJson != null && configJson['render_version'] != null)) {
         templateConfig['render_version'] = newRenderVersion;
       }
+      _ensureV10LayerIds(templateConfig['layers']);
 
       debugPrint(
         '[DIAGNOSIS_CANVAS] --------------------------------------------',
@@ -2433,6 +2496,7 @@ class NativeEditorController extends GetxController {
     List<Map<String, dynamic>> shapeLayers,
   ) async {
     try {
+      final int renderVersion = _renderVersion();
       // Process shape images to find their actual brightness
       for (var shape in shapeLayers) {
         if (shape['fill'] == null &&
@@ -2714,7 +2778,10 @@ class NativeEditorController extends GetxController {
       // PASS 1: Apply colors to TEXT layers first
       for (var newLayer in newLayers) {
         if (newLayer['type'] == 'text') {
-          if (_applyDynamicTextColor(newLayer, templateIsDark, shapeLayers)) {
+          final bool changed = renderVersion == 10
+              ? _applyV10DynamicColor(newLayer, templateIsDark, shapeLayers)
+              : _applyDynamicTextColor(newLayer, templateIsDark, shapeLayers);
+          if (changed) {
             needsRefresh = true;
           }
         }
@@ -2763,7 +2830,10 @@ class NativeEditorController extends GetxController {
                     (newLayer['_source_meta'] is Map &&
                         newLayer['_source_meta']['type'] == 'icon')));
         if (!isIcon) continue;
-        if (_applyDynamicTextColor(newLayer, templateIsDark, shapeLayers)) {
+        final bool changed = renderVersion == 10
+            ? _applyV10DynamicColor(newLayer, templateIsDark, shapeLayers)
+            : _applyDynamicTextColor(newLayer, templateIsDark, shapeLayers);
+        if (changed) {
           needsRefresh = true;
         }
       }
@@ -2777,6 +2847,119 @@ class NativeEditorController extends GetxController {
     }
   }
 
+  /// V10 dynamic colour is non-destructive: the saved colour is immutable and
+  /// only `_resolved_color` changes for the current native preview.
+  bool _applyV10DynamicColor(
+    Map<String, dynamic> layer,
+    bool templateIsDark,
+    List<Map<String, dynamic>> shapeLayers,
+  ) {
+    final String type = layer['type']?.toString() ?? '';
+    final bool isText = type == 'text';
+    final bool isIcon = type == 'icon';
+    if (!isText && !isIcon) return false;
+
+    // Custom/post designs intentionally retain their authored colours.
+    final String templateType =
+        (Get.parameters['type'] ?? templateConfig['type'] ?? '')
+            .toString()
+            .toLowerCase();
+    if (templateType.contains('custom') || templateType == 'post') return false;
+
+    final Map<dynamic, dynamic>? sourceMeta = layer['_source_meta'] is Map
+        ? layer['_source_meta'] as Map<dynamic, dynamic>
+        : null;
+    String original = layer['original_color']?.toString().trim() ?? '';
+    if (original.isEmpty) {
+      final candidates = isIcon
+          ? [
+              layer['tint_color'],
+              layer['color'],
+              sourceMeta?['original_color'],
+              layer['font_color'],
+            ]
+          : [
+              layer['color'],
+              sourceMeta?['original_color'],
+              layer['font_color'],
+              layer['tint_color'],
+            ];
+      for (final candidate in candidates) {
+        final value = candidate?.toString().trim() ?? '';
+        if (value.isNotEmpty) {
+          original = value;
+          break;
+        }
+      }
+      if (original.isEmpty) return false;
+      layer['original_color'] = original;
+    }
+
+    final double x = safeDouble(layer['x'] ?? 0);
+    final double y = safeDouble(layer['y'] ?? 0);
+    final double w = safeDouble(layer['w'] ?? layer['width'] ?? 0);
+    final double h = safeDouble(layer['h'] ?? layer['height'] ?? 0);
+    final double centerX = x + w / 2;
+    final double centerY = y + h / 2;
+    final int zIndex = _layerZIndex(layer);
+
+    Map<String, dynamic>? backdrop;
+    for (final candidate in shapeLayers) {
+      // A layer cannot be its own backdrop and a higher/equal z-index layer is
+      // visually above it.  The greatest lower z-index is the physical layer
+      // immediately beneath this text/icon.
+      if (_layerZIndex(candidate) >= zIndex) continue;
+      final double sx = safeDouble(candidate['x'] ?? 0);
+      final double sy = safeDouble(candidate['y'] ?? 0);
+      final double sw = safeDouble(candidate['w'] ?? candidate['width'] ?? 0);
+      final double sh = safeDouble(candidate['h'] ?? candidate['height'] ?? 0);
+      if (centerX < sx ||
+          centerX > sx + sw ||
+          centerY < sy ||
+          centerY > sy + sh) {
+        continue;
+      }
+      if (backdrop == null ||
+          _layerZIndex(candidate) > _layerZIndex(backdrop)) {
+        backdrop = candidate;
+      }
+    }
+
+    bool backgroundIsDark = templateIsDark;
+    if (backdrop != null) {
+      if (backdrop['hasComputedBrightness'] == true) {
+        backgroundIsDark = backdrop['shapeIsDark'] == true;
+      } else {
+        final String fill = backdrop['fill']?.toString().trim() ?? '';
+        if (_isSafelyParsableColor(fill)) {
+          final Color color = _parseColor(fill, fallback: Colors.white);
+          final double brightness =
+              0.299 * color.red + 0.587 * color.green + 0.114 * color.blue;
+          backgroundIsDark = brightness < 160;
+        }
+      }
+    }
+
+    // The resolver returns the raw value unchanged when it cannot safely parse
+    // it, which protects gradients/custom CSS colours from a forced black/white.
+    final String resolved = DynamicColorResolver.resolve(
+      originalColor: original,
+      backgroundIsDark: backgroundIsDark,
+    );
+    if (layer['_resolved_color'] == resolved) return false;
+    layer['_resolved_color'] = resolved;
+    return true;
+  }
+
+  bool _isSafelyParsableColor(String value) {
+    final String color = value.trim();
+    return RegExp(r'^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$').hasMatch(color) ||
+        RegExp(r'^0x[0-9a-fA-F]{8}$', caseSensitive: false).hasMatch(color) ||
+        RegExp(
+          r'^rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\)$',
+        ).hasMatch(color);
+  }
+
   bool _applyDynamicTextColor(
     Map<String, dynamic> layer,
     bool templateIsDark,
@@ -2786,6 +2969,14 @@ class NativeEditorController extends GetxController {
     debugPrint(
       '[COLOR_DIAG] Starting _applyDynamicTextColor for layer: "$diagName" (type: ${layer['type']})',
     );
+
+    int renderVersion = templateConfig['render_version'] ?? 1;
+    if (renderVersion == 10 &&
+        layer['_source_meta'] is Map &&
+        layer['_source_meta']['originalColor'] != null) {
+      debugPrint('[COLOR_DIAG] ❌ SKIPPED: V10+ respects originalColor');
+      return false;
+    }
 
     // DO NOT override user colors for Custom templates / frames!
     final type =

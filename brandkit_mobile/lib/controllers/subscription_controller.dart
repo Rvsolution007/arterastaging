@@ -9,7 +9,7 @@ import 'ad_controller.dart';
 /// Central GetX controller for subscription state management.
 /// Provides plan info, feature usage data, and helper methods
 /// for the Profile card, Header badge, and Plans screen.
-class SubscriptionController extends GetxController {
+class SubscriptionController extends GetxController with WidgetsBindingObserver {
   // ── Plan Info ──
   final planName = ''.obs;
   final planDuration = ''.obs;
@@ -41,7 +41,29 @@ class SubscriptionController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    WidgetsBinding.instance.addObserver(this);
     loadFromPrefs();
+  }
+
+  @override
+  void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.onClose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshSilently();
+    }
+  }
+
+  Future<void> _refreshSilently() async {
+    try {
+      await refreshFromApi();
+    } catch (e) {
+      debugPrint('Silent subscription refresh failed: $e');
+    }
   }
 
   /// Load subscription info from SharedPreferences (saved on login)

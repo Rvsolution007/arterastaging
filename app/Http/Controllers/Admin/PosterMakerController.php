@@ -900,7 +900,7 @@ class PosterMakerController extends Controller
             ->pluck('render_version');
 
         // Current max version (from the JS constant)
-        $currentMaxVersion = 9;
+        $currentMaxVersion = 10;
 
         return view('poster_maker.version_control', [
             'data' => $data,

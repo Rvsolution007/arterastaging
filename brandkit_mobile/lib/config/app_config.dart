@@ -7,7 +7,7 @@ class AppConfig {
   );
   static const String _localBaseUrl = String.fromEnvironment(
     'LOCAL_API_BASE_URL',
-    defaultValue: 'http://192.168.1.37/Artera/123456',
+    defaultValue: 'http://192.168.1.40/Artera/123456',
   );
   static const bool _localUsesIndexFrontController = bool.fromEnvironment(
     'LOCAL_USE_INDEX_FRONT_CONTROLLER',

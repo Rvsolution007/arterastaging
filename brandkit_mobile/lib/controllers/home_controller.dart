@@ -1,11 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../config/app_config.dart';
-import 'subscription_controller.dart';
 import '../services/notification_service.dart';
 import 'app_update_controller.dart';
 import 'native_editor_controller.dart';
@@ -321,6 +319,16 @@ class HomeController extends GetxController {
     }
   }
 
+  Future<dynamic> _fetchEndpoint(String url, String label) async {
+    try {
+      final response = await ApiService.get(url);
+      return response;
+    } catch (e) {
+      debugPrint('[HomeCtrl] Failed to fetch $label: $e');
+      return null;
+    }
+  }
+
   Future<void> fetchHomeData() async {
     try {
       isLoading(true);
@@ -329,159 +337,185 @@ class HomeController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('userId') ?? '';
 
-      // ── PERF: Fire ALL API calls in parallel instead of sequential ──
-      // Previously these were 9 sequential awaits (~4-5s total).
-      // Now they all start at the same time and we await all together.
       final customUrl = userId.isNotEmpty ? '/custom-post-category?userId=$userId' : '/custom-post-category';
       
       final results = await Future.wait([
-        ApiService.get('/get-home-data'),                  // [0] Main home data
-        ApiService.get(customUrl),                         // [1] Custom posts
-        ApiService.get('/get_greeting_categories'),        // [2] Greetings
-        ApiService.get('/story'),                           // [3] Stories
-        ApiService.get('/news'),                            // [4] News
-        ApiService.get('/get-video'),                       // [5] Videos
-        ApiService.get('/notifications'),                   // [6] Notifications
-        ApiService.get('/language'),                        // [7] Languages
-      ], eagerError: false);
+        _fetchEndpoint('/get-home-data', 'Home Data'),
+        _fetchEndpoint(customUrl, 'Custom Posts'),
+        _fetchEndpoint('/get_greeting_categories', 'Greetings'),
+        _fetchEndpoint('/story', 'Stories'),
+        _fetchEndpoint('/news', 'News'),
+        _fetchEndpoint('/get-video', 'Videos'),
+        _fetchEndpoint('/notifications', 'Notifications'),
+        _fetchEndpoint('/language', 'Languages'),
+      ]);
+
+      int successCount = 0;
+      List<String> failedEndpoints = [];
 
       // ── Parse [0] Main home data ──
-      if (results[0].statusCode == 200) {
-        final data = jsonDecode(results[0].body);
-        categories.value = data['Category'] ?? [];
-        upcomingFestivals.value = data['Festival'] ?? [];
-        customCategories.value = data['BusinessCategory'] ?? [];
-        profileCategories.value = data['ProfileBusinessCategory'] ?? [];
+      if (results[0] != null && results[0].statusCode == 200) {
+        successCount++;
+        try {
+          final data = jsonDecode(results[0].body);
+          categories.value = data['Category'] ?? [];
+          upcomingFestivals.value = data['Festival'] ?? [];
+          customCategories.value = data['BusinessCategory'] ?? [];
+          profileCategories.value = data['ProfileBusinessCategory'] ?? [];
 
-        // Parse policies
-        privacyPolicyHtml.value = data['privacyPolicyHtml'] ?? '';
-        termsConditionHtml.value = data['termsConditionHtml'] ?? '';
-        refundPolicyHtml.value = data['refundPolicyHtml'] ?? '';
-        
-        // App update check
-        if (data['appUpdate'] != null) {
-          appUpdate = Map<String, dynamic>.from(data['appUpdate']);
-          AppUpdateController.showUpdateDialogIfNeeded(appUpdate!);
+          // Parse policies
+          privacyPolicyHtml.value = data['privacyPolicyHtml'] ?? '';
+          termsConditionHtml.value = data['termsConditionHtml'] ?? '';
+          refundPolicyHtml.value = data['refundPolicyHtml'] ?? '';
+          
+          // App update check
+          if (data['appUpdate'] != null) {
+            appUpdate = Map<String, dynamic>.from(data['appUpdate']);
+            AppUpdateController.showUpdateDialogIfNeeded(appUpdate!);
+          }
+        } catch (e) {
+          debugPrint('[HomeCtrl] Home data parse error: $e');
         }
-      }
-
-      // Also refresh subscription and limits silently
-      try {
-        if (Get.isRegistered<SubscriptionController>()) {
-          Get.find<SubscriptionController>().refreshFromApi();
-        }
-      } catch (e) {
-        debugPrint('[HomeCtrl] Failed to refresh subscription: $e');
+      } else {
+        failedEndpoints.add('Home Data');
       }
 
       // Fallback: If festivals are empty, try dedicated endpoint
       if (upcomingFestivals.isEmpty) {
-        try {
-          final festivalResponse = await ApiService.get('/festival');
-          if (festivalResponse.statusCode == 200) {
+        final festivalResponse = await _fetchEndpoint('/festival', 'Festival Fallback');
+        if (festivalResponse != null && festivalResponse.statusCode == 200) {
+          try {
             final festivalData = jsonDecode(festivalResponse.body);
             if (festivalData is List) {
               upcomingFestivals.value = festivalData;
             }
-          }
-        } catch (e) { /* Festival fetch failed */ }
+          } catch (e) { /* Festival fallback parse failed */ }
+        }
       }
 
       // Fallback: If categories are empty, try dedicated endpoint
       if (categories.isEmpty) {
-        try {
-          final catResponse = await ApiService.get('/category');
-          if (catResponse.statusCode == 200) {
+        final catResponse = await _fetchEndpoint('/category', 'Category Fallback');
+        if (catResponse != null && catResponse.statusCode == 200) {
+          try {
             final catData = jsonDecode(catResponse.body);
             if (catData is List) {
               categories.value = catData;
             }
-          }
-        } catch (e) { /* Category fetch failed */ }
+          } catch (e) { /* Category fallback parse failed */ }
+        }
       }
 
       // ── Parse [1] Custom posts ──
-      try {
-        if (results[1].statusCode == 200) {
+      if (results[1] != null && results[1].statusCode == 200) {
+        successCount++;
+        try {
           final customData = jsonDecode(results[1].body);
           final List<dynamic> posts = customData['data'] ?? [];
           debugPrint('[HomeCtrl] Received ${posts.length} custom post categories');
           customPosts.value = posts;
           recentCustomPosts.value = customData['recent_posts'] ?? [];
+        } catch (e) {
+          debugPrint('[HomeCtrl] Custom posts parse error: $e');
         }
-      } catch (e) {
-        debugPrint('[HomeCtrl] Custom posts parse error: $e');
+      } else {
+        failedEndpoints.add('Custom Posts');
       }
 
       // ── Parse [2] Greetings ──
-      try {
-        if (results[2].statusCode == 200) {
+      if (results[2] != null && results[2].statusCode == 200) {
+        successCount++;
+        try {
           final greetingData = jsonDecode(results[2].body);
           final List<dynamic> posts = greetingData['data'] ?? [];
           debugPrint('[HomeCtrl] Received ${posts.length} greeting categories');
           greetingCategories.value = posts;
+        } catch (e) {
+          debugPrint('[HomeCtrl] Greeting categories parse error: $e');
         }
-      } catch (e) {
-        debugPrint('[HomeCtrl] Greeting categories parse error: $e');
+      } else {
+        failedEndpoints.add('Greetings');
       }
 
       // ── Parse [3] Stories ──
-      try {
-        if (results[3].statusCode == 200) {
+      if (results[3] != null && results[3].statusCode == 200) {
+        successCount++;
+        try {
           final storyData = jsonDecode(results[3].body);
           if (storyData is List) {
             stories.value = storyData;
           } else if (storyData['data'] is List) {
             stories.value = storyData['data'];
           }
-        }
-      } catch (e) { /* Stories fetch failed */ }
+        } catch (e) { /* Stories fetch failed */ }
+      } else {
+        failedEndpoints.add('Stories');
+      }
 
       // ── Parse [4] News ──
-      try {
-        if (results[4].statusCode == 200) {
+      if (results[4] != null && results[4].statusCode == 200) {
+        successCount++;
+        try {
           final newsData = jsonDecode(results[4].body);
           if (newsData is List) {
             news.value = newsData;
           } else if (newsData['data'] is List) {
             news.value = newsData['data'];
           }
-        }
-      } catch (e) { /* News fetch failed */ }
+        } catch (e) { /* News fetch failed */ }
+      } else {
+        failedEndpoints.add('News');
+      }
 
       // ── Parse [5] Videos ──
-      try {
-        if (results[5].statusCode == 200) {
+      if (results[5] != null && results[5].statusCode == 200) {
+        successCount++;
+        try {
           final videoData = jsonDecode(results[5].body);
           if (videoData is List) {
             videos.value = videoData;
           } else if (videoData['data'] is List) {
             videos.value = videoData['data'];
           }
-        }
-      } catch (e) { /* Videos fetch failed */ }
+        } catch (e) { /* Videos fetch failed */ }
+      } else {
+        failedEndpoints.add('Videos');
+      }
 
       // ── Parse [6] Notifications ──
-      try {
-        if (results[6].statusCode == 200) {
+      if (results[6] != null && results[6].statusCode == 200) {
+        successCount++;
+        try {
           final notifData = jsonDecode(results[6].body);
           if (notifData is List) {
             notifications.value = notifData;
           }
-        }
-      } catch (e) { /* Notifications fetch failed */ }
+        } catch (e) { /* Notifications fetch failed */ }
+      } else {
+        failedEndpoints.add('Notifications');
+      }
 
       // ── Parse [7] Languages ──
-      try {
-        if (results[7].statusCode == 200) {
+      if (results[7] != null && results[7].statusCode == 200) {
+        successCount++;
+        try {
           final langData = jsonDecode(results[7].body);
           if (langData is List) {
             languages.value = langData;
           }
-        }
-      } catch (e) { /* Languages fetch failed */ }
+        } catch (e) { /* Languages fetch failed */ }
+      } else {
+        failedEndpoints.add('Languages');
+      }
+
+      if (successCount == 0) {
+        Get.snackbar('Error', 'Unable to connect to server', backgroundColor: Colors.redAccent, colorText: Colors.white);
+      } else if (failedEndpoints.isNotEmpty) {
+        debugPrint('[HomeCtrl] Partial failure. Failed to load: ${failedEndpoints.join(", ")}');
+      }
     } catch (e) {
-      Get.snackbar('Error', 'An error occurred while fetching data');
+      debugPrint('[HomeCtrl] Unexpected error in fetchHomeData: $e');
+      Get.snackbar('Error', 'An unexpected error occurred');
     } finally {
       isLoading(false);
     }

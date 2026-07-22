@@ -641,13 +641,33 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
     final layers = controller.templateConfig['layers'];
     if (layers == null) return null;
 
+    final int renderVersion = controller.templateConfig['render_version'] is num
+        ? (controller.templateConfig['render_version'] as num).toInt()
+        : int.tryParse(
+                controller.templateConfig['render_version']?.toString() ?? '',
+              ) ??
+              1;
     for (var l in layers) {
-      if ((l['name'] ?? l['id']).toString() ==
-          controller.selectedLayerId.value) {
+      final String reference = renderVersion == 10
+          ? (l['id']?.toString() ?? '')
+          : (l['name'] ?? l['id']).toString();
+      if (reference == controller.selectedLayerId.value) {
         return l as Map<String, dynamic>;
       }
     }
     return null;
+  }
+
+  String _layerReference(Map<dynamic, dynamic> layer) {
+    final int renderVersion = controller.templateConfig['render_version'] is num
+        ? (controller.templateConfig['render_version'] as num).toInt()
+        : int.tryParse(
+                controller.templateConfig['render_version']?.toString() ?? '',
+              ) ??
+              1;
+    return renderVersion == 10
+        ? (layer['id']?.toString() ?? (layer['name'] ?? '').toString())
+        : (layer['name'] ?? layer['id']).toString();
   }
 
   Widget _buildInlineEditPanel() {
@@ -662,7 +682,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
               initialValue: layer['text'] ?? '',
               onChanged: (val) {
                 controller.updateLayerProperty(
-                  layer['name'] ?? layer['id'],
+                  _layerReference(layer),
                   'text',
                   val,
                 );
@@ -698,7 +718,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
           IconButton(
             icon: const Icon(Icons.keyboard_arrow_left, size: 32),
             onPressed: () => controller.updateLayerProperty(
-              (layer['name'] ?? layer['id']).toString(),
+              _layerReference(layer),
               'x',
               (layer['x'] ?? 0) - 5,
             ),
@@ -708,7 +728,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
               IconButton(
                 icon: const Icon(Icons.keyboard_arrow_up, size: 32),
                 onPressed: () => controller.updateLayerProperty(
-                  (layer['name'] ?? layer['id']).toString(),
+                  _layerReference(layer),
                   'y',
                   (layer['y'] ?? 0) - 5,
                 ),
@@ -716,7 +736,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
               IconButton(
                 icon: const Icon(Icons.keyboard_arrow_down, size: 32),
                 onPressed: () => controller.updateLayerProperty(
-                  (layer['name'] ?? layer['id']).toString(),
+                  _layerReference(layer),
                   'y',
                   (layer['y'] ?? 0) + 5,
                 ),
@@ -726,7 +746,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
           IconButton(
             icon: const Icon(Icons.keyboard_arrow_right, size: 32),
             onPressed: () => controller.updateLayerProperty(
-              (layer['name'] ?? layer['id']).toString(),
+              _layerReference(layer),
               'x',
               (layer['x'] ?? 0) + 5,
             ),
@@ -762,7 +782,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
           final isSelected = layer['fontFamily'] == font;
           return GestureDetector(
             onTap: () => controller.updateLayerProperty(
-              (layer['name'] ?? layer['id']).toString(),
+              _layerReference(layer),
               'fontFamily',
               font,
             ),
@@ -840,8 +860,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
               max: maxSize,
               activeColor: const Color(0xFF5538EE),
               onChanged: (val) {
-                final String layerName = (layer['name'] ?? layer['id'])
-                    .toString();
+                final String layerName = _layerReference(layer);
                 if (!isText) {
                   final double oldScaleX = toD(layer['scaleX'], 1.0);
                   final double oldScaleY = toD(layer['scaleY'], 1.0);
@@ -942,10 +961,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
               onPressed: () {
                 final hex =
                     '#${pickerColor.value.toRadixString(16).padLeft(8, '0').substring(2)}';
-                controller.setLayerColor(
-                  (layer['name'] ?? layer['id']).toString(),
-                  hex,
-                );
+                controller.setLayerColor(_layerReference(layer), hex);
                 Navigator.of(context).pop();
               },
             ),
@@ -1022,10 +1038,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
           final isSelected = activeColor == hex.toUpperCase();
           return GestureDetector(
             onTap: () {
-              controller.setLayerColor(
-                (layer['name'] ?? layer['id']).toString(),
-                hex,
-              );
+              controller.setLayerColor(_layerReference(layer), hex);
             },
             child: Container(
               width: 36,
@@ -1144,7 +1157,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                                 layer['text'] != null)) {
                           final isBold = layer['weight'] == 'bold';
                           controller.updateLayerProperty(
-                            (layer['name'] ?? layer['id']).toString(),
+                            _layerReference(layer),
                             'weight',
                             isBold ? 'normal' : 'bold',
                           );
@@ -1164,7 +1177,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                                 layer['text'] != null)) {
                           final isItalic = layer['style'] == 'italic';
                           controller.updateLayerProperty(
-                            (layer['name'] ?? layer['id']).toString(),
+                            _layerReference(layer),
                             'style',
                             isItalic ? 'normal' : 'italic',
                           );
@@ -1736,14 +1749,16 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                         }
 
                         final item = reversedLayers[oldIndex];
-                        final itemId = (item['name'] ?? item['id']).toString();
+                        final itemId = _layerReference(item);
 
                         int targetCustomIndex =
                             customLayersCount - 1 - adjustedNewIndex;
 
                         final newAllLayers = List.of(allLayers);
                         newAllLayers.removeWhere(
-                          (l) => (l['name'] ?? l['id']).toString() == itemId,
+                          (l) =>
+                              _layerReference(l as Map<dynamic, dynamic>) ==
+                              itemId,
                         );
 
                         final remainingCustomLayers = newAllLayers
@@ -1942,7 +1957,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                                 onPressed: () {
                                   Navigator.pop(context);
                                   controller.selectLayer(
-                                    (layer['name'] ?? layer['id']).toString(),
+                                    _layerReference(layer),
                                   );
                                 },
                                 tooltip: 'edit_layer'.trFormat,
@@ -1958,7 +1973,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                                   size: 22,
                                 ),
                                 onPressed: () => controller.toggleVisibility(
-                                  (layer['name'] ?? layer['id']).toString(),
+                                  _layerReference(layer),
                                   !isVisible,
                                 ),
                                 tooltip: isVisible

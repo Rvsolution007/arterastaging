@@ -20,7 +20,7 @@
     console.log('[TEMPLATE_BUILDER] v3.0 loaded — fill control + vector paths + complete effects');
     // ── Render Version: ALL rendering logic is versioned. Current code = version 1. ──
     // ── Future rendering changes MUST increment this and add version-gated code paths. ──
-    window.CURRENT_RENDER_VERSION = 9;
+    window.CURRENT_RENDER_VERSION = 10;
     const CURRENT_RENDER_VERSION = window.CURRENT_RENDER_VERSION;
     try {
     
@@ -4399,6 +4399,15 @@
                 layer.type = 'image';
             }
 
+            // V10 preserves legacy raster shapes as editable canvas objects. If a
+            // stored raster cannot be decoded, the V10 fallback remains visible
+            // and selectable instead of becoming an invisible transparent layer.
+            const isV10LegacyRasterShape = renderVersion >= 10 &&
+                layer.is_shape === true && layer.src && layer.src !== '';
+            if (isV10LegacyRasterShape) {
+                layer._v10LegacyRasterShape = true;
+            }
+
             // Shapes with valid src should prioritize rendering as images to preserve PSD layer effects
             if (layer.is_shape === true && layer.src && layer.src !== '') {
                 layer.type = 'image';
@@ -4418,19 +4427,28 @@
 
                 // Helper: show placeholder rect without trying to load the image
                 function showImgPlaceholder() {
+                    const isV10LegacyFallback = layer._v10LegacyRasterShape === true;
+                    const fallbackFill = (typeof layer.tint_color === 'string' && layer.tint_color) ||
+                        (typeof layer.fill === 'string' && layer.fill) ||
+                        'rgba(99,102,241,0.28)';
                     const ph = new fabric.Rect({
                         left: layer.x, top: layer.y,
                         width: layer.w, height: layer.h,
-                        fill: 'rgba(255,255,255,0.01)',
-                        stroke: 'transparent', strokeWidth: 0,
+                        fill: isV10LegacyFallback ? fallbackFill : 'rgba(255,255,255,0.01)',
+                        stroke: isV10LegacyFallback ? 'rgba(67,56,202,0.9)' : 'transparent',
+                        strokeWidth: isV10LegacyFallback ? 1 : 0,
                         opacity: opacity, angle: rotation,
-                        customType: 'image', customName: layer.name,
+                        customType: isV10LegacyFallback ? 'shape' : 'image', customName: layer.name,
                         is_background: layer.is_background,
                         is_placeholder: layer.is_placeholder,
                         is_slot: layer.is_slot,
                         mask_layer_id: layer.mask_layer_id,
                         visible: visible,
-                        is_image_placeholder: true,
+                        is_shape: isV10LegacyFallback,
+                        // Older render versions preserve their transparent image
+                        // placeholder. V10 exports this fallback as an editable
+                        // shape so the admin can explicitly delete it and publish.
+                        is_image_placeholder: !isV10LegacyFallback,
                         _src: layer.src || layer._fallback_src || ''
                     });
                     canvas.add(ph);
@@ -4505,8 +4523,7 @@
                         }, imgSrc.startsWith('data:') || imgSrc.startsWith('blob:') ? {} : { crossOrigin: 'anonymous' });
                     } catch (e) {
                         console.error('[FABRIC IMAGE ERROR] for layer:', layer.name, e);
-                        completedAsyncLoads++;
-                        checkAllLoaded();
+                        showImgPlaceholder();
                     }
                 }
 

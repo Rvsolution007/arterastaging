@@ -22,6 +22,10 @@ class BusinessController extends Controller
 
     public function index(Request $request)
     {
+        // NEW tag logic: grab last seen max ID before updating
+        $lastSeenBusinessId = session('admin_last_seen_business_id', 0);
+        $currentMaxBusinessId = Business::max('id') ?? 0;
+
         if($request->search)
         {
             $user = User::where('name','like', '%'.$request->search.'%')->get()->pluck('id')->toArray();
@@ -30,13 +34,18 @@ class BusinessController extends Controller
             ->orWhere('mobile_no','like', '%'.$request->search.'%')
             ->orWhereIn('user_id',$user)
             ->select('id','name','user_id','mobile_no','logo','status')->orderBy('id', 'desc')->paginate(10);
-            return view("business.index", $index);
         }
         else
         {
             $index['data'] = Business::select('id','name','user_id','mobile_no','logo','status')->orderBy('id', 'desc')->paginate(10);
-            return view("business.index", $index);
         }
+
+        $index['last_seen_business_id'] = $lastSeenBusinessId;
+
+        // Update session with current max ID so next visit won't show NEW for these
+        session(['admin_last_seen_business_id' => $currentMaxBusinessId]);
+
+        return view("business.index", $index);
     }
 
     // public function create()

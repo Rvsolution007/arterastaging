@@ -4532,69 +4532,13 @@
                 layer.type = 'image';
             }
 
-            // V10 keeps library icons as vectors.  Do this before the legacy
-            // shape/image coercion so a publish → refresh cycle never converts
-            // an SVG icon into a tinted PNG again.
-            if (isV10RenderVersion(renderVersion) &&
-                layer.type === 'icon' &&
-                layer._source_meta &&
-                layer._source_meta.originalSvg) {
-                totalAsyncLoads++;
-                const sourceMeta = layer._source_meta;
-                fabric.loadSVGFromString(sourceMeta.originalSvg, function(objects, options) {
-                    if (!objects || objects.length === 0) {
-                        completedAsyncLoads++;
-                        checkAllLoaded();
-                        return;
-                    }
-                    const group = fabric.util.groupSVGElements(objects, options);
-                    const iconColor = layer.original_color || sourceMeta.original_color || layer.tint_color || layer.color || '#333333';
-                    group.set({
-                        left: layer.x || 0,
-                        top: layer.y || 0,
-                        originX: 'left',
-                        originY: 'top',
-                        angle: rotation,
-                        opacity: opacity,
-                        flipX: layer.flipX === true || layer.flip_x === true,
-                        flipY: layer.flipY === true || layer.flip_y === true,
-                        customType: 'icon',
-                        customName: layer.name || layer.id,
-                        id: layer.id || makeV10LayerId(),
-                        is_background: layer.is_background,
-                        is_placeholder: layer.is_placeholder,
-                        is_slot: layer.is_slot,
-                        mask_layer_id: layer.mask_layer_id,
-                        visible: visible,
-                        z_index: layer.z_index || idx
-                    });
-                    group._iconName = layer.iconName || sourceMeta.iconName || null;
-                    group._iconProvider = layer.iconProvider || sourceMeta.provider || 'iconify';
-                    group._originalSvgMarkup = sourceMeta.originalSvg;
-                    applyV10IconColor(group, iconColor);
-                    const originalW = Math.max(1, group.width || 1);
-                    const originalH = Math.max(1, group.height || 1);
-                    group.set({
-                        scaleX: Math.max(1, Number(layer.w || layer.width || originalW)) / originalW,
-                        scaleY: Math.max(1, Number(layer.h || layer.height || originalH)) / originalH
-                    });
-                    canvas.add(group);
-                    if (typeof sortCanvasLayers === 'function') sortCanvasLayers();
-                    canvas.renderAll();
-                    updateLayersList();
-                    completedAsyncLoads++;
-                    checkAllLoaded();
-                });
-                return;
-            }
-
-            // A corrupt/incomplete V10 icon still has a safe visual fallback,
-            // but it is never reclassified as a shape for native colour logic.
-            if (isV10RenderVersion(renderVersion) && layer.type === 'icon') {
-                layer.type = 'image';
-                layer.src = layer._fallback_src || layer.src || '';
-                layer._originalType = 'icon';
-                layer.is_shape = false;
+            // V10 preserves legacy raster shapes as editable canvas objects. If a
+            // stored raster cannot be decoded, the V10 fallback remains visible
+            // and selectable instead of becoming an invisible transparent layer.
+            const isV10LegacyRasterShape = renderVersion >= 10 &&
+                layer.is_shape === true && layer.src && layer.src !== '';
+            if (isV10LegacyRasterShape) {
+                layer._v10LegacyRasterShape = true;
             }
 
             // Shapes with valid src should prioritize rendering as images to preserve PSD layer effects
@@ -4652,19 +4596,28 @@
 
                 // Helper: show placeholder rect without trying to load the image
                 function showImgPlaceholder() {
+                    const isV10LegacyFallback = layer._v10LegacyRasterShape === true;
+                    const fallbackFill = (typeof layer.tint_color === 'string' && layer.tint_color) ||
+                        (typeof layer.fill === 'string' && layer.fill) ||
+                        'rgba(99,102,241,0.28)';
                     const ph = new fabric.Rect({
                         left: layer.x, top: layer.y,
                         width: layer.w, height: layer.h,
-                        fill: 'rgba(255,255,255,0.01)',
-                        stroke: 'transparent', strokeWidth: 0,
+                        fill: isV10LegacyFallback ? fallbackFill : 'rgba(255,255,255,0.01)',
+                        stroke: isV10LegacyFallback ? 'rgba(67,56,202,0.9)' : 'transparent',
+                        strokeWidth: isV10LegacyFallback ? 1 : 0,
                         opacity: opacity, angle: rotation,
-                        customType: 'image', customName: layer.name,
+                        customType: isV10LegacyFallback ? 'shape' : 'image', customName: layer.name,
                         is_background: layer.is_background,
                         is_placeholder: layer.is_placeholder,
                         is_slot: layer.is_slot,
                         mask_layer_id: layer.mask_layer_id,
                         visible: visible,
-                        is_image_placeholder: true,
+                        is_shape: isV10LegacyFallback,
+                        // Older render versions preserve their transparent image
+                        // placeholder. V10 exports this fallback as an editable
+                        // shape so the admin can explicitly delete it and publish.
+                        is_image_placeholder: !isV10LegacyFallback,
                         _src: layer.src || layer._fallback_src || ''
                     });
                     canvas.add(ph);
@@ -4739,8 +4692,7 @@
                         }, imgSrc.startsWith('data:') || imgSrc.startsWith('blob:') ? {} : { crossOrigin: 'anonymous' });
                     } catch (e) {
                         console.error('[FABRIC IMAGE ERROR] for layer:', layer.name, e);
-                        completedAsyncLoads++;
-                        checkAllLoaded();
+                        showImgPlaceholder();
                     }
                 }
 

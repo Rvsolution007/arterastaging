@@ -530,6 +530,12 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                           );
                         }
 
+                        // This value is intentionally read in the canvas Obx so
+                        // V10 can release its transition only after this exact
+                        // replacement canvas has received a paint callback.
+                        final int transitionGeneration =
+                            controller.frameTransitionGeneration.value;
+
                         // Calculate best fit dimensions to ensure 100% visibility
                         final config = controller.templateConfig;
                         final double designW =
@@ -580,12 +586,43 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                                   templateBaseUrl: controller.templateBaseUrl,
                                   baseImgUrl: controller.baseImgUrl,
                                   editorType: widget.type,
+                                  frameTransitionGeneration:
+                                      transitionGeneration,
+                                  onFramePainted:
+                                      controller.completeV10FrameTransition,
                                 ),
                               ),
                               Obx(() {
+                                final bool isV10Transition =
+                                    controller.isCanvasLoading.value;
+                                final String previewUrl =
+                                    controller.frameTransitionPreviewUrl.value;
                                 final snapshot = NativeEditorController
                                     .transitionSnapshot
                                     .value;
+                                if (isV10Transition && previewUrl.isNotEmpty) {
+                                  return Positioned.fill(
+                                    child: CachedNetworkImage(
+                                      imageUrl: previewUrl,
+                                      fit: BoxFit.fill,
+                                      fadeInDuration: Duration.zero,
+                                      placeholder: (_, _) => snapshot == null
+                                          ? const SizedBox.shrink()
+                                          : Image.memory(
+                                              snapshot,
+                                              fit: BoxFit.fill,
+                                              gaplessPlayback: true,
+                                            ),
+                                      errorWidget: (_, _, _) => snapshot == null
+                                          ? const SizedBox.shrink()
+                                          : Image.memory(
+                                              snapshot,
+                                              fit: BoxFit.fill,
+                                              gaplessPlayback: true,
+                                            ),
+                                    ),
+                                  );
+                                }
                                 if (snapshot == null)
                                   return const SizedBox.shrink();
                                 return Positioned.fill(

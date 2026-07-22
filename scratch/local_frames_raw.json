@@ -1,0 +1,62 @@
+﻿{
+    "itemName":  "International Te Day",
+    "itemImage":  "http://192.168.1.34/Artera/uploads/abeb3b44-8440-4875-9d4a-27eb7b976226.jpg",
+    "frames":  [
+                   {
+                       "frameId":  29,
+                       "type":  "festival",
+                       "image":  "http://192.168.1.34/Artera/uploads/052b1cf6-a906-4399-934b-8b2d10bbfe75.webp",
+                       "language":  "English",
+                       "languageId":  4,
+                       "isPaid":  true,
+                       "isAi":  false,
+                       "height":  2048,
+                       "width":  2048,
+                       "imageType":  "square",
+                       "aspectRatio":  "1:1"
+                   },
+                   {
+                       "frameId":  28,
+                       "type":  "festival",
+                       "image":  "http://192.168.1.34/Artera/uploads/3966a981-ef29-4a3c-a371-325db17aa699.webp",
+                       "language":  "English",
+                       "languageId":  4,
+                       "isPaid":  false,
+                       "isAi":  false,
+                       "height":  1254,
+                       "width":  1254,
+                       "imageType":  "square",
+                       "aspectRatio":  "1:1"
+                   },
+                   {
+                       "frameId":  27,
+                       "type":  "festival",
+                       "image":  "http://192.168.1.34/Artera/uploads/53dd17aa-0936-4037-8a95-c2429953c8d5.webp",
+                       "language":  "English",
+                       "languageId":  4,
+                       "isPaid":  false,
+                       "isAi":  false,
+                       "height":  1254,
+                       "width":  1254,
+                       "imageType":  "square",
+                       "aspectRatio":  "1:1"
+                   },
+                   {
+                       "frameId":  26,
+                       "type":  "festival",
+                       "image":  "http://192.168.1.34/Artera/uploads/fb13f761-c703-4a2e-9665-5bfdd4db7fa3.webp",
+                       "language":  "English",
+                       "languageId":  4,
+                       "isPaid":  true,
+                       "isAi":  false,
+                       "height":  1254,
+                       "width":  1254,
+                       "imageType":  "square",
+                       "aspectRatio":  "1:1"
+                   }
+               ],
+    "videos":  [
+
+               ],
+    "totalFrames":  4
+}

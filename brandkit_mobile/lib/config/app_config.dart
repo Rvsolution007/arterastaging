@@ -3,7 +3,7 @@ class AppConfig {
   // Read target environment from build-time dart-define, defaulting to local
   static const String _rawEnv = String.fromEnvironment(
     'ENV',
-    defaultValue: 'staging',
+    defaultValue: 'production',
   );
   static const String _localBaseUrl = String.fromEnvironment(
     'LOCAL_API_BASE_URL',

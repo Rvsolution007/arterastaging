@@ -45,6 +45,9 @@ class NativeEditorController extends GetxController {
   final RxList<dynamic> frames = <dynamic>[].obs;
   final RxBool isLoadingFrames = false.obs;
   final RxBool isCanvasLoading = false.obs;
+  final RxString frameTransitionPreviewUrl = ''.obs;
+  final RxInt frameTransitionGeneration = 0.obs;
+  int _pendingV10TransitionGeneration = 0;
   final RxString loadingFrameId =
       ''.obs; // ID of the frame currently loading (for thumbnail indicator)
 
@@ -1501,6 +1504,14 @@ class NativeEditorController extends GetxController {
           .map((l) => (l['id'] ?? l['name']).toString())
           .toList();
       final incomingFrameId = (newFrameJson['id'] ?? '').toString();
+      final bool isV10Frame = _frameRenderVersion(newFrameJson) >= 10;
+      if (isV10Frame) {
+        // V10 uses the already-rendered canvas snapshot as its double buffer.
+        // A target preview can itself be a blank/partial frame, so it must not
+        // replace the old canvas while assets are still decoding.
+        isCanvasLoading.value = true;
+        frameTransitionPreviewUrl.value = '';
+      }
       int incomingLayerCount = 0;
       var incLayers =
           newFrameJson['layers'] ??
@@ -2215,6 +2226,13 @@ class NativeEditorController extends GetxController {
       if (captureCanvasCallback != null) {
         debugPrint('[SNAPSHOT] Triggering canvas capture before refresh');
         await captureCanvasCallback!();
+        // A tap can arrive between layout and paint. Retry after the current
+        // frame so V10 always has an old-canvas buffer before replacing layers.
+        if (isV10Frame &&
+            NativeEditorController.transitionSnapshot.value == null) {
+          await WidgetsBinding.instance.endOfFrame;
+          await captureCanvasCallback!();
+        }
       }
 
       templateConfig['layers'] = finalLayersList;
@@ -2268,6 +2286,9 @@ class NativeEditorController extends GetxController {
       );
 
       templateConfig.refresh();
+      if (isV10Frame) {
+        _pendingV10TransitionGeneration = ++frameTransitionGeneration.value;
+      }
       NativeEditorController.timelineRefreshComplete =
           DateTime.now().millisecondsSinceEpoch;
 
@@ -2294,10 +2315,12 @@ class NativeEditorController extends GetxController {
           '[DIAGNOSIS_CANVAS] Total Time Since Tap: ${renderCompleteTime - parseStartTime}ms',
         );
 
-        Future.delayed(const Duration(milliseconds: 100), () {
-          NativeEditorController.transitionSnapshot.value = null;
-          debugPrint('[SNAPSHOT] transitionSnapshot cleared');
-        });
+        if (!isV10Frame) {
+          Future.delayed(const Duration(milliseconds: 100), () {
+            NativeEditorController.transitionSnapshot.value = null;
+            debugPrint('[SNAPSHOT] transitionSnapshot cleared');
+          });
+        }
 
         final int finalCount = (templateConfig['layers'] as List?)?.length ?? 0;
 
@@ -2361,8 +2384,40 @@ class NativeEditorController extends GetxController {
         shapeLayers,
       );
     } catch (e, stack) {
+      // A failed V10 load must never leave the previous-frame overlay locked.
+      if (isCanvasLoading.value) {
+        isCanvasLoading.value = false;
+        frameTransitionPreviewUrl.value = '';
+        NativeEditorController.transitionSnapshot.value = null;
+        loadingFrameId.value = '';
+      }
       debugPrint('[LOAD_FRAME] Error: $e\n$stack');
     }
+  }
+
+  /// Called by the V10 canvas only after the replacement frame has painted.
+  /// Older render versions retain their existing fixed-delay transition path.
+  void completeV10FrameTransition(int generation) {
+    if (!isCanvasLoading.value ||
+        generation == 0 ||
+        generation != _pendingV10TransitionGeneration) {
+      return;
+    }
+
+    isCanvasLoading.value = false;
+    frameTransitionPreviewUrl.value = '';
+    NativeEditorController.transitionSnapshot.value = null;
+    loadingFrameId.value = '';
+    debugPrint('[SNAPSHOT] V10 transition completed after canvas paint');
+  }
+
+  int _frameRenderVersion(Map<String, dynamic> frame) {
+    final dynamic direct = frame['render_version'];
+    final dynamic config = frame['config'];
+    final dynamic nested = config is Map ? config['render_version'] : null;
+    final dynamic info = frame['info'];
+    final dynamic infoVersion = info is Map ? info['render_version'] : null;
+    return safeDouble(direct ?? nested ?? infoVersion ?? 1).toInt();
   }
 
   Future<void> _engineDecodeImage(String url) {
@@ -2738,6 +2793,8 @@ class NativeEditorController extends GetxController {
             .toString()
             .toLowerCase();
         final bool isIcon =
+            (_frameRenderVersion(newFrameJson) >= 10 &&
+                _isV10IconLayer(newLayer)) ||
             newLayer['type'] == 'icon' ||
             ((newLayer['type'] == 'image') &&
                 ([
@@ -2974,13 +3031,18 @@ class NativeEditorController extends GetxController {
               'linkedin',
             ].any((key) => lname.contains(key)));
 
-    // All render versions evaluate each true icon independently.
+    // V10 also recognizes older raster icons (for example `Icon_1`) using
+    // their saved identity. Before V10, the original matching rules remain
+    // unchanged for backwards-compatible rendering.
+    final bool isV10Frame =
+        safeDouble(templateConfig['render_version'] ?? 1).toInt() >= 10;
     bool isIcon =
         layer['type'] == 'icon' ||
         isContactIcon ||
         layer['_originalType'] == 'icon' ||
         (layer['_source_meta'] is Map &&
-            layer['_source_meta']['type'] == 'icon');
+            layer['_source_meta']['type'] == 'icon') ||
+        (isV10Frame && _isV10IconLayer(layer));
     debugPrint(
       '[COLOR_DIAG] isText=$isText, isContactIcon=$isContactIcon, isIcon=$isIcon',
     );
@@ -3111,6 +3173,47 @@ class NativeEditorController extends GetxController {
     final dynamic value = layer['z_index'];
     if (value is num) return value.toInt();
     return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  /// V10's canonical icon predicate. Legacy icons were stored as
+  /// `type: image` and therefore could miss the previous icon-only color pass.
+  /// This deliberately requires explicit icon metadata or an icon-like saved
+  /// name, so ordinary raster images and shapes never enter auto-color logic.
+  bool _isV10IconLayer(Map<String, dynamic> layer) {
+    if (layer['type'] == 'icon' || layer['_originalType'] == 'icon') {
+      return true;
+    }
+    final dynamic sourceMeta = layer['_source_meta'];
+    if (sourceMeta is Map && sourceMeta['type'] == 'icon') return true;
+    if (layer['type'] != 'image') return false;
+
+    const businessKeys = {'phone', 'email', 'website', 'address', 'social'};
+    if (businessKeys.contains(layer['_businessKey']?.toString())) return true;
+
+    final String name = (layer['name'] ?? layer['id'] ?? '')
+        .toString()
+        .toLowerCase();
+    return const [
+      'icon',
+      'phone',
+      'email',
+      'website',
+      'address',
+      'call',
+      'mobile',
+      'contact',
+      'whatsapp',
+      'tel',
+      'mail',
+      'web',
+      'url',
+      'location',
+      'facebook',
+      'instagram',
+      'twitter',
+      'youtube',
+      'linkedin',
+    ].any(name.contains);
   }
 
   String _canonicalOriginalColor(

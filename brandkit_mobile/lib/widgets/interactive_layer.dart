@@ -44,7 +44,7 @@ class _InteractiveLayerState extends State<InteractiveLayer> {
 
   bool _matchesThisLayer(dynamic rawLayer) {
     if (rawLayer is! Map) return false;
-    if (widget.renderVersion == 10) {
+    if (widget.renderVersion >= 10) {
       return rawLayer['id']?.toString() == widget.layerName;
     }
     return (rawLayer['name'] ?? rawLayer['id']).toString() == widget.layerName;

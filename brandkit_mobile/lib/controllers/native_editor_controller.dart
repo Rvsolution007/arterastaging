@@ -47,7 +47,12 @@ class NativeEditorController extends GetxController {
   final RxBool isCanvasLoading = false.obs;
   final RxString frameTransitionPreviewUrl = ''.obs;
   final RxInt frameTransitionGeneration = 0.obs;
+  final RxInt editorSessionGeneration = 0.obs;
   int _pendingV10TransitionGeneration = 0;
+  int _frameLoadGeneration = 0;
+  bool _initialFrameRequested = false;
+  bool _initialFrameApplied = false;
+  bool _initialFrameApplying = false;
   final RxString loadingFrameId =
       ''.obs; // ID of the frame currently loading (for thumbnail indicator)
 
@@ -98,6 +103,7 @@ class NativeEditorController extends GetxController {
       isLoadingFrames.value = false;
       // Pre-cache ALL frame images in the background for instant switching
       _backgroundPrecacheAllFrames();
+      unawaited(_applyInitialFrameWhenReady());
     }
   }
 
@@ -304,6 +310,7 @@ class NativeEditorController extends GetxController {
     String? baseImg,
     String editorType,
   ) {
+    _resetEditorSession();
     templateConfig.assignAll(
       jsonDecode(jsonEncode(initialConfig)),
     ); // deep copy
@@ -316,9 +323,18 @@ class NativeEditorController extends GetxController {
     templateConfig['render_version'] ??= 1;
     _ensureV10LayerIds(templateConfig['layers']);
 
+    historyStack.clear();
+    historyIndex.value = -1;
+
     if (editorType == 'business_custom_frame') {
       _injectDynamicBusinessFrame();
     }
+
+    // A frame list may already be cached, or it may still be arriving from
+    // the API. In either case apply exactly one default frame for this newly
+    // opened template; `_applyInitialFrameWhenReady` handles both timings.
+    _initialFrameRequested = true;
+    unawaited(_applyInitialFrameWhenReady());
 
     if (templateConfig['layers'] != null) {
       String base = ApiService.baseUrl;
@@ -441,6 +457,84 @@ class NativeEditorController extends GetxController {
 
     // Apply business details to layers immediately if they are already loaded
     reapplyBusinessProfile();
+  }
+
+  /// Starts every template with a clean canvas state. Transition snapshots are
+  /// static so they outlive an editor route unless explicitly cleared; without
+  /// this reset a newly opened template can visually retain the old template
+  /// until a frame is selected.
+  void _resetEditorSession() {
+    editorSessionGeneration.value++;
+    _frameLoadGeneration++;
+    _pendingV10TransitionGeneration = 0;
+    _initialFrameRequested = false;
+    _initialFrameApplied = false;
+    _initialFrameApplying = false;
+
+    selectedLayerId.value = '';
+    activeTool.value = '';
+    loadingFrameId.value = '';
+    isCanvasLoading.value = false;
+    frameTransitionPreviewUrl.value = '';
+    NativeEditorController.transitionSnapshot.value = null;
+  }
+
+  /// Applies the first compatible frame exactly once when a template opens.
+  /// The latest selection always wins because `loadNewFrame` is generation
+  /// guarded; a user tap can never be overwritten by a late auto-load.
+  Future<void> _applyInitialFrameWhenReady() async {
+    if (!_initialFrameRequested ||
+        _initialFrameApplied ||
+        _initialFrameApplying ||
+        isLoadingFrames.value ||
+        filteredFrames.isEmpty) {
+      return;
+    }
+
+    final dynamic first = filteredFrames.first;
+    if (first is! Map) return;
+    final int session = editorSessionGeneration.value;
+    _initialFrameApplying = true;
+    _initialFrameApplied = true;
+
+    try {
+      final frame = Map<String, dynamic>.from(first);
+      final String frameId = (frame['id'] ?? frame['zip_name'] ?? '').toString();
+      if (frameId.isNotEmpty) loadingFrameId.value = frameId;
+      await loadNewFrame(_normaliseFrameRecord(frame));
+    } finally {
+      if (session == editorSessionGeneration.value) {
+        _initialFrameApplying = false;
+      }
+    }
+  }
+
+  /// Makes catalogue records safe for the frame merger regardless of whether
+  /// the API supplied `json`, `json_rules`, or an already-decoded `config`.
+  Map<String, dynamic> _normaliseFrameRecord(Map<String, dynamic> frame) {
+    final payload = jsonDecode(jsonEncode(frame)) as Map<String, dynamic>;
+    dynamic rawConfig = payload['json'] ?? payload['json_rules'] ?? payload['config'];
+    Map<String, dynamic>? config;
+
+    if (rawConfig is String && rawConfig.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawConfig);
+        if (decoded is Map) config = Map<String, dynamic>.from(decoded);
+      } catch (_) {}
+    } else if (rawConfig is Map) {
+      config = Map<String, dynamic>.from(rawConfig);
+    }
+
+    if (config != null) {
+      final fullUrl = (payload['full_url'] ?? '').toString();
+      if (fullUrl.isNotEmpty) config['full_url'] = fullUrl;
+      payload['config'] = config;
+      payload['layers'] = config['layers'];
+      payload['render_version'] ??= config['render_version'];
+      payload['info'] ??= config['info'];
+    }
+
+    return payload;
   }
 
   void _deduplicateLayerNames(List<dynamic> layers) {
@@ -991,7 +1085,7 @@ class NativeEditorController extends GetxController {
     final layers = templateConfig['layers'] as List<dynamic>?;
     if (layers == null) return;
 
-    if (_renderVersion() == 10) {
+    if (_renderVersion() >= 10) {
       for (final layer in layers) {
         if (_matchesLayerReference(layer, layerName)) {
           layer['opacity'] = isVisible ? 1.0 : 0.0;
@@ -1261,7 +1355,7 @@ class NativeEditorController extends GetxController {
       layers = templateConfig['layers'];
     }
 
-    if (_renderVersion() == 10 &&
+    if (_renderVersion() >= 10 &&
         (newLayer['id'] == null || newLayer['id'].toString().trim().isEmpty)) {
       newLayer['id'] = 'v10_user_${DateTime.now().microsecondsSinceEpoch}';
     }
@@ -1299,14 +1393,14 @@ class NativeEditorController extends GetxController {
     // V10 assigns a UUID to every editable layer.  Names are presentation
     // labels and may repeat, so using one cannot be allowed to update/delete
     // a different icon.
-    if (_renderVersion() == 10) {
+    if (_renderVersion() >= 10) {
       return rawLayer['id']?.toString() == reference;
     }
     return (rawLayer['name'] ?? rawLayer['id']).toString() == reference;
   }
 
   void _ensureV10LayerIds(dynamic rawLayers) {
-    if (_renderVersion() != 10 || rawLayers is! List) return;
+    if (_renderVersion() < 10 || rawLayers is! List) return;
     final Set<String> used = <String>{};
     for (int index = 0; index < rawLayers.length; index++) {
       final layer = rawLayers[index];
@@ -1495,6 +1589,7 @@ class NativeEditorController extends GetxController {
   static final Map<String, bool> _brightnessCache = {};
 
   Future<void> loadNewFrame(Map<String, dynamic> newFrameJson) async {
+    final int loadGeneration = ++_frameLoadGeneration;
     try {
       final int parseStartTime = DateTime.now().millisecondsSinceEpoch;
       NativeEditorController.timelineLoadStart = parseStartTime;
@@ -1567,6 +1662,7 @@ class NativeEditorController extends GetxController {
         debugPrint('[DIAGNOSIS_CANVAS] Duration: ${fetchEnd - fetchStart}ms');
 
         if (fetchedJson != null) {
+          if (loadGeneration != _frameLoadGeneration) return;
           newFrameJson['config'] =
               fetchedJson; // save it so we don't fetch again unnecessarily
           rawNewLayers = fetchedJson['layers'];
@@ -1606,7 +1702,9 @@ class NativeEditorController extends GetxController {
           'business_custom_frame';
 
       final preservedLayers = currentLayers.where((l) {
-        if (l['_is_frame_layer'] == true) return false;
+        if (l['_is_frame_layer'] == true || l['_isFrameLayer'] == true) {
+          return false;
+        }
 
         final name = (l['name'] ?? l['id'] ?? '').toString().toLowerCase();
         final bool isBg =
@@ -2074,6 +2172,14 @@ class NativeEditorController extends GetxController {
         newLayer['z_index'] = maxNativeZIndex + frameZ + 1;
       }
 
+      // `shapeLayers` is a detached runtime copy used only by the dynamic
+      // colour resolver. It must receive the same z-index boost as its source
+      // frame layers; otherwise a boosted text/icon is compared against an
+      // unboosted shape and can choose the wrong backdrop.
+      for (final shape in shapeLayers) {
+        shape['z_index'] = maxNativeZIndex + _layerZIndex(shape) + 1;
+      }
+
       // 3. For custom templates: Remove native layers whose _businessKey matches a frame layer's _businessKey
       //    This prevents duplicate logos, phone icons, etc.
       if (type == 'business_custom_frame' || type == 'custom') {
@@ -2191,6 +2297,9 @@ class NativeEditorController extends GetxController {
       debugPrint('[DIAGNOSIS_CANVAS] Future Started (_precacheFrameImages)');
       final int precacheStart = DateTime.now().millisecondsSinceEpoch;
       await _precacheFrameImages(finalLayersList);
+      // A second thumbnail tap can arrive while the first frame downloads.
+      // Only the latest request may replace the canvas.
+      if (loadGeneration != _frameLoadGeneration) return;
       final int precacheEnd = DateTime.now().millisecondsSinceEpoch;
       debugPrint('[DIAGNOSIS_CANVAS] Future Finished (_precacheFrameImages)');
       debugPrint(
@@ -2234,6 +2343,8 @@ class NativeEditorController extends GetxController {
           await captureCanvasCallback!();
         }
       }
+
+      if (loadGeneration != _frameLoadGeneration) return;
 
       templateConfig['layers'] = finalLayersList;
       NativeEditorController.timelineConfigUpdated =
@@ -2385,7 +2496,7 @@ class NativeEditorController extends GetxController {
       );
     } catch (e, stack) {
       // A failed V10 load must never leave the previous-frame overlay locked.
-      if (isCanvasLoading.value) {
+      if (loadGeneration == _frameLoadGeneration && isCanvasLoading.value) {
         isCanvasLoading.value = false;
         frameTransitionPreviewUrl.value = '';
         NativeEditorController.transitionSnapshot.value = null;
@@ -2778,7 +2889,7 @@ class NativeEditorController extends GetxController {
       // PASS 1: Apply colors to TEXT layers first
       for (var newLayer in newLayers) {
         if (newLayer['type'] == 'text') {
-          final bool changed = renderVersion == 10
+          final bool changed = renderVersion >= 10
               ? _applyV10DynamicColor(newLayer, templateIsDark, shapeLayers)
               : _applyDynamicTextColor(newLayer, templateIsDark, shapeLayers);
           if (changed) {
@@ -2830,7 +2941,7 @@ class NativeEditorController extends GetxController {
                     (newLayer['_source_meta'] is Map &&
                         newLayer['_source_meta']['type'] == 'icon')));
         if (!isIcon) continue;
-        final bool changed = renderVersion == 10
+        final bool changed = renderVersion >= 10
             ? _applyV10DynamicColor(newLayer, templateIsDark, shapeLayers)
             : _applyDynamicTextColor(newLayer, templateIsDark, shapeLayers);
         if (changed) {
@@ -2856,15 +2967,10 @@ class NativeEditorController extends GetxController {
   ) {
     final String type = layer['type']?.toString() ?? '';
     final bool isText = type == 'text';
-    final bool isIcon = type == 'icon';
+    // V10+ keeps legacy raster icons as `image` layers with icon identity in
+    // metadata. The resolver and renderer must use the same predicate.
+    final bool isIcon = _isV10IconLayer(layer);
     if (!isText && !isIcon) return false;
-
-    // Custom/post designs intentionally retain their authored colours.
-    final String templateType =
-        (Get.parameters['type'] ?? templateConfig['type'] ?? '')
-            .toString()
-            .toLowerCase();
-    if (templateType.contains('custom') || templateType == 'post') return false;
 
     final Map<dynamic, dynamic>? sourceMeta = layer['_source_meta'] is Map
         ? layer['_source_meta'] as Map<dynamic, dynamic>
@@ -2876,11 +2982,13 @@ class NativeEditorController extends GetxController {
               layer['tint_color'],
               layer['color'],
               sourceMeta?['original_color'],
+              sourceMeta?['originalColor'],
               layer['font_color'],
             ]
           : [
               layer['color'],
               sourceMeta?['original_color'],
+              sourceMeta?['originalColor'],
               layer['font_color'],
               layer['tint_color'],
             ];
@@ -2970,28 +3078,12 @@ class NativeEditorController extends GetxController {
       '[COLOR_DIAG] Starting _applyDynamicTextColor for layer: "$diagName" (type: ${layer['type']})',
     );
 
-    int renderVersion = templateConfig['render_version'] ?? 1;
-    if (renderVersion == 10 &&
+    int renderVersion = _renderVersion();
+    if (renderVersion >= 10 &&
         layer['_source_meta'] is Map &&
         layer['_source_meta']['originalColor'] != null) {
       debugPrint('[COLOR_DIAG] ❌ SKIPPED: V10+ respects originalColor');
       return false;
-    }
-
-    // DO NOT override user colors for Custom templates / frames!
-    final type =
-        Get.parameters['type'] ??
-        templateConfig['type'] ??
-        'business_custom_frame';
-    final tLow = type.toString().toLowerCase();
-    debugPrint('[COLOR_DIAG] Editor Type: $type ($tLow)');
-    if (tLow.contains('custom') ||
-        tLow == 'post' ||
-        tLow == 'business_custom_frame') {
-      debugPrint(
-        '[COLOR_DIAG] ❌ SKIPPED: Template type is custom or business_custom_frame',
-      );
-      return false; // Skip auto-color for custom templates to preserve original ZIP colors
     }
 
     bool isText = layer['type'] == 'text';
@@ -3093,7 +3185,7 @@ class NativeEditorController extends GetxController {
         continue;
       }
 
-      if (_layerZIndex(shape) > layerZIndex) {
+      if (_layerZIndex(shape) >= layerZIndex) {
         continue;
       }
 

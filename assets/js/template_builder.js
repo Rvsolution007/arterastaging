@@ -23,11 +23,12 @@
     window.CURRENT_RENDER_VERSION = 10;
     const CURRENT_RENDER_VERSION = window.CURRENT_RENDER_VERSION;
 
-    // V10 is deliberately opt-in.  The editor may contain code for newer
-    // renderers, but a V1-V9 frame must continue to use its original export
-    // and import contracts until it is explicitly migrated in Version Control.
+    // The V10 contract is deliberately opt-in. Future versions inherit this
+    // contract until they register an explicit migration; V1-V9 frames keep
+    // their original export/import behaviour until Version Control migrates
+    // the full payload.
     function isV10RenderVersion(version) {
-        return Number(version) === 10;
+        return Number(version) >= 10;
     }
 
     function makeV10LayerId() {
@@ -39,12 +40,19 @@
 
     function normaliseV10IconSvg(svgMarkup) {
         if (!svgMarkup || typeof svgMarkup !== 'string') return null;
-        // Keep transparent/hollow parts hollow.  Only paintable fills and
-        // strokes become currentColor so a saved icon can be coloured without
-        // rasterising it on either editor.
-        return svgMarkup
+        // Keep transparent/hollow parts hollow. Paintable fills and strokes
+        // become currentColor so a saved icon can be coloured without
+        // rasterising it on either editor. An SVG path with no `fill`
+        // attribute is black by SVG default, so give the root a colour source
+        // as well; this covers Iconify icons that rely on the default fill.
+        const normalized = svgMarkup
             .replace(/\b(fill|stroke)\s*=\s*(["'])(?!none\b|transparent\b|url\()[^"']*\2/gi, '$1="currentColor"')
             .replace(/\b(fill|stroke)\s*:\s*(?!none\b|transparent\b|url\()[^;"']+/gi, '$1:currentColor');
+        return normalized.replace(/<svg\b([^>]*)>/i, function(match, attributes) {
+            return /\bfill\s*=/i.test(attributes)
+                ? match
+                : '<svg' + attributes + ' fill="currentColor">';
+        });
     }
 
     function iconColorFromObject(obj) {
@@ -61,16 +69,37 @@
 
     function applyV10IconColor(obj, color) {
         if (!obj) return;
-        obj.set('fill', color);
-        if (typeof obj.getObjects === 'function') {
-            obj.getObjects().forEach(function(child) {
-                if (!child || !child.set) return;
-                if (child.fill && child.fill !== 'none') child.set('fill', color);
-                if (child.stroke && child.stroke !== 'none') child.set('stroke', color);
-            });
-        }
+        const isTransparentPaint = function(value) {
+            return value === 'none' || value === 'transparent';
+        };
+        const paint = function(node) {
+            if (!node || !node.set) return;
+            // Missing fill means SVG's default black fill. It is paintable and
+            // must be set explicitly, otherwise only some library icons turn
+            // black after a publish → refresh cycle.
+            if (!isTransparentPaint(node.fill)) node.set('fill', color);
+            // SVG's default stroke is none, so only recolour an explicit stroke.
+            if (node.stroke && !isTransparentPaint(node.stroke)) node.set('stroke', color);
+            if (typeof node.getObjects === 'function') {
+                node.getObjects().forEach(paint);
+            }
+            node.dirty = true;
+        };
+        paint(obj);
         obj._originalColor = color;
         obj.dirty = true;
+    }
+
+    // Iconify collections use different viewBox dimensions (for example 24,
+    // 32, 512, or a non-square artboard).  A fixed Fabric scale makes their
+    // first on-canvas appearance depend on the provider rather than on the
+    // editor.  V10 stores rendered bounds, so use one bounded default size
+    // only when a library icon is first created.
+    function v10IconInitialScale(obj, maxSize) {
+        const sourceWidth = Math.max(1, Number(obj && obj.width) || 1);
+        const sourceHeight = Math.max(1, Number(obj && obj.height) || 1);
+        const desiredSize = Math.max(1, Number(maxSize) || 48);
+        return desiredSize / Math.max(sourceWidth, sourceHeight);
     }
 
     function serialiseV10Icon(obj, z, x, y, w, h) {
@@ -2225,11 +2254,13 @@
                                 }
                                 const obj = fabric.util.groupSVGElements(objects, options);
                                 const initialColor = '#333333';
+                                const isV10 = isV10RenderVersion(window._originalRenderVersion);
+                                const initialScale = isV10 ? v10IconInitialScale(obj, 48) : 2;
                                 obj.set({
                                     left: 150,
                                     top: 150,
-                                    scaleX: 2,
-                                    scaleY: 2,
+                                    scaleX: initialScale,
+                                    scaleY: initialScale,
                                     customType: 'icon',
                                     customName: getNextLayerName('icon_' + iconName.replace(/[^a-zA-Z0-9]/g, '_')),
                                     fill: initialColor
@@ -2238,7 +2269,7 @@
                                 obj._iconName = iconName;
                                 obj._iconProvider = 'iconify';
                                 obj._originalSvgMarkup = svgText;
-                                if (isV10RenderVersion(window._originalRenderVersion)) {
+                                if (isV10) {
                                     obj.id = makeV10LayerId();
                                     applyV10IconColor(obj, initialColor);
                                 }
@@ -4541,6 +4572,82 @@
                 layer._v10LegacyRasterShape = true;
             }
 
+            // V10 keeps library icons as vectors.  Do this before the legacy
+            // shape/image coercion so a publish → refresh cycle never converts
+            // an SVG icon into a tinted PNG again.
+            if (isV10RenderVersion(renderVersion) &&
+                layer.type === 'icon' &&
+                layer._source_meta &&
+                layer._source_meta.originalSvg) {
+                totalAsyncLoads++;
+                const sourceMeta = layer._source_meta;
+                fabric.loadSVGFromString(sourceMeta.originalSvg, function(objects, options) {
+                    if (!objects || objects.length === 0) {
+                        completedAsyncLoads++;
+                        checkAllLoaded();
+                        return;
+                    }
+                    const group = fabric.util.groupSVGElements(objects, options);
+                    const iconColor = layer.original_color || sourceMeta.original_color || layer.tint_color || layer.color || '#333333';
+                    group.set({
+                        left: layer.x || 0,
+                        top: layer.y || 0,
+                        originX: 'left',
+                        originY: 'top',
+                        angle: rotation,
+                        opacity: opacity,
+                        flipX: layer.flipX === true || layer.flip_x === true,
+                        flipY: layer.flipY === true || layer.flip_y === true,
+                        customType: 'icon',
+                        customName: layer.name || layer.id,
+                        id: layer.id || makeV10LayerId(),
+                        is_background: layer.is_background,
+                        is_placeholder: layer.is_placeholder,
+                        is_slot: layer.is_slot,
+                        mask_layer_id: layer.mask_layer_id,
+                        visible: visible,
+                        z_index: Number.isFinite(Number(layer.z_index))
+                            ? Number(layer.z_index)
+                            : idx
+                    });
+                    group._iconName = layer.iconName || sourceMeta.iconName || null;
+                    group._iconProvider = layer.iconProvider || sourceMeta.provider || 'iconify';
+                    group._originalSvgMarkup = sourceMeta.originalSvg;
+                    applyV10IconColor(group, iconColor);
+                    const originalW = Math.max(1, group.width || 1);
+                    const originalH = Math.max(1, group.height || 1);
+                    const requestedW = Number(layer.w ?? layer.width ?? originalW);
+                    const requestedH = Number(layer.h ?? layer.height ?? originalH);
+                    group.set({
+                        // Do not clamp to 1: icon libraries have mixed viewBox
+                        // sizes. A 512px source must be allowed to scale down
+                        // into a 32px canvas slot just like a 24px source.
+                        scaleX: Number.isFinite(requestedW) && requestedW > 0
+                            ? requestedW / originalW
+                            : 1,
+                        scaleY: Number.isFinite(requestedH) && requestedH > 0
+                            ? requestedH / originalH
+                            : 1
+                    });
+                    canvas.add(group);
+                    if (typeof sortCanvasLayers === 'function') sortCanvasLayers();
+                    canvas.renderAll();
+                    updateLayersList();
+                    completedAsyncLoads++;
+                    checkAllLoaded();
+                });
+                return;
+            }
+
+            // A corrupt/incomplete V10 icon still has a safe visual fallback,
+            // but it is never reclassified as a shape for native colour logic.
+            if (isV10RenderVersion(renderVersion) && layer.type === 'icon') {
+                layer.type = 'image';
+                layer.src = layer._fallback_src || layer.src || '';
+                layer._originalType = 'icon';
+                layer.is_shape = false;
+            }
+
             // Shapes with valid src should prioritize rendering as images to preserve PSD layer effects
             if (layer.is_shape === true && layer.src && layer.src !== '') {
                 layer.type = 'image';
@@ -5193,10 +5300,19 @@
             return za - zb; // Ascending z_index
         });
         
-        // Safer re-ordering for older fabric versions:
-        // Iterate backwards and send to back. The last one sent to back will be at the very bottom.
-        for (let i = objects.length - 1; i >= 0; i--) {
-            canvas.sendToBack(objects[i]);
+        if (isV10RenderVersion(window._originalRenderVersion) &&
+            typeof canvas.moveTo === 'function') {
+            // SVG icons load asynchronously. Put every V10 object at its
+            // exact saved index instead of repeatedly sending objects to the
+            // back; that legacy loop can place a late SVG behind another layer.
+            objects.forEach(function(object, index) {
+                canvas.moveTo(object, index);
+            });
+        } else {
+            // Preserve the historic V1–V9 reordering contract unchanged.
+            for (let i = objects.length - 1; i >= 0; i--) {
+                canvas.sendToBack(objects[i]);
+            }
         }
     };
 

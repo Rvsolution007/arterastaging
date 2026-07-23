@@ -576,6 +576,8 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                         // replacement canvas has received a paint callback.
                         final int transitionGeneration =
                             controller.frameTransitionGeneration.value;
+                        final int editorSessionGeneration =
+                            controller.editorSessionGeneration.value;
 
                         // Calculate best fit dimensions to ensure 100% visibility
                         final config = controller.templateConfig;
@@ -619,6 +621,9 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                               RepaintBoundary(
                                 key: _canvasKey,
                                 child: EditorCanvasWidget(
+                                  key: ValueKey(
+                                    'native-editor-session-$editorSessionGeneration',
+                                  ),
                                   config: Map<String, dynamic>.from(
                                     controller.templateConfig,
                                   ),
@@ -726,7 +731,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
               ) ??
               1;
     for (var l in layers) {
-      final String reference = renderVersion == 10
+      final String reference = renderVersion >= 10
           ? (l['id']?.toString() ?? '')
           : (l['name'] ?? l['id']).toString();
       if (reference == controller.selectedLayerId.value) {
@@ -743,7 +748,7 @@ class _NativeEditorScreenState extends State<NativeEditorScreen> {
                 controller.templateConfig['render_version']?.toString() ?? '',
               ) ??
               1;
-    return renderVersion == 10
+    return renderVersion >= 10
         ? (layer['id']?.toString() ?? (layer['name'] ?? '').toString())
         : (layer['name'] ?? layer['id']).toString();
   }

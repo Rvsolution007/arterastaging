@@ -150,6 +150,7 @@
             <li><strong style="color: #334155;">V7:</strong> Smart Color Adaptation for icons to automatically contrast on dark/light backgrounds.</li>
             <li><strong style="color: #334155;">V8:</strong> Z-Index accurate collision detection for shape overlapping.</li>
             <li><strong style="color: #334155;">V9:</strong> Fixes authoritative icon color prioritization (tint_color overrides default black) to ensure icons match web selection exactly.</li>
+            <li><strong style="color: #334155;">V10:</strong> Native/vector contract: stable layer IDs, canonical icon metadata, non-destructive dynamic colour, and normalized layer order.</li>
         </ul>
     </div>
 
@@ -192,10 +193,10 @@
                 </label>
             </div>
 
-            <span style="font-weight: 500; font-size: 0.875rem;">Upgrade to:</span>
+            <span style="font-weight: 500; font-size: 0.875rem;">Migrate to:</span>
             <select id="targetVersion" class="form-control form-control-sm" style="width: 120px; border-radius: 6px;">
                 <option value="none">None</option>
-                @for($i = 2; $i <= $currentMaxVersion; $i++)
+                @for($i = 1; $i <= $currentMaxVersion; $i++)
                     <option value="{{ $i }}" {{ $i == $currentMaxVersion ? 'selected' : '' }}>Version {{ $i }}</option>
                 @endfor
             </select>

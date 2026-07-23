@@ -50,6 +50,8 @@ class EditorCanvasWidget extends StatefulWidget {
   final String templateBaseUrl;
   final String? baseImgUrl;
   final String editorType;
+  final int frameTransitionGeneration;
+  final void Function(int generation)? onFramePainted;
 
   const EditorCanvasWidget({
     super.key,
@@ -60,6 +62,8 @@ class EditorCanvasWidget extends StatefulWidget {
     required this.templateBaseUrl,
     this.baseImgUrl,
     this.editorType = 'business_custom_frame',
+    this.frameTransitionGeneration = 0,
+    this.onFramePainted,
   });
 
   @override
@@ -114,6 +118,20 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
   String _activeMaskShapeId = '';
 
   bool _goldenCaptured = false;
+  int _lastPaintedFrameTransitionGeneration = 0;
+
+  void _notifyFramePaintedAfterCurrentBuild() {
+    final int generation = widget.frameTransitionGeneration;
+    if (generation == 0 || generation <= _lastPaintedFrameTransitionGeneration) {
+      return;
+    }
+
+    _lastPaintedFrameTransitionGeneration = generation;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || widget.frameTransitionGeneration != generation) return;
+      widget.onFramePainted?.call(generation);
+    });
+  }
 
   void _captureNativeGolden(
     List<Widget> children,
@@ -1163,6 +1181,9 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     debugPrint(
       '[DIAGNOSIS_CANVAS] ========================================================',
     );
+    // This runs after the replacement tree has painted, not after a timer.
+    // It releases the old-frame transition buffer on the first tap.
+    _notifyFramePaintedAfterCurrentBuild();
     return Container(
       width: widget.width,
       height: height,
@@ -1652,7 +1673,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     }
 
     // Wrap the raw content in InteractiveLayer
-    final String interactionId = renderVersion == 10
+    final String interactionId = renderVersion >= 10
         ? (effectiveLayer['id']?.toString() ?? rawName)
         : rawName;
     return InteractiveLayer(
@@ -1670,7 +1691,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         ? widget.config['render_version']
         : int.tryParse(widget.config['render_version']?.toString() ?? '1') ?? 1;
 
-    if (renderVersion == 10) {
+    if (renderVersion >= 10) {
       return _buildTextV10(layer, scale, renderVersion);
     }
 
@@ -2483,7 +2504,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
         ? widget.config['render_version']
         : int.tryParse(widget.config['render_version']?.toString() ?? '1') ?? 1;
 
-    if (renderVersion == 10 &&
+    if (renderVersion >= 10 &&
         (layer['_resolved_color'] != null ||
             (layer['_source_meta'] is Map &&
                 layer['_source_meta']['original_color'] != null))) {
@@ -3002,7 +3023,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     double nativeH,
     int renderVersion,
   ) {
-    if (renderVersion == 10) {
+    if (renderVersion >= 10) {
       return _buildVectorShapeV10(
         layer,
         lname,
@@ -3256,10 +3277,15 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     // Normalize newlines consistently (shared with _measureTextHeight)
     textValue = _normalizeText(textValue, layer);
 
-    // Color conversion (handles hex and 0x formats)
-    // Dynamic Theming writes to 'font_color', original JSON uses 'color'
+    // `_resolved_color` is the V10+ preview value. The authored colour fields
+    // remain immutable so a dynamic contrast calculation never changes what
+    // is saved back to the frame.
     String colorStr =
-        layer['font_color'] ?? layer['color'] ?? layer['fill'] ?? '#000000';
+        layer['_resolved_color'] ??
+        layer['font_color'] ??
+        layer['color'] ??
+        layer['fill'] ??
+        '#000000';
     Color fontColor = _parseColor(colorStr);
     List<Color>? gradientColors = _parseGradient(colorStr);
 
@@ -3948,7 +3974,7 @@ class _EditorCanvasWidgetState extends State<EditorCanvasWidget> {
     double nativeH,
     int renderVersion,
   ) {
-    if (renderVersion == 10) {
+    if (renderVersion >= 10) {
       return _buildIconLayerV10(layer, lname, scale, nativeW, nativeH);
     }
     if (renderVersion >= 9) {

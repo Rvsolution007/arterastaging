@@ -322,3 +322,68 @@ truth.
    count, and layer geometry.
 5. Do not run bulk source rewrites automatically during a code deploy. Existing
    frame migrations remain explicit Version Control actions.
+
+## Render-Version Contract Governance (V10–V25+)
+
+**CRITICAL RULE — EVERY NEW RENDER VERSION IS A COMPLETE, BIDIRECTIONAL DATA
+CONTRACT.** A version is not just a conditional renderer or a changed
+`render_version` number. This policy applies to V11 through V25 and every
+later version.
+
+### Mandatory workflow when a user asks for V{N}
+
+1. Treat phrases such as “make this for V11”, “upgrade to V12”, or “add a V25
+   feature” as a request for **version-contract work**. Before implementation,
+   identify the parent contract, the new capability, its JSON representation,
+   and how it is represented in Web, Native, API, DB, extracted JSON, and ZIP.
+2. Register the target version in `FrameContractMigrator` with an explicit
+   contract identifier, parent version, capability list, and up/down migration
+   steps. Do **not** merely increase a maximum-version constant or add an
+   `if (renderVersion >= N)` branch.
+3. Every migration must be pure, deterministic, idempotent, and preflighted
+   before any source is written. Upgrade and downgrade must update the whole
+   payload: `render_version`, contract marker, JSON schema, layer IDs, icon
+   metadata, authored/runtime colour fields, bounds, z-index, and all other
+   version-owned fields.
+4. Keep authored data immutable. Runtime preview values (for example
+   `_resolved_color`) must not replace authored values and must not be saved as
+   a source-of-truth value.
+5. A downgrade must be lossless. If the target renderer cannot express a new
+   feature, either preserve the complete version-specific payload in a
+   namespaced forward-compatible extension that old renderers round-trip
+   untouched, or reject the migration with a clear reason. Never flatten,
+   discard, approximate, or silently “force” data loss.
+6. Synchronize only through `FrameTemplateSourceSynchronizer`: canonical DB
+   JSON, extracted JSON, and the canonical ZIP entry must contain the same
+   contract payload. Never patch one source independently and never edit a
+   custom-template JSON file directly.
+7. Add contract tests before enabling a version: upgrade, downgrade,
+   downgrade→upgrade round trip, idempotency, unsupported-feature refusal or
+   extension preservation, and Web/Native render fixtures. Test all source
+   copies, including DB, extracted JSON, and ZIP.
+8. A feature shared by V10+ belongs in the documented compatibility baseline
+   and must be tested against every registered inheriting contract. A feature
+   introduced only in V{N} must have an isolated V{N} adapter/router; it must
+   not alter an older contract path.
+9. Do not make a version selectable in the Version Control Dashboard, set it
+   as a creation default, or bump `CURRENT_RENDER_VERSION` until its contract
+   registration, bidirectional migration, and tests are complete.
+10. When working on an old version while a newer version exists, preserve its
+    exact contract. Cross-version work must use migration adapters and feature
+    capabilities, never leak newer fields or rendering assumptions into an
+    older renderer.
+
+### V11–V25 delivery checklist
+
+- Contract registry entry and explicit parent contract.
+- Upgrade and lossless downgrade adapters.
+- Contract-aware Web and Native renderer/export routes.
+- Version-aware API/DB/ZIP source synchronization.
+- Round-trip and cross-platform regression tests.
+- Explicit admin migration only; no implicit upgrade on open, save, publish,
+  or deploy.
+
+**Definition of zero loss:** after a permitted downgrade and later upgrade,
+the payload and visible output are restored exactly. If that cannot be proved,
+the downgrade is not permitted until a forward-compatible preservation adapter
+exists.

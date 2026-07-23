@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use App\Models\PosterCategory;
 use App\Models\StorageSetting;
 use App\Http\Controllers\Controller;
+use App\Services\FrameContractMigrator;
+use App\Services\FrameRenderContractRegistry;
 use App\Services\FrameTemplateSourceSynchronizer;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -899,8 +901,12 @@ class PosterMakerController extends Controller
             ->orderBy('render_version')
             ->pluck('render_version');
 
-        // Current max version (from the JS constant)
-        $currentMaxVersion = 10;
+        // Only active, fully migratable contracts appear in Version Control.
+        // V11-V25 may be reserved, but cannot be selected until their
+        // bidirectional adapters and tests are registered.
+        $currentMaxVersion = app(FrameRenderContractRegistry::class)->profile(
+            FrameRenderContractRegistry::CURRENT_RENDER_VERSION,
+        )['version'];
 
         return view('poster_maker.version_control', [
             'data' => $data,
@@ -926,6 +932,8 @@ class PosterMakerController extends Controller
         $errors = [];
 
         $validator = new \App\Services\DualEngineValidator();
+        $sourceSynchronizer = app(FrameTemplateSourceSynchronizer::class);
+        $contractMigrator = app(FrameContractMigrator::class);
         $validationResults = [];
         $autoCommitted = [];
         $needsReview = [];
@@ -933,60 +941,41 @@ class PosterMakerController extends Controller
         foreach ($request->ids as $id) {
             try {
                 $frame = PosterMaker::findOrFail($id);
-                $currentVersion = $frame->render_version ?? 1;
+                $currentVersion = (int) ($frame->render_version ?? 1);
                 $targetVersionInt = ($targetVersion !== 'none') ? (int)$targetVersion : $currentVersion;
 
-                // A same-version request is an explicit source-reconciliation
-                // action. It repairs stale ZIP JSON without changing a frame's
-                // render behavior or silently upgrading any version.
-                if ($currentVersion === $targetVersionInt) {
-                    $sourceSynchronizer = app(FrameTemplateSourceSynchronizer::class);
-                    $canonicalJson = $sourceSynchronizer->canonicalJson(
-                        $frame->zip_name,
-                        $frame->layers_json,
-                    );
-
-                    if ($canonicalJson === null) {
-                        $errors[] = "Frame #{$id} ({$frame->zip_name}): Canonical JSON not found";
-                        continue;
-                    }
-
-                    $canonicalJson['render_version'] = $targetVersionInt;
-                    $frame->layers_json = $sourceSynchronizer->synchronize(
-                        $frame->zip_name,
-                        $canonicalJson,
-                    );
-                    $frame->save();
-
-                    \Illuminate\Support\Facades\Cache::forget("template_json:{$frame->zip_name}");
-                    \Illuminate\Support\Facades\Cache::forget("template_json:v2:{$frame->zip_name}");
-                    \Illuminate\Support\Facades\Cache::forget(
-                        "template_json:v2:" . preg_replace('/^Template_/i', '', $frame->zip_name),
-                    );
-
-                    $autoCommitted[] = [
-                        'id' => $id,
-                        'name' => $frame->zip_name,
-                        'status' => 'SOURCES_RECONCILED',
-                    ];
+                // The database payload is canonical. Never migrate a stale ZIP
+                // copy and then only flip the database render_version.
+                $canonicalJson = $sourceSynchronizer->canonicalJson(
+                    $frame->zip_name,
+                    $frame->layers_json,
+                );
+                if ($canonicalJson === null) {
+                    $errors[] = "Frame #{$id} ({$frame->zip_name}): Canonical JSON not found";
                     continue;
                 }
 
-                $jsonPath = public_path("uploads/template/{$frame->zip_name}/json/{$frame->zip_name}.json");
-
-                if (!file_exists($jsonPath)) {
-                    $errors[] = "Frame #{$id} ({$frame->zip_name}): JSON file not found";
-                    continue;
-                }
-
-                $json = json_decode(file_get_contents($jsonPath), true);
-                if (!$json) {
-                    $errors[] = "Frame #{$id}: Invalid JSON";
-                    continue;
-                }
+                // This is a pure, loss-aware conversion. If a target contract
+                // cannot represent the source exactly it throws before any
+                // source is overwritten; force_commit intentionally cannot
+                // bypass that guarantee.
+                $migration = $contractMigrator->migrate(
+                    $canonicalJson,
+                    $currentVersion,
+                    $targetVersionInt,
+                );
+                $json = $migration['json'];
 
                 // Run Dual Engine Validation
-                $result = $validator->validate($id, $json, $currentVersion, $targetVersionInt);
+                $result = $currentVersion === $targetVersionInt
+                    ? [
+                        'status' => 'MATCH',
+                        'frame_id' => $id,
+                        'current_version' => $currentVersion,
+                        'target_version' => $targetVersionInt,
+                        'message' => 'Source reconciliation under the same render contract.',
+                    ]
+                    : $validator->validate($id, $json, $currentVersion, $targetVersionInt);
                 $result['zip_name'] = $frame->zip_name;
 
                 $validationResults[] = $result;
@@ -1122,30 +1111,28 @@ class PosterMakerController extends Controller
                         }
                     }
 
-                    // Update render_version in JSON
-                    if ($targetVersion !== 'none') {
-                        $json['render_version'] = (int) $targetVersion;
-                        $jsonModified = true;
-                    }
-
-                    $jsonString = null;
+                    // Icon upgrades run after validation. Normalize again so
+                    // the final payload, rather than only its version number,
+                    // fulfils the target contract.
+                    $json = $contractMigrator->migrate(
+                        $json,
+                        $targetVersionInt,
+                        $targetVersionInt,
+                    )['json'];
+                    $jsonModified = true;
 
                     // Synchronize every editor/API source from one canonical
                     // payload. This prevents a stale custom_frames_zips JSON
                     // from being loaded after a dashboard version migration.
-                    if ($jsonModified) {
-                        $jsonString = app(FrameTemplateSourceSynchronizer::class)
-                            ->synchronize($frame->zip_name, $json);
-                    }
+                    $sourceSynchronizer->synchronize(
+                        $frame->zip_name,
+                        $json,
+                    );
 
-                    // Update DB column and layers_json
-                    if ($targetVersion !== 'none') {
-                        $frame->render_version = (int) $targetVersion;
-                    }
-                    
-                    if ($jsonModified) {
-                        $frame->layers_json = $jsonString;
-                    }
+                    // Update DB column and layers_json together with the same
+                    // full payload that was written to the distribution ZIP.
+                    $frame->render_version = $targetVersionInt;
+                    $frame->layers_json = $json;
                     $frame->save();
 
                     // Invalidate Redis Cache
@@ -1172,12 +1159,28 @@ class PosterMakerController extends Controller
                             if (is_array($legacy) && isset($legacy['layers'])) $updateLayers($legacy['layers']);
                         }
 
-                        if ($targetVersion !== 'none') {
-                            if (is_array($schema)) { $schema['render_version'] = (int) $targetVersion; }
-                            if (is_array($legacy)) { $legacy['render_version'] = (int) $targetVersion; }
-                            $editorTemplate->render_version = (int) $targetVersion;
+                        // EditorTemplate is another persisted representation of
+                        // the same frame. Apply the contract conversion here as
+                        // well; never leave it as V10 data behind a V9 number.
+                        $editorTemplateVersion = (int) ($editorTemplate->render_version ?? $currentVersion);
+                        if (is_array($schema)) {
+                            $schema = $contractMigrator->migrate(
+                                $schema,
+                                $editorTemplateVersion,
+                                $targetVersionInt,
+                            )['json'];
                             $dbModified = true;
                         }
+                        if (is_array($legacy)) {
+                            $legacy = $contractMigrator->migrate(
+                                $legacy,
+                                $editorTemplateVersion,
+                                $targetVersionInt,
+                            )['json'];
+                            $dbModified = true;
+                        }
+                        $editorTemplate->render_version = $targetVersionInt;
+                        $dbModified = true;
                         
                         if ($dbModified) {
                             if (is_array($schema)) $editorTemplate->schema_json = $schema;
@@ -1224,13 +1227,15 @@ class PosterMakerController extends Controller
         ]);
 
         $frame = PosterMaker::findOrFail($request->frame_id);
-        $jsonPath = public_path('uploads/template/'.$frame->zip_name.'/json/'.$frame->zip_name.'.json');
-        
-        if (!file_exists($jsonPath)) {
-            return response()->json(['success' => false, 'message' => 'JSON file not found'], 404);
+        $sourceSynchronizer = app(FrameTemplateSourceSynchronizer::class);
+        $contractMigrator = app(FrameContractMigrator::class);
+        $sourceJson = $sourceSynchronizer->canonicalJson($frame->zip_name, $frame->layers_json);
+        if ($sourceJson === null) {
+            return response()->json(['success' => false, 'message' => 'Canonical frame JSON not found'], 404);
         }
-
-        $json = json_decode(file_get_contents($jsonPath), true);
+        $currentVersion = (int) ($frame->render_version ?? 1);
+        $targetVersion = (int) $request->target_version;
+        $json = $contractMigrator->migrate($sourceJson, $currentVersion, $targetVersion)['json'];
 
         $compensated = [];
         $manualRequired = [];
@@ -1276,16 +1281,20 @@ class PosterMakerController extends Controller
             }
         }
 
-        // Save corrected JSON back
-        file_put_contents($jsonPath, json_encode($json, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT));
-
-        // Update render_version
-        $json['render_version'] = $request->target_version;
-        $frame->render_version = $request->target_version;
+        // A compensation is part of the target contract, so normalize it once
+        // more and synchronize every source from this single payload.
+        $json = $contractMigrator->migrate($json, $targetVersion, $targetVersion)['json'];
+        $sourceSynchronizer->synchronize($frame->zip_name, $json);
+        $frame->render_version = $targetVersion;
+        $frame->layers_json = $json;
         $frame->save();
 
-        // Clear Redis cache
+        // Clear every template cache variant.
         \Illuminate\Support\Facades\Cache::forget("template_json:{$frame->zip_name}");
+        \Illuminate\Support\Facades\Cache::forget("template_json:v2:{$frame->zip_name}");
+        \Illuminate\Support\Facades\Cache::forget(
+            "template_json:v2:" . preg_replace('/^Template_/i', '', $frame->zip_name),
+        );
 
         return response()->json([
             'success' => true,

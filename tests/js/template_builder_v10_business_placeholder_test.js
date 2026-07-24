@@ -61,6 +61,16 @@ assert.equal(
     'phone_2',
     'duplicate binding should fill the first available indexed slot'
 );
+assert.match(
+    source,
+    /requestedPlaceholderBinding[\s\S]{0,500}?nextV10BusinessPlaceholderKey\(\s*canvas\.getObjects\(\)/,
+    'adding the same V10 business placeholder twice must allocate the next index'
+);
+assert.match(
+    source,
+    /fieldCounts\[binding\.field\]\+\+[\s\S]{0,400}?fieldCounts\[field\] - 1/,
+    'binding dropdown must expose one indexed option per existing field layer'
+);
 
 const exported = {};
 sandbox.applyV10BusinessBinding(exported, {

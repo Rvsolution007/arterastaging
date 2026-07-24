@@ -141,4 +141,59 @@ void main() {
     ]);
     Get.reset();
   });
+
+  test('V10 repairs duplicate staging placeholder indexes by layer order', () {
+    Get.testMode = true;
+    final home = Get.put<HomeController>(_TestHomeController());
+    home.businessPhone.value = '1111111111';
+    home.extraPhones.assignAll(['2222222222']);
+    home.businessEmail.value = 'first@example.com';
+    home.extraEmails.assignAll(['second@example.com']);
+    home.businessWebsite.value = 'first.example';
+    home.extraWebsites.assignAll(['second.example']);
+    home.businessAddress.value = 'First address';
+    home.extraAddresses.assignAll(['Second address']);
+
+    final controller = NativeEditorController();
+    controller.templateConfig.assignAll({
+      'render_version': 10,
+      'layers': [
+        for (final field in ['phone', 'email', 'website', 'address'])
+          for (int occurrence = 0; occurrence < 2; occurrence++)
+            <String, dynamic>{
+              'name': '${field}_1',
+              'type': 'text',
+              'text': 'authored placeholder',
+              'business_field': field,
+              'business_field_index': 0,
+              'placeholder_key': '${field}_1',
+            },
+      ],
+    });
+
+    controller.reapplyBusinessProfile();
+
+    final layers = controller.templateConfig['layers'] as List;
+    expect(layers.map((layer) => layer['text']).toList(), [
+      '1111111111',
+      '2222222222',
+      'first@example.com',
+      'second@example.com',
+      'first.example',
+      'second.example',
+      'First address',
+      'Second address',
+    ]);
+    expect(layers.map((layer) => layer['business_field_index']).toList(), [
+      0,
+      1,
+      0,
+      1,
+      0,
+      1,
+      0,
+      1,
+    ]);
+    Get.reset();
+  });
 }

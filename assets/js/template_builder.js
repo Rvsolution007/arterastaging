@@ -127,11 +127,19 @@
         if (!select || !editorCanvas ||
             !isV10RenderVersion(window._originalRenderVersion || CURRENT_RENDER_VERSION)) return;
         const maxIndexes = { phone: 0, email: 0, website: 0, address: 0 };
+        const fieldCounts = { phone: 0, email: 0, website: 0, address: 0 };
         editorCanvas.getObjects().forEach(function(object) {
             const binding = v10BusinessBindingFromObject(object);
             if (binding && Object.prototype.hasOwnProperty.call(maxIndexes, binding.field)) {
                 maxIndexes[binding.field] = Math.max(maxIndexes[binding.field], binding.index);
+                fieldCounts[binding.field]++;
             }
+        });
+        V10_BUSINESS_PLACEHOLDER_FIELDS.forEach(function(field) {
+            // Older V10 frames can contain two authored `phone_1` (or
+            // equivalent) layers. Expose an option for every actual layer so
+            // either binding can be repaired without losing the other value.
+            maxIndexes[field] = Math.max(maxIndexes[field], fieldCounts[field] - 1);
         });
         const selectedBinding = parseV10BusinessPlaceholder(selectedValue || '');
         if (selectedBinding && Object.prototype.hasOwnProperty.call(maxIndexes, selectedBinding.field)) {
@@ -2152,10 +2160,19 @@
         const usesV10PlaceholderContract = isV10RenderVersion(
             window._originalRenderVersion || CURRENT_RENDER_VERSION
         );
-        const placeholderBinding = usesV10PlaceholderContract
+        const requestedPlaceholderBinding = usesV10PlaceholderContract
             ? parseV10BusinessPlaceholder(val)
             : null;
-        const placeholderKey = placeholderBinding ? placeholderBinding.key : val;
+        const placeholderKey = requestedPlaceholderBinding &&
+            requestedPlaceholderBinding.field !== 'name'
+            ? nextV10BusinessPlaceholderKey(
+                canvas.getObjects(),
+                requestedPlaceholderBinding.field
+            )
+            : (requestedPlaceholderBinding ? requestedPlaceholderBinding.key : val);
+        const placeholderBinding = usesV10PlaceholderContract
+            ? parseV10BusinessPlaceholder(placeholderKey)
+            : null;
         let displayStr = '{{' + placeholderKey + '}}';
         if (!usesV10PlaceholderContract && val === 'phone_1') displayStr = '+91 9876543210';
         else if (!usesV10PlaceholderContract && val === 'email') displayStr = 'example@email.com';

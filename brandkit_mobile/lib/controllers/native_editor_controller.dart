@@ -499,7 +499,8 @@ class NativeEditorController extends GetxController {
 
     try {
       final frame = Map<String, dynamic>.from(first);
-      final String frameId = (frame['id'] ?? frame['zip_name'] ?? '').toString();
+      final String frameId = (frame['id'] ?? frame['zip_name'] ?? '')
+          .toString();
       if (frameId.isNotEmpty) loadingFrameId.value = frameId;
       await loadNewFrame(_normaliseFrameRecord(frame));
     } finally {
@@ -513,7 +514,8 @@ class NativeEditorController extends GetxController {
   /// the API supplied `json`, `json_rules`, or an already-decoded `config`.
   Map<String, dynamic> _normaliseFrameRecord(Map<String, dynamic> frame) {
     final payload = jsonDecode(jsonEncode(frame)) as Map<String, dynamic>;
-    dynamic rawConfig = payload['json'] ?? payload['json_rules'] ?? payload['config'];
+    dynamic rawConfig =
+        payload['json'] ?? payload['json_rules'] ?? payload['config'];
     Map<String, dynamic>? config;
 
     if (rawConfig is String && rawConfig.trim().isNotEmpty) {
@@ -717,13 +719,22 @@ class NativeEditorController extends GetxController {
       'website': 0,
       'address': 0,
     };
+    final claimedV10Indexes = <String, Set<int>>{
+      'phone': <int>{},
+      'email': <int>{},
+      'website': <int>{},
+      'address': <int>{},
+    };
 
     bool updated = false;
     for (var layer in layers) {
       if (layer is Map<String, dynamic>) {
-        final binding = _renderVersion() >= 10
+        Map<String, dynamic>? binding = _renderVersion() >= 10
             ? _parseV10BusinessBinding(layer)
             : null;
+        if (binding != null) {
+          binding = _claimV10BusinessBinding(binding, claimedV10Indexes);
+        }
         if (binding != null) {
           layer['_businessKey'] = binding['field'];
           layer['_businessIndex'] = binding['index'];
@@ -1430,6 +1441,30 @@ class NativeEditorController extends GetxController {
     return null;
   }
 
+  static Map<String, dynamic> _claimV10BusinessBinding(
+    Map<String, dynamic> binding,
+    Map<String, Set<int>> claimedIndexes,
+  ) {
+    final String field = binding['field']?.toString() ?? '';
+    if (field == 'name' || !claimedIndexes.containsKey(field)) {
+      return Map<String, dynamic>.from(binding);
+    }
+
+    final claimed = claimedIndexes[field]!;
+    int index = int.tryParse(binding['index']?.toString() ?? '') ?? 0;
+    if (index < 0) index = 0;
+    while (claimed.contains(index)) {
+      index++;
+    }
+    claimed.add(index);
+
+    return <String, dynamic>{
+      ...binding,
+      'index': index,
+      'key': '${field}_${index + 1}',
+    };
+  }
+
   List<String> _visibleBusinessValues(HomeController homeCtrl, String field) {
     String primary = '';
     List<String> extras = const <String>[];
@@ -1946,6 +1981,12 @@ class NativeEditorController extends GetxController {
         'website': 0,
         'address': 0,
       };
+      final claimedV10Indexes = <String, Set<int>>{
+        'phone': <int>{},
+        'email': <int>{},
+        'website': <int>{},
+        'address': <int>{},
+      };
       final int frameRenderVersion = _frameRenderVersion(newFrameJson);
 
       for (var newLayer in newLayers) {
@@ -2049,11 +2090,17 @@ class NativeEditorController extends GetxController {
 
         String bLow = layerName;
         if (newLayer['type'] == 'text') {
-          final Map<String, dynamic>? v10Binding = frameRenderVersion >= 10
+          Map<String, dynamic>? v10Binding = frameRenderVersion >= 10
               ? _parseV10BusinessBinding(
                   Map<String, dynamic>.from(newLayer as Map),
                 )
               : null;
+          if (v10Binding != null) {
+            v10Binding = _claimV10BusinessBinding(
+              v10Binding,
+              claimedV10Indexes,
+            );
+          }
           if (v10Binding != null) {
             newLayer['_businessKey'] = v10Binding['field'];
             newLayer['_businessIndex'] = v10Binding['index'];

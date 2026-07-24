@@ -720,7 +720,19 @@ class NativeEditorController extends GetxController {
 
     bool updated = false;
     for (var layer in layers) {
-      if (layer is Map<String, dynamic> && layer['_businessKey'] != null) {
+      if (layer is Map<String, dynamic>) {
+        final binding = _renderVersion() >= 10
+            ? _parseV10BusinessBinding(layer)
+            : null;
+        if (binding != null) {
+          layer['_businessKey'] = binding['field'];
+          layer['_businessIndex'] = binding['index'];
+          layer['business_field'] = binding['field'];
+          layer['business_field_index'] = binding['index'];
+          layer['placeholder_key'] = binding['key'];
+          layer['ai_field'] = binding['key'];
+        }
+        if (layer['_businessKey'] == null) continue;
         final String key = layer['_businessKey'].toString();
         if (layer['type'] == 'text') {
           if (key == 'name') {
@@ -728,60 +740,14 @@ class NativeEditorController extends GetxController {
               layer['text'] = homeCtrl.businessName.value;
               updated = true;
             }
-          } else if (key == 'phone') {
-            int idx = bizKeyCounter['phone']!;
-            String targetVal = '';
-            if (idx == 0) {
-              targetVal = homeCtrl.businessPhone.value.replaceAll(
-                ' ',
-                '\u00A0',
-              );
-            } else if (idx - 1 < homeCtrl.extraPhones.length) {
-              targetVal = homeCtrl.extraPhones[idx - 1].replaceAll(
-                ' ',
-                '\u00A0',
-              );
-            }
-            bizKeyCounter['phone'] = idx + 1;
-            if (targetVal.isNotEmpty && layer['text'] != targetVal) {
-              layer['text'] = targetVal;
-              updated = true;
-            }
-          } else if (key == 'email') {
-            int idx = bizKeyCounter['email']!;
-            String targetVal = '';
-            if (idx == 0) {
-              targetVal = homeCtrl.businessEmail.value;
-            } else if (idx - 1 < homeCtrl.extraEmails.length) {
-              targetVal = homeCtrl.extraEmails[idx - 1];
-            }
-            bizKeyCounter['email'] = idx + 1;
-            if (targetVal.isNotEmpty && layer['text'] != targetVal) {
-              layer['text'] = targetVal;
-              updated = true;
-            }
-          } else if (key == 'website') {
-            int idx = bizKeyCounter['website']!;
-            String targetVal = '';
-            if (idx == 0) {
-              targetVal = homeCtrl.businessWebsite.value;
-            } else if (idx - 1 < homeCtrl.extraWebsites.length) {
-              targetVal = homeCtrl.extraWebsites[idx - 1];
-            }
-            bizKeyCounter['website'] = idx + 1;
-            if (targetVal.isNotEmpty && layer['text'] != targetVal) {
-              layer['text'] = targetVal;
-              updated = true;
-            }
-          } else if (key == 'address') {
-            int idx = bizKeyCounter['address']!;
-            String targetVal = '';
-            if (idx == 0) {
-              targetVal = homeCtrl.businessAddress.value;
-            } else if (idx - 1 < homeCtrl.extraAddresses.length) {
-              targetVal = homeCtrl.extraAddresses[idx - 1];
-            }
-            bizKeyCounter['address'] = idx + 1;
+          } else if (bizKeyCounter.containsKey(key)) {
+            final int idx =
+                int.tryParse(binding?['index']?.toString() ?? '') ??
+                bizKeyCounter[key]!;
+            bizKeyCounter[key] = idx + 1 > bizKeyCounter[key]!
+                ? idx + 1
+                : bizKeyCounter[key]!;
+            final String targetVal = _businessValueAt(homeCtrl, key, idx);
             if (targetVal.isNotEmpty && layer['text'] != targetVal) {
               layer['text'] = targetVal;
               updated = true;
@@ -1388,6 +1354,127 @@ class NativeEditorController extends GetxController {
     return int.tryParse(value?.toString() ?? '') ?? 1;
   }
 
+  @visibleForTesting
+  static Map<String, dynamic>? parseV10BusinessBindingForTest(
+    Map<String, dynamic> layer,
+  ) {
+    return _parseV10BusinessBinding(layer);
+  }
+
+  static Map<String, dynamic>? _parseV10BusinessBinding(
+    Map<String, dynamic> layer,
+  ) {
+    const supportedFields = <String>{
+      'name',
+      'phone',
+      'email',
+      'website',
+      'address',
+    };
+    const aliases = <String, String>{
+      'mobile': 'phone',
+      'mobile_number': 'phone',
+      'phone_number': 'phone',
+      'mail': 'email',
+      'email_id': 'email',
+      'web': 'website',
+      'url': 'website',
+      'location': 'address',
+    };
+
+    String? explicitField = layer['business_field']?.toString();
+    int? explicitIndex = int.tryParse(
+      layer['business_field_index']?.toString() ?? '',
+    );
+    dynamic placeholder = layer['placeholder'];
+    if ((explicitField == null || explicitField.trim().isEmpty) &&
+        placeholder is Map) {
+      explicitField =
+          placeholder['field']?.toString() ??
+          placeholder['field_type']?.toString();
+      explicitIndex ??= int.tryParse(
+        placeholder['field_index']?.toString() ?? '',
+      );
+    }
+
+    final candidates = <String>[
+      if (explicitField != null) explicitField,
+      layer['placeholder_key']?.toString() ?? '',
+      layer['placeholderKey']?.toString() ?? '',
+      layer['ai_field']?.toString() ?? '',
+      layer['name']?.toString() ?? '',
+    ];
+
+    for (final rawCandidate in candidates) {
+      String candidate = rawCandidate
+          .trim()
+          .toLowerCase()
+          .replaceAll(RegExp(r'[\s-]+'), '_')
+          .replaceFirst(RegExp(r'^business_'), '');
+      if (candidate.isEmpty) continue;
+      final match = RegExp(r'^(.*?)(?:_(\d+))?$').firstMatch(candidate);
+      if (match == null) continue;
+      String field = aliases[match.group(1)] ?? match.group(1)!;
+      if (!supportedFields.contains(field)) continue;
+      final int parsedIndex =
+          explicitIndex ?? ((int.tryParse(match.group(2) ?? '1') ?? 1) - 1);
+      final int index = field == 'name'
+          ? 0
+          : (parsedIndex < 0 ? 0 : (parsedIndex > 999 ? 999 : parsedIndex));
+      return <String, dynamic>{
+        'field': field,
+        'index': index,
+        'key': field == 'name' ? 'name' : '${field}_${index + 1}',
+      };
+    }
+    return null;
+  }
+
+  List<String> _visibleBusinessValues(HomeController homeCtrl, String field) {
+    String primary = '';
+    List<String> extras = const <String>[];
+    String hiddenKey = '';
+    switch (field) {
+      case 'phone':
+        primary = homeCtrl.businessPhone.value;
+        extras = homeCtrl.extraPhones;
+        hiddenKey = 'mobile_numbers';
+        break;
+      case 'email':
+        primary = homeCtrl.businessEmail.value;
+        extras = homeCtrl.extraEmails;
+        hiddenKey = 'emails';
+        break;
+      case 'website':
+        primary = homeCtrl.businessWebsite.value;
+        extras = homeCtrl.extraWebsites;
+        hiddenKey = 'websites';
+        break;
+      case 'address':
+        primary = homeCtrl.businessAddress.value;
+        extras = homeCtrl.extraAddresses;
+        hiddenKey = 'addresses';
+        break;
+    }
+
+    final hiddenRaw = homeCtrl.hiddenFrameFields[hiddenKey];
+    final hidden = hiddenRaw is List
+        ? hiddenRaw.map((value) => value.toString().trim()).toSet()
+        : <String>{};
+    return <String>[primary, ...extras]
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty && !hidden.contains(value))
+        .toList(growable: false);
+  }
+
+  String _businessValueAt(HomeController homeCtrl, String field, int index) {
+    if (field == 'name') return homeCtrl.businessName.value;
+    final values = _visibleBusinessValues(homeCtrl, field);
+    if (index < 0 || index >= values.length) return '';
+    final value = values[index];
+    return field == 'phone' ? value.replaceAll(' ', '\u00A0') : value;
+  }
+
   bool _matchesLayerReference(dynamic rawLayer, String reference) {
     if (rawLayer is! Map) return false;
     // V10 assigns a UUID to every editable layer.  Names are presentation
@@ -1859,6 +1946,7 @@ class NativeEditorController extends GetxController {
         'website': 0,
         'address': 0,
       };
+      final int frameRenderVersion = _frameRenderVersion(newFrameJson);
 
       for (var newLayer in newLayers) {
         double rawW = safeDouble(
@@ -1961,7 +2049,19 @@ class NativeEditorController extends GetxController {
 
         String bLow = layerName;
         if (newLayer['type'] == 'text') {
-          if (bLow.contains('name') || bLow.contains('business_name'))
+          final Map<String, dynamic>? v10Binding = frameRenderVersion >= 10
+              ? _parseV10BusinessBinding(
+                  Map<String, dynamic>.from(newLayer as Map),
+                )
+              : null;
+          if (v10Binding != null) {
+            newLayer['_businessKey'] = v10Binding['field'];
+            newLayer['_businessIndex'] = v10Binding['index'];
+            newLayer['business_field'] = v10Binding['field'];
+            newLayer['business_field_index'] = v10Binding['index'];
+            newLayer['placeholder_key'] = v10Binding['key'];
+            newLayer['ai_field'] = v10Binding['key'];
+          } else if (bLow.contains('name') || bLow.contains('business_name'))
             newLayer['_businessKey'] = 'name';
           else if (bLow.contains('phone') ||
               bLow.contains('mobile') ||
@@ -1983,6 +2083,7 @@ class NativeEditorController extends GetxController {
               userTexts[name]!.trim().isNotEmpty;
 
           if (hasValidUserText &&
+              v10Binding == null &&
               (name.startsWith('_b_') || newLayer['_businessKey'] != null)) {
             newLayer['text'] = userTexts[name];
           } else if (Get.isRegistered<HomeController>() &&
@@ -1990,44 +2091,18 @@ class NativeEditorController extends GetxController {
             final homeCtrl = Get.find<HomeController>();
             if (newLayer['_businessKey'] == 'name') {
               newLayer['text'] = homeCtrl.businessName.value;
-            } else if (newLayer['_businessKey'] == 'phone') {
-              int idx = bizKeyCounter['phone']!;
-              if (idx == 0) {
-                newLayer['text'] = homeCtrl.businessPhone.value.replaceAll(
-                  ' ',
-                  '\u00A0',
-                );
-              } else if (idx - 1 < homeCtrl.extraPhones.length) {
-                newLayer['text'] = homeCtrl.extraPhones[idx - 1].replaceAll(
-                  ' ',
-                  '\u00A0',
-                );
-              }
-              bizKeyCounter['phone'] = idx + 1;
-            } else if (newLayer['_businessKey'] == 'email') {
-              int idx = bizKeyCounter['email']!;
-              if (idx == 0) {
-                newLayer['text'] = homeCtrl.businessEmail.value;
-              } else if (idx - 1 < homeCtrl.extraEmails.length) {
-                newLayer['text'] = homeCtrl.extraEmails[idx - 1];
-              }
-              bizKeyCounter['email'] = idx + 1;
-            } else if (newLayer['_businessKey'] == 'website') {
-              int idx = bizKeyCounter['website']!;
-              if (idx == 0) {
-                newLayer['text'] = homeCtrl.businessWebsite.value;
-              } else if (idx - 1 < homeCtrl.extraWebsites.length) {
-                newLayer['text'] = homeCtrl.extraWebsites[idx - 1];
-              }
-              bizKeyCounter['website'] = idx + 1;
-            } else if (newLayer['_businessKey'] == 'address') {
-              int idx = bizKeyCounter['address']!;
-              if (idx == 0) {
-                newLayer['text'] = homeCtrl.businessAddress.value;
-              } else if (idx - 1 < homeCtrl.extraAddresses.length) {
-                newLayer['text'] = homeCtrl.extraAddresses[idx - 1];
-              }
-              bizKeyCounter['address'] = idx + 1;
+            } else if (bizKeyCounter.containsKey(
+              newLayer['_businessKey']?.toString(),
+            )) {
+              final String key = newLayer['_businessKey'].toString();
+              final int idx =
+                  int.tryParse(v10Binding?['index']?.toString() ?? '') ??
+                  bizKeyCounter[key]!;
+              bizKeyCounter[key] = idx + 1 > bizKeyCounter[key]!
+                  ? idx + 1
+                  : bizKeyCounter[key]!;
+              final value = _businessValueAt(homeCtrl, key, idx);
+              if (value.isNotEmpty) newLayer['text'] = value;
             }
           }
         } else if (newLayer['type'] == 'image') {
@@ -2524,11 +2599,18 @@ class NativeEditorController extends GetxController {
 
   int _frameRenderVersion(Map<String, dynamic> frame) {
     final dynamic direct = frame['render_version'];
-    final dynamic config = frame['config'];
+    dynamic config = frame['config'] ?? frame['json'];
+    if (config is String && config.trim().isNotEmpty) {
+      try {
+        config = jsonDecode(config);
+      } catch (_) {}
+    }
     final dynamic nested = config is Map ? config['render_version'] : null;
     final dynamic info = frame['info'];
     final dynamic infoVersion = info is Map ? info['render_version'] : null;
-    return safeDouble(direct ?? nested ?? infoVersion ?? 1).toInt();
+    return safeDouble(
+      direct ?? nested ?? infoVersion ?? templateConfig['render_version'] ?? 1,
+    ).toInt();
   }
 
   Future<void> _engineDecodeImage(String url) {

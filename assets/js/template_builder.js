@@ -31,6 +31,135 @@
         return Number(version) >= 10;
     }
 
+    function usesV10PointerContract() {
+        return isV10RenderVersion(window._originalRenderVersion || CURRENT_RENDER_VERSION);
+    }
+
+    const V10_BUSINESS_PLACEHOLDER_FIELDS = ['phone', 'email', 'website', 'address'];
+
+    function parseV10BusinessPlaceholder(value, explicitIndex) {
+        if (!value || typeof value !== 'string') return null;
+        let normalized = value.trim().toLowerCase()
+            .replace(/[\s-]+/g, '_')
+            .replace(/^business_/, '');
+        const aliases = {
+            mobile: 'phone',
+            mobile_number: 'phone',
+            phone_number: 'phone',
+            mail: 'email',
+            email_id: 'email',
+            web: 'website',
+            url: 'website',
+            location: 'address'
+        };
+        const match = normalized.match(/^(.*?)(?:_(\d+))?$/);
+        if (!match) return null;
+        let field = aliases[match[1]] || match[1];
+        if (field === 'name') {
+            return { field: 'name', index: 0, key: 'name' };
+        }
+        if (!V10_BUSINESS_PLACEHOLDER_FIELDS.includes(field)) return null;
+        let index = Number.isFinite(Number(explicitIndex))
+            ? Math.max(0, Math.floor(Number(explicitIndex)))
+            : Math.max(0, (parseInt(match[2] || '1', 10) || 1) - 1);
+        return { field: field, index: index, key: field + '_' + (index + 1) };
+    }
+
+    function v10BusinessBindingFromObject(obj) {
+        if (!obj) return null;
+        if (obj.business_field) {
+            return parseV10BusinessPlaceholder(
+                String(obj.business_field),
+                obj.business_field_index
+            );
+        }
+        if (obj.placeholder && obj.placeholder.field_type) {
+            return parseV10BusinessPlaceholder(
+                String(obj.placeholder.field_type),
+                obj.placeholder.field_index
+            );
+        }
+        return parseV10BusinessPlaceholder(
+            obj.placeholderKey ||
+            obj.placeholder_key ||
+            obj.ai_field ||
+            obj.customName ||
+            ''
+        );
+    }
+
+    function applyV10BusinessBinding(target, obj, renderVersion) {
+        if (!isV10RenderVersion(renderVersion) || !target || !obj) return target;
+        const binding = v10BusinessBindingFromObject(obj);
+        if (!binding) return target;
+        target.placeholder_key = binding.key;
+        target.ai_field = binding.key;
+        target.business_field = binding.field;
+        target.business_field_index = binding.index;
+        return target;
+    }
+
+    function v10BusinessPlaceholderLabel(binding) {
+        if (!binding) return '';
+        if (binding.field === 'name') return 'Business Name';
+        const labels = {
+            phone: 'Mobile Number',
+            email: 'Email ID',
+            website: 'Website',
+            address: 'Address'
+        };
+        return (labels[binding.field] || binding.field) + ' ' + (binding.index + 1);
+    }
+
+    function nextV10BusinessPlaceholderKey(objects, field) {
+        const usedIndexes = new Set();
+        (objects || []).forEach(function(object) {
+            const binding = v10BusinessBindingFromObject(object);
+            if (binding && binding.field === field) usedIndexes.add(binding.index);
+        });
+        let nextIndex = 0;
+        while (usedIndexes.has(nextIndex)) nextIndex++;
+        return field + '_' + (nextIndex + 1);
+    }
+
+    function refreshV10PlaceholderBindingOptions(editorCanvas, selectedValue) {
+        const select = document.getElementById('prop-placeholder-bind');
+        if (!select || !editorCanvas ||
+            !isV10RenderVersion(window._originalRenderVersion || CURRENT_RENDER_VERSION)) return;
+        const maxIndexes = { phone: 0, email: 0, website: 0, address: 0 };
+        editorCanvas.getObjects().forEach(function(object) {
+            const binding = v10BusinessBindingFromObject(object);
+            if (binding && Object.prototype.hasOwnProperty.call(maxIndexes, binding.field)) {
+                maxIndexes[binding.field] = Math.max(maxIndexes[binding.field], binding.index);
+            }
+        });
+        const selectedBinding = parseV10BusinessPlaceholder(selectedValue || '');
+        if (selectedBinding && Object.prototype.hasOwnProperty.call(maxIndexes, selectedBinding.field)) {
+            maxIndexes[selectedBinding.field] = Math.max(maxIndexes[selectedBinding.field], selectedBinding.index);
+        }
+
+        select.innerHTML = '';
+        [
+            { value: '', label: '-- None --' },
+            { value: 'name', label: 'Business Name' }
+        ].forEach(function(option) {
+            const element = document.createElement('option');
+            element.value = option.value;
+            element.textContent = option.label;
+            select.appendChild(element);
+        });
+        V10_BUSINESS_PLACEHOLDER_FIELDS.forEach(function(field) {
+            for (let index = 0; index <= maxIndexes[field]; index++) {
+                const binding = parseV10BusinessPlaceholder(field, index);
+                const option = document.createElement('option');
+                option.value = binding.key;
+                option.textContent = v10BusinessPlaceholderLabel(binding);
+                select.appendChild(option);
+            }
+        });
+        select.value = selectedBinding ? selectedBinding.key : (selectedValue === 'name' ? 'name' : '');
+    }
+
     function makeV10LayerId() {
         if (window.crypto && typeof window.crypto.randomUUID === 'function') {
             return 'v10_' + window.crypto.randomUUID();
@@ -451,6 +580,24 @@
         }
     }
 
+    function finishV10CanvasInteraction(e) {
+        if (!usesV10PointerContract() || !canvas) return;
+
+        // Fabric normally receives mouseup from the document. Browser chrome,
+        // scrollable panels and touch-to-mouse transitions can swallow that
+        // event, leaving _currentTransform alive and the layer following the
+        // cursor. Only invoke Fabric's release path when it is still pending,
+        // so a normal mouseup is never processed twice.
+        if (canvas._currentTransform && typeof canvas._onMouseUp === 'function' && e) {
+            canvas._onMouseUp(e);
+        }
+
+        const active = canvas.getActiveObject();
+        if (active && typeof active.setCoords === 'function') active.setCoords();
+        canvas.selection = true;
+        canvas.requestRenderAll();
+    }
+
     if (wrapEl) {
         wrapEl.addEventListener('mousedown', (e) => {
             if (e.target === wrapEl || e.button === 1 || (e.button === 0 && isSpaceDown)) {
@@ -467,16 +614,35 @@
 
         window.addEventListener('mouseup', endPan);
         window.addEventListener('touchend', endPan);
+        window.addEventListener('mouseup', finishV10CanvasInteraction);
+        window.addEventListener('touchend', finishV10CanvasInteraction);
     }
 
     if (typeof canvas !== 'undefined' && canvas) {
         canvas.on('mouse:down', function(opt) {
             var e = opt.e;
-            // Panning if Middle-click, Space+click, Alt+click, OR left-click on empty canvas area
-            if (e.button === 1 || (e.button === 0 && isSpaceDown) || e.altKey || (!opt.target && (e.button === 0 || e.type === 'touchstart'))) {
+            // V10 reserves an ordinary left click for Fabric selection. It
+            // must never enter the pan path merely because hit-testing has not
+            // resolved the target yet. Pan remains available with middle,
+            // Space+drag or Alt+drag.
+            const explicitPanGesture = e.button === 1 || (e.button === 0 && isSpaceDown) || e.altKey;
+            const legacyEmptyCanvasPan = !usesV10PointerContract() &&
+                !opt.target && (e.button === 0 || e.type === 'touchstart');
+            if (explicitPanGesture || legacyEmptyCanvasPan) {
                 startPan(e);
                 canvas.selection = false;
                 if (e.preventDefault) e.preventDefault();
+            }
+        });
+
+        canvas.on('mouse:down', function(opt) {
+            const target = opt.target;
+            if (!usesV10PointerContract() || !target || target.selectable === false) return;
+            const isText = target.type === 'text' || target.type === 'i-text' || target.type === 'textbox';
+            if (isText && canvas.getActiveObject() !== target) {
+                canvas.setActiveObject(target);
+                target.setCoords();
+                canvas.requestRenderAll();
             }
         });
     }
@@ -1043,10 +1209,14 @@
             }
             if (inputFontFamily) inputFontFamily.value = obj.fontFamily || 'Arial';
             if (inputPlaceholderBind) {
+                const selectedPlaceholder = obj.placeholderKey || obj.placeholder_key || obj.ai_field || obj.customName || '';
+                refreshV10PlaceholderBindingOptions(canvas, selectedPlaceholder);
                 if (obj.customType === 'placeholder' && obj.placeholderKey) {
-                    inputPlaceholderBind.value = obj.placeholderKey;
+                    const binding = v10BusinessBindingFromObject(obj);
+                    inputPlaceholderBind.value = binding ? binding.key : obj.placeholderKey;
                 } else if (obj.customName && ['name', 'phone_1', 'email', 'website', 'address'].includes(obj.customName)) {
-                    inputPlaceholderBind.value = obj.customName;
+                    const binding = v10BusinessBindingFromObject(obj);
+                    inputPlaceholderBind.value = binding ? binding.key : obj.customName;
                 } else {
                     inputPlaceholderBind.value = '';
                 }
@@ -1481,31 +1651,52 @@
                 // Clear binding: turn back into normal text
                 obj.name = 'text_layer';
                 obj.customName = 'text_layer';
-                obj.set({
+                const clearBindingProps = {
                     customType: 'text',
                     placeholderKey: null,
                     customName: 'text_layer',
                     ai_field: null
-                });
+                };
+                if (isV10RenderVersion(window._originalRenderVersion || CURRENT_RENDER_VERSION)) {
+                    clearBindingProps.business_field = null;
+                    clearBindingProps.business_field_index = null;
+                }
+                obj.set(clearBindingProps);
             } else {
                 // Set binding: turn into placeholder text
+                const usesV10PlaceholderContract = isV10RenderVersion(
+                    window._originalRenderVersion || CURRENT_RENDER_VERSION
+                );
+                const binding = usesV10PlaceholderContract
+                    ? parseV10BusinessPlaceholder(val)
+                    : null;
                 let displayStr = obj.text;
-                if (val === 'phone_1') displayStr = '+91 9876543210';
-                else if (val === 'email') displayStr = 'example@email.com';
-                else if (val === 'website') displayStr = 'www.yourwebsite.com';
-                else if (val === 'address') displayStr = 'Your Business Address Here';
+                if (!usesV10PlaceholderContract && val === 'phone_1') displayStr = '+91 9876543210';
+                else if (!usesV10PlaceholderContract && val === 'email') displayStr = 'example@email.com';
+                else if (!usesV10PlaceholderContract && val === 'website') displayStr = 'www.yourwebsite.com';
+                else if (!usesV10PlaceholderContract && val === 'address') displayStr = 'Your Business Address Here';
+                else if (binding && binding.field === 'phone') displayStr = binding.index === 0 ? '+91 9876543210' : '+91 9876543211';
+                else if (binding && binding.field === 'email') displayStr = binding.index === 0 ? 'example@email.com' : 'second@example.com';
+                else if (binding && binding.field === 'website') displayStr = binding.index === 0 ? 'www.yourwebsite.com' : 'www.secondwebsite.com';
+                else if (binding && binding.field === 'address') displayStr = binding.index === 0 ? 'Your Business Address Here' : 'Your Second Business Address';
                 else if (val === 'name') displayStr = 'Your Business Name';
 
-                obj.name = val;
-                obj.customName = val;
-                obj.set({
+                const bindingKey = binding ? binding.key : val;
+                obj.name = bindingKey;
+                obj.customName = bindingKey;
+                const bindingProps = {
                     text: displayStr,
                     customType: 'placeholder',
-                    placeholderKey: val,
-                    customName: val,
-                    ai_field: val,
+                    placeholderKey: bindingKey,
+                    customName: bindingKey,
+                    ai_field: bindingKey,
                     ai_semantic_role: 'body_text'
-                });
+                };
+                if (usesV10PlaceholderContract) {
+                    bindingProps.business_field = binding ? binding.field : (val === 'name' ? 'name' : null);
+                    bindingProps.business_field_index = binding ? binding.index : (val === 'name' ? 0 : null);
+                }
+                obj.set(bindingProps);
 
                 // Update properties text input value
                 if (inputText) inputText.value = displayStr;
@@ -1958,18 +2149,36 @@
             return;
         }
 
-        let displayStr = '{{' + val + '}}';
-        if (val === 'phone_1') displayStr = '+91 9876543210';
-        else if (val === 'email') displayStr = 'example@email.com';
-        else if (val === 'website') displayStr = 'www.yourwebsite.com';
-        else if (val === 'address') displayStr = 'Your Business Address Here';
+        const usesV10PlaceholderContract = isV10RenderVersion(
+            window._originalRenderVersion || CURRENT_RENDER_VERSION
+        );
+        const placeholderBinding = usesV10PlaceholderContract
+            ? parseV10BusinessPlaceholder(val)
+            : null;
+        const placeholderKey = placeholderBinding ? placeholderBinding.key : val;
+        let displayStr = '{{' + placeholderKey + '}}';
+        if (!usesV10PlaceholderContract && val === 'phone_1') displayStr = '+91 9876543210';
+        else if (!usesV10PlaceholderContract && val === 'email') displayStr = 'example@email.com';
+        else if (!usesV10PlaceholderContract && val === 'website') displayStr = 'www.yourwebsite.com';
+        else if (!usesV10PlaceholderContract && val === 'address') displayStr = 'Your Business Address Here';
+        else if (placeholderBinding && placeholderBinding.field === 'phone') displayStr = '+91 9876543210';
+        else if (placeholderBinding && placeholderBinding.field === 'email') displayStr = 'example@email.com';
+        else if (placeholderBinding && placeholderBinding.field === 'website') displayStr = 'www.yourwebsite.com';
+        else if (placeholderBinding && placeholderBinding.field === 'address') displayStr = 'Your Business Address Here';
         else if (val === 'name') displayStr = 'Your Business Name';
 
-        const text = new fabric.IText(displayStr, {
+        const placeholderProps = {
             left: 100, top: 200, fontSize: 30, fill: '#000000', fontFamily: 'Arial',
             textBaseline: 'alphabetic',
-            customType: 'placeholder', placeholderKey: val, customName: val, ai_field: val, ai_semantic_role: 'body_text'
-        });
+            customType: 'placeholder', placeholderKey: placeholderKey, customName: placeholderKey,
+            ai_field: placeholderKey,
+            ai_semantic_role: 'body_text'
+        };
+        if (usesV10PlaceholderContract) {
+            placeholderProps.business_field = placeholderBinding ? placeholderBinding.field : (val === 'name' ? 'name' : null);
+            placeholderProps.business_field_index = placeholderBinding ? placeholderBinding.index : (val === 'name' ? 0 : null);
+        }
+        const text = new fabric.IText(displayStr, placeholderProps);
         canvas.add(text);
         canvas.setActiveObject(text);
         updateLayersList();
@@ -1992,24 +2201,44 @@
             return;
         }
 
-        let baseName = (targetObj.customName || targetObj.placeholderKey || 'layer').replace(/_\d+$/, '');
-        let newNum = 1;
         const existingNames = canvas.getObjects().map(o => o.customName || o.placeholderKey || '');
-        while (existingNames.includes(baseName + (newNum === 1 && !baseName.includes('phone') ? '' : '_' + newNum))) {
-            newNum++;
+        const targetBusinessBinding = isV10RenderVersion(window._originalRenderVersion || CURRENT_RENDER_VERSION)
+            ? v10BusinessBindingFromObject(targetObj)
+            : null;
+        let newName;
+        if (targetBusinessBinding && targetBusinessBinding.field !== 'name') {
+            newName = nextV10BusinessPlaceholderKey(
+                canvas.getObjects(),
+                targetBusinessBinding.field
+            );
+        } else {
+            // V1-V9 retain the historical duplicate-name behavior unchanged.
+            let baseName = (targetObj.customName || targetObj.placeholderKey || 'layer').replace(/_\d+$/, '');
+            let newNum = 1;
+            while (existingNames.includes(baseName + (newNum === 1 && !baseName.includes('phone') ? '' : '_' + newNum))) {
+                newNum++;
+            }
+            newName = baseName + '_' + newNum;
         }
-        let newName = baseName + '_' + newNum;
+        const duplicatedBinding = targetBusinessBinding
+            ? parseV10BusinessPlaceholder(newName)
+            : null;
 
         targetObj.clone(function(clonedObj) {
             canvas.discardActiveObject();
-            clonedObj.set({
+            const clonedProps = {
                 left: (targetObj.left || 100) + 20,
                 top: (targetObj.top || 200) + 30,
                 customName: newName,
                 placeholderKey: newName,
                 ai_field: newName,
                 evented: true
-            });
+            };
+            if (duplicatedBinding) {
+                clonedProps.business_field = duplicatedBinding.field;
+                clonedProps.business_field_index = duplicatedBinding.index;
+            }
+            clonedObj.set(clonedProps);
             if (clonedObj.text && clonedObj.text.startsWith('{{') && clonedObj.text.endsWith('}}')) {
                 clonedObj.set('text', '{{' + newName + '}}');
             }
@@ -2640,7 +2869,7 @@
     let isUndoing = false;
     const btnUndo = $('btn-undo');
     const btnRedo = $('btn-redo');
-    const customAttrs = ['customType','customName','is_background','is_placeholder','is_slot','color_group','ai_role','ai_max_chars','placeholderKey','ai_field','ai_semantic_role','ai_priority','auto_scale','ai_replaceable', 'mask_layer_id', '_iconName', '_iconProvider', '_originalSvgMarkup'];
+    const customAttrs = ['customType','customName','is_background','is_placeholder','is_slot','color_group','ai_role','ai_max_chars','placeholderKey','placeholder_key','ai_field','business_field','business_field_index','ai_semantic_role','ai_priority','auto_scale','ai_replaceable', 'mask_layer_id', '_iconName', '_iconProvider', '_originalSvgMarkup'];
 
     function saveHistory() {
         if (isUndoing) return;
@@ -3612,6 +3841,7 @@
                     } else if (jsonObj.schema_version) {
                         console.log('[DEBUG] Detected: Artera Schema JSON');
                         const legacyConfig = {
+                            render_version: jsonObj.render_version,
                             info: { width: jsonObj.canvas.width, height: jsonObj.canvas.height },
                             layers: jsonObj.elements.map(el => {
                                 let l = {
@@ -3629,6 +3859,7 @@
                                 else if (el.type === 'text' || el.type === 'i-text' || el.type === 'textbox') {
                                     l.type = 'text';
                                     l.text = el.text;
+                                    applyV10BusinessBinding(l, el, jsonObj.render_version);
                                     if (el.font) {
                                         l.font = el.font.family;
                                         l.size = el.font.size;
@@ -3837,6 +4068,7 @@
                                 } else if (el.type === 'text' || el.type === 'i-text' || el.type === 'textbox') {
                                     l.type = 'text';
                                     l.text = el.text;
+                                    applyV10BusinessBinding(l, el, jsonObj.render_version);
                                     if (el.font) {
                                         l.font = el.font.family;
                                         l.size = el.font.size;
@@ -4015,6 +4247,7 @@
                                     if (el.is_slot) l.is_slot = el.is_slot;
                                 } else if (el.type === 'text') {
                                     l.type = 'text'; l.text = el.text;
+                                    applyV10BusinessBinding(l, el, jsonObj.render_version);
                                     // Artera schema stores font as object {family, size, weight, style, color, ...}
                                     // Legacy layer format expects flat fields: font (string), fontSize, color, etc.
                                     if (el.font && typeof el.font === 'object') {
@@ -4917,6 +5150,9 @@
                 // This internal leading ≈ fontSize * 0.12 in most fonts.
                 // Apply this offset to ALL text to perfectly sync Web Editor, Native App, and Photoshop.
                 const fabricYOffset = Math.round(fontSize * 0.12);
+                const v10BusinessBinding = isV10RenderVersion(renderVersion)
+                    ? v10BusinessBindingFromObject(layer)
+                    : null;
                 const commonTextProps = {
                     left:        layer.x,
                     top:         layer.y - fabricYOffset,
@@ -4936,7 +5172,12 @@
                     shadow:      shadow,
                     visible:     visible,
                     customName:  layer.name,
-                    customType:  'text',
+                    customType:  v10BusinessBinding ? 'placeholder' : 'text',
+                    placeholderKey: v10BusinessBinding ? v10BusinessBinding.key : null,
+                    placeholder_key: v10BusinessBinding ? v10BusinessBinding.key : null,
+                    ai_field: v10BusinessBinding ? v10BusinessBinding.key : layer.ai_field,
+                    business_field: v10BusinessBinding ? v10BusinessBinding.field : layer.business_field,
+                    business_field_index: v10BusinessBinding ? v10BusinessBinding.index : layer.business_field_index,
                     ai_role:     layer.ai_role,
                     ai_max_chars: layer.ai_max_chars,
                     // Save original data to prevent drift on export
@@ -5460,7 +5701,16 @@
                 }
                 else if (obj.type==='text'||obj.type==='i-text'||obj.type==='textbox') {
                     o.text=obj.text; o.font={family:obj.fontFamily,size:fontSize,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,color:obj.fill,justification:obj.textAlign||'left',auto_scale:obj.auto_scale||false,charSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16};
-                    o.placeholder=obj.customType==='placeholder'?{field_type:obj.placeholderKey,required:true}:null;
+                    const binding = isV10RenderVersion(targetRenderVer)
+                        ? v10BusinessBindingFromObject(obj)
+                        : null;
+                    o.placeholder=obj.customType==='placeholder'?{
+                        field_type: binding ? binding.key : obj.placeholderKey,
+                        field: binding ? binding.field : null,
+                        field_index: binding ? binding.index : null,
+                        required:true
+                    }:null;
+                    applyV10BusinessBinding(o, obj, targetRenderVer);
                     o.kind = (obj.type === 'textbox') ? 'Paragraph' : 'Point';
                     o.textKind = (obj.type === 'textbox') ? 'paragraph' : 'point';
                     if (isV10RenderVersion(targetRenderVer)) {
@@ -5603,7 +5853,11 @@
 
                 j.layers.push(imgData);
             }
-            else if (obj.type==='i-text'||obj.type==='text'||obj.type==='textbox') j.layers.push({name:obj.customName||'text_'+z,type:'text',kind: (obj.type==='textbox'?'Paragraph':'Point'),textKind: (obj.type==='textbox'?'paragraph':'point'),text:obj.text,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,color:obj.fill,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,size:fontSize,font_size:fontSize,font:obj.fontFamily,font_name:obj.fontFamily,justification:obj.textAlign||'left',letterSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16,opacity:obj.opacity??1,rotation:obj.angle||0,visible:obj.visible!==false,flipX:obj.flipX||false,flipY:obj.flipY||false,ai_role:obj.ai_role||null,ai_max_chars:obj.ai_max_chars||null});
+            else if (obj.type==='i-text'||obj.type==='text'||obj.type==='textbox') {
+                const textLayer = {name:obj.customName||'text_'+z,type:'text',kind: (obj.type==='textbox'?'Paragraph':'Point'),textKind: (obj.type==='textbox'?'paragraph':'point'),text:obj.text,x:x,y:y,w:w,h:h,width:w,height:h,z_index:z,color:obj.fill,weight:(obj.fontWeight==='700'||obj.fontWeight===700)?'bold':obj.fontWeight,style:obj.fontStyle,size:fontSize,font_size:fontSize,font:obj.fontFamily,font_name:obj.fontFamily,justification:obj.textAlign||'left',letterSpacing:obj.charSpacing||0,wordSpacing:obj.wordSpacing||0,lineHeight:obj.lineHeight||1.16,opacity:obj.opacity??1,rotation:obj.angle||0,visible:obj.visible!==false,flipX:obj.flipX||false,flipY:obj.flipY||false,ai_role:obj.ai_role||null,ai_max_chars:obj.ai_max_chars||null};
+                applyV10BusinessBinding(textLayer, obj, targetRenderVer);
+                j.layers.push(textLayer);
+            }
             else if (!obj.is_image_placeholder && obj.customType !== 'image' && (obj.customType==='shape' || obj.customType==='icon' || obj.is_shape || ['rect','circle','triangle','path','polygon','line'].includes(obj.type))) {
                 // ══════════════════════════════════════════════════════════════════
                 // RENDER VERSION 4: Save shapes/icons as VECTOR DATA, not PNG

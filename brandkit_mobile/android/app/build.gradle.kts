@@ -21,13 +21,6 @@ android {
     compileSdk = 36
     ndkVersion = "28.2.13676358"
 
-    packaging {
-        jniLibs {
-            doNotStrip.add("**/*.so")
-            keepDebugSymbols.add("**/*.so")
-        }
-    }
-
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -59,6 +52,9 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

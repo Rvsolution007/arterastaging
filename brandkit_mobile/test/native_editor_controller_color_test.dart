@@ -1,6 +1,13 @@
 import 'package:brandkit_mobile/controllers/native_editor_controller.dart';
+import 'package:brandkit_mobile/controllers/home_controller.dart';
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get/get.dart';
+
+class _TestHomeController extends HomeController {
+  @override
+  void onInit() {}
+}
 
 void main() {
   test('manual color selection becomes the canonical original color', () {
@@ -55,5 +62,83 @@ void main() {
     expect(NativeEditorController.transitionSnapshot.value, isNull);
     expect(controller.historyStack, hasLength(1));
     expect(controller.editorSessionGeneration.value, 1);
+  });
+
+  test('V10 business placeholders preserve their explicit field index', () {
+    expect(
+      NativeEditorController.parseV10BusinessBindingForTest({
+        'name': 'phone_2',
+        'type': 'text',
+      }),
+      {'field': 'phone', 'index': 1, 'key': 'phone_2'},
+    );
+    expect(
+      NativeEditorController.parseV10BusinessBindingForTest({
+        'name': 'arbitrary-label',
+        'type': 'text',
+        'business_field': 'email',
+        'business_field_index': 1,
+      }),
+      {'field': 'email', 'index': 1, 'key': 'email_2'},
+    );
+    expect(
+      NativeEditorController.parseV10BusinessBindingForTest({
+        'name': 'address',
+        'type': 'text',
+      }),
+      {'field': 'address', 'index': 0, 'key': 'address_1'},
+    );
+  });
+
+  test('V10 resolves every indexed business placeholder independently', () {
+    Get.testMode = true;
+    final home = Get.put<HomeController>(_TestHomeController());
+    home.businessPhone.value = '1111111111';
+    home.extraPhones.assignAll(['2222222222']);
+    home.businessEmail.value = 'first@example.com';
+    home.extraEmails.assignAll(['second@example.com']);
+    home.businessWebsite.value = 'first.example';
+    home.extraWebsites.assignAll(['second.example']);
+    home.businessAddress.value = 'First address';
+    home.extraAddresses.assignAll(['Second address']);
+
+    final controller = NativeEditorController();
+    controller.templateConfig.assignAll({
+      'render_version': 10,
+      'layers': [
+        for (final entry in [
+          ('phone', 0),
+          ('phone', 1),
+          ('email', 0),
+          ('email', 1),
+          ('website', 0),
+          ('website', 1),
+          ('address', 0),
+          ('address', 1),
+        ])
+          <String, dynamic>{
+            'name': '${entry.$1}_${entry.$2 + 1}',
+            'type': 'text',
+            'text': 'authored placeholder',
+            'business_field': entry.$1,
+            'business_field_index': entry.$2,
+          },
+      ],
+    });
+
+    controller.reapplyBusinessProfile();
+
+    final layers = controller.templateConfig['layers'] as List;
+    expect(layers.map((layer) => layer['text']).toList(), [
+      '1111111111',
+      '2222222222',
+      'first@example.com',
+      'second@example.com',
+      'first.example',
+      'second.example',
+      'First address',
+      'Second address',
+    ]);
+    Get.reset();
   });
 }

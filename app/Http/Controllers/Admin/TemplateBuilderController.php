@@ -1169,6 +1169,15 @@ class TemplateBuilderController extends Controller
         // stale JSON with wrong render_version to the mobile app.
         \Illuminate\Support\Facades\Cache::forget("template_json:{$templateName}");
         \Illuminate\Support\Facades\Cache::forget("template_json:{$templateName}.zip");
+        // Persist the V10 placeholder contract through the canonical source
+        // synchronizer so DB, extracted JSON and ZIP remain byte-equivalent.
+        $canonicalJsonString = app(\App\Services\FrameTemplateSourceSynchronizer::class)
+            ->synchronize($templateName, $legacyJson);
+        $existingFrame->layers_json = $canonicalJsonString;
+        $existingFrame->save();
+        $template->legacy_json = $legacyJson;
+        $template->save();
+
         if ($existingFrame && $existingFrame->getOriginal('zip_name') && $existingFrame->getOriginal('zip_name') !== $templateName) {
             $oldZipName = $existingFrame->getOriginal('zip_name');
             \Illuminate\Support\Facades\Cache::forget("template_json:{$oldZipName}");

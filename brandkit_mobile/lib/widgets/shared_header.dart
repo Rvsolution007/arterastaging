@@ -45,7 +45,9 @@ class SharedHeader extends StatelessWidget {
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: logo.isNotEmpty
-                      ? CachedNetworkImage(imageUrl: '${hc.uploadsBaseUrl}/$logo', fit: BoxFit.cover,
+                      ? CachedNetworkImage(
+                          imageUrl: logo.startsWith('http') ? logo : '${hc.uploadsBaseUrl}/$logo',
+                          fit: BoxFit.cover,
                           errorWidget: (_, __, ___) => _buildInitials(hc))
                       : _buildInitials(hc),
                 );

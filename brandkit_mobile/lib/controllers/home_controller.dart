@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../config/app_config.dart';
 import '../services/notification_service.dart';
+import '../services/app_install_tracker.dart';
 import 'app_update_controller.dart';
 import 'native_editor_controller.dart';
 
@@ -12,7 +13,7 @@ class HomeController extends GetxController {
   var isLoading = true.obs;
   var isFestivalLoading = false.obs;
   var showQuickStart = false.obs;
-  
+
   // Data observables
   var categories = [].obs;
   var upcomingFestivals = [].obs;
@@ -20,20 +21,20 @@ class HomeController extends GetxController {
   var profileCategories = [].obs;
   var customPosts = [].obs;
   var greetingCategories = [].obs; // Added for Greetings
-  var recentCustomPosts = [].obs;  // Recent 10 templates for "New Posts" section
+  var recentCustomPosts = [].obs; // Recent 10 templates for "New Posts" section
   var stories = [].obs;
   var news = [].obs;
   var videos = [].obs;
   var notifications = [].obs;
   var languages = [].obs;
-  
+
   // Policies HTML
   var privacyPolicyHtml = ''.obs;
   var termsConditionHtml = ''.obs;
   var refundPolicyHtml = ''.obs;
 
   Map<String, dynamic>? appUpdate;
-  
+
   // Business info
   var businessName = ''.obs;
   var businessLogo = ''.obs;
@@ -43,14 +44,14 @@ class HomeController extends GetxController {
   var businessAddress = ''.obs;
   var businessCategoryId = ''.obs;
   var businessId = ''.obs;
-  
+
   // User info
   var userName = ''.obs;
   var userProfileImage = ''.obs;
-  
+
   // List of all businesses
   var businesses = [].obs;
-  
+
   var extraEmails = <String>[].obs;
   var extraPhones = <String>[].obs;
   var extraWebsites = <String>[].obs;
@@ -63,10 +64,11 @@ class HomeController extends GetxController {
 
   // Search
   var searchQuery = ''.obs;
-  
+
   // Selected date for festival calendar
-  var selectedDateIndex = (-1).obs; // -1 means "Upcoming" (no specific date selected)
-  
+  var selectedDateIndex =
+      (-1).obs; // -1 means "Upcoming" (no specific date selected)
+
   // Flattened list of all custom templates across all categories
   List<dynamic> get allCustomTemplates {
     List<dynamic> all = [];
@@ -92,7 +94,7 @@ class HomeController extends GetxController {
     final isHidden = prefs.getBool('quickstart_hidden') ?? false;
     showQuickStart.value = !isHidden;
   }
-  
+
   Future<void> hideQuickStartPermanently() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('quickstart_hidden', true);
@@ -107,10 +109,12 @@ class HomeController extends GetxController {
         final token = await NotificationService().getToken();
         if (token != null) {
           debugPrint("[HomeCtrl] Refreshing FCM Token on startup");
+          final deviceId = await AppInstallTracker.deviceId();
+          await AppInstallTracker.trackInstall(userId: userId);
           await ApiService.post('/register-fcm', {
             'userId': userId,
             'fcmToken': token,
-            'deviceId': 'flutter_device',
+            'deviceId': deviceId,
           });
         }
       }
@@ -129,7 +133,7 @@ class HomeController extends GetxController {
     businessCategoryId.value = '';
     businessId.value = '';
     businesses.clear();
-    
+
     extraEmails.clear();
     extraPhones.clear();
     extraWebsites.clear();
@@ -139,7 +143,7 @@ class HomeController extends GetxController {
     businessSubCategoryIds.clear();
     businessTypeIds.clear();
     products.clear();
-    
+
     customPosts.clear();
     greetingCategories.clear();
     categories.clear();
@@ -169,7 +173,7 @@ class HomeController extends GetxController {
   Future<void> loadBusinessInfo() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       // Load from cache instantly so Hot Restart doesn't cause "Profile Incomplete"
       if (businessId.value.isEmpty) {
         businessId.value = prefs.getString('cached_biz_id') ?? '';
@@ -179,16 +183,33 @@ class HomeController extends GetxController {
         businessEmail.value = prefs.getString('cached_biz_email') ?? '';
         businessWebsite.value = prefs.getString('cached_biz_website') ?? '';
         businessAddress.value = prefs.getString('cached_biz_address') ?? '';
-        businessCategoryId.value = prefs.getString('cached_biz_category_id') ?? '';
-        
+        businessCategoryId.value =
+            prefs.getString('cached_biz_category_id') ?? '';
+
         try {
-          extraEmails.value = List<String>.from(jsonDecode(prefs.getString('cached_extra_emails') ?? '[]'));
-          extraPhones.value = List<String>.from(jsonDecode(prefs.getString('cached_extra_phones') ?? '[]'));
-          extraWebsites.value = List<String>.from(jsonDecode(prefs.getString('cached_extra_websites') ?? '[]'));
-          extraAddresses.value = List<String>.from(jsonDecode(prefs.getString('cached_extra_addresses') ?? '[]'));
-          hiddenFrameFields.value = Map<String, dynamic>.from(jsonDecode(prefs.getString('cached_hidden_frame_fields') ?? '{}'));
-          businessSubCategoryIds.value = List<String>.from(jsonDecode(prefs.getString('cached_business_sub_category_ids') ?? '[]'));
-          businessTypeIds.value = List<String>.from(jsonDecode(prefs.getString('cached_business_type_ids') ?? '[]'));
+          extraEmails.value = List<String>.from(
+            jsonDecode(prefs.getString('cached_extra_emails') ?? '[]'),
+          );
+          extraPhones.value = List<String>.from(
+            jsonDecode(prefs.getString('cached_extra_phones') ?? '[]'),
+          );
+          extraWebsites.value = List<String>.from(
+            jsonDecode(prefs.getString('cached_extra_websites') ?? '[]'),
+          );
+          extraAddresses.value = List<String>.from(
+            jsonDecode(prefs.getString('cached_extra_addresses') ?? '[]'),
+          );
+          hiddenFrameFields.value = Map<String, dynamic>.from(
+            jsonDecode(prefs.getString('cached_hidden_frame_fields') ?? '{}'),
+          );
+          businessSubCategoryIds.value = List<String>.from(
+            jsonDecode(
+              prefs.getString('cached_business_sub_category_ids') ?? '[]',
+            ),
+          );
+          businessTypeIds.value = List<String>.from(
+            jsonDecode(prefs.getString('cached_business_type_ids') ?? '[]'),
+          );
         } catch (_) {}
 
         // Notify editor immediately using cached profile values
@@ -200,17 +221,17 @@ class HomeController extends GetxController {
       }
 
       final userId = prefs.getString('userId') ?? '';
-      
+
       // Load user info for Profile screen
       userName.value = prefs.getString('userName') ?? '';
       userProfileImage.value = prefs.getString('profileImage') ?? '';
-      
+
       final response = await ApiService.get('/business?userId=$userId');
       debugPrint('[HomeCtrl] Business API status: ${response.statusCode}');
       debugPrint('[HomeCtrl] Business API body: ${response.body}');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        
+
         // Store full list
         if (data is List) {
           businesses.assignAll(data);
@@ -222,15 +243,16 @@ class HomeController extends GetxController {
 
         // Set default business to the first one (which should be the default)
         final biz = businesses.isNotEmpty ? businesses.first : {};
-        
+
         businessName.value = biz['name']?.toString() ?? '';
         businessLogo.value = biz['logo']?.toString() ?? '';
         businessEmail.value = biz['email']?.toString() ?? '';
-        businessPhone.value = biz['mobileNo']?.toString() ?? biz['mobile_no']?.toString() ?? '';
+        businessPhone.value =
+            biz['mobileNo']?.toString() ?? biz['mobile_no']?.toString() ?? '';
         businessWebsite.value = biz['website']?.toString() ?? '';
         businessAddress.value = biz['address']?.toString() ?? '';
         businessId.value = biz['id']?.toString() ?? '';
-        
+
         // Save to cache for hot restarts
         prefs.setString('cached_biz_id', businessId.value);
         prefs.setString('cached_biz_name', businessName.value);
@@ -239,44 +261,72 @@ class HomeController extends GetxController {
         prefs.setString('cached_biz_email', businessEmail.value);
         prefs.setString('cached_biz_website', businessWebsite.value);
         prefs.setString('cached_biz_address', businessAddress.value);
-        
+
         // businessCategoryId comes from nested businessCategory object OR top-level
-        if (biz['businessCategory'] != null && biz['businessCategory']['businessCategoryId'] != null) {
-          businessCategoryId.value = biz['businessCategory']['businessCategoryId'].toString();
+        if (biz['businessCategory'] != null &&
+            biz['businessCategory']['businessCategoryId'] != null) {
+          businessCategoryId.value =
+              biz['businessCategory']['businessCategoryId'].toString();
         } else if (biz['business_category_id'] != null) {
           businessCategoryId.value = biz['business_category_id'].toString();
         } else if (biz['businessCategoryId'] != null) {
           businessCategoryId.value = biz['businessCategoryId'].toString();
         }
         prefs.setString('cached_biz_category_id', businessCategoryId.value);
-        
-        extraEmails.value = (biz['extra_emails'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
-        extraPhones.value = (biz['extra_mobile_numbers'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
-        extraWebsites.value = (biz['extra_websites'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
-        extraAddresses.value = (biz['extra_addresses'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
-        
+
+        extraEmails.value = (biz['extra_emails'] as List<dynamic>? ?? [])
+            .map((e) => e.toString())
+            .toList();
+        extraPhones.value =
+            (biz['extra_mobile_numbers'] as List<dynamic>? ?? [])
+                .map((e) => e.toString())
+                .toList();
+        extraWebsites.value = (biz['extra_websites'] as List<dynamic>? ?? [])
+            .map((e) => e.toString())
+            .toList();
+        extraAddresses.value = (biz['extra_addresses'] as List<dynamic>? ?? [])
+            .map((e) => e.toString())
+            .toList();
+
         prefs.setString('cached_extra_emails', jsonEncode(extraEmails));
         prefs.setString('cached_extra_phones', jsonEncode(extraPhones));
         prefs.setString('cached_extra_websites', jsonEncode(extraWebsites));
         prefs.setString('cached_extra_addresses', jsonEncode(extraAddresses));
-        
+
         if (biz['hidden_frame_fields'] != null) {
           if (biz['hidden_frame_fields'] is Map) {
-            hiddenFrameFields.value = Map<String, dynamic>.from(biz['hidden_frame_fields']);
+            hiddenFrameFields.value = Map<String, dynamic>.from(
+              biz['hidden_frame_fields'],
+            );
           } else {
             hiddenFrameFields.value = {};
           }
         } else {
           hiddenFrameFields.value = {};
         }
-        prefs.setString('cached_hidden_frame_fields', jsonEncode(hiddenFrameFields));
+        prefs.setString(
+          'cached_hidden_frame_fields',
+          jsonEncode(hiddenFrameFields),
+        );
 
-        businessSubCategoryIds.value = (biz['business_sub_category_ids'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
-        businessTypeIds.value = (biz['business_type_ids'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
+        businessSubCategoryIds.value =
+            (biz['business_sub_category_ids'] as List<dynamic>? ?? [])
+                .map((e) => e.toString())
+                .toList();
+        businessTypeIds.value =
+            (biz['business_type_ids'] as List<dynamic>? ?? [])
+                .map((e) => e.toString())
+                .toList();
         products.value = biz['products'] as List<dynamic>? ?? [];
-        
-        prefs.setString('cached_business_sub_category_ids', jsonEncode(businessSubCategoryIds));
-        prefs.setString('cached_business_type_ids', jsonEncode(businessTypeIds));
+
+        prefs.setString(
+          'cached_business_sub_category_ids',
+          jsonEncode(businessSubCategoryIds),
+        );
+        prefs.setString(
+          'cached_business_type_ids',
+          jsonEncode(businessTypeIds),
+        );
 
         // Notify editor to refresh placeholders and reload frames list once business details are loaded
         if (Get.isRegistered<NativeEditorController>()) {
@@ -296,7 +346,7 @@ class HomeController extends GetxController {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId') ?? '';
     final bizId = business['id']?.toString() ?? '';
-    
+
     if (userId.isEmpty || bizId.isEmpty) return;
 
     isLoading(true);
@@ -305,15 +355,25 @@ class HomeController extends GetxController {
         'userId': userId,
         'bussinessId': bizId,
       });
-      
+
       if (res.statusCode == 200) {
         // Re-load to update active business info in the app
         await loadBusinessInfo();
         await fetchHomeData();
-        Get.snackbar('Success', 'Active business updated', backgroundColor: Colors.green, colorText: Colors.white);
+        Get.snackbar(
+          'Success',
+          'Active business updated',
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
       }
     } catch (e) {
-      Get.snackbar('Error', 'Failed to update active business', backgroundColor: Colors.redAccent, colorText: Colors.white);
+      Get.snackbar(
+        'Error',
+        'Failed to update active business',
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
     } finally {
       isLoading(false);
     }
@@ -337,8 +397,10 @@ class HomeController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('userId') ?? '';
 
-      final customUrl = userId.isNotEmpty ? '/custom-post-category?userId=$userId' : '/custom-post-category';
-      
+      final customUrl = userId.isNotEmpty
+          ? '/custom-post-category?userId=$userId'
+          : '/custom-post-category';
+
       final results = await Future.wait([
         _fetchEndpoint('/get-home-data', 'Home Data'),
         _fetchEndpoint(customUrl, 'Custom Posts'),
@@ -367,7 +429,7 @@ class HomeController extends GetxController {
           privacyPolicyHtml.value = data['privacyPolicyHtml'] ?? '';
           termsConditionHtml.value = data['termsConditionHtml'] ?? '';
           refundPolicyHtml.value = data['refundPolicyHtml'] ?? '';
-          
+
           // App update check
           if (data['appUpdate'] != null) {
             appUpdate = Map<String, dynamic>.from(data['appUpdate']);
@@ -382,27 +444,37 @@ class HomeController extends GetxController {
 
       // Fallback: If festivals are empty, try dedicated endpoint
       if (upcomingFestivals.isEmpty) {
-        final festivalResponse = await _fetchEndpoint('/festival', 'Festival Fallback');
+        final festivalResponse = await _fetchEndpoint(
+          '/festival',
+          'Festival Fallback',
+        );
         if (festivalResponse != null && festivalResponse.statusCode == 200) {
           try {
             final festivalData = jsonDecode(festivalResponse.body);
             if (festivalData is List) {
               upcomingFestivals.value = festivalData;
             }
-          } catch (e) { /* Festival fallback parse failed */ }
+          } catch (e) {
+            /* Festival fallback parse failed */
+          }
         }
       }
 
       // Fallback: If categories are empty, try dedicated endpoint
       if (categories.isEmpty) {
-        final catResponse = await _fetchEndpoint('/category', 'Category Fallback');
+        final catResponse = await _fetchEndpoint(
+          '/category',
+          'Category Fallback',
+        );
         if (catResponse != null && catResponse.statusCode == 200) {
           try {
             final catData = jsonDecode(catResponse.body);
             if (catData is List) {
               categories.value = catData;
             }
-          } catch (e) { /* Category fallback parse failed */ }
+          } catch (e) {
+            /* Category fallback parse failed */
+          }
         }
       }
 
@@ -412,7 +484,9 @@ class HomeController extends GetxController {
         try {
           final customData = jsonDecode(results[1].body);
           final List<dynamic> posts = customData['data'] ?? [];
-          debugPrint('[HomeCtrl] Received ${posts.length} custom post categories');
+          debugPrint(
+            '[HomeCtrl] Received ${posts.length} custom post categories',
+          );
           customPosts.value = posts;
           recentCustomPosts.value = customData['recent_posts'] ?? [];
         } catch (e) {
@@ -447,7 +521,9 @@ class HomeController extends GetxController {
           } else if (storyData['data'] is List) {
             stories.value = storyData['data'];
           }
-        } catch (e) { /* Stories fetch failed */ }
+        } catch (e) {
+          /* Stories fetch failed */
+        }
       } else {
         failedEndpoints.add('Stories');
       }
@@ -462,7 +538,9 @@ class HomeController extends GetxController {
           } else if (newsData['data'] is List) {
             news.value = newsData['data'];
           }
-        } catch (e) { /* News fetch failed */ }
+        } catch (e) {
+          /* News fetch failed */
+        }
       } else {
         failedEndpoints.add('News');
       }
@@ -477,7 +555,9 @@ class HomeController extends GetxController {
           } else if (videoData['data'] is List) {
             videos.value = videoData['data'];
           }
-        } catch (e) { /* Videos fetch failed */ }
+        } catch (e) {
+          /* Videos fetch failed */
+        }
       } else {
         failedEndpoints.add('Videos');
       }
@@ -490,7 +570,9 @@ class HomeController extends GetxController {
           if (notifData is List) {
             notifications.value = notifData;
           }
-        } catch (e) { /* Notifications fetch failed */ }
+        } catch (e) {
+          /* Notifications fetch failed */
+        }
       } else {
         failedEndpoints.add('Notifications');
       }
@@ -503,15 +585,24 @@ class HomeController extends GetxController {
           if (langData is List) {
             languages.value = langData;
           }
-        } catch (e) { /* Languages fetch failed */ }
+        } catch (e) {
+          /* Languages fetch failed */
+        }
       } else {
         failedEndpoints.add('Languages');
       }
 
       if (successCount == 0) {
-        Get.snackbar('Error', 'Unable to connect to server', backgroundColor: Colors.redAccent, colorText: Colors.white);
+        Get.snackbar(
+          'Error',
+          'Unable to connect to server',
+          backgroundColor: Colors.redAccent,
+          colorText: Colors.white,
+        );
       } else if (failedEndpoints.isNotEmpty) {
-        debugPrint('[HomeCtrl] Partial failure. Failed to load: ${failedEndpoints.join(", ")}');
+        debugPrint(
+          '[HomeCtrl] Partial failure. Failed to load: ${failedEndpoints.join(", ")}',
+        );
       }
     } catch (e) {
       debugPrint('[HomeCtrl] Unexpected error in fetchHomeData: $e');
@@ -527,13 +618,17 @@ class HomeController extends GetxController {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('userId') ?? '';
-      final url = userId.isNotEmpty ? '/custom-post-category?userId=$userId' : '/custom-post-category';
+      final url = userId.isNotEmpty
+          ? '/custom-post-category?userId=$userId'
+          : '/custom-post-category';
       final response = await ApiService.get(url);
-      
+
       if (response.statusCode == 200) {
         final customData = jsonDecode(response.body);
         final List<dynamic> posts = customData['data'] ?? [];
-        debugPrint('[HomeCtrl] fetchCustomPosts: Refreshed ${posts.length} categories');
+        debugPrint(
+          '[HomeCtrl] fetchCustomPosts: Refreshed ${posts.length} categories',
+        );
         customPosts.value = posts;
         recentCustomPosts.value = customData['recent_posts'] ?? [];
       }
@@ -570,7 +665,8 @@ class HomeController extends GetxController {
     // Extract base URL from ApiService and build uploads path
     final apiBase = ApiService.baseUrl;
     final uri = Uri.parse(apiBase);
-    final hostPart = '${uri.scheme}://${uri.host}${uri.port != 80 && uri.port != 443 ? ':${uri.port}' : ''}';
+    final hostPart =
+        '${uri.scheme}://${uri.host}${uri.port != 80 && uri.port != 443 ? ':${uri.port}' : ''}';
     // On local, uploads are at /Artera/uploads; on staging/prod, at /uploads
     final uploadsPath = AppConfig.isLocal ? '/Artera/uploads' : '/uploads';
     final baseUrl = '$hostPart$uploadsPath';

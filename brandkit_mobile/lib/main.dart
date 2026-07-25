@@ -20,6 +20,7 @@ import 'screens/native_editor_screen.dart';
 import 'screens/detail_list_screen.dart';
 import 'controllers/home_controller.dart';
 import 'services/translation_service.dart';
+import 'services/app_install_tracker.dart';
 
 import 'package:flutter/foundation.dart';
 import 'widgets/error_submission_dialog.dart';
@@ -40,7 +41,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // ── PERF: Register controllers immediately (no async, no delay) ──
   Get.put(AuthController(), permanent: true);
   Get.put(AdController(), permanent: true);
@@ -62,7 +63,8 @@ void main() {
   // Global Error Handler
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
-    final errorMsg = 'Global Flutter Error: ${details.exceptionAsString()}\nStacktrace: ${details.stack}';
+    final errorMsg =
+        'Global Flutter Error: ${details.exceptionAsString()}\nStacktrace: ${details.stack}';
     debugPrint(errorMsg);
     _sendErrorToLaravel(errorMsg);
   };
@@ -84,14 +86,13 @@ Future<void> _sendErrorToLaravel(String message) async {
   try {
     // Only send on local/staging environments if needed, or always.
     final url = Uri.parse('${AppConfig.baseUrl}/api/client-debug-log');
-    await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'source': 'flutter_app',
-        'message': message,
-      }),
-    ).timeout(const Duration(seconds: 3));
+    await http
+        .post(
+          url,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'source': 'flutter_app', 'message': message}),
+        )
+        .timeout(const Duration(seconds: 3));
   } catch (e) {
     // silently fail if backend is unreachable
   }
@@ -115,36 +116,47 @@ class ArteraApp extends StatelessWidget {
         GetPage(name: '/', page: () => const SplashGate()),
         GetPage(name: '/LoginScreen', page: () => const LoginScreen()),
         GetPage(name: '/DashboardScreen', page: () => const DashboardScreen()),
-        GetPage(name: '/notifications', page: () => const NotificationsScreen()),
-        GetPage(name: '/editor', page: () {
-          final args = Get.arguments as Map<String, dynamic>? ?? {};
-          final params = Get.parameters;
-          
-          // Helper to get value from args or params
-          dynamic getValue(String key) => args[key] ?? params[key];
-          
-          final idRaw = getValue('id');
-          int id = 0;
-          if (idRaw != null) {
-            if (idRaw is int) id = idRaw;
-            else if (idRaw is String) id = int.tryParse(idRaw) ?? 0;
-          }
+        GetPage(
+          name: '/notifications',
+          page: () => const NotificationsScreen(),
+        ),
+        GetPage(
+          name: '/editor',
+          page: () {
+            final args = Get.arguments as Map<String, dynamic>? ?? {};
+            final params = Get.parameters;
 
-          return NativeEditorScreen(
-            type: getValue('type') ?? 'business_custom_frame',
-            id: id,
-            designUrl: getValue('designUrl') ?? '',
-            frameData: args['frameData'] ?? <String, dynamic>{},
-          );
-        }),
-        GetPage(name: '/details', page: () {
-          final args = Get.arguments as Map<String, dynamic>? ?? {};
-          return DetailListScreen(
-            type: args['type'] ?? 'category',
-            id: args['id'] ?? 0,
-            title: args['title'] ?? 'Details',
-          );
-        }),
+            // Helper to get value from args or params
+            dynamic getValue(String key) => args[key] ?? params[key];
+
+            final idRaw = getValue('id');
+            int id = 0;
+            if (idRaw != null) {
+              if (idRaw is int)
+                id = idRaw;
+              else if (idRaw is String)
+                id = int.tryParse(idRaw) ?? 0;
+            }
+
+            return NativeEditorScreen(
+              type: getValue('type') ?? 'business_custom_frame',
+              id: id,
+              designUrl: getValue('designUrl') ?? '',
+              frameData: args['frameData'] ?? <String, dynamic>{},
+            );
+          },
+        ),
+        GetPage(
+          name: '/details',
+          page: () {
+            final args = Get.arguments as Map<String, dynamic>? ?? {};
+            return DetailListScreen(
+              type: args['type'] ?? 'category',
+              id: args['id'] ?? 0,
+              title: args['title'] ?? 'Details',
+            );
+          },
+        ),
       ],
     );
   }
@@ -160,7 +172,6 @@ class SplashGate extends StatefulWidget {
 }
 
 class _SplashGateState extends State<SplashGate> {
-
   @override
   void initState() {
     super.initState();
@@ -176,6 +187,11 @@ class _SplashGateState extends State<SplashGate> {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId');
     final isGuest = prefs.getBool('isGuest') ?? false;
+
+    // A local install ID is created once per app installation. On reinstallation
+    // the app generates a new total-install event, while the backend deduplicates
+    // unique installs with the physical mobile-device identifier.
+    Future(() => AppInstallTracker.trackInstall(userId: userId));
 
     if ((userId != null && userId.isNotEmpty) || isGuest) {
       // Navigate to dashboard FIRST
@@ -214,7 +230,9 @@ class _SplashGateState extends State<SplashGate> {
       try {
         if (!kIsWeb) {
           await Firebase.initializeApp();
-          FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+          FirebaseMessaging.onBackgroundMessage(
+            _firebaseMessagingBackgroundHandler,
+          );
         }
         await Future.wait([
           if (!kIsWeb) NotificationService().initialize(),
@@ -255,8 +273,6 @@ class _SplashGateState extends State<SplashGate> {
   @override
   Widget build(BuildContext context) {
     // Empty scaffold while navigating (Flutter removes native splash upon first render)
-    return const Scaffold(
-      backgroundColor: Colors.white,
-    );
+    return const Scaffold(backgroundColor: Colors.white);
   }
 }

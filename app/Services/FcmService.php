@@ -239,6 +239,9 @@ class FcmService
                 } else {
                     // Auto-clean unregistered/invalid tokens
                     if (str_contains($result['message'] ?? '', 'UNREGISTERED') || str_contains($result['message'] ?? '', 'NOT_FOUND')) {
+                        if (!empty($login->deviceId) && $login->deviceId !== 'flutter_device') {
+                            \App\Models\AppInstallEvent::recordUninstall($login->deviceId, (int) $login->userId);
+                        }
                         $login->delete();
                         Log::info("FCM: Cleaned up unregistered token for user {$userId}");
                     }

@@ -151,6 +151,14 @@ class UserJourneyController extends Controller
             return response()->json(['status' => 'error', 'message' => $validator->errors()->first()]);
         }
 
+        // Keep first-party app feedback separate from public Play Store reviews.
+        \App\Models\Feedback::create([
+            'user_id' => $userId,
+            'rating' => (int) $request->rating,
+            'comment' => $request->comment,
+            'feature_name' => 'in_app_feedback',
+        ]);
+
         $actionTaken = 'None';
         if ($request->rating == 5 || $request->rating == 4) {
             $actionTaken = 'Redirect to PlayStore';

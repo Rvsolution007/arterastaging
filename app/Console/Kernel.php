@@ -64,6 +64,10 @@ class Kernel extends ConsoleKernel
         // AI Growth OS - Midnight Analysis & Morning Execution
         $schedule->command('growth:generate-report')->dailyAt('00:00')->runInBackground();
         $schedule->command('growth:execute-tasks')->dailyAt('06:00')->runInBackground();
+        $schedule->command('growth:sync-play-store-reviews')
+            ->hourly()
+            ->when(fn () => !empty(config('services.google_play.service_account_json')))
+            ->runInBackground();
     }
 
     /**

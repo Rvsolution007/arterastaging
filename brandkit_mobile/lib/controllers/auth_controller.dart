@@ -12,11 +12,17 @@ import '../widgets/create_business_prompt_sheet.dart';
 import '../controllers/ad_controller.dart';
 import '../controllers/home_controller.dart';
 import '../services/notification_service.dart';
+import '../services/app_install_tracker.dart';
 
 class AuthController extends GetxController {
   var isLoading = false.obs;
 
-  Future<void> login(String email, String password, {String? redirectRoute, dynamic redirectArguments}) async {
+  Future<void> login(
+    String email,
+    String password, {
+    String? redirectRoute,
+    dynamic redirectArguments,
+  }) async {
     try {
       isLoading.value = true;
       final response = await ApiService.post('/login', {
@@ -32,21 +38,42 @@ class AuthController extends GetxController {
         await prefs.setBool('isGuest', false);
         await prefs.setString('userName', data['userName']?.toString() ?? '');
         await prefs.setString('emailId', data['emailId']?.toString() ?? '');
-        await prefs.setString('phoneNumber', data['phoneNumber']?.toString() ?? '');
-        await prefs.setString('profileImage', data['profileImage']?.toString() ?? '');
-        
+        await prefs.setString(
+          'phoneNumber',
+          data['phoneNumber']?.toString() ?? '',
+        );
+        await prefs.setString(
+          'profileImage',
+          data['profileImage']?.toString() ?? '',
+        );
+
         // Save subscription info for Profile & Header
         await prefs.setString('planName', data['planName']?.toString() ?? '');
-        await prefs.setString('planDuration', data['planDuration']?.toString() ?? '');
-        await prefs.setString('planStartDate', data['planStartDate']?.toString() ?? '');
-        await prefs.setString('planEndDate', data['planEndDate']?.toString() ?? '');
+        await prefs.setString(
+          'planDuration',
+          data['planDuration']?.toString() ?? '',
+        );
+        await prefs.setString(
+          'planStartDate',
+          data['planStartDate']?.toString() ?? '',
+        );
+        await prefs.setString(
+          'planEndDate',
+          data['planEndDate']?.toString() ?? '',
+        );
         await prefs.setBool('isSubscribe', data['isSubscribe'] ?? false);
         await prefs.setBool('isPartner', data['isPartner'] ?? false);
-        
+
         // Save Gamification Stats
-        await prefs.setInt('currentStreak', int.tryParse(data['currentStreak']?.toString() ?? '0') ?? 0);
-        await prefs.setInt('maxStreak', int.tryParse(data['maxStreak']?.toString() ?? '0') ?? 0);
-        
+        await prefs.setInt(
+          'currentStreak',
+          int.tryParse(data['currentStreak']?.toString() ?? '0') ?? 0,
+        );
+        await prefs.setInt(
+          'maxStreak',
+          int.tryParse(data['maxStreak']?.toString() ?? '0') ?? 0,
+        );
+
         if (data['adConfig'] != null) {
           try {
             Get.find<AdController>().updateAdConfig(data['adConfig']);
@@ -54,21 +81,29 @@ class AuthController extends GetxController {
             debugPrint('Failed to update adConfig: $e');
           }
         }
-        
+
         if (Get.isRegistered<HomeController>()) {
           await Get.find<HomeController>().loadBusinessInfo();
           Get.find<HomeController>().fetchHomeData();
         }
-        
+
         _registerFcmToken(data['userId'].toString());
-        
-        Get.snackbar('Success', 'Login Successful!', backgroundColor: Colors.green, colorText: Colors.white);
-        
+
+        Get.snackbar(
+          'Success',
+          'Login Successful!',
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+
         // Navigate to Dashboard or Redirect Route
         if (redirectRoute != null) {
           Get.offAll(() => const DashboardScreen());
           if (redirectRoute.startsWith('/editor')) {
-            checkAndNavigateToEditor(redirectRoute, arguments: redirectArguments);
+            checkAndNavigateToEditor(
+              redirectRoute,
+              arguments: redirectArguments,
+            );
           } else {
             Get.toNamed(redirectRoute, arguments: redirectArguments);
           }
@@ -78,13 +113,28 @@ class AuthController extends GetxController {
       } else {
         try {
           final errorData = jsonDecode(response.body);
-          Get.snackbar('Error', errorData['message'] ?? 'Invalid login credentials', backgroundColor: Colors.redAccent, colorText: Colors.white);
+          Get.snackbar(
+            'Error',
+            errorData['message'] ?? 'Invalid login credentials',
+            backgroundColor: Colors.redAccent,
+            colorText: Colors.white,
+          );
         } catch (_) {
-          Get.snackbar('Error', 'Server Error (${response.statusCode}). Please check staging config.', backgroundColor: Colors.redAccent, colorText: Colors.white);
+          Get.snackbar(
+            'Error',
+            'Server Error (${response.statusCode}). Please check staging config.',
+            backgroundColor: Colors.redAccent,
+            colorText: Colors.white,
+          );
         }
       }
     } catch (e) {
-      Get.snackbar('Error', 'Failed to connect to the server. $e', backgroundColor: Colors.redAccent, colorText: Colors.white);
+      Get.snackbar(
+        'Error',
+        'Failed to connect to the server. $e',
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
     } finally {
       isLoading.value = false;
     }
@@ -107,7 +157,8 @@ class AuthController extends GetxController {
         'email': email,
         'mobile_no': phone,
         'password': password,
-        'country': '91', // Defaulting to India code for now based on previous context
+        'country':
+            '91', // Defaulting to India code for now based on previous context
         'referralCode': referralCode,
       };
 
@@ -125,28 +176,49 @@ class AuthController extends GetxController {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        
+
         // Save user session
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('userId', data['userId'].toString());
         await prefs.setBool('isGuest', false);
         await prefs.setString('userName', data['userName']?.toString() ?? '');
         await prefs.setString('emailId', data['emailId']?.toString() ?? '');
-        await prefs.setString('phoneNumber', data['phoneNumber']?.toString() ?? '');
-        await prefs.setString('profileImage', data['profileImage']?.toString() ?? '');
-        
+        await prefs.setString(
+          'phoneNumber',
+          data['phoneNumber']?.toString() ?? '',
+        );
+        await prefs.setString(
+          'profileImage',
+          data['profileImage']?.toString() ?? '',
+        );
+
         // Save subscription info for Profile & Header
         await prefs.setString('planName', data['planName']?.toString() ?? '');
-        await prefs.setString('planDuration', data['planDuration']?.toString() ?? '');
-        await prefs.setString('planStartDate', data['planStartDate']?.toString() ?? '');
-        await prefs.setString('planEndDate', data['planEndDate']?.toString() ?? '');
+        await prefs.setString(
+          'planDuration',
+          data['planDuration']?.toString() ?? '',
+        );
+        await prefs.setString(
+          'planStartDate',
+          data['planStartDate']?.toString() ?? '',
+        );
+        await prefs.setString(
+          'planEndDate',
+          data['planEndDate']?.toString() ?? '',
+        );
         await prefs.setBool('isSubscribe', data['isSubscribe'] ?? false);
         await prefs.setBool('isPartner', data['isPartner'] ?? false);
-        
+
         // Save Gamification Stats
-        await prefs.setInt('currentStreak', int.tryParse(data['currentStreak']?.toString() ?? '0') ?? 0);
-        await prefs.setInt('maxStreak', int.tryParse(data['maxStreak']?.toString() ?? '0') ?? 0);
-        
+        await prefs.setInt(
+          'currentStreak',
+          int.tryParse(data['currentStreak']?.toString() ?? '0') ?? 0,
+        );
+        await prefs.setInt(
+          'maxStreak',
+          int.tryParse(data['maxStreak']?.toString() ?? '0') ?? 0,
+        );
+
         if (data['adConfig'] != null) {
           try {
             Get.find<AdController>().updateAdConfig(data['adConfig']);
@@ -154,7 +226,7 @@ class AuthController extends GetxController {
             debugPrint('Failed to update adConfig: $e');
           }
         }
-        
+
         if (Get.isRegistered<HomeController>()) {
           await Get.find<HomeController>().loadBusinessInfo();
           Get.find<HomeController>().fetchHomeData();
@@ -162,13 +234,21 @@ class AuthController extends GetxController {
 
         _registerFcmToken(data['userId'].toString());
 
-        Get.snackbar('Success', 'Registration successful! Welcome aboard.', backgroundColor: Colors.green, colorText: Colors.white);
-        
+        Get.snackbar(
+          'Success',
+          'Registration successful! Welcome aboard.',
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+
         // Auto-login and navigate to Dashboard or Redirect Route
         if (redirectRoute != null) {
           Get.offAll(() => const DashboardScreen());
           if (redirectRoute.startsWith('/editor')) {
-            checkAndNavigateToEditor(redirectRoute, arguments: redirectArguments);
+            checkAndNavigateToEditor(
+              redirectRoute,
+              arguments: redirectArguments,
+            );
           } else {
             Get.toNamed(redirectRoute, arguments: redirectArguments);
           }
@@ -178,13 +258,28 @@ class AuthController extends GetxController {
       } else {
         try {
           final errorData = jsonDecode(response.body);
-          Get.snackbar('Error', errorData['message'].toString(), backgroundColor: Colors.redAccent, colorText: Colors.white);
+          Get.snackbar(
+            'Error',
+            errorData['message'].toString(),
+            backgroundColor: Colors.redAccent,
+            colorText: Colors.white,
+          );
         } catch (_) {
-          Get.snackbar('Error', 'Server Error (${response.statusCode}). Please check staging config.', backgroundColor: Colors.redAccent, colorText: Colors.white);
+          Get.snackbar(
+            'Error',
+            'Server Error (${response.statusCode}). Please check staging config.',
+            backgroundColor: Colors.redAccent,
+            colorText: Colors.white,
+          );
         }
       }
     } catch (e) {
-      Get.snackbar('Error', 'Failed to register. $e', backgroundColor: Colors.redAccent, colorText: Colors.white);
+      Get.snackbar(
+        'Error',
+        'Failed to register. $e',
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
     } finally {
       isLoading.value = false;
     }
@@ -207,19 +302,39 @@ class AuthController extends GetxController {
       });
 
       if (response.statusCode == 200) {
-        Get.snackbar('Success', 'OTP sent to your email!', backgroundColor: Colors.green, colorText: Colors.white);
+        Get.snackbar(
+          'Success',
+          'OTP sent to your email!',
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
         return true;
       } else {
         try {
           final errorData = jsonDecode(response.body);
-          Get.snackbar('Error', errorData['message'].toString(), backgroundColor: Colors.redAccent, colorText: Colors.white);
+          Get.snackbar(
+            'Error',
+            errorData['message'].toString(),
+            backgroundColor: Colors.redAccent,
+            colorText: Colors.white,
+          );
         } catch (_) {
-          Get.snackbar('Error', 'Server Error (${response.statusCode}).', backgroundColor: Colors.redAccent, colorText: Colors.white);
+          Get.snackbar(
+            'Error',
+            'Server Error (${response.statusCode}).',
+            backgroundColor: Colors.redAccent,
+            colorText: Colors.white,
+          );
         }
         return false;
       }
     } catch (e) {
-      Get.snackbar('Error', 'Failed to send OTP. $e', backgroundColor: Colors.redAccent, colorText: Colors.white);
+      Get.snackbar(
+        'Error',
+        'Failed to send OTP. $e',
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
       return false;
     } finally {
       isLoading.value = false;
@@ -239,21 +354,40 @@ class AuthController extends GetxController {
       } else {
         try {
           final errorData = jsonDecode(response.body);
-          Get.snackbar('Error', errorData['message'].toString(), backgroundColor: Colors.redAccent, colorText: Colors.white);
+          Get.snackbar(
+            'Error',
+            errorData['message'].toString(),
+            backgroundColor: Colors.redAccent,
+            colorText: Colors.white,
+          );
         } catch (_) {
-          Get.snackbar('Error', 'Wrong Code or Server Error.', backgroundColor: Colors.redAccent, colorText: Colors.white);
+          Get.snackbar(
+            'Error',
+            'Wrong Code or Server Error.',
+            backgroundColor: Colors.redAccent,
+            colorText: Colors.white,
+          );
         }
         return false;
       }
     } catch (e) {
-      Get.snackbar('Error', 'Verification failed. $e', backgroundColor: Colors.redAccent, colorText: Colors.white);
+      Get.snackbar(
+        'Error',
+        'Verification failed. $e',
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
       return false;
     } finally {
       isLoading.value = false;
     }
   }
 
-  Future<bool> updatePassword(String email, String otp, String newPassword) async {
+  Future<bool> updatePassword(
+    String email,
+    String otp,
+    String newPassword,
+  ) async {
     try {
       isLoading.value = true;
       final response = await ApiService.post('/forgot-password/update', {
@@ -263,19 +397,39 @@ class AuthController extends GetxController {
       });
 
       if (response.statusCode == 200) {
-        Get.snackbar('Success', 'Password updated successfully!', backgroundColor: Colors.green, colorText: Colors.white);
+        Get.snackbar(
+          'Success',
+          'Password updated successfully!',
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
         return true;
       } else {
         try {
           final errorData = jsonDecode(response.body);
-          Get.snackbar('Error', errorData['message'].toString(), backgroundColor: Colors.redAccent, colorText: Colors.white);
+          Get.snackbar(
+            'Error',
+            errorData['message'].toString(),
+            backgroundColor: Colors.redAccent,
+            colorText: Colors.white,
+          );
         } catch (_) {
-          Get.snackbar('Error', 'Failed to update password.', backgroundColor: Colors.redAccent, colorText: Colors.white);
+          Get.snackbar(
+            'Error',
+            'Failed to update password.',
+            backgroundColor: Colors.redAccent,
+            colorText: Colors.white,
+          );
         }
         return false;
       }
     } catch (e) {
-      Get.snackbar('Error', 'Update failed. $e', backgroundColor: Colors.redAccent, colorText: Colors.white);
+      Get.snackbar(
+        'Error',
+        'Update failed. $e',
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
       return false;
     } finally {
       isLoading.value = false;
@@ -287,10 +441,12 @@ class AuthController extends GetxController {
       final token = await NotificationService().getToken();
       if (token != null) {
         debugPrint("Registering FCM Token: $token");
+        final deviceId = await AppInstallTracker.deviceId();
+        await AppInstallTracker.trackInstall(userId: userId);
         await ApiService.post('/register-fcm', {
           'userId': userId,
           'fcmToken': token,
-          'deviceId': 'flutter_device', // Since deviceId isn't explicitly extracted in this app, we'll send a fallback
+          'deviceId': deviceId,
         });
       }
     } catch (e) {
@@ -298,11 +454,14 @@ class AuthController extends GetxController {
     }
   }
 
-  Future<void> checkAndNavigateToEditor(String route, {dynamic arguments}) async {
+  Future<void> checkAndNavigateToEditor(
+    String route, {
+    dynamic arguments,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final isGuest = prefs.getBool('isGuest') ?? false;
     final userId = prefs.getString('userId');
-    
+
     if (userId == null || userId.isEmpty || isGuest) {
       Get.bottomSheet(
         GuestLoginPromptSheet(
@@ -317,14 +476,17 @@ class AuthController extends GetxController {
       bool hasValidBusiness = true;
       if (Get.isRegistered<HomeController>()) {
         final hc = Get.find<HomeController>();
-        if (hc.businessId.value.isEmpty || (hc.businessPhone.value.isEmpty && hc.businessEmail.value.isEmpty)) {
+        if (hc.businessId.value.isEmpty ||
+            (hc.businessPhone.value.isEmpty &&
+                hc.businessEmail.value.isEmpty)) {
           hasValidBusiness = false;
         }
       } else {
         final cachedBizId = prefs.getString('cached_biz_id') ?? '';
         final cachedBizPhone = prefs.getString('cached_biz_phone') ?? '';
         final cachedBizEmail = prefs.getString('cached_biz_email') ?? '';
-        if (cachedBizId.isEmpty || (cachedBizPhone.isEmpty && cachedBizEmail.isEmpty)) {
+        if (cachedBizId.isEmpty ||
+            (cachedBizPhone.isEmpty && cachedBizEmail.isEmpty)) {
           hasValidBusiness = false;
         }
       }

@@ -38,6 +38,7 @@ Route::
             Route::post('/report-error', 'AuthApi@reportError');
             Route::post('/track-activity', 'AuthApi@trackActivity')->name('api.track-activity');
             Route::post('/track-ad-events', 'AuthApi@trackAdEvents')->name('api.track-ad-events');
+            Route::post('/analytics/install', 'AppInstallAnalyticsController@recordInstall')->name('api.analytics.install');
 
             Route::get('/get-home-data', 'HomeApi@getHomeData');
             Route::get('/story', 'ContentApiController@getStory');

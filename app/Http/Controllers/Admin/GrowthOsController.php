@@ -67,48 +67,47 @@ class GrowthOsController extends Controller
         $start = $request->input('start_date') ? Carbon::parse($request->input('start_date'))->startOfDay() : Carbon::now()->subDays(30)->startOfDay();
         $end = $request->input('end_date') ? Carbon::parse($request->input('end_date'))->endOfDay() : Carbon::now()->endOfDay();
 
-        $organicCount = DB::table('users')
-            ->where(function($q) {
-                $q->whereNull('referral_code')->orWhere('referral_code', '');
-            })
-            ->whereBetween('created_at', [$start, $end])
+        // These are app-originated events. User registrations, Play Store data,
+        // and the AI-review-replies table are intentionally not used here.
+        $totalInstalls = DB::table('app_install_events')
+            ->where('event_type', 'install')
+            ->whereBetween('occurred_at', [$start, $end])
             ->count();
 
-        $referralCount = DB::table('users')
-            ->whereNotNull('referral_code')
-            ->where('referral_code', '!=', '')
-            ->whereBetween('created_at', [$start, $end])
+        // A device is a unique install only on its first-ever app install.
+        // Reinstall events remain part of Total Installs but cannot inflate this KPI.
+        $uniqueInstalls = DB::table('app_install_events')
+            ->select('device_hash')
+            ->where('event_type', 'install')
+            ->groupBy('device_hash')
+            ->havingRaw('MIN(occurred_at) BETWEEN ? AND ?', [$start, $end])
+            ->get()
             ->count();
 
-        $positiveReviews = DB::table('ai_review_replies')
-            ->where('rating', '>=', 4)
-            ->whereBetween('created_at', [$start, $end])
+        // Each device gets one uninstall event, generated when FCM confirms that
+        // its app token is unregistered. This is the reliable server-side signal
+        // available after the app itself has been removed.
+        $totalUninstalls = DB::table('app_install_events')
+            ->where('event_type', 'uninstall')
+            ->whereBetween('occurred_at', [$start, $end])
             ->count();
 
-        $negativeReviews = DB::table('ai_review_replies')
-            ->where('rating', '<=', 2)
-            ->whereBetween('created_at', [$start, $end])
+        // Positive Reviews comes only from the Google Play review cache filled
+        // by the official Android Publisher API sync, never from AI reply drafts.
+        $positiveReviews = DB::table('play_store_reviews')
+            ->where('star_rating', '>=', 4)
+            ->whereBetween('review_date', [$start, $end])
             ->count();
 
         return response()->json([
             'status' => 'success',
             'installs' => [
-                'today' => DB::table('users')->whereDate('created_at', Carbon::today())->count(),
-                'yesterday' => DB::table('users')->whereDate('created_at', Carbon::yesterday())->count(),
-                'last_7_days' => DB::table('users')->whereDate('created_at', '>=', Carbon::now()->subDays(7))->count(),
-                'last_30_days' => DB::table('users')->whereBetween('created_at', [$start, $end])->count(),
-            ],
-            'sources' => [
-                'organic' => $organicCount,
-                'referral' => $referralCount,
-                'paid' => 0,
-                'play_store' => $organicCount + $referralCount
+                'unique' => $uniqueInstalls,
+                'total' => $totalInstalls,
+                'total_uninstalls' => $totalUninstalls,
             ],
             'reviews' => [
                 'positive' => $positiveReviews,
-                'negative' => $negativeReviews,
-                'bug_reports' => 5,
-                'feature_requests' => 20
             ]
         ]);
     }

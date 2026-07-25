@@ -37,6 +37,11 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URL', '/auth/google/callback'),
     ],
 
+    'google_play' => [
+        'package_name' => env('GOOGLE_PLAY_PACKAGE_NAME', 'com.arterapixel.pro'),
+        'service_account_json' => env('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON', ''),
+    ],
+
     'runpod' => [
         'api_key' => env('RUNPOD_API_KEY'),
         'flux_endpoint_id' => env('RUNPOD_FLUX_ENDPOINT_ID'),

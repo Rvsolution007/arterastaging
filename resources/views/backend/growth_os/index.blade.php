@@ -618,20 +618,20 @@
                     $('#acq_metrics').html(`
                         <div class="col-md-3 mb-4">
                             <div class="kpi-card">
-                                <div class="kpi-title"><i class="fas fa-arrow-down text-success"></i> Today Installs</div>
-                                <div class="kpi-value font-math text-success">${data.installs.today}</div>
+                                <div class="kpi-title"><i class="fas fa-mobile-screen-button text-success"></i> Unique Installs</div>
+                                <div class="kpi-value font-math text-success">${data.installs.unique}</div>
                             </div>
                         </div>
                         <div class="col-md-3 mb-4">
                             <div class="kpi-card">
-                                <div class="kpi-title"><i class="fas fa-calendar text-primary"></i> Filtered Range Installs</div>
-                                <div class="kpi-value font-math text-primary">${data.installs.last_30_days}</div>
+                                <div class="kpi-title"><i class="fas fa-download text-primary"></i> Total Installs</div>
+                                <div class="kpi-value font-math text-primary">${data.installs.total}</div>
                             </div>
                         </div>
                         <div class="col-md-3 mb-4">
                             <div class="kpi-card">
-                                <div class="kpi-title"><i class="fas fa-store text-info"></i> Organic Sources</div>
-                                <div class="kpi-value font-math text-info">${data.sources.organic}</div>
+                                <div class="kpi-title"><i class="fas fa-trash-can text-info"></i> Total Uninstalls</div>
+                                <div class="kpi-value font-math text-info">${data.installs.total_uninstalls}</div>
                             </div>
                         </div>
                         <div class="col-md-3 mb-4">

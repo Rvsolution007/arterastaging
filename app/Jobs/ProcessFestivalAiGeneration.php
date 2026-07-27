@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\FestivalAiGeneration;
+use App\Models\UserNotification;
 use App\Models\User;
 use App\Services\FestivalAiImageService;
 use Illuminate\Bus\Queueable;
@@ -47,6 +48,7 @@ class ProcessFestivalAiGeneration implements ShouldQueue
                 'error_code' => null,
                 'error_message' => null,
             ]);
+            $this->notifyUser($generation->fresh(), true);
         } catch (\Throwable $exception) {
             Log::warning('Festival AI generation failed.', [
                 'generation_id' => $this->generationId,
@@ -63,10 +65,10 @@ class ProcessFestivalAiGeneration implements ShouldQueue
 
     private function markFailedAndRefund(string $reason): void
     {
-        DB::transaction(function () use ($reason) {
+        $failedGeneration = DB::transaction(function () use ($reason) {
             $generation = FestivalAiGeneration::lockForUpdate()->find($this->generationId);
-            if (!$generation || $generation->status === 'completed') {
-                return;
+            if (!$generation || in_array($generation->status, ['completed', 'failed'], true)) {
+                return null;
             }
 
             $generation->update([
@@ -84,7 +86,40 @@ class ProcessFestivalAiGeneration implements ShouldQueue
                 }
                 $generation->update(['quota_refunded_at' => now()]);
             }
+
+            return $generation->fresh();
         });
+
+        if ($failedGeneration) {
+            $this->notifyUser($failedGeneration, false);
+        }
+    }
+
+    private function notifyUser(FestivalAiGeneration $generation, bool $completed): void
+    {
+        try {
+            UserNotification::query()->firstOrCreate(
+                [
+                    'user_id' => $generation->user_id,
+                    'type' => 'festival_ai',
+                    'type_id' => $generation->id,
+                ],
+                [
+                    'title' => $completed
+                        ? 'Your festival visual is ready'
+                        : 'Festival visual could not be created',
+                    'message' => $completed
+                        ? 'Your new AI visual is ready in My AI Creations.'
+                        : 'Your generation did not complete. Your quota was restored.',
+                    'image' => $completed ? $generation->generated_image_path : null,
+                ]
+            );
+        } catch (\Throwable $exception) {
+            // A notification must never change the completed/failed job state.
+            Log::warning('Festival AI user notification could not be saved.', [
+                'generation_id' => $generation->id,
+            ]);
+        }
     }
 
     private function safeFailureMessage(string $reason): string

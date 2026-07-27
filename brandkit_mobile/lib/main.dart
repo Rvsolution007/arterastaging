@@ -19,6 +19,7 @@ import 'screens/notifications_screen.dart';
 import 'screens/native_editor_screen.dart';
 import 'screens/detail_list_screen.dart';
 import 'controllers/home_controller.dart';
+import 'controllers/festival_ai_job_controller.dart';
 import 'services/translation_service.dart';
 import 'services/app_install_tracker.dart';
 
@@ -47,6 +48,7 @@ void main() {
   Get.put(AdController(), permanent: true);
   Get.put(SubscriptionController(), permanent: true);
   Get.put(HomeController(), permanent: true);
+  Get.put(FestivalAiJobController(), permanent: true);
 
   // Initialize ConsoleController for in-app debugging
   final consoleController = Get.put(ConsoleController(), permanent: true);

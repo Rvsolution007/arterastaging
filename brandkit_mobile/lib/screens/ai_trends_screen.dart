@@ -1,13 +1,15 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../controllers/festival_ai_job_controller.dart';
 import '../services/api_service.dart';
 import '../widgets/shared_header.dart';
+import '../widgets/festival_ai_creations_sheet.dart';
 import 'subscription_plans_screen.dart';
 
 class AiTrendsScreen extends StatefulWidget {
@@ -38,18 +40,20 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
   Map<String, dynamic>? _language;
   String? _quality;
   String? _sizeKey;
-  Map<String, dynamic>? _job;
-  Timer? _pollTimer;
+  late final FestivalAiJobController _jobs;
 
   @override
   void initState() {
     super.initState();
+    _jobs = Get.isRegistered<FestivalAiJobController>()
+        ? Get.find<FestivalAiJobController>()
+        : Get.put(FestivalAiJobController(), permanent: true);
     _loadOptions();
+    _jobs.refreshHistory();
   }
 
   @override
   void dispose() {
-    _pollTimer?.cancel();
     _instructionController.dispose();
     super.dispose();
   }
@@ -78,7 +82,9 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
       for (final item in models) {
         final model = Map<String, dynamic>.from(item as Map);
         Map<String, dynamic>? firstAvailable;
-        for (final item in List<dynamic>.from(model['quality_variants'] ?? [])) {
+        for (final item in List<dynamic>.from(
+          model['quality_variants'] ?? [],
+        )) {
           final variant = Map<String, dynamic>.from(item as Map);
           if (variant['is_available'] == true) {
             firstAvailable = variant;
@@ -131,9 +137,9 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
     final model = Map<String, dynamic>.from(item as Map);
     final variants = List<dynamic>.from(model['quality_variants'] ?? []);
     final qualities = variants.isEmpty
-        ? _qualitiesForModel(model)
-            .map((quality) => {'key': quality, 'display_name': quality})
-            .toList()
+        ? _qualitiesForModel(
+            model,
+          ).map((quality) => {'key': quality, 'display_name': quality}).toList()
         : variants;
 
     return qualities.map((item) {
@@ -148,7 +154,9 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
   }).toList();
 
   List<String> _qualitiesForModel(Map<String, dynamic> model) =>
-      List<String>.from(model['qualities'] ?? []).map((value) => value.toString()).toList();
+      List<String>.from(
+        model['qualities'] ?? [],
+      ).map((value) => value.toString()).toList();
 
   List<Map<String, dynamic>> get _availableSizes {
     final styleSizes = List<String>.from(
@@ -223,7 +231,9 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
             Text('Premium model'),
           ],
         ),
-        content: Text('$name is not included in your current plan. Upgrade to premium to use it.'),
+        content: Text(
+          '$name is not included in your current plan. Upgrade to premium to use it.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -530,7 +540,10 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
       return;
     }
     if (_productMode == 'choose' && !hasChosenProduct) {
-      _showMessage('Choose at least one product before generating.', isError: true);
+      _showMessage(
+        'Choose at least one product before generating.',
+        isError: true,
+      );
       return;
     }
     if (_productMode == 'upload' && !hasUploadedProduct) {
@@ -540,7 +553,6 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
 
     setState(() {
       _submitting = true;
-      _job = {'status': 'submitting'};
     });
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -576,7 +588,6 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
       }
 
       setState(() {
-        _job = Map<String, dynamic>.from(data['job'] as Map);
         _submitting = false;
         _quota = {
           ...?_quota,
@@ -585,15 +596,11 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
                   .clamp(0, 999999),
         };
       });
-      _startPolling();
+      await _jobs.track(Map<String, dynamic>.from(data['job'] as Map));
     } catch (error) {
       if (mounted) {
         setState(() {
           _submitting = false;
-          _job = {
-            'status': 'failed',
-            'error_message': error.toString().replaceFirst('Exception: ', ''),
-          };
         });
         _showMessage(
           error.toString().replaceFirst('Exception: ', ''),
@@ -603,9 +610,7 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
     }
   }
 
-  Future<dynamic> _createGenerationWithUpload(
-    Map<String, dynamic> body,
-  ) async {
+  Future<dynamic> _createGenerationWithUpload(Map<String, dynamic> body) async {
     final image = _uploadedProductImage;
     if (image == null) throw Exception('Upload a product photo first.');
 
@@ -623,33 +628,6 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
       fileBytes: kIsWeb ? bytes : null,
       fileName: image.name,
     );
-  }
-
-  void _startPolling() {
-    _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(
-      const Duration(seconds: 3),
-      (_) => _refreshJob(),
-    );
-  }
-
-  Future<void> _refreshJob() async {
-    final jobId = _job?['id'];
-    if (jobId == null) return;
-    try {
-      final response = await ApiService.get('/festival-ai/generations/$jobId');
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      if (response.statusCode != 200 || data['success'] != true || !mounted)
-        return;
-      final job = Map<String, dynamic>.from(data['job'] as Map);
-      setState(() => _job = job);
-      if (job['status'] == 'completed' || job['status'] == 'failed') {
-        _pollTimer?.cancel();
-        if (job['status'] == 'failed') _loadOptions();
-      }
-    } catch (_) {
-      // The visible queued state remains; a later polling tick will retry.
-    }
   }
 
   void _showMessage(String message, {required bool isError}) {
@@ -752,6 +730,8 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 96),
         children: [
           _heroCard(),
+          const SizedBox(height: 2),
+          _myCreationsShortcut(),
           const SizedBox(height: 12),
           _sectionTitle('1. Choose festival'),
           _festivalDropDown(),
@@ -766,7 +746,15 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
           _productCard(),
           const SizedBox(height: 14),
           _generateButton(),
-          if (_job != null) ...[const SizedBox(height: 14), _jobCard()],
+          Obx(() {
+            final job = _jobs.visibleJob;
+            return job == null
+                ? const SizedBox.shrink()
+                : Padding(
+                    padding: const EdgeInsets.only(top: 14),
+                    child: _jobCard(job),
+                  );
+          }),
         ],
       ),
     );
@@ -845,6 +833,20 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
     ),
   );
 
+  Widget _myCreationsShortcut() => Align(
+    alignment: Alignment.centerRight,
+    child: TextButton.icon(
+      onPressed: () => FestivalAiCreationsSheet.show(context),
+      icon: const Icon(Icons.auto_awesome_rounded, size: 15),
+      label: const Text('My creations'),
+      style: TextButton.styleFrom(
+        foregroundColor: const Color(0xFF4F46E5),
+        textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+      ),
+    ),
+  );
+
   Widget _festivalDropDown() {
     return InkWell(
       onTap: _showFestivalPicker,
@@ -868,7 +870,10 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF64748B)),
+            const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Color(0xFF64748B),
+            ),
           ],
         ),
       ),
@@ -913,19 +918,30 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
                   padding: const EdgeInsets.only(bottom: 24),
                   itemCount: _festivals.length,
                   itemBuilder: (context, index) {
-                    final festival = Map<String, dynamic>.from(_festivals[index] as Map);
+                    final festival = Map<String, dynamic>.from(
+                      _festivals[index] as Map,
+                    );
                     final isSelected = festival['id'] == _festival?['id'];
                     return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                      ),
                       title: Text(
                         festival['title']?.toString() ?? 'Festival',
                         style: TextStyle(
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                          color: isSelected ? const Color(0xFF6366F1) : const Color(0xFF1E293B),
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: isSelected
+                              ? const Color(0xFF6366F1)
+                              : const Color(0xFF1E293B),
                         ),
                       ),
                       trailing: isSelected
-                          ? const Icon(Icons.check_circle, color: Color(0xFF6366F1))
+                          ? const Icon(
+                              Icons.check_circle,
+                              color: Color(0xFF6366F1),
+                            )
                           : null,
                       onTap: () {
                         _selectFestival(festival);
@@ -1077,11 +1093,11 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
                                   filterQuality: FilterQuality.medium,
                                   loadingBuilder: (_, child, loadingProgress) =>
                                       loadingProgress == null
-                                          ? child
-                                          : _stylePreviewFallback(
-                                              style,
-                                              isLoading: true,
-                                            ),
+                                      ? child
+                                      : _stylePreviewFallback(
+                                          style,
+                                          isLoading: true,
+                                        ),
                                   errorBuilder: (_, __, ___) =>
                                       _stylePreviewFallback(style),
                                 ),
@@ -1188,11 +1204,12 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
     // Find currently selected variant display name
     final selectedVariant = (_model != null && _quality != null)
         ? variants.cast<Map<String, dynamic>?>().firstWhere(
-              (v) => v!['id'] == _model!['id'] && v['quality_key'] == _quality,
-              orElse: () => null,
-            )
+            (v) => v!['id'] == _model!['id'] && v['quality_key'] == _quality,
+            orElse: () => null,
+          )
         : null;
-    final selectedName = selectedVariant?['variant_name']?.toString() ?? 'Select model';
+    final selectedName =
+        selectedVariant?['variant_name']?.toString() ?? 'Select model';
 
     return Container(
       margin: const EdgeInsets.only(top: 8),
@@ -1200,7 +1217,9 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: _modelDropdownOpen ? const Color(0xFF6366F1) : const Color(0xFFE2E8F0),
+          color: _modelDropdownOpen
+              ? const Color(0xFF6366F1)
+              : const Color(0xFFE2E8F0),
         ),
       ),
       clipBehavior: Clip.antiAlias,
@@ -1208,10 +1227,13 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
         children: [
           // ── Trigger bar ──
           InkWell(
-            onTap: () => setState(() => _modelDropdownOpen = !_modelDropdownOpen),
+            onTap: () =>
+                setState(() => _modelDropdownOpen = !_modelDropdownOpen),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-              color: _modelDropdownOpen ? const Color(0xFFFAF9FF) : Colors.white,
+              color: _modelDropdownOpen
+                  ? const Color(0xFFFAF9FF)
+                  : Colors.white,
               child: Row(
                 children: [
                   Icon(
@@ -1258,7 +1280,8 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
                       final index = entry.key;
                       final variant = entry.value;
                       final available = variant['is_available'] == true;
-                      final isSelected = _model != null &&
+                      final isSelected =
+                          _model != null &&
                           variant['id'] == _model!['id'] &&
                           variant['quality_key'] == _quality;
                       final displayName =
@@ -1273,7 +1296,9 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 12),
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
                           decoration: BoxDecoration(
                             color: isSelected
                                 ? const Color(0xFFEEF2FF)
@@ -1297,8 +1322,8 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
                                 color: isSelected
                                     ? const Color(0xFF6366F1)
                                     : available
-                                        ? const Color(0xFFCBD5E1)
-                                        : const Color(0xFFE2E8F0),
+                                    ? const Color(0xFFCBD5E1)
+                                    : const Color(0xFFE2E8F0),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -1311,8 +1336,8 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
                                         : FontWeight.w500,
                                     color: available
                                         ? (isSelected
-                                            ? const Color(0xFF4F46E5)
-                                            : const Color(0xFF1E293B))
+                                              ? const Color(0xFF4F46E5)
+                                              : const Color(0xFF1E293B))
                                         : const Color(0xFFADB5BD),
                                   ),
                                 ),
@@ -1320,12 +1345,14 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
                               if (!available)
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 3),
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
                                   decoration: BoxDecoration(
                                     gradient: const LinearGradient(
                                       colors: [
                                         Color(0xFFF59E0B),
-                                        Color(0xFFF97316)
+                                        Color(0xFFF97316),
                                       ],
                                     ),
                                     borderRadius: BorderRadius.circular(8),
@@ -1390,19 +1417,30 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
                   padding: const EdgeInsets.only(bottom: 24),
                   itemCount: _languages.length,
                   itemBuilder: (context, index) {
-                    final language = Map<String, dynamic>.from(_languages[index] as Map);
+                    final language = Map<String, dynamic>.from(
+                      _languages[index] as Map,
+                    );
                     final isSelected = language['id'] == _language?['id'];
                     return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                      ),
                       title: Text(
                         language['title']?.toString() ?? 'Language',
                         style: TextStyle(
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                          color: isSelected ? const Color(0xFF6366F1) : const Color(0xFF1E293B),
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: isSelected
+                              ? const Color(0xFF6366F1)
+                              : const Color(0xFF1E293B),
                         ),
                       ),
                       trailing: isSelected
-                          ? const Icon(Icons.check_circle, color: Color(0xFF6366F1))
+                          ? const Icon(
+                              Icons.check_circle,
+                              color: Color(0xFF6366F1),
+                            )
                           : null,
                       onTap: () {
                         _selectLanguage(language);
@@ -1464,12 +1502,17 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
                 onTap: () => setState(() => _sizeKey = key),
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: selected ? const Color(0xFFEEF2FF) : Colors.white,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: selected ? const Color(0xFF6366F1) : const Color(0xFFE2E8F0),
+                      color: selected
+                          ? const Color(0xFF6366F1)
+                          : const Color(0xFFE2E8F0),
                     ),
                   ),
                   child: Row(
@@ -1482,7 +1525,9 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(2),
                           border: Border.all(
-                            color: selected ? const Color(0xFF4F46E5) : const Color(0xFF94A3B8),
+                            color: selected
+                                ? const Color(0xFF4F46E5)
+                                : const Color(0xFF94A3B8),
                             width: 1.5,
                           ),
                         ),
@@ -1492,8 +1537,12 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
                         ratio,
                         style: TextStyle(
                           fontSize: 12,
-                          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                          color: selected ? const Color(0xFF4F46E5) : const Color(0xFF64748B),
+                          fontWeight: selected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: selected
+                              ? const Color(0xFF4F46E5)
+                              : const Color(0xFF64748B),
                         ),
                       ),
                     ],
@@ -1533,7 +1582,11 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const Icon(Icons.language, color: Color(0xFF64748B), size: 18),
+                  const Icon(
+                    Icons.language,
+                    color: Color(0xFF64748B),
+                    size: 18,
+                  ),
                 ],
               ),
             ),
@@ -1557,7 +1610,9 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _styleNeedsProduct ? 'A product is required for this look' : 'Add a product (optional)',
+            _styleNeedsProduct
+                ? 'A product is required for this look'
+                : 'Add a product (optional)',
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 3),
@@ -1572,7 +1627,9 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
             children: [
               Expanded(
                 child: _productSourceButton(
-                  title: choosing && count > 0 ? '$count selected' : 'Choose product',
+                  title: choosing && count > 0
+                      ? '$count selected'
+                      : 'Choose product',
                   icon: Icons.inventory_2_outlined,
                   active: choosing,
                   disabled: uploading || !canUseProduct,
@@ -1600,7 +1657,10 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
                 label: const Text('Change source'),
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.only(top: 8),
-                  textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                  textStyle: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),
@@ -1638,7 +1698,11 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: disabled ? const Color(0xFFCBD5E1) : color, size: 17),
+            Icon(
+              icon,
+              color: disabled ? const Color(0xFFCBD5E1) : color,
+              size: 17,
+            ),
             const SizedBox(width: 6),
             Flexible(
               child: Text(
@@ -1674,7 +1738,11 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
             style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
           ),
         ),
-        const Icon(Icons.check_circle_rounded, size: 17, color: Color(0xFF059669)),
+        const Icon(
+          Icons.check_circle_rounded,
+          size: 17,
+          color: Color(0xFF059669),
+        ),
       ],
     ),
   );
@@ -1704,38 +1772,51 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
   }
 
   Widget _generateButton() {
-    return SizedBox(
-      height: 52,
-      child: ElevatedButton.icon(
-        onPressed: _submitting ? null : _generate,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF4F46E5),
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+    return Obx(() {
+      final hasActiveJob = _jobs.hasActiveJob;
+      return SizedBox(
+        height: 52,
+        child: ElevatedButton.icon(
+          onPressed: _submitting
+              ? null
+              : hasActiveJob
+              ? () => FestivalAiCreationsSheet.show(context)
+              : _generate,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF4F46E5),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          icon: _submitting
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : Icon(
+                  hasActiveJob ? Icons.visibility_outlined : Icons.auto_awesome,
+                ),
+          label: Text(
+            _submitting
+                ? 'Queueing your visual...'
+                : hasActiveJob
+                ? 'View current generation'
+                : 'Generate festival visual',
+            style: const TextStyle(fontWeight: FontWeight.w800),
           ),
         ),
-        icon: _submitting
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : const Icon(Icons.auto_awesome),
-        label: Text(
-          _submitting ? 'Queueing your visual...' : 'Generate festival visual',
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
-      ),
-    );
+      );
+    });
   }
 
-  Widget _jobCard() {
-    final status = _job?['status']?.toString() ?? 'queued';
-    final imageUrl = _job?['image_url']?.toString() ?? '';
+  Widget _jobCard(Map<String, dynamic> job) {
+    final status = job['status']?.toString() ?? 'queued';
+    final imageUrl = job['image_url']?.toString() ?? '';
     final completed = status == 'completed';
     final failed = status == 'failed';
     final submitting = status == 'submitting';
@@ -1794,8 +1875,7 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(
-                _job?['error_message']?.toString() ??
-                    'Your quota was restored.',
+                job['error_message']?.toString() ?? 'Your quota was restored.',
                 style: const TextStyle(fontSize: 12, color: Color(0xFFB91C1C)),
               ),
             ),
@@ -1826,11 +1906,7 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
     borderRadius: BorderRadius.circular(14),
     border: Border.all(color: const Color(0xFFE9E7FF)),
     boxShadow: const [
-      BoxShadow(
-        color: Color(0x0C4F46E5),
-        blurRadius: 12,
-        offset: Offset(0, 4),
-      ),
+      BoxShadow(color: Color(0x0C4F46E5), blurRadius: 12, offset: Offset(0, 4)),
     ],
   );
 }

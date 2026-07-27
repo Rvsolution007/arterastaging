@@ -4587,7 +4587,21 @@ class HomeApi extends Controller
 
     public function getNotifications()
     {
-        $notifications = UserNotification::orderBy('created_at', 'desc')->get();
+        $user = auth('sanctum')->user();
+        $notifications = UserNotification::query()
+            // Older admin broadcasts have no user_id and stay visible to all.
+            // A personal notification (such as Festival AI completion) is only
+            // ever returned to its owning authenticated user.
+            ->when(
+                $user,
+                fn ($query) => $query->where(fn ($owned) => $owned
+                    ->whereNull('user_id')
+                    ->orWhere('user_id', $user->id)
+                ),
+                fn ($query) => $query->whereNull('user_id')
+            )
+            ->orderBy('created_at', 'desc')
+            ->get();
         $data = [];
         foreach ($notifications as $n) {
             $data[] = [

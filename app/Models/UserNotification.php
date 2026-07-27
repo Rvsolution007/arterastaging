@@ -12,6 +12,7 @@ class UserNotification extends Model
     protected $table = 'user_notifications';
 
     protected $fillable = [
+        'user_id',
         'title',
         'message',
         'image',

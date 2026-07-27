@@ -13,6 +13,7 @@ import 'ai_chat_screen.dart';
 import 'support_tickets_screen.dart';
 import '../config/app_config.dart';
 import '../widgets/coming_soon_widget.dart';
+import '../widgets/festival_ai_progress_tray.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -53,7 +54,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: _pages[_currentIndex],
+      body: Stack(
+        children: [
+          _pages[_currentIndex],
+          Positioned(
+            left: 12,
+            right: 86,
+            bottom: 12,
+            child: FestivalAiProgressTray(
+              onOpen: () => setState(() => _currentIndex = 3),
+            ),
+          ),
+        ],
+      ),
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [

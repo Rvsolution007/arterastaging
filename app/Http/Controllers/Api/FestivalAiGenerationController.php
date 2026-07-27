@@ -324,6 +324,32 @@ class FestivalAiGenerationController extends Controller
         ]);
     }
 
+    public function history(Request $request)
+    {
+        $user = $this->authenticatedUser($request);
+
+        // Deliberately return only presentation-safe fields from the user's own
+        // recent requests. Prompts, selected products and business snapshots
+        // remain private server-side records.
+        $jobs = FestivalAiGeneration::query()
+            ->where('user_id', $user->id)
+            ->with([
+                'festival:id,title',
+                'style:id,name',
+                'imageModel:id,display_name',
+            ])
+            ->latest('id')
+            ->limit(30)
+            ->get()
+            ->map(fn (FestivalAiGeneration $generation) => $this->jobPayload($generation))
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'jobs' => $jobs,
+        ]);
+    }
+
     private function authenticatedUser(Request $request): User
     {
         $user = auth('sanctum')->user();
@@ -484,6 +510,9 @@ class FestivalAiGenerationController extends Controller
             'error_message' => $generation->status === 'failed' ? $generation->error_message : null,
             'created_at' => optional($generation->created_at)->toIso8601String(),
             'completed_at' => optional($generation->completed_at)->toIso8601String(),
+            'festival_title' => optional($generation->festival)->title,
+            'style_name' => optional($generation->style)->name,
+            'model_name' => optional($generation->imageModel)->display_name,
         ];
     }
 

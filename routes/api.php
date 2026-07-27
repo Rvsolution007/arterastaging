@@ -142,6 +142,7 @@ Route::
             // Festival AI: authenticated with the user's existing API token.
             Route::get('/festival-ai/options', [\App\Http\Controllers\Api\FestivalAiGenerationController::class, 'options']);
             Route::post('/festival-ai/generations', [\App\Http\Controllers\Api\FestivalAiGenerationController::class, 'create'])->middleware('throttle:10,1');
+            Route::get('/festival-ai/generations', [\App\Http\Controllers\Api\FestivalAiGenerationController::class, 'history']);
             Route::get('/festival-ai/generations/{festivalAiGeneration}', [\App\Http\Controllers\Api\FestivalAiGenerationController::class, 'show']);
 
             // Setup Wizard Endpoints

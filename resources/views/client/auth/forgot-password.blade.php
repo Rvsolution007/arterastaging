@@ -142,11 +142,11 @@
         <form action="{{ route('password.update') }}" method="POST">
             @csrf
             <div class="input-group">
-                <input type="password" name="password" class="input-field" placeholder="New Password" required minlength="8">
+                <input type="password" name="password" class="input-field" placeholder="New Password (10+ chars, upper, number & symbol)" required minlength="10">
                 @error('password') <p class="error-msg">{{ $message }}</p> @enderror
             </div>
             <div class="input-group">
-                <input type="password" name="password_confirmation" class="input-field" placeholder="Confirm New Password" required minlength="8">
+                <input type="password" name="password_confirmation" class="input-field" placeholder="Confirm New Password" required minlength="10">
             </div>
             <button type="submit" class="submit-btn">Update Password</button>
         </form>

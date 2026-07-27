@@ -30,7 +30,7 @@ class RouteServiceProvider extends ServiceProvider
 
         $this->routes(function () {
             Route::middleware('api')
-                ->prefix(env('API_KEY'))
+                ->prefix(config('app.api_prefix'))
                 ->namespace($this->namespace)
                 ->group(base_path('routes/api.php'));
 
@@ -57,11 +57,38 @@ class RouteServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('login', function (Request $request) {
-            return Limit::perMinute(5)->by($request->ip());
+            $identity = strtolower((string) $request->input('email'));
+
+            return [
+                Limit::perMinute(5)->by('login:' . $identity . '|' . $request->ip()),
+                Limit::perHour(25)->by('login-account:' . $identity),
+            ];
+        });
+
+        RateLimiter::for('google-login', function (Request $request) {
+            return Limit::perMinute(10)->by('google-login:' . $request->ip());
+        });
+
+        RateLimiter::for('admin-login', function (Request $request) {
+            $identity = strtolower((string) $request->input('email'));
+
+            return [
+                Limit::perMinute(5)->by('admin-login:' . $identity . '|' . $request->ip()),
+                Limit::perHour(20)->by('admin-login-account:' . $identity),
+            ];
         });
 
         RateLimiter::for('password-reset', function (Request $request) {
-            return Limit::perHour(3)->by($request->ip());
+            $identity = strtolower((string) $request->input('email'));
+
+            return [
+                Limit::perHour(3)->by('password-reset:' . $identity . '|' . $request->ip()),
+                Limit::perHour(5)->by('password-reset-account:' . $identity),
+            ];
+        });
+
+        RateLimiter::for('email-verification', function (Request $request) {
+            return Limit::perMinute(5)->by('email-verification:' . $request->ip());
         });
     }
 }

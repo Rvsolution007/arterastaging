@@ -3,7 +3,9 @@ class AppConfig {
   // Read target environment from build-time dart-define, defaulting to local
   static const String _rawEnv = String.fromEnvironment(
     'ENV',
-    defaultValue: 'production',
+    // Local is the safe default for an unconfigured developer build. Release
+    // builds must explicitly pass --dart-define=ENV=production.
+    defaultValue: 'local',
   );
   static const String _localBaseUrl = String.fromEnvironment(
     'LOCAL_API_BASE_URL',

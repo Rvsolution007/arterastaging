@@ -42,15 +42,19 @@ class LoginController extends Controller
 
     public function authenticate(Request $request)
     {
-        $credentials = array(
-            'email' => $request->get('email'),
-            'password' => $request->get('password'),
-        );
+        $credentials = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string'],
+        ]);
+        $credentials['user_type'] = 'Super Admin';
 
         if (Auth::attempt($credentials)) {
+            $request->session()->regenerate();
             return redirect('admin/');
-        } else {
-            return back()->withErrors("These credentials do not match our records.")->withInput();
         }
+
+        Auth::logout();
+
+        return back()->withErrors('These credentials do not match our records.')->withInput();
     }
 }

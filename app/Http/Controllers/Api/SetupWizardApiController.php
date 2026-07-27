@@ -612,6 +612,12 @@ class SetupWizardApiController extends Controller
 
     public function updateProduct(Request $request, $id)
     {
+        $request->validate([
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'title' => ['nullable', 'string', 'max:255'],
+            'sku' => ['nullable', 'string', 'max:255'],
+        ]);
+
         $userId = $request->input('userId');
         if (!$userId) {
             return response()->json(['success' => false, 'message' => 'Missing userId'], 400);
@@ -640,7 +646,7 @@ class SetupWizardApiController extends Controller
                 'size' => $file->getSize(),
             ]);
             
-            $fileName = time() . '_' . preg_replace('/[^A-Za-z0-9_\-\.]/', '_', $file->getClientOriginalName());
+            $fileName = \Illuminate\Support\Str::uuid() . '.' . $file->extension();
             
             // Save directly to public/uploads/products to avoid symlink issues
             $destinationPath = public_path('uploads/products');
@@ -716,6 +722,12 @@ class SetupWizardApiController extends Controller
 
     public function createProduct(Request $request)
     {
+        $request->validate([
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'title' => ['nullable', 'string', 'max:255'],
+            'sku' => ['nullable', 'string', 'max:255'],
+        ]);
+
         $userId = $request->input('userId');
         if (!$userId) {
             return response()->json(['success' => false, 'message' => 'Missing userId'], 400);
@@ -725,7 +737,7 @@ class SetupWizardApiController extends Controller
         $dbPath = null;
         if ($request->hasFile('image')) {
             $file = $request->file('image');
-            $fileName = time() . '_' . preg_replace('/[^A-Za-z0-9_\-\.]/', '_', $file->getClientOriginalName());
+            $fileName = \Illuminate\Support\Str::uuid() . '.' . $file->extension();
             $destinationPath = public_path('uploads/products');
             if (!file_exists($destinationPath)) {
                 mkdir($destinationPath, 0755, true);
@@ -781,6 +793,10 @@ class SetupWizardApiController extends Controller
 
     public function extractFromImage(Request $request)
     {
+        $request->validate([
+            'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        ]);
+
         $userId = $request->input('userId');
         if (!$userId) {
             return response()->json(['success' => false, 'message' => 'Missing userId'], 400);
@@ -790,8 +806,8 @@ class SetupWizardApiController extends Controller
             return response()->json(['success' => false, 'message' => 'Image file is required.'], 400);
         }
 
-        ini_set('memory_limit', '1G');
-        set_time_limit(3600);
+        ini_set('memory_limit', '256M');
+        set_time_limit(120);
         
         \Log::info("DIAGNOSIS: Image extraction API called for userId: {$userId}");
 
@@ -833,7 +849,7 @@ class SetupWizardApiController extends Controller
 
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('SetupWizard: Image extraction failed', ['error' => $e->getMessage()]);
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'Image extraction could not be completed. Please try again.'], 500);
         }
     }
 

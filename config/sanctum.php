@@ -48,6 +48,10 @@ return [
 
     'expiration' => null,
 
+    // Personal tokens additionally carry per-token expiry timestamps issued by
+    // MobileAccessTokenService. The custom middleware enforces those values.
+    'mobile_token_expiration_days' => env('MOBILE_TOKEN_EXPIRATION_DAYS', 30),
+
     /*
     |--------------------------------------------------------------------------
     | Sanctum Middleware

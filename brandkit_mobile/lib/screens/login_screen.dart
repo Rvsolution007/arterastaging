@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:get/get.dart';
 import '../controllers/auth_controller.dart';
@@ -107,6 +108,24 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: authController.isLoading.value
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text('Login', style: TextStyle(fontSize: 18, color: Colors.white)),
+              )),
+              const SizedBox(height: 16),
+              Obx(() => OutlinedButton.icon(
+                onPressed: authController.isLoading.value
+                    ? null
+                    : () => authController.signInWithGoogle(
+                          redirectRoute: widget.redirectRoute,
+                          redirectArguments: widget.redirectArguments,
+                        ),
+                icon: const FaIcon(FontAwesomeIcons.google, size: 20),
+                label: const Text('Continue with Google'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.textPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
               )),
               const SizedBox(height: 20),
               TextButton(

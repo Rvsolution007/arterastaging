@@ -14,6 +14,7 @@ use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\PasswordResetOtp;
 use App\Models\PasswordReset;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class ClientAuthController extends Controller
 {
@@ -51,7 +52,7 @@ class ClientAuthController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'password' => 'required|min:6',
+            'password' => ['required', PasswordRule::min(10)->mixedCase()->numbers()->symbols()],
             'mobile_no' => 'required|string',
             'business_category_id' => 'required|exists:business_category,id',
             'business_sub_category_ids' => 'nullable|array',
@@ -98,6 +99,7 @@ class ClientAuthController extends Controller
         ]);
 
         Auth::login($user);
+        $request->session()->regenerate();
         $this->updateUserStreak($user);
 
         // If registration came from landing site auth-gate, show app-gateway
@@ -122,7 +124,7 @@ class ClientAuthController extends Controller
      * If the email is new → create user + default business → log them in.
      * Both paths end at /app-gateway.
      */
-    public function handleGoogleCallback()
+    public function handleGoogleCallback(Request $request)
     {
         try {
             $googleUser = Socialite::driver('google')->user();
@@ -136,6 +138,7 @@ class ClientAuthController extends Controller
         if ($existingUser) {
             // Existing user → just log them in
             Auth::login($existingUser, true);
+            $request->session()->regenerate();
             $this->updateUserStreak($existingUser);
             return redirect('/app-gateway');
         }
@@ -151,7 +154,6 @@ class ClientAuthController extends Controller
             'status' => 1,
             'email_verified_at' => now(), // Google emails are pre-verified
             'referral_code' => strtoupper(Str::random(10)),
-            'api_token' => Str::random(60),
         ]);
 
         // Create a default Business profile so they can start immediately
@@ -166,6 +168,7 @@ class ClientAuthController extends Controller
         ]);
 
         Auth::login($user, true);
+        $request->session()->regenerate();
         $this->updateUserStreak($user);
 
         return redirect('/app-gateway');
@@ -194,7 +197,7 @@ class ClientAuthController extends Controller
         }
 
         // Generate 6-digit OTP
-        $otp = mt_rand(100000, 999999);
+        $otp = random_int(100000, 999999);
 
         // Store OTP in password_resets table
         PasswordReset::where('email', $request->email)->delete();
@@ -238,7 +241,7 @@ class ClientAuthController extends Controller
             return redirect()->route('password.forgot')->with('error', 'OTP expired. Please request a new one.');
         }
 
-        if ($enteredOtp !== $storedOtp) {
+        if (!hash_equals((string) $storedOtp, (string) $enteredOtp)) {
             return redirect()->route('password.forgot', ['step' => 'otp'])
                 ->withErrors(['otp' => 'Invalid OTP code. Please try again.']);
         }
@@ -260,7 +263,7 @@ class ClientAuthController extends Controller
         }
 
         $request->validate([
-            'password' => 'required|min:8|confirmed',
+            'password' => ['required', 'confirmed', PasswordRule::min(10)->mixedCase()->numbers()->symbols()],
         ]);
 
         $user = User::where('email', session('reset_email'))->first();
@@ -271,6 +274,7 @@ class ClientAuthController extends Controller
 
         $user->password = Hash::make($request->password);
         $user->save();
+        $user->tokens()->delete();
 
         // Clean up all reset session data
         PasswordReset::where('email', session('reset_email'))->delete();

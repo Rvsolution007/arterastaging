@@ -727,7 +727,9 @@ class GeneralPostController extends Controller
             $prompt .= "\nFields to generate (with STRICT character limits):\n{$rolesString}";
             $prompt .= "\nReturn ONLY a pure JSON object where keys are the field names and values are the generated text. No markdown, no code blocks, no extra text. Double-check every value is within its character limit before responding.";
 
-            $provider = AiSetting::getAiSetting('ai_provider') ?: 'vertex';
+            // Text/content generation follows the dedicated content provider;
+            // the OpenAI key is reserved for AI image generation.
+            $provider = AiSetting::getAiSetting('content_ai_provider') === 'gemini' ? 'gemini' : 'vertex';
             
             if ($provider == 'gemini') {
                 $apiKey = AiSetting::getAiSetting('gemini_api_key');

@@ -42,6 +42,16 @@ return [
             'after_commit' => false,
         ],
 
+        // Image generation can take longer than normal notification jobs.
+        // Keep retry_after above the Festival AI job timeout to prevent duplicates.
+        'festival-ai' => [
+            'driver' => 'database',
+            'table' => 'jobs',
+            'queue' => 'festival-ai',
+            'retry_after' => 240,
+            'after_commit' => false,
+        ],
+
         'beanstalkd' => [
             'driver' => 'beanstalkd',
             'host' => 'localhost',

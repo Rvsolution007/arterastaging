@@ -616,24 +616,17 @@
                                                     <div class="row mt-3">
                                                         <div class="col-12">
                                                             <div class="form-group row">
-                                                                {!! Form::label('ai_provider', 'AI Provider', ['class' => 'col-xl-2 col-md-3 col-3 col-form-label']) !!}
+                                                                {!! Form::label('content_ai_provider', 'Content & Chat Engine', ['class' => 'col-xl-2 col-md-3 col-3 col-form-label']) !!}
                                                                 <div class="col-xl-10 col-md-9 col-9">
-                                                                    <select class="form-control" id="ai_provider_select"
-                                                                        name="name[ai_provider]">
+                                                                    <select class="form-control" id="content_ai_provider_select"
+                                                                        name="name[content_ai_provider]">
                                                                         <option value="vertex"
-                                                                            @if(App\Models\AiSetting::getAiSetting('ai_provider') == 'vertex' || !App\Models\AiSetting::getAiSetting('ai_provider'))
+                                                                            @if(App\Models\AiSetting::getAiSetting('content_ai_provider') == 'vertex' || !App\Models\AiSetting::getAiSetting('content_ai_provider'))
                                                                             selected @endif>Vertex AI (Google Cloud)
                                                                         </option>
-                                                                        <option value="gemini"
-                                                                            @if(App\Models\AiSetting::getAiSetting('ai_provider') == 'gemini')
-                                                                            selected @endif>Gemini API (API Key)</option>
-                                                                        <option value="chatgpt"
-                                                                            @if(App\Models\AiSetting::getAiSetting('ai_provider') == 'chatgpt')
-                                                                            selected @endif>ChatGPT (OpenAI)</option>
                                                                     </select>
                                                                     <small class="text-muted">Choose your AI provider —
-                                                                        Vertex AI requires a Google Cloud project, Gemini
-                                                                        API uses a direct API key, ChatGPT uses OpenAI API key</small>
+                                                                        Content generation and chat stay on Vertex AI. OpenAI is configured below only for AI image generation.</small>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -776,28 +769,24 @@
                                                     </div>
 
                                                     {{-- ==================== CHATGPT API SECTION ==================== --}}
-                                                    <div id="chatgpt-api-section" style="display: none;">
+                                                    <div id="chatgpt-api-section">
                                                         <div class="alert alert-success mt-2"
                                                             style="border-left: 4px solid #10a37f;">
                                                             <i class="fas fa-key mr-1"></i>
-                                                            <strong>ChatGPT API Configuration</strong> — Enter your OpenAI
-                                                            API
-                                                            Key from <a href="https://platform.openai.com/api-keys"
-                                                                target="_blank">OpenAI Developer Platform</a>
-                                                            and select the model to use.
+                                                            <strong>OpenAI Image Generation Configuration</strong> — Add the OpenAI key used only for Festival AI image creation. Vertex AI remains responsible for content generation and chat. Create or manage the key in the <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI Developer Platform</a>.
                                                         </div>
 
                                                         <div class="row mt-3">
                                                             <div class="col-12">
                                                                 <div class="form-group row">
-                                                                    {!! Form::label('chatgpt_api_key', 'ChatGPT API Key', ['class' => 'col-xl-2 col-md-3 col-3 col-form-label']) !!}
+                                                                    {!! Form::label('chatgpt_api_key', 'OpenAI Image API Key', ['class' => 'col-xl-2 col-md-3 col-3 col-form-label']) !!}
                                                                     <div class="col-xl-10 col-md-9 col-sm-9">
                                                                         <div class="input-group">
                                                                             @php $savedChatgptKey = App\Models\AiSetting::getAiSetting('chatgpt_api_key'); @endphp
                                                                             <input type="password" 
                                                                                 name="name[chatgpt_api_key]" 
-                                                                                class="form-control chatgpt-field" 
-                                                                                placeholder="Enter your ChatGPT API Key" 
+                                                                                class="form-control openai-image-field" 
+                                                                                placeholder="Enter your OpenAI API Key" 
                                                                                 id="chatgpt_api_key_input"
                                                                                 value="{{ $savedChatgptKey ? '••••••••' . substr($savedChatgptKey, -4) : '' }}"
                                                                                 data-has-key="{{ $savedChatgptKey ? '1' : '0' }}"
@@ -821,13 +810,11 @@
 
                                                         <div class="row">
                                                             <div class="col-12">
-                                                                <div class="form-group row">
-                                                                    {!! Form::label('chatgpt_model', 'ChatGPT Model', ['class' => 'col-xl-2 col-md-3 col-3 col-form-label']) !!}
-                                                                    <div class="col-xl-10 col-md-9 col-sm-9">
-                                                                        {!! Form::text('name[chatgpt_model]', App\Models\AiSetting::getAiSetting('chatgpt_model') ?: 'gpt-4o-mini', ['class' => 'form-control chatgpt-field', 'placeholder' => 'e.g. gpt-4o-mini']) !!}
-                                                                        <small class="text-muted">Available models:
-                                                                            gpt-4o, gpt-4o-mini,
-                                                                            gpt-3.5-turbo, etc.</small>
+                                                                <div class="form-group row mb-0">
+                                                                    <label class="col-xl-2 col-md-3 col-3 col-form-label">Image Model Setup</label>
+                                                                    <div class="col-xl-10 col-md-9 col-sm-9 pt-2">
+                                                                        <a href="{{ route('admin.ai_image_models.index') }}" class="btn btn-outline-success btn-sm"><i class="fas fa-images mr-1"></i> Configure AI Image Models</a>
+                                                                        <small class="text-muted d-block mt-2">Set each OpenAI image model, Low/Medium/High quality, output sizes, plan access, and app visibility there.</small>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -843,8 +830,11 @@
                                                                 {!! Form::submit('Save', ['class' => 'btn btn-success']) !!}
                                                                 <button type="button" id="test-ai-connection"
                                                                     class="btn btn-info ml-2">
-                                                                    <i class="fas fa-robot mr-1" id="robot-icon"></i> Test
-                                                                    Connection
+                                                                    <i class="fas fa-robot mr-1" id="robot-icon"></i> Test Vertex Content &amp; Chat
+                                                                </button>
+                                                                <button type="button" id="test-openai-image-connection"
+                                                                    class="btn btn-outline-success ml-2">
+                                                                    <i class="fas fa-image mr-1" id="openai-image-icon"></i> Test OpenAI Image Key
                                                                 </button>
                                                             @endif
                                                         </div>
@@ -1395,43 +1385,8 @@
                                                             const statusMsg = document.getElementById('ai-status-msg');
                                                             const statusIcon = document.getElementById('ai-status-icon');
                                                             const closeBtn = document.getElementById('ai-close-btn');
-                                                            const providerSelect = document.getElementById('ai_provider_select');
-                                                            const vertexSection = document.getElementById('vertex-ai-section');
-                                                            const geminiSection = document.getElementById('gemini-api-section');
-                                                            const chatgptSection = document.getElementById('chatgpt-api-section');
-
-                                                            // Toggle provider sections
-                                                            function toggleProviderSections() {
-                                                                const provider = providerSelect.value;
-                                                                if (provider === 'vertex') {
-                                                                    vertexSection.style.display = 'block';
-                                                                    geminiSection.style.display = 'none';
-                                                                    chatgptSection.style.display = 'none';
-                                                                    // Set required on vertex fields, remove from others
-                                                                    document.querySelectorAll('.vertex-field').forEach(f => f.setAttribute('required', 'required'));
-                                                                    document.querySelectorAll('.gemini-field').forEach(f => f.removeAttribute('required'));
-                                                                    document.querySelectorAll('.chatgpt-field').forEach(f => f.removeAttribute('required'));
-                                                                } else if (provider === 'gemini') {
-                                                                    vertexSection.style.display = 'none';
-                                                                    geminiSection.style.display = 'block';
-                                                                    chatgptSection.style.display = 'none';
-                                                                    // Set required on gemini fields, remove from others
-                                                                    document.querySelectorAll('.gemini-field').forEach(f => f.setAttribute('required', 'required'));
-                                                                    document.querySelectorAll('.vertex-field').forEach(f => f.removeAttribute('required'));
-                                                                    document.querySelectorAll('.chatgpt-field').forEach(f => f.removeAttribute('required'));
-                                                                } else if (provider === 'chatgpt') {
-                                                                    vertexSection.style.display = 'none';
-                                                                    geminiSection.style.display = 'none';
-                                                                    chatgptSection.style.display = 'block';
-                                                                    // Set required on chatgpt fields, remove from others
-                                                                    document.querySelectorAll('.chatgpt-field').forEach(f => f.setAttribute('required', 'required'));
-                                                                    document.querySelectorAll('.vertex-field').forEach(f => f.removeAttribute('required'));
-                                                                    document.querySelectorAll('.gemini-field').forEach(f => f.removeAttribute('required'));
-                                                                }
-                                                            }
-
-                                                            providerSelect.addEventListener('change', toggleProviderSections);
-                                                            toggleProviderSections(); // Initialize on page load
+                                                            const openAiTestBtn = document.getElementById('test-openai-image-connection');
+                                                            const openAiImageIcon = document.getElementById('openai-image-icon');
 
                                                             // --- Playground v2 Logic ---
                                                             const sendPlaygroundBtn = document.getElementById('send-playground-msg');
@@ -1609,7 +1564,7 @@
 
                                                             if (testBtn) {
                                                                 testBtn.addEventListener('click', function () {
-                                                                    const provider = providerSelect.value;
+                                                                    const provider = 'vertex';
                                                                     robotIcon.classList.add('pulse');
                                                                     testBtn.disabled = true;
 
@@ -1619,7 +1574,7 @@
                                                                     statusIcon.innerHTML = '<i class="fas fa-spinner fa-spin" style="color:#17a2b8"></i>';
                                                                     statusCard.classList.add('show');
 
-                                                                    fetch('{{ url("admin/check-ai-connection") }}?provider=' + provider)
+                                                                    fetch('{{ url("admin/check-ai-connection") }}?target=content')
                                                                         .then(response => response.json())
                                                                         .then(data => {
                                                                             robotIcon.classList.remove('pulse');
@@ -1649,6 +1604,44 @@
                                                                             statusMsg.innerHTML = 'Could not reach the server. Please check your internet connection and try again.';
                                                                             statusIcon.innerHTML = '<i class="fas fa-wifi" style="color:#dc3545"></i>';
                                                                             statusCard.classList.add('show');
+                                                                        });
+                                                                });
+                                                            }
+
+                                                            if (openAiTestBtn) {
+                                                                openAiTestBtn.addEventListener('click', function () {
+                                                                    openAiImageIcon.classList.add('pulse');
+                                                                    openAiTestBtn.disabled = true;
+                                                                    setCardState('loading');
+                                                                    statusTitle.innerText = 'Testing OpenAI Image API...';
+                                                                    statusMsg.innerHTML = 'Checking the OpenAI credential without generating an image.';
+                                                                    statusIcon.innerHTML = '<i class="fas fa-spinner fa-spin" style="color:#17a2b8"></i>';
+                                                                    statusCard.classList.add('show');
+
+                                                                    fetch('{{ url("admin/check-ai-connection") }}?target=image')
+                                                                        .then(response => response.json())
+                                                                        .then(data => {
+                                                                            openAiImageIcon.classList.remove('pulse');
+                                                                            openAiTestBtn.disabled = false;
+                                                                            if (data.status === 'success') {
+                                                                                setCardState('success');
+                                                                                statusTitle.innerText = 'OpenAI Image API Connected';
+                                                                                statusIcon.innerHTML = '<i class="fas fa-check-circle" style="color:#28a745"></i>';
+                                                                                statusMsg.innerHTML = data.message;
+                                                                            } else {
+                                                                                setCardState('error');
+                                                                                statusTitle.innerText = 'OpenAI Image API Failed';
+                                                                                statusIcon.innerHTML = '<i class="fas fa-exclamation-triangle" style="color:#dc3545"></i>';
+                                                                                statusMsg.innerHTML = formatErrorMessage(data.message);
+                                                                            }
+                                                                        })
+                                                                        .catch(() => {
+                                                                            openAiImageIcon.classList.remove('pulse');
+                                                                            openAiTestBtn.disabled = false;
+                                                                            setCardState('error');
+                                                                            statusTitle.innerText = 'OpenAI Image API Failed';
+                                                                            statusMsg.innerHTML = 'Could not reach the server. Please try again.';
+                                                                            statusIcon.innerHTML = '<i class="fas fa-wifi" style="color:#dc3545"></i>';
                                                                         });
                                                                 });
                                                             }

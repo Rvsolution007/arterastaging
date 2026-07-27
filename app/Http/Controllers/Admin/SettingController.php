@@ -24,6 +24,7 @@ use App\Models\NotificationSetting;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\URL;
 
 class SettingController extends Controller
@@ -647,18 +648,34 @@ SPACES_ENDPOINT="' . $endpoint . '"
             }
         }
 
+        // Keep the two workloads deliberately independent. Existing installs
+        // can still contain ai_provider, but content/chat now stays on Vertex
+        // and OpenAI is used only by the AI image service.
+        AiSetting::updateOrCreate(
+            ['key_name' => 'content_ai_provider'],
+            ['key_value' => 'vertex']
+        );
+        AiSetting::updateOrCreate(
+            ['key_name' => 'image_ai_provider'],
+            ['key_value' => 'openai']
+        );
+
         Cache::flush();
         return redirect('admin/settings');
     }
 
     public function check_ai_connection()
     {
-        $provider = request()->query('provider', AiSetting::getAiSetting('ai_provider') ?: 'vertex');
+        $target = request()->query('target', 'content');
+
+        if ($target === 'image') {
+            return $this->check_openai_image_connection();
+        }
+
+        $provider = AiSetting::getAiSetting('content_ai_provider') === 'gemini' ? 'gemini' : 'vertex';
 
         if ($provider === 'gemini') {
             return $this->check_gemini_connection();
-        } elseif ($provider === 'chatgpt') {
-            return $this->check_chatgpt_connection();
         }
 
         return $this->check_vertex_connection();
@@ -1057,15 +1074,56 @@ SPACES_ENDPOINT="' . $endpoint . '"
             return response()->json(['status' => 'error', 'message' => 'Please enter a prompt.']);
         }
 
-        $provider = AiSetting::getAiSetting('ai_provider') ?: 'vertex';
+        $provider = AiSetting::getAiSetting('content_ai_provider') === 'gemini' ? 'gemini' : 'vertex';
 
         if ($provider === 'gemini') {
             return $this->chat_gemini($prompt);
-        } elseif ($provider === 'chatgpt') {
-            return $this->chat_chatgpt($prompt);
         }
 
         return $this->chat_vertex($prompt);
+    }
+
+    /**
+     * Validate the OpenAI key without generating an image or spending image
+     * generation credits. The actual image model and qualities are controlled
+     * separately from Admin → AI Image Models.
+     */
+    private function check_openai_image_connection()
+    {
+        $apiKey = trim((string) AiSetting::getAiSetting('chatgpt_api_key'));
+
+        if ($apiKey === '') {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'OpenAI API Key is required for AI image generation.',
+            ]);
+        }
+
+        try {
+            $response = Http::acceptJson()
+                ->withToken($apiKey)
+                ->timeout(15)
+                ->get('https://api.openai.com/v1/models');
+
+            if ($response->successful()) {
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'OpenAI image API key is valid. Configure the actual image model, quality, and sizes in AI Image Models.',
+                ]);
+            }
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'OpenAI rejected the image API key. Please check the key and its project permissions.',
+            ]);
+        } catch (\Throwable $exception) {
+            \Log::warning('OpenAI image credential test failed.', ['exception' => get_class($exception)]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'OpenAI image credential test could not connect. Please try again.',
+            ]);
+        }
     }
 
     private function chat_vertex($prompt)

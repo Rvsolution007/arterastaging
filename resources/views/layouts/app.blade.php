@@ -495,6 +495,33 @@
                       </a>
                     </li>
                   @endcan
+                    @can('Festival')
+                      <li class="nav-item">
+                        <a href="{{ route('festival_ai_styles.index') }}"
+                        class="nav-link @if(Request::is('admin/festival-ai-styles*')) active @endif"
+                        style="color: white;">
+                        <p><i class="fa fa-angle-right ml-3 mr-1"></i> Festival Styles</p>
+                      </a>
+                      </li>
+                    @endcan
+                    @can('Festival')
+                      <li class="nav-item">
+                        <a href="{{ route('festival_ai_brand_chrome.index') }}"
+                          class="nav-link @if(Request::is('admin/festival-ai-brand-chrome*')) active @endif"
+                          style="color: white;">
+                          <p><i class="fa fa-angle-right ml-3 mr-1"></i> Header &amp; Footer Styles</p>
+                        </a>
+                      </li>
+                    @endcan
+                    @can('Festival')
+                    <li class="nav-item">
+                      <a href="{{ route('festival_ai_generations.index') }}"
+                        class="nav-link @if(Request::is('admin/festival-ai-generations*')) active @endif"
+                        style="color: white;">
+                        <p><i class="fa fa-angle-right ml-3 mr-1"></i> Festival AI Monitor</p>
+                      </a>
+                    </li>
+                  @endcan
                 </ul>
               </li>
             @endcanany
@@ -925,7 +952,7 @@
               </li>
             @endcan
 
-            @if(Request::is('admin/settings*') || Request::is('admin/app-language*'))
+            @if(Request::is('admin/settings*') || Request::is('admin/app-language*') || Request::is('admin/ai-image-models*'))
             @php($class = "menu-open")
             @php($active = "active")
             @else
@@ -951,6 +978,11 @@
                   <li class="nav-item">
                     <a href="{{ route('app-language.index') }}" class="nav-link @if(Request::is('admin/app-language*')) active @endif" style="color: white;">
                       <p><i class="fa fa-angle-right ml-3 mr-1"></i> App Language</p>
+                    </a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="{{ route('admin.ai_image_models.index') }}" class="nav-link @if(Request::is('admin/ai-image-models*')) active @endif" style="color: white;">
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> AI Image Models</p>
                     </a>
                   </li>
                 </ul>

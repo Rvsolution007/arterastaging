@@ -56,6 +56,10 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    // Public API path prefix. It is not a credential and must not be used as
+    // an authentication mechanism; API authentication is handled by Sanctum.
+    'api_prefix' => trim(env('API_KEY', 'api'), '/'),
+
     'asset_url' => (isset($_SERVER['HTTP_HOST']) && !empty($_SERVER['HTTP_HOST']))
         ? ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'] . '/Artera')
         : env('APP_URL', 'http://localhost/Artera'),

@@ -218,6 +218,10 @@
                           data-toggle="tooltip" title="Edit">
                           <i class="fa fa-edit"></i>
                         </a>
+                        <a href="{{ route('festivals.ai_studio.edit', $frame) }}" class="btn-action" style="color:#7C3AED;"
+                          data-toggle="tooltip" title="AI Studio">
+                          <i class="fa fa-magic"></i>
+                        </a>
                         <button type="button" data-id="{{$frame->id}}" class="btn-action btn-action-delete btn_delete_a"
                           data-toggle="modal" data-target="#myModal" title="Delete">
                           <i class="fa fa-trash"></i>

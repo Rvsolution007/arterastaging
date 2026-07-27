@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import '../services/secure_token_store.dart';
 import '../screens/dashboard_screen.dart'; // We will create this next
 import '../screens/login_screen.dart';
 import '../screens/business_profile_screen.dart';
@@ -13,6 +14,7 @@ import '../controllers/ad_controller.dart';
 import '../controllers/home_controller.dart';
 import '../services/notification_service.dart';
 import '../services/app_install_tracker.dart';
+import '../services/google_auth_service.dart';
 
 class AuthController extends GetxController {
   var isLoading = false.obs;
@@ -35,6 +37,10 @@ class AuthController extends GetxController {
         // Save user session
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('userId', data['userId'].toString());
+        final accessToken = data['access_token']?.toString();
+        if (accessToken != null && accessToken.isNotEmpty) {
+          await SecureTokenStore.write(accessToken);
+        }
         await prefs.setBool('isGuest', false);
         await prefs.setString('userName', data['userName']?.toString() ?? '');
         await prefs.setString('emailId', data['emailId']?.toString() ?? '');
@@ -180,6 +186,10 @@ class AuthController extends GetxController {
         // Save user session
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('userId', data['userId'].toString());
+        final accessToken = data['access_token']?.toString();
+        if (accessToken != null && accessToken.isNotEmpty) {
+          await SecureTokenStore.write(accessToken);
+        }
         await prefs.setBool('isGuest', false);
         await prefs.setString('userName', data['userName']?.toString() ?? '');
         await prefs.setString('emailId', data['emailId']?.toString() ?? '');
@@ -286,12 +296,125 @@ class AuthController extends GetxController {
   }
 
   Future<void> logout() async {
+    try {
+      final deviceId = await AppInstallTracker.deviceId();
+      await ApiService.post('/logout', {'deviceId': deviceId});
+    } catch (_) {
+      // Local logout must still succeed if the session is already expired.
+    }
+
+    try {
+      await GoogleAuthService.signOut();
+    } catch (_) {
+      // The local Artera session must still be cleared if Google is offline.
+    }
+
+    await SecureTokenStore.clear();
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
     if (Get.isRegistered<HomeController>()) {
       Get.find<HomeController>().clearData();
     }
     Get.offAll(() => const LoginScreen());
+  }
+
+  Future<void> signInWithGoogle({
+    String? redirectRoute,
+    dynamic redirectArguments,
+  }) async {
+    try {
+      isLoading.value = true;
+      final firebaseIdToken = await GoogleAuthService.signInAndGetIdToken();
+      if (firebaseIdToken == null) {
+        return;
+      }
+
+      final response = await ApiService.post('/google-sign-in', {
+        'firebase_id_token': firebaseIdToken,
+      });
+
+      if (response.statusCode != 200) {
+        await GoogleAuthService.signOut();
+        final errorData = jsonDecode(response.body);
+        throw StateError(
+          errorData['message']?.toString() ?? 'Google sign-in was not accepted.',
+        );
+      }
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final accessToken = data['access_token']?.toString();
+      final userId = data['userId']?.toString();
+      if (accessToken == null || accessToken.isEmpty || userId == null || userId.isEmpty) {
+        await GoogleAuthService.signOut();
+        throw StateError('The server did not return a valid app session.');
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      await SecureTokenStore.write(accessToken);
+      await prefs.setString('userId', userId);
+      await prefs.setBool('isGuest', false);
+      await prefs.setString('userName', data['userName']?.toString() ?? '');
+      await prefs.setString('emailId', data['emailId']?.toString() ?? '');
+      await prefs.setString('phoneNumber', data['phoneNumber']?.toString() ?? '');
+      await prefs.setString('profileImage', data['profileImage']?.toString() ?? '');
+      await prefs.setString('planName', data['planName']?.toString() ?? '');
+      await prefs.setString('planDuration', data['planDuration']?.toString() ?? '');
+      await prefs.setString('planStartDate', data['planStartDate']?.toString() ?? '');
+      await prefs.setString('planEndDate', data['planEndDate']?.toString() ?? '');
+      await prefs.setBool('isSubscribe', data['isSubscribe'] == true);
+      await prefs.setBool('isPartner', data['isPartner'] == true);
+      await prefs.setInt(
+        'currentStreak',
+        int.tryParse(data['currentStreak']?.toString() ?? '0') ?? 0,
+      );
+      await prefs.setInt(
+        'maxStreak',
+        int.tryParse(data['maxStreak']?.toString() ?? '0') ?? 0,
+      );
+
+      if (data['adConfig'] != null && Get.isRegistered<AdController>()) {
+        Get.find<AdController>().updateAdConfig(data['adConfig']);
+      }
+
+      if (Get.isRegistered<HomeController>()) {
+        await Get.find<HomeController>().loadBusinessInfo();
+        Get.find<HomeController>().fetchHomeData();
+      }
+      _registerFcmToken(userId);
+
+      Get.snackbar(
+        'Success',
+        data['isNewUser'] == true
+            ? 'Account created with Google!'
+            : 'Google sign-in successful!',
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+      );
+
+      if (redirectRoute != null) {
+        Get.offAll(() => const DashboardScreen());
+        if (redirectRoute.startsWith('/editor')) {
+          checkAndNavigateToEditor(
+            redirectRoute,
+            arguments: redirectArguments,
+          );
+        } else {
+          Get.toNamed(redirectRoute, arguments: redirectArguments);
+        }
+      } else {
+        Get.offAll(() => const DashboardScreen());
+      }
+    } catch (error) {
+      debugPrint('Google sign-in failed: $error');
+      Get.snackbar(
+        'Google sign-in failed',
+        'Please try again or use email sign-in.',
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
+    } finally {
+      isLoading.value = false;
+    }
   }
 
   Future<bool> forgotPassword(String email) async {
@@ -397,6 +520,9 @@ class AuthController extends GetxController {
       });
 
       if (response.statusCode == 200) {
+        await SecureTokenStore.clear();
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.clear();
         Get.snackbar(
           'Success',
           'Password updated successfully!',

@@ -16,10 +16,7 @@ class CheckSaaSFeatureLimits
      */
     public function handle(Request $request, Closure $next, $feature = null)
     {
-        $user = auth()->guard('api')->user();
-        if (!$user) {
-            $user = auth()->user(); // Fallback for web testing if needed
-        }
+        $user = auth('sanctum')->user() ?: auth()->user();
 
         if (!$user) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);

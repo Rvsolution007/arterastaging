@@ -6,7 +6,7 @@ Route::group(['middleware' => ['IsUpdate']], function () {
     Auth::routes(['register' => false]);
 });
 
-Route::post('login', 'Auth\LoginController@authenticate')->middleware(['IsInstalled', 'IsUpdate'])->name('admin.login');
+Route::post('login', 'Auth\LoginController@authenticate')->middleware(['IsInstalled', 'IsUpdate', 'throttle:admin-login'])->name('admin.login');
 
 Route::
         namespace('Admin')->middleware(['auth', 'admin', 'IsInstalled', 'IsUpdate'])->group(function () {
@@ -45,6 +45,17 @@ Route::
             Route::Post('category-post-landing', 'CategoryPostController@category_post_landing');
             Route::Post('category-post-ai', 'CategoryPostController@category_post_ai');
 
+            Route::get('festivals/{festival}/ai-studio', 'FestivalAiStudioController@edit')->name('festivals.ai_studio.edit');
+            Route::put('festivals/{festival}/ai-studio', 'FestivalAiStudioController@update')->name('festivals.ai_studio.update');
+            Route::resource('festival-ai-styles', 'FestivalAiStylePresetController')
+                ->except('show')
+                ->parameters(['festival-ai-styles' => 'festivalAiStyle'])
+                ->names('festival_ai_styles');
+            Route::resource('festival-ai-brand-chrome', 'FestivalAiBrandChromePresetController')
+                ->except('show')
+                ->parameters(['festival-ai-brand-chrome' => 'festivalAiBrandChrome'])
+                ->names('festival_ai_brand_chrome');
+            Route::get('festival-ai-generations', 'FestivalAiGenerationController@index')->name('festival_ai_generations.index');
             Route::resource('festivals', 'FestivalsController');
             Route::Post('festivals-status', 'FestivalsController@festivals_status');
             Route::Post('festivals-feature-status', 'FestivalsController@festivals_feature_status');
@@ -273,6 +284,9 @@ Route::
             Route::post('ai-setting', 'SettingController@ai_setting');
             Route::get('check-ai-connection', 'SettingController@check_ai_connection');
             Route::post('ai-playground-chat', 'SettingController@ai_playground_chat');
+            Route::get('ai-image-models', 'AiImageModelController@index')->name('admin.ai_image_models.index');
+            Route::post('ai-image-models', 'AiImageModelController@store')->name('admin.ai_image_models.store');
+            Route::put('ai-image-models/{aiImageModel}', 'AiImageModelController@update')->name('admin.ai_image_models.update');
             
             // AI Token Analytics
             Route::get('ai-analytics', 'AiAnalyticsController@index')->name('admin.ai_analytics');

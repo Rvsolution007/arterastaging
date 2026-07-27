@@ -58,8 +58,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   void _submitNewPassword() async {
-    if (newPasswordController.text.length < 6) {
-      Get.snackbar('Error', 'Password must be at least 6 characters', backgroundColor: Colors.redAccent, colorText: Colors.white);
+    if (!_isStrongPassword(newPasswordController.text)) {
+      Get.snackbar('Error', 'Use 10+ characters with uppercase, lowercase, number and symbol', backgroundColor: Colors.redAccent, colorText: Colors.white);
       return;
     }
     if (newPasswordController.text != confirmPasswordController.text) {
@@ -71,6 +71,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (success) {
       Get.offAllNamed('/LoginScreen'); // Back to login on success
     }
+  }
+
+  bool _isStrongPassword(String value) {
+    return value.length >= 10 &&
+        RegExp(r'[a-z]').hasMatch(value) &&
+        RegExp(r'[A-Z]').hasMatch(value) &&
+        RegExp(r'[0-9]').hasMatch(value) &&
+        RegExp(r'[^A-Za-z0-9]').hasMatch(value);
   }
 
   @override

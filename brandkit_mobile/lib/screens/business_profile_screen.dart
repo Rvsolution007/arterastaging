@@ -71,6 +71,28 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
   String _logoUrl = '';
   String _businessId = '';
 
+  /// A previous API response could contain the server's cached localhost URL.
+  /// Replace only that stale host for this logo preview; business/category
+  /// selection logic remains untouched.
+  String get _previewLogoUrl {
+    final raw = _logoUrl.trim();
+    if (raw.isEmpty) return '';
+    if (!raw.startsWith('http')) {
+      return '${hc.uploadsBaseUrl}/${raw.replaceFirst(RegExp(r'^/+'), '')}';
+    }
+
+    final uri = Uri.tryParse(raw);
+    final localHost = uri != null &&
+        (uri.host == 'localhost' || uri.host == '127.0.0.1' || uri.host == '::1');
+    final uploadsOffset = uri?.path.indexOf('/uploads/') ?? -1;
+    if (localHost && uploadsOffset >= 0) {
+      final relativePath = uri!.path.substring(uploadsOffset + '/uploads/'.length);
+      return '${hc.uploadsBaseUrl}/$relativePath';
+    }
+
+    return raw;
+  }
+
   Future<void> _toggleSameAsPersonal(bool? val) async {
     bool isSame = val ?? false;
     setState(() {
@@ -457,9 +479,10 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
                     clipBehavior: Clip.antiAlias,
                     child: _selectedImage != null
                         ? Image.file(_selectedImage!, fit: BoxFit.cover)
-                        : (_logoUrl.isNotEmpty
+                        : (_previewLogoUrl.isNotEmpty
                             ? CachedNetworkImage(
-                                imageUrl: _logoUrl.startsWith('http') ? _logoUrl : '${hc.uploadsBaseUrl}/$_logoUrl',
+                                key: ValueKey(_previewLogoUrl),
+                                imageUrl: _previewLogoUrl,
                                 fit: BoxFit.cover,
                                 errorWidget: (_, __, ___) => Icon(Icons.storefront_outlined, size: 50, color: AppColors.gray400),
                               )

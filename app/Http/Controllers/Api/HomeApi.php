@@ -65,6 +65,32 @@ use Illuminate\Support\Facades\Cache;
 class HomeApi extends Controller
 {
     /**
+     * Business Profile is consumed by physical phones. Avoid `asset()` here:
+     * its cached APP_URL can be localhost even when the request came through
+     * the LAN address used by the Flutter app.
+     */
+    private function businessLogoUrl(?string $path): string
+    {
+        if (!$path) {
+            return '';
+        }
+
+        if (filter_var($path, FILTER_VALIDATE_URL)) {
+            return $path;
+        }
+
+        if (StorageSetting::getStorageSetting('storage') === 'DigitalOcean') {
+            return Storage::disk('spaces')->url('uploads/' . ltrim($path, '/'));
+        }
+
+        $request = request();
+        $basePath = str_replace('/index.php', '', $request->getBaseUrl());
+        $origin = rtrim($request->getSchemeAndHttpHost() . $basePath, '/');
+
+        return $origin . '/uploads/' . ltrim($path, '/');
+    }
+
+    /**
      * Resolve template JSON from the fastest available source.
      * Priority: 1) Redis Cache 2) DB layers_json/schema_json  3) Disk file
      *
@@ -738,20 +764,9 @@ class HomeApi extends Controller
                     }
                 }
 
-                $token = request()->bearerToken();
                 $sanctumId = null;
                 try { $sanctumId = auth('sanctum')->id(); } catch (\Exception $e) {}
-                $userId = request('userId') ?? request('user_id') ?? request()->header('user-id') ?? $sanctumId;
-                
-                // If it's a manual api_token, let's try finding the user
-                if (!$userId && $token) {
-                    $userByToken = \App\Models\User::where('api_token', $token)->first();
-                    if ($userByToken) {
-                        $userId = $userByToken->id;
-                    }
-                }
-
-                \Illuminate\Support\Facades\Log::info("DEBUG API customPost: userId resolved: " . ($userId ?? 'NULL') . ", token present: " . ($token ? 'YES' : 'NO') . ", query: " . json_encode(request()->query()));
+                $userId = $sanctumId ?? request('userId') ?? request('user_id');
                 
                 if ($userId && !empty($json_data)) {
                     $parsedJson = json_decode($json_data, true);
@@ -898,17 +913,9 @@ class HomeApi extends Controller
                 }
             }
 
-            $token = request()->bearerToken();
             $sanctumId = null;
             try { $sanctumId = auth('sanctum')->id(); } catch (\Exception $e) {}
-            $userId = request('userId') ?? request('user_id') ?? request()->header('user-id') ?? $sanctumId;
-            
-            if (!$userId && $token) {
-                $userByToken = \App\Models\User::where('api_token', $token)->first();
-                if ($userByToken) {
-                    $userId = $userByToken->id;
-                }
-            }
+            $userId = $sanctumId ?? request('userId') ?? request('user_id');
 
             if ($userId && !empty($json_data)) {
                 $parsedJson = json_decode($json_data, true);
@@ -1004,17 +1011,21 @@ class HomeApi extends Controller
 
     public function profile_card_image_upload(Request $request)
     {
+        $request->validate([
+            'profile_image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        ]);
+
         if(StorageSetting::getStorageSetting("storage") == "DigitalOcean")
         {
             $image = $request->file('profile_image');
-            $fileName = Str::uuid().'.'.$image->getClientOriginalExtension();
+            $fileName = Str::uuid().'.'.$image->extension();
     
             $path = Storage::disk('spaces')->put('uploads/'.$fileName, file_get_contents($image),'public');
         }
         else
         {
             $destinationPath = public_path('uploads');
-            $extension = $request->file("profile_image")->getClientOriginalExtension();
+            $extension = $request->file("profile_image")->extension();
             $fileName = Str::uuid() . '.' . $extension;
             $request->file("profile_image")->move($destinationPath, $fileName);
         }
@@ -1559,7 +1570,7 @@ class HomeApi extends Controller
                     "id" => $b->id,
                     "name" => $b->name,
                     "email" => $b->email,
-                    "logo" => ($b->logo)?((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$b->logo):asset('uploads/'.$b->logo)):"",
+                    "logo" => $this->businessLogoUrl($b->logo),
                     "mobileNo" => $b->mobile_no,
                     "website" => $b->website,
                     "address" => $b->address,
@@ -1593,6 +1604,12 @@ class HomeApi extends Controller
 
     public function addBusiness(Request $request)
     {
+        $authenticatedUser = auth('sanctum')->user();
+        if (!$authenticatedUser) {
+            return response()->json(['status' => 'Error', 'message' => 'Authentication is required.'], 401);
+        }
+        $request->merge(['userId' => $authenticatedUser->id]);
+
         $validation = Validator::make($request->all(), [
             'userId' => 'required',
             'businessCategoryId' => 'nullable',
@@ -1733,7 +1750,7 @@ class HomeApi extends Controller
                     "id" => $b->id,
                     "name" => $b->name,
                     "email" => $b->email,
-                    "logo" => ($b->logo)?((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$b->logo):asset('uploads/'.$b->logo)):"",
+                    "logo" => $this->businessLogoUrl($b->logo),
                     "mobileNo" => $b->mobile_no,
                     "website" => $b->website,
                     "address" => $b->address,
@@ -1759,6 +1776,11 @@ class HomeApi extends Controller
 
     public function updateBusiness(Request $request)
     {
+        $authenticatedUser = auth('sanctum')->user();
+        if (!$authenticatedUser) {
+            return response()->json(['status' => 'Error', 'message' => 'Authentication is required.'], 401);
+        }
+
         $validation = Validator::make($request->all(), [
             'bussinessName' => 'required',
             "bussinessNumber" => 'required',
@@ -1781,7 +1803,9 @@ class HomeApi extends Controller
             ], 404);
         } else {
 
-            $business = Business::whereId($request->get("bussinessId"))->first();
+            $business = Business::whereId($request->get("bussinessId"))
+                ->where('user_id', $authenticatedUser->id)
+                ->first();
             if (!$business) {
                 return response()->json(['status' => 'Error', 'message' => ['Business not found']], 404);
             }
@@ -1895,7 +1919,7 @@ class HomeApi extends Controller
                 "id" => $b->id,
                 "name" => $b->name,
                 "email" => $b->email,
-                "logo" => ($b->logo)?((StorageSetting::getStorageSetting('storage') == 'DigitalOcean')?Storage::disk('spaces')->url('uploads/'.$b->logo):asset('uploads/'.$b->logo)):"",
+                "logo" => $this->businessLogoUrl($b->logo),
                 "mobileNo" => $b->mobile_no,
                 "website" => $b->website,
                 "address" => $b->address,
@@ -1924,7 +1948,19 @@ class HomeApi extends Controller
 
     public function deleteBusiness(Request $request)
     {
-        Business::find($request->bussinessId)->delete();
+        $authenticatedUser = auth('sanctum')->user();
+        if (!$authenticatedUser) {
+            return response()->json(['status' => 'Error', 'message' => 'Authentication is required.'], 401);
+        }
+
+        $business = Business::whereKey($request->input('bussinessId'))
+            ->where('user_id', $authenticatedUser->id)
+            ->first();
+        if (!$business) {
+            return response()->json(['status' => 'Error', 'message' => 'Business not found.'], 404);
+        }
+
+        $business->delete();
 
         return response()->json([
             'status' => "success",
@@ -1934,10 +1970,15 @@ class HomeApi extends Controller
 
     public function setDefaultBusiness(Request $request)
     {
-        $business_data = Business::where('user_id',$request->get("userId"))->where('is_default',1)->get();
+        $authenticatedUser = auth('sanctum')->user();
+        if (!$authenticatedUser) {
+            return response()->json(['status' => 'Error', 'message' => 'Authentication is required.'], 401);
+        }
+
+        $business_data = Business::where('user_id', $authenticatedUser->id)->where('is_default', 1)->get();
         if($business_data->isEmpty())
         {
-            $business = Business::find($request->get("bussinessId"));
+            $business = Business::whereKey($request->get("bussinessId"))->where('user_id', $authenticatedUser->id)->first();
             if(!empty($business)){
                 $business->is_default = 1;
                 $business->save();
@@ -1957,7 +1998,7 @@ class HomeApi extends Controller
         }
         else
         {
-            $business = Business::find($request->get("bussinessId"));
+            $business = Business::whereKey($request->get("bussinessId"))->where('user_id', $authenticatedUser->id)->first();
             if(!empty($business)){
                 foreach ($business_data as $value){
                     $b = Business::find($value->id);
@@ -1965,7 +2006,7 @@ class HomeApi extends Controller
                     $b->save();
                 }
 
-                $business = Business::find($request->get("bussinessId"));
+                $business = Business::whereKey($request->get("bussinessId"))->where('user_id', $authenticatedUser->id)->first();
                 $business->is_default = 1;
                 $business->save();
 
@@ -4233,8 +4274,7 @@ class HomeApi extends Controller
      */
     public function consumeFeature(Request $request)
     {
-        $user = auth()->guard('api')->user();
-        if (!$user) $user = auth()->user();
+        $user = auth('sanctum')->user() ?: auth()->user();
         if (!$user) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
         }
@@ -4840,13 +4880,22 @@ class HomeApi extends Controller
 
     public function requestCustomProduct(Request $request)
     {
-        $userId = $request->input('userId') ?? (auth('sanctum')->id() ?? auth()->id());
+        $user = auth('sanctum')->user();
+        if (!$user) {
+            return response()->json(['status' => 'Error', 'message' => 'Authentication is required'], 401);
+        }
+
+        $userId = $user->id;
         $businessId = $request->input('business_id');
         $subCategoryId = $request->input('business_sub_category_id');
         $requestedName = $request->input('requested_name');
 
         if (!$userId || !$businessId || !$subCategoryId || !$requestedName) {
             return response()->json(['status' => 'Error', 'message' => 'Missing required fields'], 400);
+        }
+
+        if (!\App\Models\Business::whereKey($businessId)->where('user_id', $userId)->exists()) {
+            return response()->json(['status' => 'Error', 'message' => 'Business not found'], 404);
         }
 
         $req = \App\Models\BusinessProductRequest::create([

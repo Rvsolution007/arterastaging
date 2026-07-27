@@ -14,6 +14,10 @@ Route::
             Route::post('/phone-login', 'AuthApi@phone_login');
         });
 
+Route::namespace('Api')->middleware(['throttle:google-login'])->group(function () {
+    Route::post('/google-sign-in', 'AuthApi@google_sign_in');
+});
+
 Route::
         namespace('Api')->middleware(['throttle:password-reset'])->group(function () {
             Route::post('/forgot-password', 'AuthApi@forgot_password');
@@ -22,15 +26,15 @@ Route::
         });
 
 Route::
-        namespace('Api')->middleware(['throttle'])->group(function () {
-            Route::post('/change-password', 'AuthApi@change_password');
+        namespace('Api')->middleware(['throttle', 'mobile.request'])->group(function () {
+            Route::post('/change-password', 'AuthApi@change_password')->middleware('mobile.auth');
             Route::post('/register-fcm', 'AuthApi@register_fcm');
-            // Route::post('/logout', 'AuthApi@logout');
-            Route::post('/verify-account', 'AuthApi@verifyAccount');
-            Route::post('/resend-verify-code', 'AuthApi@resendVerifyCode');
+            Route::post('/logout', 'AuthApi@logout')->middleware('mobile.auth');
+            Route::post('/verify-account', 'AuthApi@verifyAccount')->middleware('throttle:email-verification');
+            Route::post('/resend-verify-code', 'AuthApi@resendVerifyCode')->middleware('throttle:email-verification');
 
-            Route::get('/user', 'AuthApi@user_data');
-            Route::post('/user_data', 'AuthApi@user_data');
+            Route::get('/user', 'AuthApi@user_data')->middleware('mobile.auth');
+            Route::post('/user_data', 'AuthApi@user_data')->middleware('mobile.auth');
             Route::post('/use-reward-credit', 'AuthApi@useRewardCredit');
             Route::post('/generate-webview-url', 'AuthApi@generateWebviewUrl');
             Route::post('/profile-update', 'AuthApi@profile_update');
@@ -134,6 +138,12 @@ Route::
             // Native App: Get frames for a specific festival/category/custom post
             Route::get('/get-frames', 'HomeApi@getFrames');
             Route::get('/templates/batch', 'HomeApi@batchTemplates')->middleware('throttle');
+
+            // Festival AI: authenticated with the user's existing API token.
+            Route::get('/festival-ai/options', [\App\Http\Controllers\Api\FestivalAiGenerationController::class, 'options']);
+            Route::post('/festival-ai/generations', [\App\Http\Controllers\Api\FestivalAiGenerationController::class, 'create'])->middleware('throttle:10,1');
+            Route::get('/festival-ai/generations/{festivalAiGeneration}', [\App\Http\Controllers\Api\FestivalAiGenerationController::class, 'show']);
+
             // Setup Wizard Endpoints
             Route::post('/setup-wizard/status', [\App\Http\Controllers\Api\SetupWizardApiController::class, 'status']);
             Route::post('/setup-wizard/analyze', [\App\Http\Controllers\Api\SetupWizardApiController::class, 'analyze']);
@@ -194,7 +204,7 @@ Route::
             Route::post('/partner-withdraw-request', 'HomeApi@partnerWithdrawRequest');
         });
 
-Route::middleware('auth:api')->post('/user', function (Request $request) {
+Route::middleware('mobile.auth')->post('/user', function (Request $request) {
     return $request->user();
 });
 

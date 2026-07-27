@@ -27,7 +27,10 @@ class VertexAIService
         $this->projectId = \App\Models\AiSetting::getAiSetting('google_cloud_project_id') ?: '';
         $this->location = \App\Models\AiSetting::getAiSetting('vertex_location') ?: 'us-central1';
         $this->model = \App\Models\AiSetting::getAiSetting('ai_model') ?: \App\Models\AiSetting::getAiSetting('gemini_model') ?: 'gemini-2.0-flash';
-        $this->provider = \App\Models\AiSetting::getAiSetting('ai_provider') ?: 'vertex';
+        // Content generation and in-app chat are intentionally independent
+        // from the OpenAI image provider configuration.
+        $contentProvider = \App\Models\AiSetting::getAiSetting('content_ai_provider');
+        $this->provider = $contentProvider === 'gemini' ? 'gemini' : 'vertex';
 
         // Load Service Account: try encrypted DB format first, then legacy file-path
         $this->serviceAccount = $this->loadServiceAccount();

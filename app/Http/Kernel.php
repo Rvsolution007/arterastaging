@@ -77,5 +77,7 @@ class Kernel extends HttpKernel
         'canUpdate' => \App\Http\Middleware\canUpdate::class,
         'IsUpdate' => \App\Http\Middleware\IsUpdate::class,
         'saas.limit' => \App\Http\Middleware\CheckSaaSFeatureLimits::class,
+        'mobile.auth' => \App\Http\Middleware\AuthenticateMobileApi::class,
+        'mobile.request' => \App\Http\Middleware\ProtectMobileApiRequest::class,
     ];
 }

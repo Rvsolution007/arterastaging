@@ -269,7 +269,7 @@
                             <div class="feature-card p-3">
                                 <div class="feature-header">
                                     <h6 class="font-weight-bold text-dark mb-0">AI Image Generate</h6>
-                                    <small class="text-muted">Max Imagen 3 API uses</small>
+                                    <small class="text-muted">Total AI image generations per billing month</small>
                                 </div>
                                 <div class="row align-items-center">
                                     <div class="col-sm-6">
@@ -283,6 +283,8 @@
                             </div>
                         </div>
                     </div>
+
+                    @include('subscription._ai_image_access', ['subscription' => $subscription, 'aiImageModels' => $aiImageModels])
 
                 </div>
             </div>

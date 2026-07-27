@@ -17,8 +17,12 @@ use App\Models\ReferralSystem;
 use App\Models\StorageSetting;
 use App\Models\ReferralRegister;
 use App\Http\Controllers\Controller;
+use App\Services\FirebaseIdTokenVerifier;
+use App\Services\MobileAccessTokenService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Password;
@@ -29,20 +33,24 @@ class AuthApi extends Controller
 {
     public function login(Request $request)
     {
-        $email = $request->get("email");
-        $password = $request->get("password");
-        
-        if (Auth::attempt(['email' => $email, 'password' => $password])) 
+        $credentials = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string'],
+        ]);
+        $user = User::where('email', mb_strtolower(trim($credentials['email'])))->first();
+
+        if ($user && Hash::check($credentials['password'], $user->password))
         {
-            $user = User::find(Auth::user()->id);
             $this->updateUserStreak($user);
-            $user = User::find(Auth::user()->id); // Refresh
-            $ReferralRegister = ReferralRegister::where('user_id',Auth::user()->id)->first();
+            $user->refresh();
+            $accessToken = app(MobileAccessTokenService::class)->issue($user);
+            $ReferralRegister = ReferralRegister::where('user_id', $user->id)->first();
             
             $res = array(
                 'userId' => $user->id,  
                 'userName' => $user->name,
                 'emailId' => $user->email, 
+                'access_token' => $accessToken,
                 'password' => "",
                 'country' => $user->country,
                 'phoneNumber' => $user->mobile_no,
@@ -68,7 +76,7 @@ class AuthApi extends Controller
             return response()->json([
                 'status' => "Error",
                 'message' => "Invalid Login Credentials",
-            ], 404);
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         return response()->json($res);
@@ -88,14 +96,13 @@ class AuthApi extends Controller
             }
         }
 
-        $exist = User::where('email', $request->get('email'))->first();
         $validation = Validator::make($request->all(), [
-            'name' => 'required',
-            'password' => 'required|min:8',
-            'email' => 'required|email|unique:users,email,' . (\Request::get("id") ?? 'NULL') . ',id,deleted_at,NULL',
+            'name' => 'required|string|max:255',
+            'password' => ['required', \Illuminate\Validation\Rules\Password::min(10)->mixedCase()->numbers()->symbols()],
+            'email' => 'required|email|max:255|unique:users,email,NULL,id,deleted_at,NULL',
             'country' => 'nullable|numeric',
-            'mobile_no' => 'required|numeric|unique:users,mobile_no,NULL,id,deleted_at,NULL',
-            'image' => "nullable|mimes:jpg,png,jpeg",
+            'mobile_no' => 'required|digits_between:7,20|unique:users,mobile_no,NULL,id,deleted_at,NULL',
+            'image' => "nullable|image|mimes:jpg,png,jpeg,webp|max:2048",
         ]);
 
         if ($validation->fails()) {
@@ -117,7 +124,6 @@ class AuthApi extends Controller
                 'password' => bcrypt($request->get('password')), 
                 'country' => $request->get('country'),
                 'mobile_no' => $request->get('mobile_no'),
-                'api_token' => str::random(60),
                 'login_type' => "normal",
                 "referral_code" => strtoupper(str::random(10)),
                 "user_type" => "User",
@@ -240,10 +246,11 @@ class AuthApi extends Controller
             }
 
             $user = User::find($id);
+            $accessToken = app(MobileAccessTokenService::class)->issue($user);
             $email = $user->email;
             $name = $user->name;
             //$code = Str::random(10);
-            $code = mt_rand(100000, 999999);
+            $code = random_int(100000, 999999);
 
             $token = Str::random(60);
             EmailVerified::where('user_id', $id)->delete();
@@ -255,6 +262,7 @@ class AuthApi extends Controller
                 'userId' => $user->id, 
                 'userName' => $user->name,
                 'emailId' => $user->email, 
+                'access_token' => $accessToken,
                 'password' => "",
                 'country' => $user->country,
                 'phoneNumber' => $user->mobile_no,
@@ -280,17 +288,17 @@ class AuthApi extends Controller
 
     public function resendVerifyCode(Request $request)
     {
-        $user = User::find($request->userId);
+        $user = auth('sanctum')->user();
         if(!empty($user))
         {
             $email = $user->email;
             $name = $user->name;
             // $code = Str::random(10);
-            $code = mt_rand(100000, 999999);
+            $code = random_int(100000, 999999);
 
             $token = Str::random(60);
-            EmailVerified::where('user_id', $request->userId)->delete();
-            EmailVerified::create(['user_id' => $request->userId, 'code' => $code, 'created_at' => date('Y-m-d H:i:s')]);
+            EmailVerified::where('user_id', $user->id)->delete();
+            EmailVerified::create(['user_id' => $user->id, 'code' => $code, 'created_at' => now()]);
             SendVerificationEmailJob::dispatch($email, $token, $name, $code);
 
             return response()->json([
@@ -309,14 +317,20 @@ class AuthApi extends Controller
 
     public function verifyAccount(Request $request)
     {
-        $exist = EmailVerified::where('user_id', $request->get('userId'))->where('code',$request->get('code'))->first();
+        $validated = $request->validate(['code' => ['required', 'digits:6']]);
+        $user = auth('sanctum')->user();
+        if (!$user) {
+            return response()->json(['status' => 'Error', 'message' => 'Authentication is required.'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        $exist = EmailVerified::where('user_id', $user->id)->where('code', $validated['code'])->first();
         if($exist != null)
         {
-            $user = User::find($request->get('userId'));
             if(!empty($user))
             {
-                $user->email_verified_at = date('Y-m-d H:i:s');
+                $user->email_verified_at = now();
                 $user->save();
+                $exist->delete();
 
                 return response()->json([
                     'status' => "success",
@@ -342,6 +356,19 @@ class AuthApi extends Controller
 
     public function google_registration(Request $request)
     {
+        // This endpoint used caller-supplied Google identity data, which could
+        // be forged to take over any account. Mobile Google sign-in must only
+        // be enabled after server-side ID-token verification is configured.
+        return response()->json([
+            'status' => 'Error',
+            'message' => 'Mobile Google sign-in is temporarily unavailable. Please use email sign-in.',
+        ], Response::HTTP_SERVICE_UNAVAILABLE);
+
+        /*
+         * Historical implementation retained only as commented reference until
+         * the deprecated route can be removed in a future API release. It must
+         * never run: it trusted caller-supplied identity fields.
+         *
         $exist = User::where('email', $request->get('email'))->first();
         if($exist != null)
         {
@@ -444,26 +471,177 @@ class AuthApi extends Controller
             }
         }
         return $data;
+        */
+    }
+
+    /**
+     * Sign in or register a mobile user from a server-verified Firebase Google
+     * ID token. The email, name, and Firebase UID are never accepted from the
+     * request body because they can be forged by a modified app.
+     */
+    public function google_sign_in(Request $request, FirebaseIdTokenVerifier $tokenVerifier)
+    {
+        $validated = $request->validate([
+            'firebase_id_token' => ['required', 'string', 'max:4096'],
+        ]);
+
+        try {
+            $identity = $tokenVerifier->verifyGoogleIdentity($validated['firebase_id_token']);
+        } catch (\LogicException $exception) {
+            Log::error('Mobile Google sign-in is not configured.', [
+                'exception' => get_class($exception),
+            ]);
+
+            return response()->json([
+                'status' => 'Error',
+                'message' => 'Google sign-in is not configured. Please try another sign-in method.',
+            ], Response::HTTP_SERVICE_UNAVAILABLE);
+        } catch (\Throwable $exception) {
+            Log::warning('Mobile Google sign-in rejected an ID token.', [
+                'exception' => get_class($exception),
+                'ip' => $request->ip(),
+            ]);
+
+            return response()->json([
+                'status' => 'Error',
+                'message' => 'Google sign-in could not be verified. Please try again.',
+            ], Response::HTTP_UNAUTHORIZED);
+        }
+
+        try {
+            [$user, $isNewUser] = DB::transaction(function () use ($identity): array {
+                $user = User::where('firebase_uid', $identity['uid'])->lockForUpdate()->first();
+                $isNewUser = false;
+
+                if (!$user) {
+                    $existingEmailUser = User::where('email', $identity['email'])->lockForUpdate()->first();
+
+                    if ($existingEmailUser) {
+                        // Only migrate an old Google account that was created before
+                        // Firebase UID binding existed. A password account is not
+                        // auto-linked by email, preventing account takeover.
+                        if ($existingEmailUser->login_type !== 'google' || !empty($existingEmailUser->firebase_uid)) {
+                            throw new \DomainException('This email is already protected by another sign-in method.');
+                        }
+
+                        $existingEmailUser->forceFill([
+                            'firebase_uid' => $identity['uid'],
+                            'google_linked_at' => now(),
+                            'email_verified_at' => $existingEmailUser->email_verified_at ?? now(),
+                            'image' => $existingEmailUser->image ?: $identity['photo_url'],
+                        ])->save();
+
+                        $user = $existingEmailUser;
+                    } else {
+                        $user = User::create([
+                            'name' => $identity['name'],
+                            'email' => $identity['email'],
+                            'password' => Hash::make(Str::random(64)),
+                            'image' => $identity['photo_url'],
+                            'login_type' => 'google',
+                            'email_verified_at' => now(),
+                            'referral_code' => strtoupper(Str::random(10)),
+                            'registration_source' => 'google',
+                        ]);
+
+                        $user->forceFill([
+                            'user_type' => 'User',
+                            'firebase_uid' => $identity['uid'],
+                            'google_linked_at' => now(),
+                        ])->save();
+                        $isNewUser = true;
+                    }
+                }
+
+                return [$user, $isNewUser];
+            });
+        } catch (\DomainException $exception) {
+            return response()->json([
+                'status' => 'Error',
+                'message' => $exception->getMessage(),
+            ], Response::HTTP_CONFLICT);
+        } catch (\Throwable $exception) {
+            Log::error('Mobile Google sign-in account provisioning failed.', [
+                'exception' => get_class($exception),
+            ]);
+
+            return response()->json([
+                'status' => 'Error',
+                'message' => 'Unable to complete Google sign-in. Please try again.',
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        $this->updateUserStreak($user);
+        $user->refresh();
+        $accessToken = app(MobileAccessTokenService::class)->issue($user);
+
+        return response()->json($this->mobileSessionPayload($user, $accessToken, [
+            'isNewUser' => $isNewUser,
+        ]));
+    }
+
+    /**
+     * Keep Google sign-in response data identical to password login so the
+     * mobile app can use one session persistence path for both flows.
+     */
+    private function mobileSessionPayload(User $user, string $accessToken, array $extra = []): array
+    {
+        $referralRegister = ReferralRegister::where('user_id', $user->id)->first();
+
+        return array_merge([
+            'userId' => $user->id,
+            'userName' => $user->name,
+            'emailId' => $user->email,
+            'access_token' => $accessToken,
+            'password' => '',
+            'country' => $user->country,
+            'phoneNumber' => $user->mobile_no,
+            'useReferral' => $referralRegister ? $referralRegister->referral_code : '',
+            'planName' => $user->active_subscription ? $user->active_subscription->plan_name : '',
+            'planDuration' => $user->active_subscription ? $user->active_subscription->duration . ' ' . $user->active_subscription->duration_type : '',
+            'planStartDate' => $user->subscription_start_date ?: '',
+            'planEndDate' => $user->subscription_end_date ?: '',
+            'isSubscribe' => ($user->is_subscribe && !empty($user->subscription_end_date))
+                ? (date('Y-m-d', strtotime($user->subscription_end_date)) >= date('Y-m-d', strtotime('today')))
+                : false,
+            'is_email_verify' => $user->email_verified_at !== null,
+            'userType' => $user->login_type,
+            'isPartner' => $user->is_partner == 1,
+            'businessLimit' => (!empty($user->subscription_end_date) && date('Y-m-d', strtotime($user->subscription_end_date)) >= date('Y-m-d', strtotime('today')))
+                ? $user->business_limit
+                : 1,
+            'profileImage' => $this->profileImageUrl($user),
+            'createdAt' => date('Y-m-d H:i:s', strtotime($user->created_at)),
+            'adConfig' => $user->getAdConfigPayload(),
+            'currentStreak' => $user->current_streak ?? 1,
+            'maxStreak' => $user->max_streak ?? 1,
+        ], $extra);
+    }
+
+    private function profileImageUrl(User $user): string
+    {
+        if (!$user->image) {
+            return '';
+        }
+
+        if (substr($user->image, 0, 4) === 'http') {
+            return $user->image;
+        }
+
+        return StorageSetting::getStorageSetting('storage') === 'DigitalOcean'
+            ? Storage::disk('spaces')->url('uploads/' . $user->image)
+            : asset('uploads/' . $user->image);
     }
 
     public function phone_login(Request $request)
     {
-        // Security: Firebase ID token verification for phone ownership
-        // Currently in WARNING mode — logs missing tokens but allows the request
-        // TODO: Once mobile app sends firebaseToken, change to ENFORCEMENT mode (uncomment the return)
-        $firebaseToken = $request->get('firebaseToken') ?? $request->header('X-Firebase-Token');
-        if (!$firebaseToken) {
-            \Log::warning('SECURITY: Phone login without Firebase token — no phone ownership verification', [
-                'phone' => substr($request->get('phoneNumber'), -4), // Log only last 4 digits
-                'ip' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-            ]);
-            // FUTURE ENFORCEMENT: Uncomment the next 4 lines once mobile app sends firebaseToken
-            // return response()->json([
-            //     'status' => 'Error',
-            //     'message' => 'Phone verification token is required',
-            // ], 401);
-        }
+        // Never authenticate a caller based only on a phone number. This is
+        // deliberately disabled until a server-side Firebase ID-token verifier
+        // is connected and validates the token's phone_number claim.
+        return response()->json([
+            'status' => 'Error',
+            'message' => 'Phone sign-in is temporarily unavailable. Please use email sign-in.',
+        ], Response::HTTP_SERVICE_UNAVAILABLE);
 
         $exist = User::where('mobile_no', $request->get('phoneNumber'))->first();
         if($exist != null)
@@ -578,33 +756,23 @@ class AuthApi extends Controller
 
     public function user_data(Request $request)
     {
-        // Security: Determine user ID from authentication first, fallback to request param
-        $requestedId = $request->id;
-        
-        // Check auth guards and enforce ownership
-        if (auth('sanctum')->check()) {
-            if (auth('sanctum')->id() != $requestedId) {
-                \Log::warning('IDOR attempt on user_data (sanctum)', [
-                    'auth_user' => auth('sanctum')->id(),
-                    'target_user' => $requestedId,
-                    'ip' => $request->ip(),
-                ]);
-                return response()->json(['status' => 'Error', 'message' => 'Unauthorized'], 403);
-            }
-        } elseif (auth()->check()) {
-            if (auth()->id() != $requestedId) {
-                \Log::warning('IDOR attempt on user_data (session)', [
-                    'auth_user' => auth()->id(),
-                    'target_user' => $requestedId,
-                    'ip' => $request->ip(),
-                ]);
-                return response()->json(['status' => 'Error', 'message' => 'Unauthorized'], 403);
-            }
+        $authenticatedUser = auth('sanctum')->user();
+        if (!$authenticatedUser) {
+            return response()->json(['status' => 'Error', 'message' => 'Authentication is required.'], Response::HTTP_UNAUTHORIZED);
         }
-        // If neither guard is active, allow request (mobile app backward compat)
-        // TODO: Once mobile app sends auth tokens, remove this fallback
 
-        $user = User::find($requestedId);
+        $requestedId = $request->input('id') ?? $request->input('userId') ?? $authenticatedUser->id;
+        if ((int) $requestedId !== $authenticatedUser->id) {
+            \Log::warning('Blocked API ownership mismatch on user_data.', [
+                'authenticated_user_id' => $authenticatedUser->id,
+                'requested_user_id' => $requestedId,
+                'ip' => $request->ip(),
+            ]);
+
+            return response()->json(['status' => 'Error', 'message' => 'Unauthorized'], Response::HTTP_FORBIDDEN);
+        }
+
+        $user = $authenticatedUser;
 
         if (!empty($user))
         {
@@ -646,8 +814,27 @@ class AuthApi extends Controller
 
     public function profile_update(Request $request)
     {
+        $authenticatedUser = auth('sanctum')->user();
+        if (!$authenticatedUser) {
+            return response()->json(['status' => 'Error', 'message' => 'Authentication is required.'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        if ($request->filled('id') && (int) $request->input('id') !== $authenticatedUser->id) {
+            \Log::warning('Blocked API ownership mismatch on profile_update.', [
+                'authenticated_user_id' => $authenticatedUser->id,
+                'requested_user_id' => $request->input('id'),
+                'ip' => $request->ip(),
+            ]);
+
+            return response()->json(['status' => 'Error', 'message' => 'Unauthorized'], Response::HTTP_FORBIDDEN);
+        }
+
+        // The bearer token, never a request parameter, decides whose profile
+        // can be changed.
+        $request->merge(['id' => $authenticatedUser->id]);
+
         \Log::info('=== PROFILE_UPDATE DEBUG START ===', [
-            'request_id' => $request->id,
+            'request_id' => $authenticatedUser->id,
             'has_image' => $request->hasFile('image'),
         ]);
 
@@ -678,7 +865,7 @@ class AuthApi extends Controller
                             'name' => 'required',
                             'email' => 'required|email|unique:users,email,' . \Request::get("id"),
                             'mobile_no' => 'nullable|numeric|unique:users,mobile_no,' . \Request::get("id"),
-                            "image" => "nullable|mimes:jpg,png,jpeg",
+                            "image" => "nullable|image|mimes:jpg,png,jpeg,webp|max:2048",
                         ]);
                 
                         if ($validation->fails()) {
@@ -841,7 +1028,7 @@ class AuthApi extends Controller
                 $validation = Validator::make($request->all(), [
                     'name' => 'required',
                     'email' => 'required|email|unique:users,email,' . \Request::get("id"),
-                    "image" => "nullable|mimes:jpg,png,jpeg",
+                    "image" => "nullable|image|mimes:jpg,png,jpeg,webp|max:2048",
                 ]);
         
                 if ($validation->fails()) {
@@ -954,9 +1141,7 @@ class AuthApi extends Controller
             ]);
             return response()->json([
                 'status' => 'Error',
-                'message' => 'Server error: ' . $e->getMessage(),
-                'debug_file' => $e->getFile(),
-                'debug_line' => $e->getLine(),
+                'message' => 'Unable to update the profile. Please try again.',
             ], 500);
         }
     }
@@ -965,7 +1150,7 @@ class AuthApi extends Controller
     {
         $destinationPath = public_path('uploads');
         if (!file_exists($destinationPath)) {
-            mkdir($destinationPath, 0777, true);
+            mkdir($destinationPath, 0755, true);
         }
         $extension = $file->getClientOriginalExtension();
         $fileName = Str::uuid() . '.' . $extension;
@@ -978,32 +1163,28 @@ class AuthApi extends Controller
 
     public function forgot_password(Request $request)
     {
-        $user = User::where('email', $request->email)->get()->toArray();
-        if (!empty($user)) 
-        {
-            $this->validateEmail($request);
-            $email = $request->email;
-            $name = $user[0]['name'];
-            $code = mt_rand(100000, 999999);
+        $this->validateEmail($request);
+        $email = mb_strtolower(trim($request->email));
+        $user = User::where('email', $email)->first();
 
+        // Keep the response identical whether an account exists or not, so
+        // this endpoint cannot be used to enumerate registered email IDs.
+        if ($user) {
+            $code = random_int(100000, 999999);
             PasswordReset::where('email', $email)->delete();
-            PasswordReset::create(['email' => $email, 'token' => Hash::make($code), 'created_at' => date('Y-m-d H:i:s')]);
-            
-            // Send OTP email
-            \App\Jobs\SendPasswordResetOtpJob::dispatch($email, $name, $code);
+            PasswordReset::create([
+                'email' => $email,
+                'token' => Hash::make((string) $code),
+                'created_at' => now(),
+            ]);
 
-            return response()->json([
-                'status' => "Success",
-                'message' => "OTP sent to your email address.",
-            ], 200);
-        } 
-        else 
-        {
-            return response()->json([
-                'status' => "Error",
-                'message' => "Please Enter Valid Email Address...",
-            ], 404);
+            \App\Jobs\SendPasswordResetOtpJob::dispatch($email, $user->name, $code);
         }
+
+        return response()->json([
+            'status' => 'Success',
+            'message' => 'If this email is registered, a password reset code has been sent.',
+        ], Response::HTTP_OK);
     }
 
     public function verify_forgot_password_otp(Request $request)
@@ -1039,39 +1220,44 @@ class AuthApi extends Controller
 
     public function update_forgot_password(Request $request)
     {
-        $this->validate($request, [
-            'email' => 'required|email',
-            'otp' => 'required',
-            'new_password' => 'required|min:6'
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+            'otp' => ['required', 'digits:6'],
+            'new_password' => ['required', \Illuminate\Validation\Rules\Password::min(10)->mixedCase()->numbers()->symbols()],
         ]);
 
-        $reset = PasswordReset::where('email', $request->email)->first();
+        $email = mb_strtolower(trim($validated['email']));
+        $reset = PasswordReset::where('email', $email)->first();
 
-        if (!$reset || !Hash::check($request->otp, $reset->token)) {
+        if (!$reset || now()->greaterThan($reset->created_at->copy()->addMinutes(10)) || !Hash::check($validated['otp'], $reset->token)) {
+            if ($reset && now()->greaterThan($reset->created_at->copy()->addMinutes(10))) {
+                $reset->delete();
+            }
+
             return response()->json([
-                'status' => "Error",
-                'message' => "Invalid OTP",
-            ], 400);
+                'status' => 'Error',
+                'message' => 'The reset code is invalid or has expired.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $user = User::where('email', $request->email)->first();
+        $user = User::where('email', $email)->first();
         if ($user) {
-            $user->password = bcrypt($request->new_password);
+            $user->password = Hash::make($validated['new_password']);
             $user->save();
-            
-            // Delete the used reset token
-            PasswordReset::where('email', $request->email)->delete();
+
+            app(MobileAccessTokenService::class)->revokeAll($user);
+            PasswordReset::where('email', $email)->delete();
 
             return response()->json([
-                'status' => "Success",
-                'message' => "Password updated successfully",
-            ], 200);
+                'status' => 'Success',
+                'message' => 'Password updated successfully. Please sign in again.',
+            ], Response::HTTP_OK);
         }
 
         return response()->json([
-            'status' => "Error",
-            'message' => "User not found",
-        ], 404);
+            'status' => 'Error',
+            'message' => 'The reset code is invalid or has expired.',
+        ], Response::HTTP_UNPROCESSABLE_ENTITY);
     }
 
     protected function validateEmail(Request $request)
@@ -1081,60 +1267,51 @@ class AuthApi extends Controller
 
     public function change_password(Request $request)
     {
-        $user = User::find($request->get('userId'));
-
-        // Security: IDOR protection - verify ownership when authenticated
-        if (auth('sanctum')->check() && auth('sanctum')->id() != $request->get('userId')) {
-            \Log::warning('IDOR attempt on change_password', [
-                'auth_user' => auth('sanctum')->id(),
-                'target_user' => $request->get('userId'),
-                'ip' => $request->ip(),
-            ]);
-            return response()->json(['status' => 'Error', 'message' => 'Unauthorized'], 403);
+        $user = auth('sanctum')->user();
+        if (!$user) {
+            return response()->json(['status' => 'Error', 'message' => 'Authentication is required.'], Response::HTTP_UNAUTHORIZED);
         }
 
-        $validation = Validator::make($request->all(), [
-            'newPassword' => 'required',
+        $validated = $request->validate([
+            'currentPassword' => ['required', 'string'],
+            'newPassword' => ['required', \Illuminate\Validation\Rules\Password::min(10)->mixedCase()->numbers()->symbols()],
         ]);
 
-        if ($validation->fails()) {
-            $errors = [];
-            foreach ($validation->errors()->messages() as $key => $value) {
-                $errors[] = is_array($value) ? implode(',', $value) : $value;
-            }
-
+        if (!Hash::check($validated['currentPassword'], $user->password)) {
             return response()->json([
-              'status' => "Error",
-              'message' => $errors,
-            ], 404);
+                'status' => 'Error',
+                'message' => 'Your current password is incorrect.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
-        else
-        {
-            if ($user == null) {
-                return response()->json([
-                    'status' => 'Error',
-                    'message' => "Invalid User Id!",
-                    'data' => null,
-                ], 404);
-            } 
-            else
-            {
-                $user->password = bcrypt($request->get('newPassword'));
-                $user->save();
 
-                $data['status'] = 'Success';
-                $data['message'] = "Your Password has been Updated Successfully.";
-            }
+        if (Hash::check($validated['newPassword'], $user->password)) {
+            return response()->json([
+                'status' => 'Error',
+                'message' => 'Your new password must be different from your current password.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
-        return $data;
+
+        $user->password = Hash::make($validated['newPassword']);
+        $user->save();
+        app(MobileAccessTokenService::class)->revokeAll($user);
+
+        return response()->json([
+            'status' => 'Success',
+            'message' => 'Password updated successfully. Please sign in again.',
+            'reauthentication_required' => true,
+        ], Response::HTTP_OK);
     }
 
     public function register_fcm(Request $request)
     {
+        $user = auth('sanctum')->user();
+        if (!$user) {
+            return response()->json(['status' => 'Error', 'message' => 'Authentication is required.'], Response::HTTP_UNAUTHORIZED);
+        }
+
         $validation = Validator::make($request->all(), [
-            'fcmToken' => 'required',
-            'userId' => 'required|integer',
-            'deviceId' => 'required',
+            'fcmToken' => 'required|string|max:4096',
+            'deviceId' => 'required|string|max:255',
         ]);
 
         $errors = $validation->errors();
@@ -1144,26 +1321,19 @@ class AuthApi extends Controller
             $data['data'] = "";
 
         } else {
-            $user = User::find($request->userId);
-            if (!empty($user)){
-                // Remove any existing entries with this fcmToken (could belong to old user/device)
-                AndroidLogin::where('fcmToken', $request->get('fcmToken'))->delete();
+            // A push token is a device credential: associate it only with the
+            // bearer-token owner, not a request-provided user ID.
+            AndroidLogin::where('fcmToken', $request->get('fcmToken'))->delete();
 
-                // Create fresh entry for this user+token
-                AndroidLogin::create([
-                    'userId' => $request->get('userId'),
-                    'fcmToken' => $request->get('fcmToken'), 
-                    'deviceId' => $request->get('deviceId'), 
-                ]);
+            AndroidLogin::create([
+                'userId' => $user->id,
+                'fcmToken' => $request->get('fcmToken'),
+                'deviceId' => $request->get('deviceId'),
+            ]);
 
-                $data['status'] = 0;
-                $data['message'] = "FCM Token Register Successfully!";
-                $data['data'] = "";
-            } else {
-                $data['status'] = 401;
-                $data['message'] = "Invalid userId.";
-                $data['data'] = "";
-            }
+            $data['status'] = 0;
+            $data['message'] = "FCM Token Register Successfully!";
+            $data['data'] = "";
 
         }
         return $data;
@@ -1171,23 +1341,24 @@ class AuthApi extends Controller
 
     public function logout(Request $request)
     {
-        $val = AndroidLogin::where('userId',$request->userId)->where('deviceId',$request->deviceId)->get();
-
-        if (!empty($val))
-        {
-            AndroidLogin::where('userId',$request->userId)->where('deviceId',$request->deviceId)->delete();
-            $data['status'] = 0;
-            $data['message'] = "User Logout Successfully!";
-            $data['data'] = "";
-        }
-        else
-        {
-            $data['status'] = 404;
-            $data['message'] = "Invalid Data!";
-            $data['data'] = "";
+        $user = auth('sanctum')->user();
+        $token = $user ? $user->currentAccessToken() : null;
+        if (!$user || !$token) {
+            return response()->json(['status' => 'Error', 'message' => 'Authentication is required.'], Response::HTTP_UNAUTHORIZED);
         }
 
-        return $data;
+        $deviceId = $request->input('deviceId');
+        if (is_string($deviceId) && $deviceId !== '') {
+            AndroidLogin::where('userId', $user->id)->where('deviceId', $deviceId)->delete();
+        }
+
+        $token->delete();
+
+        return response()->json([
+            'status' => 0,
+            'message' => 'User logout successfully.',
+            'data' => '',
+        ], Response::HTTP_OK);
     }
 
     public function delete_user_account(Request $request) {
@@ -1240,16 +1411,22 @@ class AuthApi extends Controller
 
     public function reportError(Request $request)
     {
-        $userId = $request->userId;
-        if(!$userId) {
-            return response()->json(['status' => 'error', 'message' => 'User ID required'], 400);
+        $user = auth('sanctum')->user();
+        if (!$user) {
+            return response()->json(['status' => 'error', 'message' => 'Authentication is required'], Response::HTTP_UNAUTHORIZED);
         }
 
+        $validated = $request->validate([
+            'error_code' => ['nullable', 'string', 'max:100'],
+            'error_message' => ['required', 'string', 'max:4000'],
+            'device_info' => ['nullable', 'string', 'max:1000'],
+        ]);
+
         \App\Models\ClientError::create([
-            'user_id' => $userId,
-            'error_code' => $request->error_code,
-            'error_message' => $request->error_message,
-            'device_info' => $request->device_info ?? $request->header('User-Agent'),
+            'user_id' => $user->id,
+            'error_code' => $validated['error_code'] ?? null,
+            'error_message' => $validated['error_message'],
+            'device_info' => $validated['device_info'] ?? mb_substr((string) $request->userAgent(), 0, 1000),
             'status' => 'Pending',
         ]);
 
@@ -1262,26 +1439,34 @@ class AuthApi extends Controller
 
     public function trackActivity(Request $request)
     {
-        $userId = $request->get('userId') ?? $request->get('user_id');
-        $action = $request->get('action');
-        $itemType = $request->get('item_type');
-        $itemId = $request->get('item_id');
-        $downloadedImageBase64 = $request->get('downloaded_image');
-
-        \Log::info("trackActivity called: user=$userId, action=$action, type=$itemType, id=$itemId");
-
-        if (!$userId) {
-             return response()->json(['status' => 'error', 'message' => 'User ID required'], 400);
+        $user = auth('sanctum')->user();
+        if (!$user) {
+            return response()->json(['status' => 'error', 'message' => 'Authentication is required'], Response::HTTP_UNAUTHORIZED);
         }
+
+        $validated = $request->validate([
+            'action' => ['required', 'string', 'max:100'],
+            'item_type' => ['nullable', 'string', 'max:100'],
+            'item_id' => ['nullable', 'string', 'max:255'],
+            'platform' => ['nullable', 'string', 'max:50'],
+            'is_premium' => ['nullable', 'boolean'],
+            'downloaded_image' => ['nullable', 'string', 'max:1500000'],
+        ]);
+
+        $userId = $user->id;
+        $action = $validated['action'];
+        $itemType = $validated['item_type'] ?? null;
+        $itemId = $validated['item_id'] ?? null;
+        $downloadedImageBase64 = $validated['downloaded_image'] ?? null;
 
         $downloadedImagePath = null;
         if ($downloadedImageBase64) {
-            if (str_starts_with($downloadedImageBase64, 'data:image')) {
+            if (preg_match('#^data:image/(jpeg|png|webp);base64,#i', $downloadedImageBase64)) {
                 try {
-                    $imgData = explode(',', $downloadedImageBase64);
-                    if (count($imgData) > 1) {
-                        $decodedData = base64_decode($imgData[1]);
-                        if ($decodedData) {
+                    $imgData = explode(',', $downloadedImageBase64, 2);
+                    if (count($imgData) === 2) {
+                        $decodedData = base64_decode($imgData[1], true);
+                        if ($decodedData !== false && strlen($decodedData) <= 1048576 && @getimagesizefromstring($decodedData)) {
                             $filename = 'download_' . time() . '_' . uniqid() . '.jpg';
                             $dir = public_path('uploads/downloads');
                             if (!is_dir($dir)) {
@@ -1308,7 +1493,7 @@ class AuthApi extends Controller
             }
         }
 
-        $isPremium = filter_var($request->get('is_premium', false), FILTER_VALIDATE_BOOLEAN);
+        $isPremium = filter_var($validated['is_premium'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
         \App\Models\UserActivity::create([
             'user_id' => $userId,
@@ -1316,7 +1501,7 @@ class AuthApi extends Controller
             'payload' => [
                 'item_type' => $itemType,
                 'item_id' => $itemId,
-                'platform' => $request->get('platform') ?? 'Mobile',
+                'platform' => $validated['platform'] ?? 'Mobile',
                 'downloaded_image' => $downloadedImagePath,
                 'is_premium' => $isPremium,
             ],
@@ -1414,10 +1599,14 @@ class AuthApi extends Controller
      */
     public function trackAdEvents(Request $request)
     {
-        $userId = $request->get('userId') ?? $request->get('user_id');
-        $events = $request->get('events', []);
+        $user = auth('sanctum')->user();
+        if (!$user) {
+            return response()->json(['status' => 'error', 'message' => 'Authentication is required'], Response::HTTP_UNAUTHORIZED);
+        }
 
-        if (empty($events) || !is_array($events)) {
+        $events = $request->validate(['events' => ['required', 'array', 'max:100']])['events'];
+
+        if (empty($events)) {
             return response()->json(['status' => 'error', 'message' => 'No events provided'], 400);
         }
 
@@ -1426,6 +1615,10 @@ class AuthApi extends Controller
 
         $rows = [];
         foreach ($events as $evt) {
+            if (!is_array($evt)) {
+                continue;
+            }
+
             $adType = $evt['ad_type'] ?? null;
             $event = $evt['event'] ?? 'impression';
 
@@ -1433,10 +1626,10 @@ class AuthApi extends Controller
             if (!in_array($event, $validEvents)) $event = 'impression';
 
             $rows[] = [
-                'user_id' => $userId,
+                'user_id' => $user->id,
                 'ad_type' => $adType,
                 'event' => $event,
-                'created_at' => $evt['timestamp'] ?? now(),
+                'created_at' => now(),
             ];
         }
 
@@ -1523,16 +1716,15 @@ class AuthApi extends Controller
 
     public function useRewardCredit(Request $request)
     {
-        $userId = $request->get('userId') ?? $request->get('user_id');
-        $featureKey = $request->get('feature_key');
-
-        if (!$userId || !$featureKey) {
-            return response()->json(['status' => 'error', 'message' => 'Missing userId or feature_key'], 400);
+        $user = auth('sanctum')->user();
+        if (!$user) {
+            return response()->json(['status' => 'error', 'message' => 'Authentication is required.'], Response::HTTP_UNAUTHORIZED);
         }
 
-        $user = User::find($userId);
-        if (!$user) {
-            return response()->json(['status' => 'error', 'message' => 'User not found'], 404);
+        $featureKey = trim((string) $request->get('feature_key'));
+
+        if ($featureKey === '' || mb_strlen($featureKey) > 100) {
+            return response()->json(['status' => 'error', 'message' => 'A valid feature key is required.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $remainingRewardPoints = \Illuminate\Support\Facades\DB::transaction(function () use ($user, $featureKey) {
@@ -1576,41 +1768,32 @@ class AuthApi extends Controller
      */
     public function generateWebviewUrl(Request $request)
     {
-        $userId = $request->get('userId') ?? $request->get('user_id');
-
-        if (!$userId) {
-            return response()->json([
-                'status' => 'Error',
-                'message' => 'userId is required',
-            ], 400);
-        }
-
-        $user = User::find($userId);
+        $user = auth('sanctum')->user();
         if (!$user) {
             return response()->json([
                 'status' => 'Error',
-                'message' => 'Invalid userId',
-            ], 404);
-        }
-
-        // Security: IDOR protection — only allow generating URL for yourself
-        if (auth('sanctum')->check() && auth('sanctum')->id() != $userId) {
-            \Log::warning('IDOR attempt on generateWebviewUrl', [
-                'auth_user' => auth('sanctum')->id(),
-                'target_user' => $userId,
-                'ip' => $request->ip(),
-            ]);
-            return response()->json(['status' => 'Error', 'message' => 'Unauthorized'], 403);
+                'message' => 'Authentication is required.',
+            ], Response::HTTP_UNAUTHORIZED);
         }
 
         // Generate a signed URL that expires in 5 minutes
-        $redirectPath = $request->get('redirect', '/dashboard');
+        $redirectPath = (string) $request->get('redirect', '/dashboard');
+        $parsedRedirect = parse_url($redirectPath);
+        $path = $parsedRedirect['path'] ?? '';
+        if (
+            isset($parsedRedirect['scheme']) ||
+            isset($parsedRedirect['host']) ||
+            !str_starts_with($path, '/') ||
+            str_starts_with($redirectPath, '//')
+        ) {
+            $redirectPath = '/dashboard';
+        }
         
         $signedUrl = \Illuminate\Support\Facades\URL::temporarySignedRoute(
             'webview.login',
             now()->addMinutes(5),
             [
-                'user_id' => $userId,
+                'user_id' => $user->id,
                 'redirect' => $redirectPath,
             ]
         );

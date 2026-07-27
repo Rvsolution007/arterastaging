@@ -78,6 +78,9 @@ class Handler extends ExceptionHandler
             if (!config('app.debug')) {
                 return response()->json([
                     'error' => 'An unexpected error occurred. Please contact support.',
+                    // Older mobile builds read `message`, while newer builds
+                    // can also show the support reference below.
+                    'message' => 'The request could not be completed. Reference: ' . $correlationId,
                     'reference_id' => $correlationId
                 ], 500);
             }

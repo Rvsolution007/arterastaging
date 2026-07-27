@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import '../services/secure_token_store.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_text_styles.dart';
@@ -23,6 +24,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
+  final _currentPasswordCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
 
   bool _isLoading = false;
@@ -60,6 +62,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (_passwordCtrl.text.isNotEmpty && _currentPasswordCtrl.text.isEmpty) {
+      Get.snackbar('Current password required', 'Enter your current password to set a new password.',
+          backgroundColor: Colors.red, colorText: Colors.white);
+      return;
+    }
+    if (_passwordCtrl.text.isNotEmpty && !_isStrongPassword(_passwordCtrl.text)) {
+      Get.snackbar('Choose a stronger password', 'Use 10+ characters with uppercase, lowercase, number and symbol.',
+          backgroundColor: Colors.red, colorText: Colors.white);
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -85,9 +98,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['status'] == 'Success') {
+          var passwordChanged = false;
           if (_passwordCtrl.text.isNotEmpty) {
             final passRes = await ApiService.post('/change-password', {
-              'userId': _userId ?? '',
+              'currentPassword': _currentPasswordCtrl.text,
               'newPassword': _passwordCtrl.text,
             });
             if (passRes.statusCode != 200) {
@@ -96,6 +110,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 setState(() => _isLoading = false);
                 return;
             }
+            passwordChanged = true;
           }
 
           final prefs = await SharedPreferences.getInstance();
@@ -110,6 +125,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           // Reload business info so changes immediately reflect across the app
           if (Get.isRegistered<HomeController>()) {
             await Get.find<HomeController>().loadBusinessInfo();
+          }
+
+          if (passwordChanged) {
+            await SecureTokenStore.clear();
+            await prefs.clear();
+            Get.offAllNamed('/LoginScreen');
+            Get.snackbar('Password updated', 'Please sign in again with your new password.',
+                backgroundColor: Colors.green, colorText: Colors.white);
+            return;
           }
 
           Get.back();
@@ -129,6 +153,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  bool _isStrongPassword(String value) {
+    return value.length >= 10 &&
+        RegExp(r'[a-z]').hasMatch(value) &&
+        RegExp(r'[A-Z]').hasMatch(value) &&
+        RegExp(r'[0-9]').hasMatch(value) &&
+        RegExp(r'[^A-Za-z0-9]').hasMatch(value);
   }
 
   Widget _buildTextField({
@@ -253,9 +285,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               const SizedBox(height: 16),
               
               _buildTextField(
+                controller: _currentPasswordCtrl,
+                label: 'Current Password',
+                hint: 'Required only to change password',
+                prefixIcon: Icons.lock_outline,
+                obscureText: true,
+              ),
+              const SizedBox(height: 16),
+
+              _buildTextField(
                 controller: _passwordCtrl,
                 label: 'New Password (Optional)',
-                hint: 'Leave blank to keep current',
+                hint: '10+ chars, uppercase, number & symbol',
                 prefixIcon: Icons.lock_outline,
                 obscureText: true,
               ),
@@ -280,5 +321,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _emailCtrl.dispose();
+    _phoneCtrl.dispose();
+    _currentPasswordCtrl.dispose();
+    _passwordCtrl.dispose();
+    super.dispose();
   }
 }

@@ -24,6 +24,14 @@ class SecurityHeaders
             $response->header('Referrer-Policy', 'strict-origin-when-cross-origin');
             $response->header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
             $response->header('X-Permitted-Cross-Domain-Policies', 'none');
+            $response->header('Cross-Origin-Opener-Policy', 'same-origin');
+            $response->header('Cross-Origin-Resource-Policy', 'same-site');
+            $response->header('X-DNS-Prefetch-Control', 'off');
+
+            if ($request->is('login', 'register', 'forgot-password', 'password/*', 'admin/login') || $request->is(config('app.api_prefix') . '/*')) {
+                $response->header('Cache-Control', 'no-store, private');
+                $response->header('Pragma', 'no-cache');
+            }
 
             // Only apply strict CSP and HSTS on staging/production (not localhost)
             $host = $request->getHost();

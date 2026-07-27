@@ -22,4 +22,11 @@ class Subscription extends Model
         'google_product_enable','google_product_id','photoroom_bg_limit',
         'ai_image_limit'
     ];
+
+    public function aiImageAccesses()
+    {
+        return $this->hasMany(SubscriptionAiImageAccess::class, 'subscription_id')
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
 }

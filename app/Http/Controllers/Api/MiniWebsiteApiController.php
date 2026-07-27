@@ -26,31 +26,23 @@ class MiniWebsiteApiController extends Controller
         ]);
     }
 
-    /**
-     * Helper to resolve the authenticated user ID.
-     * Prioritizes sanctum auth, falls back to session auth, then request param.
-     */
+    /** Resolve the user strictly from a verified application session/token. */
     private function resolveUserId(Request $request)
     {
-        if (auth('sanctum')->check()) {
-            return auth('sanctum')->id();
-        }
-        if (auth()->check()) {
-            return auth()->id();
-        }
-        // Fallback for mobile app that passes userId in request
-        return $request->user_id;
+        return auth('sanctum')->id() ?: auth()->id();
     }
 
     public function generate(Request $request)
     {
         $request->validate([
-            'user_id' => 'required',
-            'mini_website_template_id' => 'required'
+            'mini_website_template_id' => 'required|integer|exists:mini_website_templates,id',
+            'business_id' => 'nullable|integer',
         ]);
 
-        // Security: Use authenticated user ID when available
         $userId = $this->resolveUserId($request);
+        if (!$userId) {
+            return response()->json(['status' => 'error', 'message' => 'Authentication is required.'], 401);
+        }
 
         $slug = \Illuminate\Support\Str::random(6) . '-' . time();
         

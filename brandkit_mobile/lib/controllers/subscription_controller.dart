@@ -173,11 +173,9 @@ class SubscriptionController extends GetxController with WidgetsBindingObserver 
     if (rewardPoints.value < 1) return false;
     
     final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getString('userId') ?? '';
     
     try {
       final response = await ApiService.post('/use-reward-credit', {
-        'user_id': userId,
         'feature_key': featureKey
       });
       

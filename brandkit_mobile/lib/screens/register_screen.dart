@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import '../controllers/auth_controller.dart';
@@ -47,6 +48,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
+    if (!_isStrongPassword(passwordController.text)) {
+      Get.snackbar('Choose a stronger password', 'Use 10+ characters with uppercase, lowercase, number and symbol.',
+          backgroundColor: Colors.redAccent, colorText: Colors.white);
+      return;
+    }
+
     authController.register(
       name: nameController.text, 
       email: emailController.text, 
@@ -57,6 +64,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       redirectRoute: widget.redirectRoute,
       redirectArguments: widget.redirectArguments,
     );
+  }
+
+  bool _isStrongPassword(String value) {
+    return value.length >= 10 &&
+        RegExp(r'[a-z]').hasMatch(value) &&
+        RegExp(r'[A-Z]').hasMatch(value) &&
+        RegExp(r'[0-9]').hasMatch(value) &&
+        RegExp(r'[^A-Za-z0-9]').hasMatch(value);
   }
 
   @override
@@ -155,7 +170,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               TextField(
                 controller: passwordController,
                 decoration: InputDecoration(
-                  labelText: 'Password *',
+                  labelText: 'Password * (10+ with upper, number & symbol)',
                   prefixIcon: const Icon(Icons.lock_outline),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
@@ -183,6 +198,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: authController.isLoading.value
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text('Sign Up', style: TextStyle(fontSize: 18, color: Colors.white)),
+              )),
+              const SizedBox(height: 16),
+              Obx(() => OutlinedButton.icon(
+                onPressed: authController.isLoading.value
+                    ? null
+                    : () => authController.signInWithGoogle(
+                          redirectRoute: widget.redirectRoute,
+                          redirectArguments: widget.redirectArguments,
+                        ),
+                icon: const FaIcon(FontAwesomeIcons.google, size: 20),
+                label: const Text('Sign up with Google'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.textPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
               )),
               const SizedBox(height: 20),
               TextButton(

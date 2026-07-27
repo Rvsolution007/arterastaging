@@ -4,14 +4,14 @@ import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import '../config/app_config.dart';
+import 'secure_token_store.dart';
 
 class ApiService {
   // Base URL is now controlled by AppConfig (staging vs production)
   static String get baseUrl => AppConfig.baseUrl;
 
   static Future<Map<String, String>> _getHeaders() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
+    final token = await SecureTokenStore.read();
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -59,8 +59,7 @@ class ApiService {
 
   static Future<http.Response> uploadSetupWizardSource(String endpoint, Map<String, String> fields, {String? filePath, List<int>? fileBytes, String? fileName}) async {
     final url = Uri.parse('$baseUrl$endpoint');
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
+    final token = await SecureTokenStore.read();
     
     var request = http.MultipartRequest('POST', url);
     request.headers.addAll({
@@ -86,8 +85,7 @@ class ApiService {
 
   static Future<http.Response> multipartPost(String endpoint, Map<String, String> fields, {String? fileKey, String? filePath, List<int>? fileBytes, String? fileName}) async {
     final url = Uri.parse('$baseUrl$endpoint');
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
+    final token = await SecureTokenStore.read();
     
     var request = http.MultipartRequest('POST', url);
     request.headers.addAll({

@@ -75,6 +75,7 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'google_linked_at' => 'datetime',
         'limits_reset_at' => 'datetime',
     ];
 

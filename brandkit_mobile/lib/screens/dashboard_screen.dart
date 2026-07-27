@@ -13,6 +13,7 @@ import 'ai_chat_screen.dart';
 import 'support_tickets_screen.dart';
 import '../config/app_config.dart';
 import '../widgets/coming_soon_widget.dart';
+
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -26,14 +27,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<Widget> get _pages => [
     const HomeScreen(),
     Scaffold(
-      appBar: AppBar(title: Text('custom'.trFormat, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)), backgroundColor: AppColors.primary, centerTitle: true, elevation: 0),
+      appBar: AppBar(
+        title: Text(
+          'custom'.trFormat,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: AppColors.primary,
+        centerTitle: true,
+        elevation: 0,
+      ),
       body: const ComingSoonWidget(title: 'Custom Posts'),
     ),
     const MyBusinessScreen(),
-    Scaffold(
-      appBar: AppBar(title: Text('greetings'.trFormat, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)), backgroundColor: AppColors.primary, centerTitle: true, elevation: 0),
-      body: const ComingSoonWidget(title: 'Greetings'),
-    ),
+    const AiTrendsScreen(),
     const MoreScreen(),
   ];
 
@@ -53,7 +63,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             backgroundColor: const Color(0xFF667EEA),
             child: const Icon(Icons.smart_toy, color: Colors.white, size: 28),
           ),
-
         ],
       ),
       bottomNavigationBar: Column(
@@ -92,11 +101,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    Expanded(child: _buildNavItem(0, Icons.home_outlined, Icons.home, 'home'.trFormat)),
-                    if (!AppConfig.isStaging) Expanded(child: _buildNavItem(1, Icons.image_outlined, Icons.image, 'custom'.trFormat)),
-                    Expanded(child: _buildNavItem(2, Icons.storefront_outlined, Icons.storefront, 'business'.trFormat)),
-                    if (!AppConfig.isStaging) Expanded(child: _buildNavItem(3, Icons.celebration_outlined, Icons.celebration, 'greetings'.trFormat)),
-                    Expanded(child: _buildNavItem(4, Icons.menu, Icons.menu, 'more'.trFormat)),
+                    Expanded(
+                      child: _buildNavItem(
+                        0,
+                        Icons.home_outlined,
+                        Icons.home,
+                        'home'.trFormat,
+                      ),
+                    ),
+                    if (!AppConfig.isStaging)
+                      Expanded(
+                        child: _buildNavItem(
+                          1,
+                          Icons.image_outlined,
+                          Icons.image,
+                          'custom'.trFormat,
+                        ),
+                      ),
+                    Expanded(
+                      child: _buildNavItem(
+                        2,
+                        Icons.storefront_outlined,
+                        Icons.storefront,
+                        'business'.trFormat,
+                      ),
+                    ),
+                    Expanded(
+                      child: _buildNavItem(
+                        3,
+                        Icons.celebration_outlined,
+                        Icons.celebration,
+                        'greetings'.trFormat,
+                      ),
+                    ),
+                    Expanded(
+                      child: _buildNavItem(
+                        4,
+                        Icons.menu,
+                        Icons.menu,
+                        'more'.trFormat,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -107,14 +152,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildNavItem(int index, IconData icon, IconData activeIcon, String label) {
+  Widget _buildNavItem(
+    int index,
+    IconData icon,
+    IconData activeIcon,
+    String label,
+  ) {
     final isSelected = _currentIndex == index;
-    
+
     // Capitalize first letter for a cleaner look
-    final displayLabel = label.isNotEmpty 
-        ? '${label[0].toUpperCase()}${label.substring(1).toLowerCase()}' 
+    final displayLabel = label.isNotEmpty
+        ? '${label[0].toUpperCase()}${label.substring(1).toLowerCase()}'
         : '';
-    
+
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => setState(() => _currentIndex = index),
@@ -130,7 +180,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               curve: Curves.easeOut,
               padding: EdgeInsets.all(isSelected ? 6.0 : 0.0),
               decoration: BoxDecoration(
-                color: isSelected ? AppColors.primary.withOpacity(0.15) : Colors.transparent,
+                color: isSelected
+                    ? AppColors.primary.withOpacity(0.15)
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(
@@ -143,7 +195,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Text(
               displayLabel,
               style: TextStyle(
-                color: isSelected ? AppColors.textPrimary : Colors.grey.shade500,
+                color: isSelected
+                    ? AppColors.textPrimary
+                    : Colors.grey.shade500,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                 fontSize: 10,
               ),

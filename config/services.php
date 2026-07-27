@@ -37,6 +37,11 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URL', '/auth/google/callback'),
     ],
 
+    'firebase' => [
+        // The Firebase Authentication project that issues mobile ID tokens.
+        'project_id' => env('FIREBASE_PROJECT_ID', env('GOOGLE_CLOUD_PROJECT_ID', '')),
+    ],
+
     'google_play' => [
         'package_name' => env('GOOGLE_PLAY_PACKAGE_NAME', 'com.arterapixel.pro'),
         'service_account_json' => env('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON', ''),

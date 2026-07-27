@@ -14,4 +14,9 @@ class Festivals extends Model
     protected $fillable = [
         'title','image','festivals_date','activation_date','status'
     ];
+
+    public function aiConfig()
+    {
+        return $this->hasOne(FestivalAiConfig::class, 'festival_id');
+    }
 }

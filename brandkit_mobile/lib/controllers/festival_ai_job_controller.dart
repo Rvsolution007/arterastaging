@@ -78,6 +78,26 @@ class FestivalAiJobController extends GetxController
       ).map((job) => Map<String, dynamic>.from(job as Map)).toList();
       history.assignAll(jobs);
 
+      // A job may have been queued before this app instance stored its ID
+      // (for example after an app update or process restart). The history
+      // endpoint is user-scoped, so safely adopt the newest in-progress job
+      // and keep its progress visible across every dashboard tab.
+      if (!hasActiveJob) {
+        Map<String, dynamic>? inProgressJob;
+        for (final job in jobs) {
+          final status = job['status']?.toString();
+          if (status == 'queued' ||
+              status == 'processing' ||
+              status == 'submitting') {
+            inProgressJob = job;
+            break;
+          }
+        }
+        if (inProgressJob != null) {
+          await _applyServerJob(inProgressJob);
+        }
+      }
+
       final outcomeId = _jobId(latestOutcome.value);
       if (outcomeId != null) {
         final updated = _findJob(jobs, outcomeId);

@@ -27,13 +27,19 @@ php artisan festival-ai:staging-check
 
 ## Queue worker
 
-Keep one managed worker running continuously. In Supervisor/systemd, use the equivalent of:
+The supplied Docker entrypoint now starts and supervises the dedicated Festival AI
+worker automatically. After a container rebuild/deploy, check the container logs
+for `Starting Festival AI queue worker...`.
+
+If staging uses a non-Docker deployment, keep one managed worker running
+continuously with the equivalent of:
 
 ```bash
 php artisan queue:work festival-ai --queue=festival-ai --sleep=1 --tries=1 --timeout=210 --max-time=3600
 ```
 
-After each deploy, run `php artisan queue:restart`; the process manager should start a fresh worker automatically.
+After each non-Docker deploy, run `php artisan queue:restart`; the process manager
+should start a fresh worker automatically.
 
 ## Logs and failure diagnosis
 
@@ -41,6 +47,12 @@ Run this to watch the secure server log:
 
 ```bash
 tail -f storage/logs/laravel.log
+```
+
+For Docker deployments, the dedicated worker output is also available at:
+
+```bash
+tail -f storage/logs/festival-ai-worker.log
 ```
 
 Festival AI failures are logged with generation ID, provider, HTTP status, and provider error code only. API keys, authorization headers, prompts containing credentials, and raw request payloads are never logged.

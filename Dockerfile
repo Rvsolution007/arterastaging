@@ -16,6 +16,21 @@ ENV APACHE_DOCUMENT_ROOT /var/www/html
 RUN sed -i 's|/var/www/html|${APACHE_DOCUMENT_ROOT}|g' /etc/apache2/sites-available/000-default.conf
 RUN sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf
 
+# The persistent /uploads path is a deliberate symlink created at container
+# start. Explicitly permit Apache to follow it so product and AI result images
+# remain readable after a deployment.
+RUN printf '%s\n' \
+    '<Directory /var/www/html>' \
+    '    Options FollowSymLinks' \
+    '    Require all granted' \
+    '</Directory>' \
+    '<Directory /var/www/html/public/uploads>' \
+    '    Options FollowSymLinks' \
+    '    Require all granted' \
+    '</Directory>' \
+    > /etc/apache2/conf-available/artera-uploads.conf \
+    && a2enconf artera-uploads
+
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 

@@ -47,6 +47,20 @@ php artisan config:clear
 php artisan cache:clear
 php artisan view:clear
 
+# Festival AI always uses the dedicated database queue connection. Keep its
+# worker inside the same container so a deploy cannot leave visuals in queued.
+# The loop only restarts the worker; it never logs credentials or job payloads.
+touch /var/www/html/storage/logs/festival-ai-worker.log
+chown www-data:www-data /var/www/html/storage/logs/festival-ai-worker.log
+echo "Starting Festival AI queue worker..."
+(
+    while true; do
+        su -s /bin/sh www-data -c 'cd /var/www/html && php artisan queue:work festival-ai --queue=festival-ai --sleep=1 --tries=1 --timeout=210 --max-time=3500' || true
+        echo "Festival AI queue worker exited; restarting in 2 seconds..."
+        sleep 2
+    done
+) >> /var/www/html/storage/logs/festival-ai-worker.log 2>&1 &
+
 echo "=== Artera Ready! Starting Apache ==="
 
 # Start Apache in foreground

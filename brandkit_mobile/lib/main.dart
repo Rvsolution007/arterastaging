@@ -26,8 +26,6 @@ import 'services/app_install_tracker.dart';
 import 'package:flutter/foundation.dart';
 import 'widgets/error_submission_dialog.dart';
 import 'controllers/console_controller.dart';
-import 'package:http/http.dart' as http;
-import 'config/app_config.dart';
 
 // Background message handler — must be top-level function (not inside a class)
 // This runs in a separate isolate when app is in background/terminated
@@ -86,17 +84,17 @@ void main() {
 
 Future<void> _sendErrorToLaravel(String message) async {
   try {
-    // Only send on local/staging environments if needed, or always.
-    final url = Uri.parse('${AppConfig.baseUrl}/api/client-debug-log');
-    await http
-        .post(
-          url,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'source': 'flutter_app', 'message': message}),
-        )
-        .timeout(const Duration(seconds: 3));
-  } catch (e) {
-    // silently fail if backend is unreachable
+    // Use the existing authenticated endpoint. Do not send an unauthenticated
+    // debug endpoint or any access token in the error payload.
+    await ApiService.post('/report-error', {
+      'error_code': 'flutter_client_error',
+      'error_message': message.length > 4000
+          ? message.substring(0, 4000)
+          : message,
+      'device_info': 'flutter_app',
+    }).timeout(const Duration(seconds: 5));
+  } catch (_) {
+    // Error reporting must never interrupt the app or create a retry loop.
   }
 }
 

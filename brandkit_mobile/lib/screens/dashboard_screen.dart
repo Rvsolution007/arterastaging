@@ -144,7 +144,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         3,
                         Icons.celebration_outlined,
                         Icons.celebration,
-                        'greetings'.trFormat,
+                        'AI Studio',
                       ),
                     ),
                     Expanded(

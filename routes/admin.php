@@ -45,8 +45,17 @@ Route::
             Route::Post('category-post-landing', 'CategoryPostController@category_post_landing');
             Route::Post('category-post-ai', 'CategoryPostController@category_post_ai');
 
-            Route::get('festivals/{festival}/ai-studio', 'FestivalAiStudioController@edit')->name('festivals.ai_studio.edit');
-            Route::put('festivals/{festival}/ai-studio', 'FestivalAiStudioController@update')->name('festivals.ai_studio.update');
+            // Canonical Festival-specific AI Studio URLs keep the feature
+            // identifiable inside the Festivals section. The legacy route is
+            // retained below as a redirect so old bookmarks keep working.
+            Route::get('festivals/{festival}/festival-ai-studio', 'FestivalAiStudioController@edit')->name('festivals.ai_studio.edit');
+            Route::put('festivals/{festival}/festival-ai-studio', 'FestivalAiStudioController@update')->name('festivals.ai_studio.update');
+            Route::get('festivals/{festival}/ai-studio', function (\App\Models\Festivals $festival) {
+                return redirect()->route('festivals.ai_studio.edit', $festival, 301);
+            })->name('festivals.ai_studio.legacy');
+            // A page already open at the legacy URL can still submit safely;
+            // all newly rendered forms use the canonical URL above.
+            Route::put('festivals/{festival}/ai-studio', 'FestivalAiStudioController@update');
             Route::resource('festival-ai-styles', 'FestivalAiStylePresetController')
                 ->except('show')
                 ->parameters(['festival-ai-styles' => 'festivalAiStyle'])

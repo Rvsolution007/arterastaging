@@ -53,6 +53,7 @@ class FestivalAiStylePresetController extends Controller
         FestivalAiStylePreset::create([
             'name' => trim($validated['name']),
             'prompt_text' => $validated['prompt_text'],
+            'product_placement_prompt' => blank($validated['product_placement_prompt'] ?? null) ? null : trim($validated['product_placement_prompt']),
             'preview_images' => $this->storePreviewImages($request->file('preview_images', [])),
             'allowed_size_keys' => $this->normaliseSizeKeys($validated['allowed_size_keys'] ?? null),
             'product_required' => $request->boolean('product_required'),
@@ -106,6 +107,7 @@ class FestivalAiStylePresetController extends Controller
         $payload = [
             'name' => trim($validated['name']),
             'prompt_text' => $validated['prompt_text'],
+            'product_placement_prompt' => blank($validated['product_placement_prompt'] ?? null) ? null : trim($validated['product_placement_prompt']),
             'preview_images' => array_merge($remaining, $this->storePreviewImages($newFiles)),
             'allowed_size_keys' => $this->normaliseSizeKeys($validated['allowed_size_keys'] ?? null),
             'product_required' => $request->boolean('product_required'),
@@ -145,6 +147,7 @@ class FestivalAiStylePresetController extends Controller
         return $request->validate([
             'name' => ['required', 'string', 'max:150'],
             'prompt_text' => ['required', 'string', 'max:10000'],
+            'product_placement_prompt' => ['nullable', 'string', 'max:3000'],
             'allowed_size_keys' => ['nullable', 'array'],
             'allowed_size_keys.*' => ['string', Rule::in(array_keys(self::SIZE_OPTIONS))],
             'sort_order' => ['nullable', 'integer', 'min:0'],

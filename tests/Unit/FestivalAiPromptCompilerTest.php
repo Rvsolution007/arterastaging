@@ -45,6 +45,9 @@ class FestivalAiPromptCompilerTest extends TestCase
         $this->assertStringContainsString('AI-BUILT BUSINESS HEADER AND FOOTER', $prompt);
         $this->assertStringContainsString('RV Solutions', $prompt);
         $this->assertStringContainsString('Phone: 9876543210', $prompt);
+        $this->assertStringContainsString('SELECTED STYLE PRODUCT PLACEMENT', $prompt);
+        $this->assertStringContainsString('upper-right supporting area', $prompt);
+        $this->assertTrue($result['diagnostics']['style_product_placement_enabled']);
         $this->assertDoesNotMatchRegularExpression('/\[[A-Z][A-Z0-9 _-]{0,60}\]/iu', $prompt);
         $this->assertDoesNotMatchRegularExpression('/Hindi|Devanagari|1080x1080|Festival\s*>\s*Main Character\s*>\s*Product|3D-rendered product|offering to the deity/iu', $prompt);
         $this->assertDoesNotMatchRegularExpression('/uploaded logo|unique footer|different premium header/iu', $prompt);
@@ -139,6 +142,7 @@ class FestivalAiPromptCompilerTest extends TestCase
 
         $style = new FestivalAiStyle([
             'name' => 'Gold Background',
+            'product_placement_prompt' => 'Place Commercial juicer centre-left and keep Bal Krishna in the upper-right supporting area.',
             'prompt_text' => implode("\n", [
                 'Create a 1:1 1080x1080 premium poster.',
                 'Use Hindi Devanagari typography for [PRIMARY TEXT].',

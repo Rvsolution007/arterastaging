@@ -49,8 +49,9 @@
         </div>
 
         <div class="form-group">
-          <label><strong>Product / service placement prompt</strong> <small class="text-muted">optional</small></label>
-          <textarea class="form-control" rows="3" name="product_prompt" maxlength="3000" placeholder="Explain how a product selected or uploaded by the user should be integrated into the festival composition.">{{ old('product_prompt', $config->product_prompt) }}</textarea>
+          <label><strong>Universal product / service rule</strong> <small class="text-muted">optional</small></label>
+          <textarea class="form-control" rows="3" name="product_prompt" maxlength="3000" placeholder="Add only product-wide rules that must apply to every selected style, such as preserving the label and keeping the product visible.">{{ old('product_prompt', $config->product_prompt) }}</textarea>
+          <small class="form-text text-muted">Not required for a festival without a product. Exact product position for each look is set in Festival Styles → Product placement for this style.</small>
         </div>
 
         <div class="row">
@@ -65,7 +66,7 @@
                 <option value="{{ $preset->id }}" @selected((int) old('festival_ai_brand_chrome_preset_id', $config->festival_ai_brand_chrome_preset_id) === $preset->id)>{{ $preset->name }}</option>
               @endforeach
             </select>
-            <small class="form-text text-muted">When selected, the generated visual reserves branded top and bottom zones. The current business logo and only visible business details are added automatically; fields set to Hide in frame are excluded.</small>
+            <small class="form-text text-muted">When selected, Artera AI receives the current business logo and only visible business details to build into the same generated image. Fields set to Hide in frame are excluded.</small>
           </div>
 
           <div class="form-group col-md-6">

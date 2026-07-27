@@ -66,7 +66,8 @@ class FestivalAiPromptCompiler
         $rawBase = trim((string) $config->base_prompt);
         $rawStyle = trim((string) $style->prompt_text);
         $rawProduct = $hasProducts ? trim((string) $config->product_prompt) : '';
-        $relevantSource = implode("\n", [$rawBase, $rawStyle, $rawProduct]);
+        $rawStylePlacement = $hasProducts ? trim((string) $style->product_placement_prompt) : '';
+        $relevantSource = implode("\n", [$rawBase, $rawStyle, $rawProduct, $rawStylePlacement]);
         $replacedPlaceholders = collect(array_keys($replacementMap))
             ->filter(fn (string $placeholder) => stripos($relevantSource, $placeholder) !== false)
             ->values()
@@ -75,7 +76,8 @@ class FestivalAiPromptCompiler
         $base = str_ireplace(array_keys($replacementMap), array_values($replacementMap), $rawBase);
         $styleSource = str_ireplace(array_keys($replacementMap), array_values($replacementMap), $rawStyle);
         $productSource = str_ireplace(array_keys($replacementMap), array_values($replacementMap), $rawProduct);
-        $remainingPlaceholders = $this->placeholders(implode("\n", [$base, $styleSource, $productSource]));
+        $stylePlacementSource = str_ireplace(array_keys($replacementMap), array_values($replacementMap), $rawStylePlacement);
+        $remainingPlaceholders = $this->placeholders(implode("\n", [$base, $styleSource, $productSource, $stylePlacementSource]));
         if ($remainingPlaceholders !== []) {
             throw new \DomainException(
                 'The selected Festival AI prompts contain unsupported placeholders: '
@@ -87,6 +89,7 @@ class FestivalAiPromptCompiler
         $festivalSource = $this->sanitiseSource($base, 'festival', $languageTitle, 1500, 12);
         $visualSource = $this->sanitiseSource($styleSource, 'style', $languageTitle, 1300, 10);
         $productRules = $this->sanitiseSource($productSource, 'product', $languageTitle, 700, 8);
+        $stylePlacementRules = $this->sanitiseSource($stylePlacementSource, 'style_placement', $languageTitle, 900, 8);
         $headerDirection = $this->sanitiseSource(
             (string) ($brandChrome['header_prompt'] ?? ''),
             'chrome',
@@ -132,6 +135,9 @@ class FestivalAiPromptCompiler
                 'PRODUCT REFERENCE — HIGHEST VISUAL PRIORITY:',
                 'The attached reference image(s) are mandatory visual source material for: ' . $productSubject . '.',
                 $productRules['text'] !== '' ? $productRules['text'] : null,
+                $stylePlacementRules['text'] !== ''
+                    ? "SELECTED STYLE PRODUCT PLACEMENT:\n{$stylePlacementRules['text']}"
+                    : null,
                 'Keep the physical product shape, proportions, colour, material, visible label and logo recognisable.',
                 'If a reference is a marketing poster, isolate its physical product and ignore that poster’s background, headline, contacts, badges and decorative layout.',
                 'Show exactly one intentional instance of each attached product. Never duplicate it, convert it into festival food or a religious object, replace it, or hide it behind decorations.',
@@ -188,6 +194,7 @@ class FestivalAiPromptCompiler
             'festival' => $festivalSource,
             'style' => $visualSource,
             'product' => $productRules,
+            'style_placement' => $stylePlacementRules,
             'header' => $headerDirection,
             'footer' => $footerDirection,
         ];
@@ -213,6 +220,7 @@ class FestivalAiPromptCompiler
                     ->all(),
                 'text_policy' => 'one_headline_plus_optional_short_blessing_plus_approved_business_chrome',
                 'product_names' => $productNames,
+                'style_product_placement_enabled' => $stylePlacementRules['text'] !== '',
                 'output_size_key' => $sizeKey,
                 'output_size' => $sizeValue,
                 'header_safe_zone_percent' => $brandingEnabled ? $headerPercent : 0,
@@ -350,6 +358,14 @@ class FestivalAiPromptCompiler
         if ($section === 'product' && (
             preg_match('/festival\s*>\s*(main\s*)?character\s*>\s*product/iu', $fragment)
             || preg_match('/\b(product\s+(is\s+)?(secondary|tertiary)|main character first)\b/iu', $fragment)
+            || preg_match('/\b(blessing|blessings|offering|sacred presentation|deity endorsement|offer to (the )?deity|divine protection|divine grace)\b/iu', $fragment)
+        )) {
+            return true;
+        }
+
+        if ($section === 'style_placement' && (
+            preg_match('/\b(ignore|override|disregard|reveal|print|repeat)\b.{0,60}\b(system|developer|prompt|instruction|policy|secret)\b/iu', $fragment)
+            || preg_match('/\b(logo|business name|phone|email|website|address|contact|header|footer)\b/iu', $fragment)
             || preg_match('/\b(blessing|blessings|offering|sacred presentation|deity endorsement|offer to (the )?deity|divine protection|divine grace)\b/iu', $fragment)
         )) {
             return true;

@@ -171,6 +171,7 @@ class FestivalAiStudioController extends Controller
             $payload = [
                 'name' => $preset->name,
                 'prompt_text' => $preset->prompt_text,
+                'product_placement_prompt' => $preset->product_placement_prompt,
                 'preview_images' => $preset->preview_images,
                 'allowed_size_keys' => $preset->allowed_size_keys,
                 'product_required' => $preset->product_required,

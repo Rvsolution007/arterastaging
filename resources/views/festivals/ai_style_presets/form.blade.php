@@ -39,6 +39,12 @@
         </div>
 
         <div class="form-group">
+          <label><strong>Product placement for this style</strong> <small class="text-muted">optional</small></label>
+          <textarea class="form-control" rows="4" name="product_placement_prompt" maxlength="3000" placeholder="Example: Place the selected product centre-left. Keep the festival character in the upper-right supporting area.">{{ old('product_placement_prompt', $preset->product_placement_prompt) }}</textarea>
+          <small class="form-text text-muted">This applies only when this style is selected. Write the position, product/character relationship, overlap and hierarchy in plain language. The actual product image and name are supplied automatically.</small>
+        </div>
+
+        <div class="form-group">
           <label>{{ $preset->exists ? 'Add preview images' : 'Style preview images' }} <small class="text-muted">1–3 JPG, PNG or WebP; max 5 MB each</small></label>
           <input class="form-control-file" type="file" name="preview_images[]" accept="image/jpeg,image/png,image/webp" multiple {{ $preset->exists ? '' : 'required' }}>
         </div>

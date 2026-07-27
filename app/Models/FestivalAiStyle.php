@@ -10,7 +10,7 @@ class FestivalAiStyle extends Model
     use HasFactory;
 
     protected $fillable = [
-        'festival_ai_config_id', 'festival_ai_style_preset_id', 'name', 'prompt_text', 'preview_images',
+        'festival_ai_config_id', 'festival_ai_style_preset_id', 'name', 'prompt_text', 'product_placement_prompt', 'preview_images',
         'allowed_size_keys', 'product_required', 'sort_order', 'status',
     ];
 

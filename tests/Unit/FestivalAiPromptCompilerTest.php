@@ -53,7 +53,9 @@ class FestivalAiPromptCompilerTest extends TestCase
         $this->assertDoesNotMatchRegularExpression('/uploaded logo|unique footer|different premium header/iu', $prompt);
         $this->assertSame(11, $result['diagnostics']['header_safe_zone_percent']);
         $this->assertSame(9, $result['diagnostics']['footer_safe_zone_percent']);
-        $this->assertSame(3, $result['diagnostics']['compiler_version']);
+        $this->assertSame(4, $result['diagnostics']['compiler_version']);
+        $this->assertSame('provider_prompt_and_reference_image_only', $result['diagnostics']['branding_render_mode']);
+        $this->assertFalse($result['diagnostics']['post_generation_branding_overlay']);
     }
 
     public function test_unknown_relevant_placeholder_blocks_but_unused_product_prompt_does_not(): void

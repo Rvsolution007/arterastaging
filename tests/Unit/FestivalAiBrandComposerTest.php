@@ -19,7 +19,7 @@ class FestivalAiBrandComposerTest extends TestCase
         $this->assertSame($source, $result);
     }
 
-    public function test_legacy_snapshot_and_structured_overlay_produce_valid_same_size_png(): void
+    public function test_legacy_callers_cannot_add_a_branding_overlay(): void
     {
         $source = $this->solidPng();
         $result = app(FestivalAiBrandComposer::class)->compose(
@@ -28,11 +28,7 @@ class FestivalAiBrandComposerTest extends TestCase
             ['header_prompt' => 'legacy header', 'footer_prompt' => 'legacy footer']
         );
 
-        $this->assertNotSame($source, $result);
-        $size = getimagesizefromstring($result);
-        $this->assertIsArray($size);
-        $this->assertSame(320, $size[0]);
-        $this->assertSame(320, $size[1]);
+        $this->assertSame($source, $result);
     }
 
     public function test_invalid_image_and_empty_visible_business_are_unchanged(): void

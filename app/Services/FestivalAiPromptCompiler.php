@@ -202,7 +202,11 @@ class FestivalAiPromptCompiler
         return [
             'prompt' => $compiled,
             'diagnostics' => [
-                'compiler_version' => 3,
+                'compiler_version' => 4,
+                'branding_render_mode' => $brandingEnabled
+                    ? 'provider_prompt_and_reference_image_only'
+                    : 'no_business_branding',
+                'post_generation_branding_overlay' => false,
                 'prompt_sha256' => hash('sha256', $compiled),
                 'prompt_characters' => mb_strlen($compiled),
                 'estimated_prompt_tokens' => (int) ceil(mb_strlen($compiled) / 4),

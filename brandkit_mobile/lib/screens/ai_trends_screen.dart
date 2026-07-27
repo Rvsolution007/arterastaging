@@ -21,6 +21,8 @@ class AiTrendsScreen extends StatefulWidget {
 
 class _AiTrendsScreenState extends State<AiTrendsScreen> {
   final TextEditingController _instructionController = TextEditingController();
+  final TextEditingController _uploadedProductNameController =
+      TextEditingController();
   final Set<int> _selectedProductIds = <int>{};
   XFile? _uploadedProductImage;
   String? _productMode;
@@ -55,6 +57,7 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
   @override
   void dispose() {
     _instructionController.dispose();
+    _uploadedProductNameController.dispose();
     super.dispose();
   }
 
@@ -82,18 +85,23 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
       for (final item in models) {
         final model = Map<String, dynamic>.from(item as Map);
         Map<String, dynamic>? firstAvailable;
+        Map<String, dynamic>? defaultAvailable;
+        final defaultQuality = model['default_quality']?.toString();
         for (final item in List<dynamic>.from(
           model['quality_variants'] ?? [],
         )) {
           final variant = Map<String, dynamic>.from(item as Map);
           if (variant['is_available'] == true) {
-            firstAvailable = variant;
-            break;
+            firstAvailable ??= variant;
+            if (variant['key']?.toString() == defaultQuality) {
+              defaultAvailable = variant;
+            }
           }
         }
-        if (firstAvailable != null) {
+        final preferredVariant = defaultAvailable ?? firstAvailable;
+        if (preferredVariant != null) {
           initialModel = model;
-          initialQuality = firstAvailable['key']?.toString();
+          initialQuality = preferredVariant['key']?.toString();
           break;
         }
       }
@@ -128,10 +136,6 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
   }
 
   List<dynamic> get _styles => List<dynamic>.from(_festival?['styles'] ?? []);
-
-  List<String> get _qualities => List<String>.from(
-    _model?['qualities'] ?? [],
-  ).map((value) => value.toString()).toList();
 
   List<Map<String, dynamic>> get _modelVariants => _models.expand((item) {
     final model = Map<String, dynamic>.from(item as Map);
@@ -173,6 +177,9 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
       : int.tryParse(_model?['max_product_images']?.toString() ?? '0') ?? 0;
 
   bool get _styleNeedsProduct => _style?['product_required'] == true;
+  bool get _allowProductUpload => _festival?['allow_product_upload'] == true;
+  bool get _requiresUploadedProductName =>
+      _festival?['require_product_name_for_upload'] == true;
 
   void _selectFestival(Map<String, dynamic>? festival) {
     if (festival == null) return;
@@ -185,6 +192,7 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
       _uploadedProductImage = null;
       _productMode = null;
       _instructionController.clear();
+      _uploadedProductNameController.clear();
       _ensureSelections();
     });
   }
@@ -203,6 +211,7 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
       _uploadedProductImage = null;
       _productMode = null;
       _instructionController.clear();
+      _uploadedProductNameController.clear();
       _ensureSelections();
     });
   }
@@ -265,8 +274,20 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
   }
 
   void _ensureSelections() {
-    if (!_qualities.contains(_quality)) {
-      _quality = _qualities.isNotEmpty ? _qualities.first : null;
+    final availableQualities =
+        List<dynamic>.from(_model?['quality_variants'] ?? [])
+            .map((item) => Map<String, dynamic>.from(item as Map))
+            .where((variant) => variant['is_available'] == true)
+            .map((variant) => variant['key']?.toString())
+            .whereType<String>()
+            .toList();
+    final preferredQuality = _model?['default_quality']?.toString();
+    if (!availableQualities.contains(_quality)) {
+      _quality =
+          preferredQuality != null &&
+              availableQualities.contains(preferredQuality)
+          ? preferredQuality
+          : (availableQualities.isNotEmpty ? availableQualities.first : null);
     }
     final validKeys = _availableSizes
         .map((size) => size['key']?.toString())
@@ -307,6 +328,7 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
         _productMode = 'choose';
         _uploadedProductImage = null;
         _instructionController.clear();
+        _uploadedProductNameController.clear();
       });
       await _loadProducts();
       if (!mounted) return;
@@ -497,6 +519,13 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
       );
       return;
     }
+    if (!_allowProductUpload) {
+      _showMessage(
+        'Product photo upload is not enabled for this festival.',
+        isError: true,
+      );
+      return;
+    }
 
     final image = await ImagePicker().pickImage(
       source: ImageSource.gallery,
@@ -508,6 +537,7 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
       _productMode = 'upload';
       _uploadedProductImage = image;
       _selectedProductIds.clear();
+      _uploadedProductNameController.clear();
     });
   }
 
@@ -517,6 +547,7 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
       _uploadedProductImage = null;
       _selectedProductIds.clear();
       _instructionController.clear();
+      _uploadedProductNameController.clear();
     });
   }
 
@@ -550,6 +581,12 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
       _showMessage('Upload a product photo before generating.', isError: true);
       return;
     }
+    if (_productMode == 'upload' &&
+        _requiresUploadedProductName &&
+        _uploadedProductNameController.text.trim().isEmpty) {
+      _showMessage('Enter the uploaded product name first.', isError: true);
+      return;
+    }
 
     setState(() {
       _submitting = true;
@@ -567,6 +604,7 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
         'user_instruction': _instructionController.text.trim(),
         'product_ids': _selectedProductIds.toList(),
         'product_mode': _productMode ?? 'none',
+        'uploaded_product_name': _uploadedProductNameController.text.trim(),
       };
       final response = _productMode == 'upload'
           ? await _createGenerationWithUpload(body)
@@ -1193,12 +1231,6 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
     );
   }
 
-  bool _isModelAvailable(Map<String, dynamic> model) {
-    final variants = List<dynamic>.from(model['quality_variants'] ?? []);
-    if (variants.isEmpty) return true;
-    return variants.any((v) => (v as Map)['is_available'] == true);
-  }
-
   Widget _modelSelector() {
     final variants = _modelVariants;
     // Find currently selected variant display name
@@ -1642,7 +1674,7 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
                   title: uploading ? 'Photo selected' : 'Upload product',
                   icon: Icons.add_photo_alternate_outlined,
                   active: uploading,
-                  disabled: choosing || !canUseProduct,
+                  disabled: choosing || !canUseProduct || !_allowProductUpload,
                   onTap: _pickUploadedProduct,
                 ),
               ),
@@ -1666,6 +1698,8 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
             ),
           if (uploading) ...[
             _uploadedProductSummary(),
+            const SizedBox(height: 10),
+            _uploadedProductNameField(),
             const SizedBox(height: 10),
             _instructionCard(),
           ],
@@ -1746,6 +1780,35 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
       ],
     ),
   );
+
+  Widget _uploadedProductNameField() {
+    return TextField(
+      controller: _uploadedProductNameController,
+      maxLength: 150,
+      textInputAction: TextInputAction.next,
+      decoration: InputDecoration(
+        labelText: _requiresUploadedProductName
+            ? 'Product name *'
+            : 'Product name',
+        hintText: 'e.g. Commercial juicer',
+        counterText: '',
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 13,
+          vertical: 12,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF6366F1)),
+        ),
+      ),
+    );
+  }
 
   Widget _instructionCard() {
     final max =

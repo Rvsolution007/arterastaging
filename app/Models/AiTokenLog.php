@@ -106,6 +106,13 @@ class AiTokenLog extends Model
             + $imageRate;
 
         $sourceReference = self::festivalSourceReference($generation->id);
+        $diagnostics = (array) $generation->request_diagnostics;
+        $actualReferenceCount = (int) data_get(
+            $diagnostics,
+            'attached_reference_count',
+            $generation->actual_reference_count ?? 0
+        );
+        $actualEndpoint = (string) data_get($diagnostics, 'endpoint', '');
 
         return self::firstOrCreate(['source_reference' => $sourceReference], [
             'user_id' => $generation->user_id,
@@ -124,8 +131,10 @@ class AiTokenLog extends Model
                 'quality' => $generation->quality,
                 'size' => $generation->size_value,
                 'size_key' => $generation->size_key,
-                'reference_image_count' => count((array) $generation->product_snapshot),
-                'mode' => count((array) $generation->product_snapshot) > 0 ? 'edit_with_reference' : 'generate',
+                'reference_image_count' => $actualReferenceCount,
+                'mode' => $actualEndpoint === '/v1/images/edits' || $actualReferenceCount > 0
+                    ? 'edit_with_reference'
+                    : 'generate',
             ],
             'source_reference' => $sourceReference,
             'cost_inr' => round($usdCost * $exchangeRate, 4),

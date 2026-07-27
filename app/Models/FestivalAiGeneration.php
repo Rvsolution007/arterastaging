@@ -13,7 +13,8 @@ class FestivalAiGeneration extends Model
     protected $fillable = [
         'request_id', 'user_id', 'subscription_id', 'festival_id', 'language_id', 'festival_ai_style_id',
         'ai_image_model_id', 'provider', 'provider_model_id', 'quality', 'size_key',
-        'size_value', 'user_instruction', 'final_prompt', 'product_snapshot', 'business_snapshot',
+        'size_value', 'user_instruction', 'final_prompt', 'request_diagnostics',
+        'actual_reference_count', 'product_snapshot', 'business_snapshot',
         'brand_chrome_snapshot', 'status',
         'attempt_count', 'quota_reserved_at', 'quota_refunded_at', 'generated_image_path',
         'error_code', 'error_message', 'started_at', 'completed_at',
@@ -23,6 +24,8 @@ class FestivalAiGeneration extends Model
         'product_snapshot' => 'array',
         'business_snapshot' => 'array',
         'brand_chrome_snapshot' => 'array',
+        'request_diagnostics' => 'array',
+        'actual_reference_count' => 'integer',
         'quota_reserved_at' => 'datetime',
         'quota_refunded_at' => 'datetime',
         'started_at' => 'datetime',

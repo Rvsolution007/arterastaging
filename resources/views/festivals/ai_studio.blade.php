@@ -19,6 +19,19 @@
     Enable this only after saving a <strong>Festival Prompt</strong> and selecting at least one active <strong>Festival Style</strong>.
   </div>
 
+  @php($visiblePromptAudit = session('prompt_warnings', $promptAudit ?? []))
+  @if(!empty($visiblePromptAudit))
+    <div class="alert alert-warning border-0 shadow-sm">
+      <div class="font-weight-bold mb-2"><i class="fa fa-exclamation-triangle mr-1"></i> Prompt quality check</div>
+      <ul class="mb-0 pl-3">
+        @foreach($visiblePromptAudit as $warning)
+          <li class="mb-1">{{ $warning }}</li>
+        @endforeach
+      </ul>
+      <small class="d-block mt-2">The request compiler protects new generations from these conflicts, but cleaning the saved prompts will make results more consistent.</small>
+    </div>
+  @endif
+
   <div class="card shadow-sm mb-4">
     <div class="card-header bg-white"><strong>Festival AI rules</strong></div>
     <div class="card-body">

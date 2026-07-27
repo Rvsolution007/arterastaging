@@ -8,6 +8,7 @@ use App\Models\FestivalAiBrandChromePreset;
 use App\Models\FestivalAiStyle;
 use App\Models\FestivalAiStylePreset;
 use App\Models\Festivals;
+use App\Services\FestivalAiPromptCompiler;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -20,14 +21,16 @@ class FestivalAiStudioController extends Controller
         'portrait' => 'Story / Portrait (9:16)',
     ];
 
-    public function __construct()
+    public function __construct(private FestivalAiPromptCompiler $promptCompiler)
     {
         $this->middleware('permission:Festival');
     }
 
     public function edit(Festivals $festival)
     {
-        $config = FestivalAiConfig::with('styles')->where('festival_id', $festival->id)->first();
+        $config = FestivalAiConfig::with(['styles', 'brandChromePreset'])
+            ->where('festival_id', $festival->id)
+            ->first();
         if (!$config) {
             $config = new FestivalAiConfig([
                 'festival_id' => $festival->id,
@@ -56,6 +59,16 @@ class FestivalAiStudioController extends Controller
             ->filter()
             ->map(fn ($id) => (int) $id)
             ->all();
+        $promptAudit = $this->promptCompiler->audit(
+            $config->base_prompt,
+            $styles->where('status', true)->pluck('prompt_text')->implode("\n"),
+            $config->product_prompt,
+            implode("\n", array_filter([
+                optional($config->brandChromePreset)->header_prompt,
+                optional($config->brandChromePreset)->footer_prompt,
+            ])),
+            $festival->title
+        );
 
         return view('festivals.ai_studio', compact(
             'festival',
@@ -63,7 +76,8 @@ class FestivalAiStudioController extends Controller
             'styles',
             'stylePresets',
             'brandChromePresets',
-            'selectedStylePresetIds'
+            'selectedStylePresetIds',
+            'promptAudit'
         ))->with('sizeOptions', self::SIZE_OPTIONS);
     }
 
@@ -123,7 +137,21 @@ class FestivalAiStudioController extends Controller
 
         $this->syncStylePresets($config, $stylePresetIds);
 
-        return back()->with('success', 'Festival AI settings and selected styles saved.');
+        $config->load(['styles', 'brandChromePreset']);
+        $promptAudit = $this->promptCompiler->audit(
+            $config->base_prompt,
+            $config->styles->where('status', true)->pluck('prompt_text')->implode("\n"),
+            $config->product_prompt,
+            implode("\n", array_filter([
+                optional($config->brandChromePreset)->header_prompt,
+                optional($config->brandChromePreset)->footer_prompt,
+            ])),
+            $festival->title
+        );
+
+        return back()
+            ->with('success', 'Festival AI settings and selected styles saved.')
+            ->with('prompt_warnings', $promptAudit);
     }
 
     private function syncStylePresets(FestivalAiConfig $config, array $presetIds): void

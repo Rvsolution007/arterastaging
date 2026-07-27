@@ -26,7 +26,16 @@ class FestivalAiBrandChromePresetController extends Controller
     public function create()
     {
         return view('festivals.ai_brand_chrome_presets.form', [
-            'preset' => new FestivalAiBrandChromePreset(['status' => true]),
+            'preset' => new FestivalAiBrandChromePreset([
+                'status' => true,
+                'overlay_enabled' => true,
+                'header_height_percent' => 12,
+                'footer_height_percent' => 10,
+                'panel_style' => 'adaptive',
+                'logo_position' => 'left',
+                'text_tone' => 'auto',
+                'max_contact_items' => 4,
+            ]),
         ]);
     }
 
@@ -67,6 +76,12 @@ class FestivalAiBrandChromePresetController extends Controller
             'name' => ['required', 'string', 'max:150'],
             'header_prompt' => ['nullable', 'string', 'max:5000'],
             'footer_prompt' => ['nullable', 'string', 'max:5000'],
+            'header_height_percent' => ['required', 'integer', 'min:6', 'max:20'],
+            'footer_height_percent' => ['required', 'integer', 'min:6', 'max:20'],
+            'panel_style' => ['required', 'string', 'in:adaptive,light,dark,none'],
+            'logo_position' => ['required', 'string', 'in:left,right'],
+            'text_tone' => ['required', 'string', 'in:auto,light,dark'],
+            'max_contact_items' => ['required', 'integer', 'min:1', 'max:8'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
 
@@ -74,6 +89,13 @@ class FestivalAiBrandChromePresetController extends Controller
             'name' => trim($validated['name']),
             'header_prompt' => blank($validated['header_prompt'] ?? null) ? null : trim($validated['header_prompt']),
             'footer_prompt' => blank($validated['footer_prompt'] ?? null) ? null : trim($validated['footer_prompt']),
+            'overlay_enabled' => $request->boolean('overlay_enabled'),
+            'header_height_percent' => $validated['header_height_percent'],
+            'footer_height_percent' => $validated['footer_height_percent'],
+            'panel_style' => $validated['panel_style'],
+            'logo_position' => $validated['logo_position'],
+            'text_tone' => $validated['text_tone'],
+            'max_contact_items' => $validated['max_contact_items'],
             'sort_order' => $validated['sort_order'] ?? 0,
             'status' => $request->boolean('status'),
         ];

@@ -39,7 +39,32 @@ class FestivalAiImageService
             'n' => 1,
         ];
 
+        $expectedReferenceCount = collect((array) $generation->product_snapshot)
+            ->filter(fn ($product) => is_array($product))
+            ->count();
         $references = $this->referenceImages((array) $generation->product_snapshot);
+        if (count($references) !== $expectedReferenceCount) {
+            $this->updateDiagnostics($generation, [
+                'expected_reference_count' => $expectedReferenceCount,
+                'attached_reference_count' => count($references),
+                'reference_validation' => 'failed',
+            ]);
+
+            throw new RuntimeException(
+                'Artera AI could not read every selected product image. '
+                . 'Please upload or select the product again; your quota was restored.'
+            );
+        }
+
+        $endpoint = empty($references) ? '/v1/images/generations' : '/v1/images/edits';
+        $generation->update(['actual_reference_count' => count($references)]);
+        $this->updateDiagnostics($generation, [
+            'endpoint' => $endpoint,
+            'expected_reference_count' => $expectedReferenceCount,
+            'attached_reference_count' => count($references),
+            'reference_validation' => 'passed',
+        ]);
+
         $request = Http::withToken($apiKey)->acceptJson()->timeout(150);
 
         try {
@@ -70,6 +95,10 @@ class FestivalAiImageService
                 'model' => $generation->provider_model_id,
                 'provider_code' => $providerCode ?: null,
             ]);
+            $this->updateDiagnostics($generation, [
+                'provider_status_code' => $response->status(),
+                'provider_error_code' => $providerCode ?: null,
+            ]);
             throw new RuntimeException($this->providerFailureMessage(
                 $response->status(),
                 $providerCode,
@@ -78,6 +107,11 @@ class FestivalAiImageService
         }
 
         $responsePayload = (array) $response->json();
+        $this->updateDiagnostics($generation, [
+            'provider_request_id' => $response->header('x-request-id'),
+            'provider_status_code' => $response->status(),
+            'provider_response_created' => data_get($responsePayload, 'created'),
+        ]);
         $base64 = data_get($responsePayload, 'data.0.b64_json');
         if (!is_string($base64) || $base64 === '') {
             throw new RuntimeException('The image provider returned an invalid image result.');
@@ -91,27 +125,66 @@ class FestivalAiImageService
         // The provider receives the admin's header/footer visual prompts.
         // This pass places the exact current business logo/details deterministically
         // and never depends on frame/editor rendering or AI-generated text.
+        $providerBinary = $binary;
+        $overlayRequested = (bool) data_get($generation->brand_chrome_snapshot, 'overlay_enabled', true)
+            && (array) $generation->brand_chrome_snapshot !== []
+            && (array) $generation->business_snapshot !== [];
         $binary = $this->brandComposer->compose(
             $binary,
             (array) $generation->business_snapshot,
             (array) $generation->brand_chrome_snapshot
         );
+        $this->updateDiagnostics($generation, [
+            'branding_overlay_requested' => $overlayRequested,
+            'branding_overlay_applied' => $overlayRequested && $binary !== $providerBinary,
+            'branding_overlay_result' => !$overlayRequested
+                ? 'not_requested'
+                : ($binary !== $providerBinary ? 'applied' : 'skipped_or_no_visible_fields'),
+        ]);
 
         $fileName = Str::uuid() . '.png';
         $relativePath = 'festival_ai/' . $fileName;
 
-        if (StorageSetting::getStorageSetting('storage') === 'DigitalOcean') {
-            Storage::disk('spaces')->put('uploads/' . $relativePath, $binary, 'public');
-        } else {
-            $directory = public_path('uploads/festival_ai');
-            File::ensureDirectoryExists($directory);
-            file_put_contents($directory . DIRECTORY_SEPARATOR . $fileName, $binary);
+        try {
+            if (StorageSetting::getStorageSetting('storage') === 'DigitalOcean') {
+                $stored = Storage::disk('spaces')->put('uploads/' . $relativePath, $binary, 'public');
+                if (!$stored) {
+                    throw new RuntimeException('Artera AI could not save the generated image. Your quota was restored.');
+                }
+            } else {
+                $directory = public_path('uploads/festival_ai');
+                File::ensureDirectoryExists($directory);
+                $stored = file_put_contents($directory . DIRECTORY_SEPARATOR . $fileName, $binary);
+                if ($stored === false) {
+                    throw new RuntimeException('Artera AI could not save the generated image. Your quota was restored.');
+                }
+            }
+        } catch (\Throwable $exception) {
+            if ($exception instanceof RuntimeException
+                && str_starts_with($exception->getMessage(), 'Artera AI could not save')) {
+                throw $exception;
+            }
+            throw new RuntimeException(
+                'Artera AI could not save the generated image. Your quota was restored.',
+                0,
+                $exception
+            );
         }
 
         return [
             'path' => $relativePath,
             'usage' => (array) data_get($responsePayload, 'usage', []),
         ];
+    }
+
+    private function updateDiagnostics(FestivalAiGeneration $generation, array $updates): void
+    {
+        $diagnostics = array_merge((array) $generation->request_diagnostics, array_filter(
+            $updates,
+            static fn ($value) => $value !== null
+        ));
+        $generation->update(['request_diagnostics' => $diagnostics]);
+        $generation->setAttribute('request_diagnostics', $diagnostics);
     }
 
     private function referenceImages(array $products): array
@@ -141,30 +214,64 @@ class FestivalAiImageService
     private function imageContents(string $image): ?string
     {
         if (filter_var($image, FILTER_VALIDATE_URL)) {
-            $response = Http::timeout(20)->get($image);
-            return $response->successful() ? $response->body() : null;
+            try {
+                $response = Http::timeout(20)->get($image);
+                if (!$response->successful()) {
+                    return null;
+                }
+
+                return $this->validImageContents($response->body());
+            } catch (\Throwable) {
+                return null;
+            }
         }
 
-        $relativePath = ltrim(str_replace('uploads/', '', $image), '/\\');
-        $localPaths = [
-            public_path('uploads/' . $relativePath),
-            base_path('uploads/' . $relativePath),
-        ];
-
-        foreach ($localPaths as $path) {
-            if (is_file($path)) {
-                return file_get_contents($path) ?: null;
+        // Strip only an actual leading uploads/ segment. The previous global
+        // replacement corrupted valid paths such as festival_ai_uploads/x.jpg.
+        $normalised = str_replace('\\', '/', trim($image));
+        $relativePath = preg_replace('#^/?uploads/#i', '', $normalised) ?? $normalised;
+        $relativePath = ltrim($relativePath, '/');
+        if (preg_match('#(^|/)\.{1,2}(/|$)#', $relativePath)) {
+            return null;
+        }
+        foreach ([public_path('uploads'), base_path('uploads')] as $root) {
+            $rootPath = realpath($root);
+            $candidate = realpath($root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relativePath));
+            if (
+                $rootPath !== false
+                && $candidate !== false
+                && str_starts_with(
+                    strtolower($candidate),
+                    strtolower(rtrim($rootPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)
+                )
+                && is_file($candidate)
+            ) {
+                $contents = file_get_contents($candidate);
+                return $contents === false ? null : $this->validImageContents($contents);
             }
         }
 
         if (StorageSetting::getStorageSetting('storage') === 'DigitalOcean') {
             $remotePath = 'uploads/' . $relativePath;
             if (Storage::disk('spaces')->exists($remotePath)) {
-                return Storage::disk('spaces')->get($remotePath);
+                return $this->validImageContents(Storage::disk('spaces')->get($remotePath));
             }
         }
 
         return null;
+    }
+
+    private function validImageContents(string $contents): ?string
+    {
+        if ($contents === '' || strlen($contents) > 12 * 1024 * 1024) {
+            return null;
+        }
+
+        if (function_exists('getimagesizefromstring') && @getimagesizefromstring($contents) === false) {
+            return null;
+        }
+
+        return $contents;
     }
 
     private function providerFailureMessage(int $status, string $code, string $message): string

@@ -23,9 +23,28 @@ class BackfillFestivalAiAnalytics extends Command
             ->get();
 
         $created = 0;
+        $updated = 0;
         foreach ($generations as $generation) {
             $reference = AiTokenLog::festivalSourceReference($generation->id);
-            if (AiTokenLog::query()->where('source_reference', $reference)->exists()) {
+            $existing = AiTokenLog::query()->where('source_reference', $reference)->first();
+            if ($existing) {
+                $diagnostics = (array) $generation->request_diagnostics;
+                $actualReferenceCount = (int) data_get(
+                    $diagnostics,
+                    'attached_reference_count',
+                    $generation->actual_reference_count ?? 0
+                );
+                $endpoint = (string) data_get($diagnostics, 'endpoint', '');
+                $parameters = array_merge((array) $existing->parameters, [
+                    'reference_image_count' => $actualReferenceCount,
+                    'mode' => $endpoint === '/v1/images/edits' || $actualReferenceCount > 0
+                        ? 'edit_with_reference'
+                        : 'generate',
+                ]);
+                if ($parameters !== (array) $existing->parameters) {
+                    $existing->update(['parameters' => $parameters]);
+                    $updated++;
+                }
                 continue;
             }
 
@@ -33,7 +52,7 @@ class BackfillFestivalAiAnalytics extends Command
             $created++;
         }
 
-        $this->info("Festival AI analytics synced: {$created} new row(s), {$generations->count()} completed generation(s) checked.");
+        $this->info("Festival AI analytics synced: {$created} new row(s), {$updated} corrected row(s), {$generations->count()} completed generation(s) checked.");
 
         return self::SUCCESS;
     }

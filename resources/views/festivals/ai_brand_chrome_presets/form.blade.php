@@ -33,14 +33,67 @@
 
         <div class="form-group">
           <label><strong>Header prompt</strong> <small class="text-muted">optional</small></label>
-          <textarea class="form-control" rows="4" name="header_prompt" maxlength="5000" placeholder="Example: reserve a refined dark charcoal header band with a clean bright area for a business logo and name.">{{ old('header_prompt', $preset->header_prompt) }}</textarea>
-          <small class="form-text text-muted">Controls the top area's colour, texture and visual style. The real business logo and name are added after AI generation.</small>
+          <textarea class="form-control" rows="4" name="header_prompt" maxlength="5000" placeholder="Example: continue the festival artwork softly through the top safe zone with low visual detail and no text.">{{ old('header_prompt', $preset->header_prompt) }}</textarea>
+          <small class="form-text text-muted">This controls only the AI-generated background inside the top safe zone. Do not ask AI to draw, recolour or write the real logo/business name; the exact assets are added safely after generation.</small>
         </div>
 
         <div class="form-group">
           <label><strong>Footer prompt</strong> <small class="text-muted">optional</small></label>
-          <textarea class="form-control" rows="4" name="footer_prompt" maxlength="5000" placeholder="Example: reserve a calm matching footer strip with enough contrast for phone, email, website and address.">{{ old('footer_prompt', $preset->footer_prompt) }}</textarea>
-          <small class="form-text text-muted">Controls the lower contact area. Only fields currently enabled by the business owner are added.</small>
+          <textarea class="form-control" rows="4" name="footer_prompt" maxlength="5000" placeholder="Example: continue the same artwork into a calm low-detail bottom safe zone with no text or logos.">{{ old('footer_prompt', $preset->footer_prompt) }}</textarea>
+          <small class="form-text text-muted">This controls only the footer background. Exact visible contact fields are added afterwards; hidden business fields remain excluded.</small>
+        </div>
+
+        <div class="border rounded bg-light p-3 mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+              <strong>Exact business overlay</strong>
+              <div class="small text-muted">Controls the deterministic logo, name and contact layer applied after AI generation.</div>
+            </div>
+            <label class="mb-0"><input type="checkbox" name="overlay_enabled" value="1" @checked(old('overlay_enabled', $preset->overlay_enabled ?? true))> Enable overlay</label>
+          </div>
+          <div class="row">
+            <div class="col-md-2 form-group mb-md-0">
+              <label class="small font-weight-bold">Header height</label>
+              <div class="input-group input-group-sm">
+                <input class="form-control" type="number" min="6" max="20" name="header_height_percent" value="{{ old('header_height_percent', $preset->header_height_percent ?? 12) }}" required>
+                <div class="input-group-append"><span class="input-group-text">%</span></div>
+              </div>
+            </div>
+            <div class="col-md-2 form-group mb-md-0">
+              <label class="small font-weight-bold">Footer height</label>
+              <div class="input-group input-group-sm">
+                <input class="form-control" type="number" min="6" max="20" name="footer_height_percent" value="{{ old('footer_height_percent', $preset->footer_height_percent ?? 10) }}" required>
+                <div class="input-group-append"><span class="input-group-text">%</span></div>
+              </div>
+            </div>
+            <div class="col-md-2 form-group mb-md-0">
+              <label class="small font-weight-bold">Panel style</label>
+              <select class="form-control form-control-sm" name="panel_style" required>
+                @foreach(['adaptive' => 'Adaptive contrast', 'light' => 'Light glass', 'dark' => 'Dark glass', 'none' => 'No panel'] as $value => $label)
+                  <option value="{{ $value }}" @selected(old('panel_style', $preset->panel_style ?? 'adaptive') === $value)>{{ $label }}</option>
+                @endforeach
+              </select>
+            </div>
+            <div class="col-md-2 form-group mb-md-0">
+              <label class="small font-weight-bold">Logo position</label>
+              <select class="form-control form-control-sm" name="logo_position" required>
+                <option value="left" @selected(old('logo_position', $preset->logo_position ?? 'left') === 'left')>Left</option>
+                <option value="right" @selected(old('logo_position', $preset->logo_position ?? 'left') === 'right')>Right</option>
+              </select>
+            </div>
+            <div class="col-md-2 form-group mb-md-0">
+              <label class="small font-weight-bold">Text tone</label>
+              <select class="form-control form-control-sm" name="text_tone" required>
+                @foreach(['auto' => 'Auto contrast', 'light' => 'Light text', 'dark' => 'Dark text'] as $value => $label)
+                  <option value="{{ $value }}" @selected(old('text_tone', $preset->text_tone ?? 'auto') === $value)>{{ $label }}</option>
+                @endforeach
+              </select>
+            </div>
+            <div class="col-md-2 form-group mb-0">
+              <label class="small font-weight-bold">Max contacts</label>
+              <input class="form-control form-control-sm" type="number" min="1" max="8" name="max_contact_items" value="{{ old('max_contact_items', $preset->max_contact_items ?? 4) }}" required>
+            </div>
+          </div>
         </div>
 
         <div class="mb-4">

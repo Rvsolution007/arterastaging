@@ -15,6 +15,7 @@ use App\Models\Subscription;
 use App\Models\SubscriptionAiImageAccess;
 use App\Models\User;
 use App\Services\FestivalAiBusinessContextService;
+use App\Services\FestivalAiPromptCompiler;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -25,8 +26,10 @@ use Symfony\Component\HttpFoundation\Response;
 
 class FestivalAiGenerationController extends Controller
 {
-    public function __construct(private FestivalAiBusinessContextService $businessContext)
-    {
+    public function __construct(
+        private FestivalAiBusinessContextService $businessContext,
+        private FestivalAiPromptCompiler $promptCompiler
+    ) {
     }
 
     public function options(Request $request)
@@ -61,6 +64,8 @@ class FestivalAiGenerationController extends Controller
                     'image_url' => $this->assetUrl($festival->image),
                     'max_products' => $config->max_products,
                     'max_user_instruction_characters' => $config->max_user_instruction_characters,
+                    'allow_product_upload' => (bool) $config->allow_product_upload,
+                    'require_product_name_for_upload' => (bool) $config->require_product_name_for_upload,
                     'styles' => $config->styles->map(function ($style) use ($config) {
                         return [
                             'id' => $style->id,
@@ -114,6 +119,7 @@ class FestivalAiGenerationController extends Controller
             'product_ids' => ['nullable', 'array', 'max:3'],
             'product_ids.*' => ['integer', 'distinct'],
             'uploaded_product_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'uploaded_product_name' => ['nullable', 'string', 'max:150'],
         ]);
 
         $config = FestivalAiConfig::with([
@@ -152,8 +158,27 @@ class FestivalAiGenerationController extends Controller
         if ($products->isNotEmpty() && $uploadedProductImage) {
             return $this->error('Choose an existing product or upload a product photo, not both.', Response::HTTP_UNPROCESSABLE_ENTITY);
         }
+        if ($productMode === 'none' && ($products->isNotEmpty() || $uploadedProductImage)) {
+            return $this->error('Remove the product selection or choose the matching product source.', Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+        if ($productMode === 'choose' && $uploadedProductImage) {
+            return $this->error('Choose mode accepts saved products only.', Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+        if ($productMode === 'upload' && $products->isNotEmpty()) {
+            return $this->error('Upload mode accepts one uploaded product photo only.', Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
         if ($productMode === 'upload' && !$uploadedProductImage) {
             return $this->error('Upload a product photo before generating your visual.', Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+        if ($productMode === 'upload' && !$config->allow_product_upload) {
+            return $this->error('Product photo upload is not enabled for this festival.', Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+        if (
+            $productMode === 'upload'
+            && $config->require_product_name_for_upload
+            && blank($validated['uploaded_product_name'] ?? null)
+        ) {
+            return $this->error('Enter the uploaded product name before generating.', Response::HTTP_UNPROCESSABLE_ENTITY);
         }
         if ($productMode === 'choose' && $products->isEmpty()) {
             return $this->error('Choose at least one product before generating your visual.', Response::HTTP_UNPROCESSABLE_ENTITY);
@@ -170,8 +195,18 @@ class FestivalAiGenerationController extends Controller
             return $this->error('Your instruction is longer than this festival allows.', Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        $storedUploadedProductPath = null;
         try {
-            $generation = DB::transaction(function () use ($user, $validated, $config, $style, $language, $products, $uploadedProductImage) {
+            $generation = DB::transaction(function () use (
+                $user,
+                $validated,
+                $config,
+                $style,
+                $language,
+                $products,
+                $uploadedProductImage,
+                &$storedUploadedProductPath
+            ) {
                 $lockedUser = User::lockForUpdate()->findOrFail($user->id);
                 $lockedUser->resetLimitsIfNeeded();
                 $plan = $lockedUser->active_subscription;
@@ -218,6 +253,9 @@ class FestivalAiGenerationController extends Controller
                 if ($referenceCount > 0 && !$model->supports_reference_images) {
                     throw new \DomainException('The selected model does not accept product reference images.');
                 }
+                if ($referenceCount > 0 && !$model->supports_edits) {
+                    throw new \DomainException('The selected model cannot edit product reference images.');
+                }
 
                 $limit = (int) $plan->ai_image_limit;
                 if ((int) $lockedUser->ai_image_used >= $limit) {
@@ -234,16 +272,49 @@ class FestivalAiGenerationController extends Controller
                 ])->values();
 
                 if ($uploadedProductImage) {
+                    $uploadedProductName = trim((string) ($validated['uploaded_product_name'] ?? ''));
+                    if ($uploadedProductName === '') {
+                        $uploadedProductName = trim((string) pathinfo(
+                            $uploadedProductImage->getClientOriginalName(),
+                            PATHINFO_FILENAME
+                        )) ?: 'Uploaded product';
+                    }
+                    $storedUploadedProductPath = $this->storeUploadedProductImage($uploadedProductImage);
                     $productSnapshot->push([
                         'id' => 'uploaded-product',
-                        'title' => 'Uploaded product',
+                        'title' => $uploadedProductName,
                         'description' => 'User uploaded product reference image.',
-                        'image' => $this->storeUploadedProductImage($uploadedProductImage),
+                        'image' => $storedUploadedProductPath,
                     ]);
                 }
 
                 $businessSnapshot = $this->businessContext->snapshotForUser($lockedUser);
                 $brandChromeSnapshot = $this->brandChromeSnapshot($config);
+                $compiled = $this->promptCompiler->compile(
+                    $config,
+                    $style,
+                    $language,
+                    $productSnapshot,
+                    $validated['user_instruction'] ?? null,
+                    $businessSnapshot,
+                    $brandChromeSnapshot,
+                    [
+                        'size_key' => $validated['size_key'],
+                        'size_value' => $size['size'],
+                    ]
+                );
+                $expectedReferenceCount = $productSnapshot->count();
+                $requestDiagnostics = array_merge($compiled['diagnostics'], [
+                    'provider' => $model->provider,
+                    'model' => $model->model_id,
+                    'quality' => $validated['quality'],
+                    'size' => $size['size'],
+                    'planned_endpoint' => $expectedReferenceCount > 0
+                        ? '/v1/images/edits'
+                        : '/v1/images/generations',
+                    'expected_reference_count' => $expectedReferenceCount,
+                    'attached_reference_count' => 0,
+                ]);
 
                 return FestivalAiGeneration::create([
                     'request_id' => (string) Str::uuid(),
@@ -259,7 +330,8 @@ class FestivalAiGenerationController extends Controller
                     'size_key' => $validated['size_key'],
                     'size_value' => $size['size'],
                     'user_instruction' => $validated['user_instruction'] ?? null,
-                    'final_prompt' => $this->buildPrompt($config, $style, $language, $productSnapshot, $validated['user_instruction'] ?? null, $brandChromeSnapshot),
+                    'final_prompt' => $compiled['prompt'],
+                    'request_diagnostics' => $requestDiagnostics,
                     'product_snapshot' => $productSnapshot->all(),
                     'business_snapshot' => $businessSnapshot,
                     'brand_chrome_snapshot' => $brandChromeSnapshot,
@@ -268,7 +340,21 @@ class FestivalAiGenerationController extends Controller
                 ]);
             });
         } catch (\DomainException $exception) {
+            $this->deleteUploadedProductImage($storedUploadedProductPath);
             return $this->error($exception->getMessage(), Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (\RuntimeException $exception) {
+            if (!str_starts_with($exception->getMessage(), 'Uploaded Festival AI product image')) {
+                throw $exception;
+            }
+            $this->deleteUploadedProductImage($storedUploadedProductPath);
+            report($exception);
+            return $this->error(
+                'The product photo could not be stored. Please try again; no quota was used.',
+                Response::HTTP_SERVICE_UNAVAILABLE
+            );
+        } catch (\Throwable $exception) {
+            $this->deleteUploadedProductImage($storedUploadedProductPath);
+            throw $exception;
         }
 
         try {
@@ -300,6 +386,7 @@ class FestivalAiGenerationController extends Controller
             });
 
             report($exception);
+            $this->deleteUploadedProductImage($storedUploadedProductPath);
 
             return $this->error('Festival AI queue is temporarily unavailable. Please try again. Your quota was restored.', Response::HTTP_SERVICE_UNAVAILABLE);
         }
@@ -392,6 +479,7 @@ class FestivalAiGenerationController extends Controller
             'provider' => $model->provider,
             'model_id' => $model->model_id,
             'description' => $model->description,
+            'default_quality' => $model->default_quality,
             'qualities' => array_values((array) $model->quality_options),
             'quality_variants' => collect((array) $model->quality_options)
                 ->map(fn (string $quality) => [
@@ -430,42 +518,6 @@ class FestivalAiGenerationController extends Controller
         ][$quality] ?? ucfirst($quality);
     }
 
-    private function buildPrompt(FestivalAiConfig $config, $style, Language $language, $products, ?string $instruction, array $brandChrome = []): string
-    {
-        $parts = [
-            'Create one polished festival marketing visual. Follow every rule below.',
-            trim((string) $config->base_prompt),
-            'Selected visual style: ' . trim((string) $style->prompt_text),
-            'All readable text included in the final poster must be written only in ' . trim($language->title) . '. Use the correct native script, spelling, grammar, and punctuation for this language.',
-        ];
-
-        if ($products->isNotEmpty()) {
-            $productSummary = $products->map(function ($product) {
-                if ($product instanceof Product) {
-                    return trim($product->display_name . ($product->description ? ': ' . $product->description : ''));
-                }
-
-                return trim(($product['title'] ?? 'Product') . (!empty($product['description']) ? ': ' . $product['description'] : ''));
-            })->implode("\n");
-            $parts[] = trim((string) $config->product_prompt);
-            $parts[] = 'Use the attached product reference image(s) as the visual source of truth. Keep each product recognisable. Product details: ' . $productSummary;
-        }
-
-        if ($instruction) {
-            $parts[] = 'User request: ' . trim($instruction);
-        }
-
-        if ($brandChrome !== []) {
-            $parts[] = 'Business header direction: ' . ($brandChrome['header_prompt'] ?: 'Reserve a clean, high-contrast top branding zone.');
-            $parts[] = 'Business footer direction: ' . ($brandChrome['footer_prompt'] ?: 'Reserve a clean, high-contrast bottom contact zone.');
-            $parts[] = 'Keep the top and bottom business branding zones clear and readable. Do not invent a business name, logo, phone number, email, website, or address; the verified visible business details will be applied after image generation.';
-        }
-
-        $parts[] = 'Avoid unreadable small text, watermarking, unintended logos, or distorted product labels.';
-
-        return implode("\n\n", array_filter($parts));
-    }
-
     private function brandChromeSnapshot(FestivalAiConfig $config): array
     {
         $preset = $config->brandChromePreset;
@@ -478,6 +530,13 @@ class FestivalAiGenerationController extends Controller
             'name' => $preset->name,
             'header_prompt' => trim((string) $preset->header_prompt),
             'footer_prompt' => trim((string) $preset->footer_prompt),
+            'overlay_enabled' => (bool) $preset->overlay_enabled,
+            'header_height_percent' => (int) $preset->header_height_percent,
+            'footer_height_percent' => (int) $preset->footer_height_percent,
+            'panel_style' => $preset->panel_style,
+            'logo_position' => $preset->logo_position,
+            'text_tone' => $preset->text_tone,
+            'max_contact_items' => (int) $preset->max_contact_items,
         ];
     }
 
@@ -486,15 +545,53 @@ class FestivalAiGenerationController extends Controller
         $fileName = Str::uuid() . '.' . $file->extension();
         $relativePath = 'festival_ai_uploads/' . $fileName;
 
-        if (StorageSetting::getStorageSetting('storage') === 'DigitalOcean') {
-            Storage::disk('spaces')->put('uploads/' . $relativePath, file_get_contents($file->getRealPath()), 'public');
-        } else {
-            $directory = public_path('uploads/festival_ai_uploads');
-            File::ensureDirectoryExists($directory);
-            $file->move($directory, $fileName);
+        try {
+            if (StorageSetting::getStorageSetting('storage') === 'DigitalOcean') {
+                $contents = file_get_contents($file->getRealPath());
+                $stored = $contents !== false
+                    && Storage::disk('spaces')->put('uploads/' . $relativePath, $contents, 'public');
+                if (!$stored) {
+                    throw new \RuntimeException('Uploaded Festival AI product image could not be stored.');
+                }
+            } else {
+                $directory = public_path('uploads/festival_ai_uploads');
+                File::ensureDirectoryExists($directory);
+                $file->move($directory, $fileName);
+                if (!is_file($directory . DIRECTORY_SEPARATOR . $fileName)) {
+                    throw new \RuntimeException('Uploaded Festival AI product image could not be stored.');
+                }
+            }
+        } catch (\Throwable $exception) {
+            if ($exception instanceof \RuntimeException
+                && str_starts_with($exception->getMessage(), 'Uploaded Festival AI product image')) {
+                throw $exception;
+            }
+            throw new \RuntimeException(
+                'Uploaded Festival AI product image could not be stored.',
+                0,
+                $exception
+            );
         }
 
         return $relativePath;
+    }
+
+    private function deleteUploadedProductImage(?string $relativePath): void
+    {
+        if (!$relativePath || !str_starts_with($relativePath, 'festival_ai_uploads/')) {
+            return;
+        }
+
+        if (StorageSetting::getStorageSetting('storage') === 'DigitalOcean') {
+            Storage::disk('spaces')->delete('uploads/' . $relativePath);
+            return;
+        }
+
+        foreach ([public_path('uploads/' . $relativePath), base_path('uploads/' . $relativePath)] as $path) {
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        }
     }
 
     private function jobPayload(FestivalAiGeneration $generation): array

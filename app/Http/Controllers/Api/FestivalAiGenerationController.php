@@ -303,7 +303,9 @@ class FestivalAiGenerationController extends Controller
                         'size_value' => $size['size'],
                     ]
                 );
-                $expectedReferenceCount = $productSnapshot->count();
+                $brandLogoExpected = (bool) ($brandChromeSnapshot['overlay_enabled'] ?? true)
+                    && filled($businessSnapshot['logo_path'] ?? null);
+                $expectedReferenceCount = $productSnapshot->count() + ($brandLogoExpected ? 1 : 0);
                 $requestDiagnostics = array_merge($compiled['diagnostics'], [
                     'provider' => $model->provider,
                     'model' => $model->model_id,
@@ -313,6 +315,8 @@ class FestivalAiGenerationController extends Controller
                         ? '/v1/images/edits'
                         : '/v1/images/generations',
                     'expected_reference_count' => $expectedReferenceCount,
+                    'expected_product_reference_count' => $productSnapshot->count(),
+                    'expected_brand_logo_reference' => $brandLogoExpected,
                     'attached_reference_count' => 0,
                 ]);
 

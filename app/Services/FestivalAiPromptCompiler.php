@@ -104,7 +104,7 @@ class FestivalAiPromptCompiler
 
         $headerPercent = $this->clampPercent($brandChrome['header_height_percent'] ?? 12);
         $footerPercent = $this->clampPercent($brandChrome['footer_height_percent'] ?? 10);
-        $contactCount = $this->businessContactCount(
+        $brandContacts = $this->businessContactItems(
             $business,
             (int) ($brandChrome['max_contact_items'] ?? 4)
         );
@@ -151,21 +151,27 @@ class FestivalAiPromptCompiler
             "- All newly generated poster copy must use only {$languageTitle}, with its correct native script, spelling and grammar.",
             "- Render one primary headline only: {$festivalTitle}, naturally written in {$languageTitle}.",
             '- Optionally render one short festive blessing of at most eight words.',
-            '- Do not render paragraphs, bullet lists, product descriptions, multiple wishes, repeated festival names, placeholder text, business contact data or explanatory copy.',
-            '- Keep all generated text large, sparse and readable. Do not invent logos, brands, phone numbers, emails, websites or addresses.',
+            '- Do not render paragraphs, bullet lists, product descriptions, multiple wishes, repeated festival names, placeholder text or explanatory copy.',
+            '- Keep all generated text large, sparse and readable. Do not invent logos, brands, phone numbers, emails, websites or addresses beyond the approved business data below.',
             '- Exception: preserve text and logos already printed on the attached physical product; do not translate or rewrite its label.',
         ]);
 
         if ($brandingEnabled) {
             $parts[] = implode("\n", [
-                'BUSINESS BRANDING SAFE ZONES:',
-                "- Reserve the top {$headerPercent}% as a calm, low-detail continuation of the artwork. No text, logo, face, product or important object may enter it.",
-                "- Reserve the bottom {$footerPercent}% as a calm, low-detail continuation of the artwork. No text, logo, face, product or important object may enter it.",
-                '- Top background direction: ' . ($headerDirection['text']
-                    ?: 'Continue the festival artwork softly with strong contrast and no detailed content.'),
-                '- Bottom background direction: ' . ($footerDirection['text']
-                    ?: 'Continue the same artwork softly with strong contrast and no detailed content.'),
-                "- The verified logo, business name and up to {$contactCount} visible contact items will be added after generation. Do not draw or imitate them.",
+                'AI-BUILT BUSINESS HEADER AND FOOTER — PART OF THIS ONE GENERATED IMAGE:',
+                "- Build an integrated top header occupying about {$headerPercent}% of the canvas and an integrated bottom footer occupying about {$footerPercent}% of the canvas. No later overlay or post-processing will be applied.",
+                '- Top header visual direction: ' . ($headerDirection['text']
+                    ?: 'Continue the festival artwork softly with strong contrast and a clean branding area.'),
+                '- Bottom footer visual direction: ' . ($footerDirection['text']
+                    ?: 'Continue the same artwork with strong contrast and a clean contact area.'),
+                '- Header logo placement: ' . (($brandChrome['logo_position'] ?? 'left') === 'right' ? 'right side' : 'left side') . '.',
+                '- Header/footer surface treatment: ' . $this->chromePanelDirection($brandChrome['panel_style'] ?? 'adaptive') . '.',
+                '- Branding text contrast: ' . $this->chromeToneDirection($brandChrome['text_tone'] ?? 'auto') . '.',
+                '- Use the supplied brand-logo reference image only for the header. Reproduce its mark faithfully without redesigning, recolouring, cropping important parts or inventing another logo.',
+                '- Approved business name (render exactly once, beside or below the logo): ' . $this->quotedBusinessValue($business['name'] ?? null),
+                '- Approved footer contact items (render exactly these, large and readable; never add, omit, abbreviate or change a digit): '
+                    . ($brandContacts !== [] ? implode(' | ', $brandContacts) : 'No contact item is approved.'),
+                '- Keep the header and footer text large enough to read at mobile-preview size. Use a simple high-contrast layout; do not use tiny legal text, dense paragraphs, duplicate logo, watermark or sample branding.',
             ]);
         }
 
@@ -189,7 +195,7 @@ class FestivalAiPromptCompiler
         return [
             'prompt' => $compiled,
             'diagnostics' => [
-                'compiler_version' => 2,
+                'compiler_version' => 3,
                 'prompt_sha256' => hash('sha256', $compiled),
                 'prompt_characters' => mb_strlen($compiled),
                 'estimated_prompt_tokens' => (int) ceil(mb_strlen($compiled) / 4),
@@ -205,7 +211,7 @@ class FestivalAiPromptCompiler
                     ->keys()
                     ->values()
                     ->all(),
-                'text_policy' => 'one_headline_plus_optional_short_blessing',
+                'text_policy' => 'one_headline_plus_optional_short_blessing_plus_approved_business_chrome',
                 'product_names' => $productNames,
                 'output_size_key' => $sizeKey,
                 'output_size' => $sizeValue,
@@ -253,8 +259,8 @@ class FestivalAiPromptCompiler
         if (preg_match('/\b(blessing|blessings|offering|sacred presentation|deity endorsement|divine protection|divine grace)\b/iu', (string) $productPrompt)) {
             $warnings[] = 'Product Prompt implies a deity blessing, offering or endorsement. Remove this and keep respectful visual separation.';
         }
-        if (preg_match('/\b(uploaded\s+logo|place\s+(the\s+)?logo|phone|email|website|contact details?)\b/iu', $all)) {
-            $warnings[] = 'A prompt asks AI to render verified branding/contact data. Keep chrome prompts background-only; exact business data is added afterward.';
+        if (preg_match('/\b(phone|email|website|contact details?)\b/iu', $all)) {
+            $warnings[] = 'Do not type sample contact data in a prompt. Festival AI uses only the current business fields that are not hidden in the app.';
         }
         if (mb_strlen($all) > 8000) {
             $warnings[] = 'Combined source prompts are very long. Shorter prompts produce a cleaner and more predictable hierarchy.';
@@ -351,14 +357,15 @@ class FestivalAiPromptCompiler
 
         if ($section === 'chrome') {
             $containsUnsafeChromeInstruction =
-                preg_match('/\b(logo|business name|phone|email|website|address|contact|number)\b/iu', $fragment)
-                || preg_match('/\b(random|different|variable|fixed|unique|each generation)\b.*\b(layout|composition|placement|position|design)\b/iu', $fragment)
-                || preg_match('/\b(possible|suggested)\s+(placements?|styles?|layouts?)\b|divider line/iu', $fragment);
-            $describesSafeBackground = preg_match(
-                '/\b(background|gradient|colou?r|contrast|low[- ]detail|texture|tone|lighting|empty|clear|calm|soft|continuation|minimal)\b/iu',
+                preg_match('/\b(random|different|variable|fixed|unique|each generation)\b.*\b(layout|composition|placement|position|design)\b/iu', $fragment)
+                || preg_match('/\b(unique|different)\s+(header|footer|layout|composition|placement|position|design)\b/iu', $fragment)
+                || preg_match('/\b(possible|suggested)\s+(placements?|styles?|layouts?)\b/iu', $fragment)
+                || preg_match('/\b(sample|dummy|example)\s+(phone|email|website|contact|number)\b/iu', $fragment);
+            $describesBrandLayout = preg_match(
+                '/\b(background|gradient|colou?r|contrast|texture|tone|lighting|clear|calm|soft|continuation|minimal|logo|brand|business|phone|email|website|contact|header|footer|top|bottom)\b/iu',
                 $fragment
             );
-            if ($containsUnsafeChromeInstruction || !$describesSafeBackground) {
+            if ($containsUnsafeChromeInstruction || !$describesBrandLayout) {
                 return true;
             }
         }
@@ -446,15 +453,53 @@ class FestivalAiPromptCompiler
         return max(6, min(20, (int) $value));
     }
 
-    private function businessContactCount(array $business, int $maximum): int
+    private function businessContactItems(array $business, int $maximum): array
     {
-        $count = collect([
-            ...(array) ($business['phones'] ?? []),
-            ...(array) ($business['emails'] ?? []),
-            ...(array) ($business['websites'] ?? []),
-            ...(array) ($business['addresses'] ?? []),
-        ])->filter()->unique()->count();
+        $items = [];
+        foreach (['phones' => 'Phone', 'emails' => 'Email', 'websites' => 'Website'] as $key => $label) {
+            foreach ((array) ($business[$key] ?? []) as $value) {
+                $value = $this->cleanBusinessValue($value);
+                if ($value !== '') {
+                    $items[] = $label . ': ' . $value;
+                }
+            }
+        }
 
-        return min(max(0, $maximum), $count);
+        return array_slice(array_values(array_unique($items)), 0, max(0, $maximum));
+    }
+
+    private function quotedBusinessValue($value): string
+    {
+        $value = $this->cleanBusinessValue($value);
+
+        return $value !== '' ? '“' . $value . '”' : 'No business name is approved.';
+    }
+
+    private function cleanBusinessValue($value): string
+    {
+        if (!is_string($value)) {
+            return '';
+        }
+
+        return mb_substr(Str::squish(strip_tags($value)), 0, 180);
+    }
+
+    private function chromePanelDirection($value): string
+    {
+        return match ($value) {
+            'light' => 'a clean light panel integrated into the artwork',
+            'dark' => 'a clean dark panel integrated into the artwork',
+            'none' => 'no separate panel; blend text into a calm high-contrast artwork area',
+            default => 'an adaptive high-contrast integrated panel',
+        };
+    }
+
+    private function chromeToneDirection($value): string
+    {
+        return match ($value) {
+            'light' => 'use light text only',
+            'dark' => 'use dark text only',
+            default => 'choose the clearest contrast against the selected panel',
+        };
     }
 }

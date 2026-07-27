@@ -42,12 +42,15 @@ class FestivalAiPromptCompilerTest extends TestCase
         $this->assertStringContainsString('Commercial juicer', $prompt);
         $this->assertStringContainsString('45–55%', $prompt);
         $this->assertStringContainsString('preserve text and logos already printed', $prompt);
+        $this->assertStringContainsString('AI-BUILT BUSINESS HEADER AND FOOTER', $prompt);
+        $this->assertStringContainsString('RV Solutions', $prompt);
+        $this->assertStringContainsString('Phone: 9876543210', $prompt);
         $this->assertDoesNotMatchRegularExpression('/\[[A-Z][A-Z0-9 _-]{0,60}\]/iu', $prompt);
         $this->assertDoesNotMatchRegularExpression('/Hindi|Devanagari|1080x1080|Festival\s*>\s*Main Character\s*>\s*Product|3D-rendered product|offering to the deity/iu', $prompt);
         $this->assertDoesNotMatchRegularExpression('/uploaded logo|unique footer|different premium header/iu', $prompt);
         $this->assertSame(11, $result['diagnostics']['header_safe_zone_percent']);
         $this->assertSame(9, $result['diagnostics']['footer_safe_zone_percent']);
-        $this->assertSame(2, $result['diagnostics']['compiler_version']);
+        $this->assertSame(3, $result['diagnostics']['compiler_version']);
     }
 
     public function test_unknown_relevant_placeholder_blocks_but_unused_product_prompt_does_not(): void

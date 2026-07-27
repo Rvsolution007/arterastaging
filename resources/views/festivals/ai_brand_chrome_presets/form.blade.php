@@ -5,7 +5,7 @@
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
       <h3 class="mb-1">{{ $preset->exists ? 'Edit Header & Footer Style' : 'Add Header & Footer Style' }}</h3>
-      <p class="text-muted mb-0">Define the visual direction for Festival AI's business branding zones.</p>
+      <p class="text-muted mb-0">Define how Artera AI should build the business header and footer into the generated poster.</p>
     </div>
     <a href="{{ route('festival_ai_brand_chrome.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fa fa-arrow-left mr-1"></i> Header &amp; Footer Styles</a>
   </div>
@@ -33,23 +33,23 @@
 
         <div class="form-group">
           <label><strong>Header prompt</strong> <small class="text-muted">optional</small></label>
-          <textarea class="form-control" rows="4" name="header_prompt" maxlength="5000" placeholder="Example: continue the festival artwork softly through the top safe zone with low visual detail and no text.">{{ old('header_prompt', $preset->header_prompt) }}</textarea>
-          <small class="form-text text-muted">This controls only the AI-generated background inside the top safe zone. Do not ask AI to draw, recolour or write the real logo/business name; the exact assets are added safely after generation.</small>
+          <textarea class="form-control" rows="4" name="header_prompt" maxlength="5000" placeholder="Example: a clean dark-gold header with room for the supplied logo and business name.">{{ old('header_prompt', $preset->header_prompt) }}</textarea>
+          <small class="form-text text-muted">Artera AI builds this inside the poster. The current visible logo and business name are supplied automatically; do not type sample names or contact details here.</small>
         </div>
 
         <div class="form-group">
           <label><strong>Footer prompt</strong> <small class="text-muted">optional</small></label>
-          <textarea class="form-control" rows="4" name="footer_prompt" maxlength="5000" placeholder="Example: continue the same artwork into a calm low-detail bottom safe zone with no text or logos.">{{ old('footer_prompt', $preset->footer_prompt) }}</textarea>
-          <small class="form-text text-muted">This controls only the footer background. Exact visible contact fields are added afterwards; hidden business fields remain excluded.</small>
+          <textarea class="form-control" rows="4" name="footer_prompt" maxlength="5000" placeholder="Example: a minimal high-contrast footer with a single readable contact line.">{{ old('footer_prompt', $preset->footer_prompt) }}</textarea>
+          <small class="form-text text-muted">Artera AI renders only the current business contact fields that are enabled and not hidden in My Business.</small>
         </div>
 
         <div class="border rounded bg-light p-3 mb-3">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
-              <strong>Exact business overlay</strong>
-              <div class="small text-muted">Controls the deterministic logo, name and contact layer applied after AI generation.</div>
+              <strong>AI business header &amp; footer</strong>
+              <div class="small text-muted">Controls the logo, name and contact instructions included in the same AI image request. Nothing is overlaid after generation.</div>
             </div>
-            <label class="mb-0"><input type="checkbox" name="overlay_enabled" value="1" @checked(old('overlay_enabled', $preset->overlay_enabled ?? true))> Enable overlay</label>
+            <label class="mb-0"><input type="checkbox" name="overlay_enabled" value="1" @checked(old('overlay_enabled', $preset->overlay_enabled ?? true))> Include business header &amp; footer</label>
           </div>
           <div class="row">
             <div class="col-md-2 form-group mb-md-0">

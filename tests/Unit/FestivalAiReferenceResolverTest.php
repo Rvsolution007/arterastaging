@@ -2,7 +2,6 @@
 
 namespace Tests\Unit;
 
-use App\Services\FestivalAiBrandComposer;
 use App\Services\FestivalAiImageService;
 use ReflectionMethod;
 use Tests\TestCase;
@@ -37,7 +36,7 @@ class FestivalAiReferenceResolverTest extends TestCase
         file_put_contents($invalidPath, '<html>not an image</html>');
         $this->temporaryFiles = [$validPath, $invalidPath];
 
-        $service = new FestivalAiImageService(app(FestivalAiBrandComposer::class));
+        $service = new FestivalAiImageService();
         $method = new ReflectionMethod($service, 'imageContents');
         $method->setAccessible(true);
 

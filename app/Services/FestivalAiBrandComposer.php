@@ -111,8 +111,10 @@ class FestivalAiBrandComposer
         if ($logo !== null) {
             $sourceWidth = imagesx($logo);
             $sourceHeight = imagesy($logo);
-            $maxLogoHeight = max(24, (int) round($height * 0.68));
-            $maxLogoWidth = max(36, (int) round($width * 0.20));
+            // Mobile previews often scale a 1024px poster down to ~270px.
+            // Give wide wordmarks enough height to remain recognisable there.
+            $maxLogoHeight = max(28, (int) round($height * 0.78));
+            $maxLogoWidth = max(48, (int) round($width * 0.29));
             $scale = min($maxLogoWidth / max(1, $sourceWidth), $maxLogoHeight / max(1, $sourceHeight), 1);
             $logoWidth = max(1, (int) round($sourceWidth * $scale));
             $logoHeight = max(1, (int) round($sourceHeight * $scale));
@@ -136,7 +138,7 @@ class FestivalAiBrandComposer
             return;
         }
 
-        $fontSize = max(11, min(34, (int) round($height * 0.27)));
+        $fontSize = max(14, min(44, (int) round($height * 0.36)));
         $availableWidth = $width - ($padding * 2) - ($logoWidth > 0 ? $logoWidth + $logoGap : 0);
         $businessName = $this->fitText($businessName, $fontSize, max(40, $availableWidth));
         $textX = $logoOnRight
@@ -156,9 +158,16 @@ class FestivalAiBrandComposer
     {
         $width = imagesx($canvas);
         $padding = max(12, (int) round($width * 0.025));
-        $fontSize = max(9, min(25, (int) round($height * 0.22)));
+        // Phone-only footers normally fit on one line. Use a materially
+        // larger size for that common mobile case, then fall back to two
+        // compact lines only when email/website data genuinely requires it.
+        $fontSize = max(15, min(48, (int) round($height * 0.46)));
         $lines = $this->contactLines($contacts, $fontSize, $width - ($padding * 2));
-        $lineHeight = max(14, (int) round($fontSize * 1.55));
+        if (count($lines) > 1) {
+            $fontSize = max(12, min(34, (int) round($height * 0.32)));
+            $lines = $this->contactLines($contacts, $fontSize, $width - ($padding * 2));
+        }
+        $lineHeight = max(17, (int) round($fontSize * 1.4));
         $blockHeight = count($lines) * $lineHeight;
         $baseline = $top + max($lineHeight, (int) round(($height - $blockHeight) / 2) + $fontSize);
 
@@ -195,8 +204,12 @@ class FestivalAiBrandComposer
 
         return [
             'panel' => match ($resolvedPanel) {
-                'light' => [255, 255, 255, 74],
-                'dark' => [10, 16, 28, 70],
+                // The provider can still place artwork a few pixels inside a
+                // requested safe zone. These near-opaque adaptive panels make
+                // the deterministic logo and contact details readable and
+                // prevent that artwork from showing through the brand area.
+                'light' => [255, 255, 255, 14],
+                'dark' => [10, 16, 28, 14],
                 default => null,
             },
             'text' => $resolvedText === 'dark' ? [22, 28, 45] : [255, 255, 255],

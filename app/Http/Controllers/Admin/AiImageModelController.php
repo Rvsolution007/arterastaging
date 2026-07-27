@@ -78,6 +78,11 @@ class AiImageModelController extends Controller
             'max_reference_images' => ['required', 'integer', 'min:0', 'max:10'],
             'estimated_seconds' => ['nullable', 'integer', 'min:1', 'max:600'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
+            'pricing_config' => ['nullable', 'array'],
+            'pricing_config.input_per_million_usd' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            'pricing_config.output_per_million_usd' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            'pricing_config.image_per_unit_usd' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            'pricing_config.usd_to_inr' => ['nullable', 'numeric', 'min:0', 'max:100000'],
         ]);
 
         if (!in_array($validated['default_quality'], $validated['quality_options'], true)) {
@@ -117,9 +122,20 @@ class AiImageModelController extends Controller
             'supports_transparent_background' => $request->boolean('supports_transparent_background'),
             'max_reference_images' => $validated['max_reference_images'],
             'estimated_seconds' => $validated['estimated_seconds'] ?? null,
+            'pricing_config' => $this->pricingConfig($validated['pricing_config'] ?? []),
             'is_active' => $request->boolean('is_active'),
             'is_recommended' => $request->boolean('is_recommended'),
             'sort_order' => $validated['sort_order'] ?? 0,
+        ];
+    }
+
+    private function pricingConfig(array $pricing): array
+    {
+        return [
+            'input_per_million_usd' => (float) ($pricing['input_per_million_usd'] ?? 0),
+            'output_per_million_usd' => (float) ($pricing['output_per_million_usd'] ?? 0),
+            'image_per_unit_usd' => (float) ($pricing['image_per_unit_usd'] ?? 0),
+            'usd_to_inr' => (float) ($pricing['usd_to_inr'] ?? 90),
         ];
     }
 }

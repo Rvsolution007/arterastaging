@@ -20,7 +20,7 @@ class FestivalAiImageService
     {
     }
 
-    public function generate(FestivalAiGeneration $generation): string
+    public function generate(FestivalAiGeneration $generation): array
     {
         if ($generation->provider !== 'openai') {
             throw new RuntimeException('The selected image provider is not available for Festival AI yet.');
@@ -77,7 +77,8 @@ class FestivalAiImageService
             ));
         }
 
-        $base64 = data_get($response->json(), 'data.0.b64_json');
+        $responsePayload = (array) $response->json();
+        $base64 = data_get($responsePayload, 'data.0.b64_json');
         if (!is_string($base64) || $base64 === '') {
             throw new RuntimeException('The image provider returned an invalid image result.');
         }
@@ -107,7 +108,10 @@ class FestivalAiImageService
             file_put_contents($directory . DIRECTORY_SEPARATOR . $fileName, $binary);
         }
 
-        return $relativePath;
+        return [
+            'path' => $relativePath,
+            'usage' => (array) data_get($responsePayload, 'usage', []),
+        ];
     }
 
     private function referenceImages(array $products): array

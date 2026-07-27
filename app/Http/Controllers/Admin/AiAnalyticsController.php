@@ -51,7 +51,12 @@ class AiAnalyticsController extends Controller
         $modelStats = (clone $query)->select(
             'model',
             DB::raw('COUNT(id) as requests'),
+            DB::raw('SUM(prompt_tokens) as input_tokens'),
+            DB::raw('SUM(completion_tokens) as output_tokens'),
             DB::raw('SUM(total_tokens) as tokens'),
+            DB::raw('SUM(image_count) as images'),
+            DB::raw("SUM(CASE WHEN usage_source = 'provider' THEN 1 ELSE 0 END) as provider_reported_requests"),
+            DB::raw("SUM(CASE WHEN usage_source = 'estimated_prompt_only' THEN 1 ELSE 0 END) as estimated_requests"),
             DB::raw('SUM(cost_inr) as cost')
         )->groupBy('model')->get();
 

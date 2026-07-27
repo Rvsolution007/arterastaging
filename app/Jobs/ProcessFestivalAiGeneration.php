@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\FestivalAiGeneration;
+use App\Models\AiTokenLog;
 use App\Models\UserNotification;
 use App\Models\User;
 use App\Services\FestivalAiImageService;
@@ -40,7 +41,8 @@ class ProcessFestivalAiGeneration implements ShouldQueue
         ]);
 
         try {
-            $path = $imageService->generate($generation->fresh());
+            $result = $imageService->generate($generation->fresh());
+            $path = $result['path'];
             $generation->update([
                 'status' => 'completed',
                 'generated_image_path' => $path,
@@ -48,6 +50,14 @@ class ProcessFestivalAiGeneration implements ShouldQueue
                 'error_code' => null,
                 'error_message' => null,
             ]);
+            try {
+                AiTokenLog::logFestivalImageUsage($generation->fresh(), (array) ($result['usage'] ?? []));
+            } catch (\Throwable $exception) {
+                // Analytics must never change a successful customer generation.
+                Log::warning('Festival AI usage analytics could not be saved.', [
+                    'generation_id' => $this->generationId,
+                ]);
+            }
             $this->notifyUser($generation->fresh(), true);
         } catch (\Throwable $exception) {
             Log::warning('Festival AI generation failed.', [

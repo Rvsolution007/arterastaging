@@ -16,10 +16,19 @@ class AiTokenLog extends Model
         'feature_name',
         'provider',
         'model',
+        'request_type',
         'prompt_tokens',
         'completion_tokens',
         'total_tokens',
+        'image_count',
+        'usage_source',
+        'parameters',
+        'source_reference',
         'cost_inr',
+    ];
+
+    protected $casts = [
+        'parameters' => 'array',
     ];
 
     public function user()
@@ -61,5 +70,77 @@ class AiTokenLog extends Model
             'total_tokens' => $totalTokens,
             'cost_inr' => $inrCost,
         ]);
+    }
+
+    /**
+     * Stores one completed Festival AI image generation in the same analytics
+     * stream as text requests. OpenAI image responses can return usage, but
+     * some image models do not; in that case only the input text is estimated
+     * and the dashboard is explicitly told it is an estimate.
+     */
+    public static function logFestivalImageUsage(FestivalAiGeneration $generation, array $usageMetadata = []): self
+    {
+        $providerInputTokens = data_get($usageMetadata, 'input_tokens');
+        $providerOutputTokens = data_get($usageMetadata, 'output_tokens');
+        $providerTotalTokens = data_get($usageMetadata, 'total_tokens');
+        $hasProviderUsage = is_numeric($providerInputTokens)
+            || is_numeric($providerOutputTokens)
+            || is_numeric($providerTotalTokens);
+
+        $promptTokens = $hasProviderUsage
+            ? (int) ($providerInputTokens ?? 0)
+            : self::estimatePromptTokens((string) $generation->final_prompt);
+        $completionTokens = $hasProviderUsage ? (int) ($providerOutputTokens ?? 0) : 0;
+        $totalTokens = $hasProviderUsage
+            ? (int) ($providerTotalTokens ?? ($promptTokens + $completionTokens))
+            : $promptTokens;
+
+        $model = $generation->imageModel;
+        $pricing = (array) optional($model)->pricing_config;
+        $inputRate = (float) ($pricing['input_per_million_usd'] ?? 0);
+        $outputRate = (float) ($pricing['output_per_million_usd'] ?? 0);
+        $imageRate = (float) ($pricing['image_per_unit_usd'] ?? 0);
+        $exchangeRate = (float) ($pricing['usd_to_inr'] ?? 90);
+        $usdCost = ($promptTokens / 1000000 * $inputRate)
+            + ($completionTokens / 1000000 * $outputRate)
+            + $imageRate;
+
+        $sourceReference = self::festivalSourceReference($generation->id);
+
+        return self::firstOrCreate(['source_reference' => $sourceReference], [
+            'user_id' => $generation->user_id,
+            'feature_name' => 'Festival AI Image',
+            'provider' => $generation->provider,
+            'model' => $generation->provider_model_id,
+            'request_type' => 'image_generation',
+            'prompt_tokens' => $promptTokens,
+            'completion_tokens' => $completionTokens,
+            'total_tokens' => $totalTokens,
+            'image_count' => 1,
+            'usage_source' => $hasProviderUsage ? 'provider' : 'estimated_prompt_only',
+            // Never store the prompt, product information, business snapshot,
+            // API credentials, or raw provider response in analytics.
+            'parameters' => [
+                'quality' => $generation->quality,
+                'size' => $generation->size_value,
+                'size_key' => $generation->size_key,
+                'reference_image_count' => count((array) $generation->product_snapshot),
+                'mode' => count((array) $generation->product_snapshot) > 0 ? 'edit_with_reference' : 'generate',
+            ],
+            'source_reference' => $sourceReference,
+            'cost_inr' => round($usdCost * $exchangeRate, 4),
+        ]);
+    }
+
+    public static function festivalSourceReference(int $generationId): string
+    {
+        return 'festival-ai:' . $generationId;
+    }
+
+    private static function estimatePromptTokens(string $prompt): int
+    {
+        $characters = mb_strlen(trim($prompt));
+
+        return max(1, (int) ceil($characters / 4));
     }
 }

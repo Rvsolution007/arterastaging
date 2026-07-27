@@ -99,6 +99,18 @@
             <label><input type="checkbox" name="is_recommended" value="1" @checked(old('is_recommended', true))> Recommended</label>
           </div>
         </div>
+        <div class="border rounded bg-light p-3 mb-3">
+          <div class="d-flex align-items-center mb-2">
+            <strong><i class="fa fa-chart-line text-primary mr-1"></i> Analytics pricing parameters</strong>
+          </div>
+          <small class="text-muted d-block mb-3">Festival AI saves the provider-returned input/output tokens when available. If the image provider does not return usage, only the prompt token count is clearly marked as an estimate. Cost is calculated from the values below; leave a rate as 0 if you do not want to estimate it.</small>
+          <div class="row">
+            <div class="col-md-3 form-group mb-md-0"><label class="small mb-1">Input USD / 1M tokens</label><input class="form-control form-control-sm" type="number" min="0" step="0.000001" name="pricing_config[input_per_million_usd]" value="{{ old('pricing_config.input_per_million_usd', 0) }}"></div>
+            <div class="col-md-3 form-group mb-md-0"><label class="small mb-1">Output USD / 1M tokens</label><input class="form-control form-control-sm" type="number" min="0" step="0.000001" name="pricing_config[output_per_million_usd]" value="{{ old('pricing_config.output_per_million_usd', 0) }}"></div>
+            <div class="col-md-3 form-group mb-md-0"><label class="small mb-1">USD / generated image</label><input class="form-control form-control-sm" type="number" min="0" step="0.000001" name="pricing_config[image_per_unit_usd]" value="{{ old('pricing_config.image_per_unit_usd', 0) }}"></div>
+            <div class="col-md-3 form-group mb-0"><label class="small mb-1">USD to INR rate</label><input class="form-control form-control-sm" type="number" min="0" step="0.01" name="pricing_config[usd_to_inr]" value="{{ old('pricing_config.usd_to_inr', 90) }}"></div>
+          </div>
+        </div>
         <button class="btn btn-primary"><i class="fa fa-save mr-1"></i> Save model</button>
       </form>
     </div>
@@ -112,6 +124,7 @@
           $selectedSizes = collect($model->size_options ?? [])->pluck('key')->all();
           $selectedQualities = $model->quality_options ?? [];
           $qualityDisplayNames = $model->quality_display_names ?? [];
+          $pricing = $model->pricing_config ?? [];
         @endphp
         <details class="border-bottom p-3" {{ $loop->first ? 'open' : '' }}>
           <summary class="d-flex justify-content-between align-items-center" style="cursor:pointer;">
@@ -162,6 +175,16 @@
                 <label class="mr-3"><input type="checkbox" name="supports_transparent_background" value="1" @checked($model->supports_transparent_background)> Transparent output</label>
                 <label class="mr-3"><input type="checkbox" name="is_active" value="1" @checked($model->is_active)> System enabled</label>
                 <label><input type="checkbox" name="is_recommended" value="1" @checked($model->is_recommended)> Recommended</label>
+              </div>
+            </div>
+            <div class="border rounded bg-light p-3 mb-3">
+              <div class="d-flex align-items-center mb-2"><strong><i class="fa fa-chart-line text-primary mr-1"></i> Analytics pricing parameters</strong></div>
+              <small class="text-muted d-block mb-3">Usage uses the provider response when returned; otherwise the dashboard labels the prompt-token fallback as an estimate. No prompt, product, business data, or API key is stored in analytics.</small>
+              <div class="row">
+                <div class="col-md-3 form-group mb-md-0"><label class="small mb-1">Input USD / 1M tokens</label><input class="form-control form-control-sm" type="number" min="0" step="0.000001" name="pricing_config[input_per_million_usd]" value="{{ old('pricing_config.input_per_million_usd', data_get($pricing, 'input_per_million_usd', 0)) }}"></div>
+                <div class="col-md-3 form-group mb-md-0"><label class="small mb-1">Output USD / 1M tokens</label><input class="form-control form-control-sm" type="number" min="0" step="0.000001" name="pricing_config[output_per_million_usd]" value="{{ old('pricing_config.output_per_million_usd', data_get($pricing, 'output_per_million_usd', 0)) }}"></div>
+                <div class="col-md-3 form-group mb-md-0"><label class="small mb-1">USD / generated image</label><input class="form-control form-control-sm" type="number" min="0" step="0.000001" name="pricing_config[image_per_unit_usd]" value="{{ old('pricing_config.image_per_unit_usd', data_get($pricing, 'image_per_unit_usd', 0)) }}"></div>
+                <div class="col-md-3 form-group mb-0"><label class="small mb-1">USD to INR rate</label><input class="form-control form-control-sm" type="number" min="0" step="0.01" name="pricing_config[usd_to_inr]" value="{{ old('pricing_config.usd_to_inr', data_get($pricing, 'usd_to_inr', 90)) }}"></div>
               </div>
             </div>
             <button class="btn btn-outline-primary btn-sm">Update model</button>

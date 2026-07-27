@@ -15,6 +15,7 @@ Run these commands in the staging project folder after the source code has been 
 ```bash
 composer install --no-dev --prefer-dist --optimize-autoloader
 php artisan migrate --force
+php artisan festival-ai:backfill-analytics --limit=500
 php artisan optimize:clear
 php artisan config:cache
 php artisan route:cache
@@ -24,6 +25,8 @@ php artisan festival-ai:staging-check
 ```
 
 `festival-ai:staging-check` verifies migrations, the database queue configuration, the presence of the admin-configured Artera AI key, and outbound HTTPS access to OpenAI. It intentionally makes an unauthenticated request, so HTTP `401` or `403` means the server connection is working. No key is displayed, written to logs, or sent by this check.
+
+`festival-ai:backfill-analytics` is safe to run repeatedly. It adds one analytics row only for completed Festival AI visuals that were created before token analytics was enabled; those historical rows are marked as prompt estimates because the provider's past usage payload is not stored.
 
 ## Queue worker
 

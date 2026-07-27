@@ -292,7 +292,7 @@
                     Total API Requests
                 </div>
                 <h3 class="kpi-value font-math">{{ number_format($summary->total_requests ?? 0) }}</h3>
-                <div class="kpi-subtitle">Hits processed by Vertex AI</div>
+                <div class="kpi-subtitle">All connected AI providers</div>
             </div>
         </div>
 
@@ -331,6 +331,16 @@
                 </div>
                 <h3 class="kpi-value text-success">₹ {{ number_format($summary->total_cost ?? 0, 2) }}</h3>
                 <div class="kpi-subtitle">Conversion Rate: $1 = 90 INR</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert alert-light border shadow-sm mb-4" role="note">
+        <div class="d-flex align-items-start">
+            <i class="fa-solid fa-circle-info text-primary mt-1 mr-2"></i>
+            <div>
+                <strong>How Festival AI image usage is counted</strong>
+                <div class="small text-muted mt-1">One completed visual equals one generated image. Input and output tokens come directly from the provider response when available. If an image endpoint does not send token usage, Artera records only an approximate prompt-token count (characters ÷ 4) and labels it as an estimate. Estimated cost uses the selected model's input rate, output rate, per-image rate, and USD-to-INR rate from <strong>AI Image Models</strong>. Prompts, product photos, business details, API keys, and raw provider responses are never stored here.</div>
             </div>
         </div>
     </div>
@@ -434,7 +444,9 @@
                             <tr>
                                 <th>AI Engine / Sub-model</th>
                                 <th>API Calls</th>
-                                <th>Total Tokens Processed</th>
+                                <th>Images</th>
+                                <th>Input / Output Tokens</th>
+                                <th>Total Tokens</th>
                                 <th class="text-right">Billed Cost (Estimated)</th>
                             </tr>
                         </thead>
@@ -443,17 +455,22 @@
                             <tr>
                                 <td>
                                     <span class="badge-soft align-items-center d-inline-flex" style="background:#f1f5f9; border: 1px solid #e2e8f0;">
-                                        <i class="fa-brands fa-google mr-2 text-primary" style="font-size: 0.85em;"></i>
+                                        <i class="fa-solid fa-robot mr-2 text-primary" style="font-size: 0.85em;"></i>
                                         {{ $ms->model ?? 'Unknown' }}
                                     </span>
+                                    @if(($ms->estimated_requests ?? 0) > 0)
+                                      <div class="small text-warning mt-1"><i class="fa fa-calculator mr-1"></i>{{ $ms->estimated_requests }} prompt estimate{{ $ms->estimated_requests == 1 ? '' : 's' }}</div>
+                                    @endif
                                 </td>
                                 <td class="font-math">{{ $ms->requests }}</td>
+                                <td class="font-math">{{ number_format($ms->images ?? 0) }}</td>
+                                <td class="font-math">{{ number_format($ms->input_tokens ?? 0) }} / {{ number_format($ms->output_tokens ?? 0) }}</td>
                                 <td class="font-math">{{ number_format($ms->tokens) }}</td>
                                 <td class="text-right cost-highlight font-math" style="font-size: 1.1rem;">₹ {{ number_format($ms->cost, 4) }}</td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="4" class="text-center py-4 text-muted border-0">No models hit during this period.</td>
+                                <td colspan="6" class="text-center py-4 text-muted border-0">No models hit during this period.</td>
                             </tr>
                             @endforelse
                         </tbody>

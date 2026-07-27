@@ -41,6 +41,11 @@ done
 echo "Running migrations..."
 php artisan migrate --force 2>&1 || echo "Migration warning (may already exist)"
 
+# Bring already-completed Festival AI visuals into the secure usage dashboard.
+# The command is idempotent and stores no prompt, credentials, or image data.
+echo "Syncing Festival AI analytics..."
+php artisan festival-ai:backfill-analytics --limit=500 2>&1 || echo "Festival AI analytics sync warning"
+
 # Clear and cache config
 echo "Optimizing application..."
 php artisan config:clear

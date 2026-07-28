@@ -105,12 +105,7 @@ class FestivalAiPromptCompiler
             2
         );
 
-        $headerPercent = $this->clampPercent($brandChrome['header_height_percent'] ?? 12);
-        $footerPercent = $this->clampPercent($brandChrome['footer_height_percent'] ?? 10);
-        $brandContacts = $this->businessContactItems(
-            $business,
-            (int) ($brandChrome['max_contact_items'] ?? 4)
-        );
+        $brandContacts = $this->businessContactItems($business);
         $sizeValue = trim((string) ($output['size_value'] ?? ''));
         $sizeKey = trim((string) ($output['size_key'] ?? ''));
         $outputRule = $sizeValue !== ''
@@ -120,7 +115,7 @@ class FestivalAiPromptCompiler
 
         $parts = [
             'TASK: Create one polished, premium festival marketing visual.',
-            'PRIORITY ORDER: product fidelity, clean composition, exact text policy, festival meaning, visual style, branding safe zones.',
+            'PRIORITY ORDER: product fidelity, clean composition, exact text policy, festival meaning, visual style, business branding.',
             $outputRule,
             "FESTIVAL CONTENT SOURCE ({$festivalTitle}):\n{$festivalSource['text']}\n"
                 . 'Use only a small selection of culturally appropriate people and objects. Do not attempt to render every listed element. '
@@ -164,20 +159,19 @@ class FestivalAiPromptCompiler
 
         if ($brandingEnabled) {
             $parts[] = implode("\n", [
-                'AI-BUILT BUSINESS HEADER AND FOOTER — PART OF THIS ONE GENERATED IMAGE:',
-                "- Build an integrated top header occupying about {$headerPercent}% of the canvas and an integrated bottom footer occupying about {$footerPercent}% of the canvas. No later overlay or post-processing will be applied.",
+                'AI-BUILT BUSINESS BRANDING — PART OF THIS ONE GENERATED IMAGE:',
+                '- No later overlay or post-processing will be applied. Create all branding as a natural part of this image.',
                 '- Top header visual direction: ' . ($headerDirection['text']
-                    ?: 'Continue the festival artwork softly with strong contrast and a clean branding area.'),
+                    ?: 'Integrate the business identity naturally with the festival artwork.'),
                 '- Bottom footer visual direction: ' . ($footerDirection['text']
-                    ?: 'Continue the same artwork with strong contrast and a clean contact area.'),
-                '- Header logo placement: ' . (($brandChrome['logo_position'] ?? 'left') === 'right' ? 'right side' : 'left side') . '.',
-                '- Header/footer surface treatment: ' . $this->chromePanelDirection($brandChrome['panel_style'] ?? 'adaptive') . '.',
-                '- Branding text contrast: ' . $this->chromeToneDirection($brandChrome['text_tone'] ?? 'auto') . '.',
-                '- Use the supplied brand-logo reference image only for the header. Reproduce its mark faithfully without redesigning, recolouring, cropping important parts or inventing another logo.',
-                '- Approved business name (render exactly once, beside or below the logo): ' . $this->quotedBusinessValue($business['name'] ?? null),
-                '- Approved footer contact items (render exactly these, large and readable; never add, omit, abbreviate or change a digit): '
-                    . ($brandContacts !== [] ? implode(' | ', $brandContacts) : 'No contact item is approved.'),
-                '- Keep the header and footer text large enough to read at mobile-preview size. Use a simple high-contrast layout; do not use tiny legal text, dense paragraphs, duplicate logo, watermark or sample branding.',
+                    ?: 'Integrate the useful contact details naturally with the festival artwork.'),
+                '- Analyse the artwork, festival style, supplied logo and visible business data, then decide the most balanced placement, scale, contrast and visual treatment yourself.',
+                '- Do not reserve a fixed top or bottom height, force a logo side, force a text colour, or default to opaque rectangular header/footer strips. Prefer natural integration with the artwork; use a distinct branding area only when it genuinely improves the composition and readability.',
+                '- Use the supplied brand-logo reference faithfully. Do not redesign, recolour, crop important parts, or invent another logo.',
+                '- Approved business name: ' . $this->quotedBusinessValue($business['name'] ?? null),
+                '- Visible business contact data: ' . ($brandContacts !== [] ? implode(' | ', $brandContacts) : 'No contact item is available.'),
+                '- Choose the subset of approved contact data that fits cleanly and remains readable at mobile-preview size. Never invent, alter, abbreviate, or change a provided business value; it is acceptable to omit details that would make the artwork crowded.',
+                '- Do not create sample branding, placeholder text, a duplicate logo, or a watermark.',
             ]);
         }
 
@@ -202,7 +196,7 @@ class FestivalAiPromptCompiler
         return [
             'prompt' => $compiled,
             'diagnostics' => [
-                'compiler_version' => 4,
+                'compiler_version' => 5,
                 'branding_render_mode' => $brandingEnabled
                     ? 'provider_prompt_and_reference_image_only'
                     : 'no_business_branding',
@@ -222,13 +216,13 @@ class FestivalAiPromptCompiler
                     ->keys()
                     ->values()
                     ->all(),
-                'text_policy' => 'one_headline_plus_optional_short_blessing_plus_approved_business_chrome',
+                'text_policy' => 'one_headline_plus_optional_short_blessing_plus_autonomous_business_branding',
                 'product_names' => $productNames,
                 'style_product_placement_enabled' => $stylePlacementRules['text'] !== '',
                 'output_size_key' => $sizeKey,
                 'output_size' => $sizeValue,
-                'header_safe_zone_percent' => $brandingEnabled ? $headerPercent : 0,
-                'footer_safe_zone_percent' => $brandingEnabled ? $footerPercent : 0,
+                'branding_layout_mode' => $brandingEnabled ? 'provider_autonomous' : 'disabled',
+                'visible_business_contact_count' => $brandingEnabled ? count($brandContacts) : 0,
             ],
         ];
     }
@@ -260,7 +254,7 @@ class FestivalAiPromptCompiler
             $warnings[] = 'Festival Style hard-codes a size or aspect ratio. Remove it; the app-selected Post Size controls the canvas.';
         }
         if (preg_match('/\b(header|footer|top|bottom)\b.{0,40}\b\d{1,2}\s*%/iu', (string) $stylePrompt)) {
-            $warnings[] = 'Festival Style hard-codes a header/footer percentage. Remove it; the selected Header & Footer Style controls both safe-zone heights.';
+            $warnings[] = 'Festival Style hard-codes a header/footer percentage. Remove it so AI can choose the natural business-branding composition.';
         }
         if (preg_match('/\b(3d|three-dimensional|stylized|restyled|re-rendered)\b/iu', (string) $stylePrompt)) {
             $warnings[] = 'A source asks AI to restyle or 3D-render the product. Remove it to preserve the attached product exactly.';
@@ -468,15 +462,15 @@ class FestivalAiPromptCompiler
             ->all();
     }
 
-    private function clampPercent($value): int
-    {
-        return max(6, min(20, (int) $value));
-    }
-
-    private function businessContactItems(array $business, int $maximum): array
+    private function businessContactItems(array $business): array
     {
         $items = [];
-        foreach (['phones' => 'Phone', 'emails' => 'Email', 'websites' => 'Website'] as $key => $label) {
+        foreach ([
+            'phones' => 'Phone',
+            'emails' => 'Email',
+            'websites' => 'Website',
+            'addresses' => 'Address',
+        ] as $key => $label) {
             foreach ((array) ($business[$key] ?? []) as $value) {
                 $value = $this->cleanBusinessValue($value);
                 if ($value !== '') {
@@ -485,7 +479,7 @@ class FestivalAiPromptCompiler
             }
         }
 
-        return array_slice(array_values(array_unique($items)), 0, max(0, $maximum));
+        return array_values(array_unique($items));
     }
 
     private function quotedBusinessValue($value): string
@@ -504,22 +498,4 @@ class FestivalAiPromptCompiler
         return mb_substr(Str::squish(strip_tags($value)), 0, 180);
     }
 
-    private function chromePanelDirection($value): string
-    {
-        return match ($value) {
-            'light' => 'a clean light panel integrated into the artwork',
-            'dark' => 'a clean dark panel integrated into the artwork',
-            'none' => 'no separate panel; blend text into a calm high-contrast artwork area',
-            default => 'an adaptive high-contrast integrated panel',
-        };
-    }
-
-    private function chromeToneDirection($value): string
-    {
-        return match ($value) {
-            'light' => 'use light text only',
-            'dark' => 'use dark text only',
-            default => 'choose the clearest contrast against the selected panel',
-        };
-    }
 }

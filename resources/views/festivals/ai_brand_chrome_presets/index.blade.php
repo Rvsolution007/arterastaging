@@ -4,16 +4,16 @@
 <div class="container-fluid py-3">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-      <h3 class="mb-1"><i class="fa fa-id-card text-primary mr-1"></i> Festival Header &amp; Footer Styles</h3>
-      <p class="text-muted mb-0">Create reusable AI prompts for the business logo, header and footer area.</p>
+      <h3 class="mb-1"><i class="fa fa-id-card text-primary mr-1"></i> Festival AI Business Branding</h3>
+      <p class="text-muted mb-0">Create reusable AI prompts for integrating the business logo and visible details into the poster.</p>
     </div>
-    <a href="{{ route('festival_ai_brand_chrome.create') }}" class="btn btn-primary"><i class="fa fa-plus mr-1"></i> Add Header &amp; Footer Style</a>
+    <a href="{{ route('festival_ai_brand_chrome.create') }}" class="btn btn-primary"><i class="fa fa-plus mr-1"></i> Add Business Branding</a>
   </div>
 
   @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
 
   <div class="alert alert-info shadow-sm border-0">
-    The selected style is used while generating the image. The final output then adds the current business logo and only its visible details. Values marked <strong>Hide in frame</strong> are never used.
+    The selected style is included in the same AI image request. AI receives the active business logo, name and visible details, then decides the composition. Nothing is added after generation. Values marked <strong>Hide in frame</strong> are never used.
   </div>
 
   <div class="card shadow-sm">

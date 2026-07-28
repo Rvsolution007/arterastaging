@@ -29,12 +29,6 @@ class FestivalAiBrandChromePresetController extends Controller
             'preset' => new FestivalAiBrandChromePreset([
                 'status' => true,
                 'overlay_enabled' => true,
-                'header_height_percent' => 12,
-                'footer_height_percent' => 10,
-                'panel_style' => 'adaptive',
-                'logo_position' => 'left',
-                'text_tone' => 'auto',
-                'max_contact_items' => 4,
             ]),
         ]);
     }
@@ -44,7 +38,7 @@ class FestivalAiBrandChromePresetController extends Controller
         FestivalAiBrandChromePreset::create($this->payload($request));
 
         return redirect()->route('festival_ai_brand_chrome.index')
-            ->with('success', 'Header & Footer Style added to the central library.');
+            ->with('success', 'Business branding prompt added to the central library.');
     }
 
     public function edit(FestivalAiBrandChromePreset $festivalAiBrandChrome)
@@ -59,7 +53,7 @@ class FestivalAiBrandChromePresetController extends Controller
         $festivalAiBrandChrome->update($this->payload($request));
 
         return redirect()->route('festival_ai_brand_chrome.index')
-            ->with('success', 'Header & Footer Style updated. Future Festival AI generations will use the new prompt.');
+            ->with('success', 'Business branding prompt updated. Future Festival AI generations will use it.');
     }
 
     public function destroy(FestivalAiBrandChromePreset $festivalAiBrandChrome)
@@ -67,7 +61,7 @@ class FestivalAiBrandChromePresetController extends Controller
         // Existing generated images retain their own immutable prompt snapshot.
         $festivalAiBrandChrome->delete();
 
-        return back()->with('success', 'Header & Footer Style deleted. Festivals using it will return to standard AI visuals until another style is selected.');
+        return back()->with('success', 'Business branding prompt deleted. Festivals using it will return to standard AI visuals until another prompt is selected.');
     }
 
     private function payload(Request $request): array
@@ -76,12 +70,6 @@ class FestivalAiBrandChromePresetController extends Controller
             'name' => ['required', 'string', 'max:150'],
             'header_prompt' => ['nullable', 'string', 'max:5000'],
             'footer_prompt' => ['nullable', 'string', 'max:5000'],
-            'header_height_percent' => ['required', 'integer', 'min:6', 'max:20'],
-            'footer_height_percent' => ['required', 'integer', 'min:6', 'max:20'],
-            'panel_style' => ['required', 'string', 'in:adaptive,light,dark,none'],
-            'logo_position' => ['required', 'string', 'in:left,right'],
-            'text_tone' => ['required', 'string', 'in:auto,light,dark'],
-            'max_contact_items' => ['required', 'integer', 'min:1', 'max:8'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
 
@@ -90,12 +78,6 @@ class FestivalAiBrandChromePresetController extends Controller
             'header_prompt' => blank($validated['header_prompt'] ?? null) ? null : trim($validated['header_prompt']),
             'footer_prompt' => blank($validated['footer_prompt'] ?? null) ? null : trim($validated['footer_prompt']),
             'overlay_enabled' => $request->boolean('overlay_enabled'),
-            'header_height_percent' => $validated['header_height_percent'],
-            'footer_height_percent' => $validated['footer_height_percent'],
-            'panel_style' => $validated['panel_style'],
-            'logo_position' => $validated['logo_position'],
-            'text_tone' => $validated['text_tone'],
-            'max_contact_items' => $validated['max_contact_items'],
             'sort_order' => $validated['sort_order'] ?? 0,
             'status' => $request->boolean('status'),
         ];

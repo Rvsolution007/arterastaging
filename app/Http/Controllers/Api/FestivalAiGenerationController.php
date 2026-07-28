@@ -535,12 +535,6 @@ class FestivalAiGenerationController extends Controller
             'header_prompt' => trim((string) $preset->header_prompt),
             'footer_prompt' => trim((string) $preset->footer_prompt),
             'overlay_enabled' => (bool) $preset->overlay_enabled,
-            'header_height_percent' => (int) $preset->header_height_percent,
-            'footer_height_percent' => (int) $preset->footer_height_percent,
-            'panel_style' => $preset->panel_style,
-            'logo_position' => $preset->logo_position,
-            'text_tone' => $preset->text_tone,
-            'max_contact_items' => (int) $preset->max_contact_items,
         ];
     }
 

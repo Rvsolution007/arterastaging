@@ -58,6 +58,7 @@ class ProcessFestivalAiGeneration implements ShouldQueue
                     'generation_id' => $this->generationId,
                 ]);
             }
+            $this->queueEditableDocument($generation->fresh());
             $this->notifyUser($generation->fresh(), true);
         } catch (\Throwable $exception) {
             Log::warning('Festival AI generation failed.', [
@@ -127,6 +128,35 @@ class ProcessFestivalAiGeneration implements ShouldQueue
         } catch (\Throwable $exception) {
             // A notification must never change the completed/failed job state.
             Log::warning('Festival AI user notification could not be saved.', [
+                'generation_id' => $generation->id,
+            ]);
+        }
+    }
+
+    private function queueEditableDocument(FestivalAiGeneration $generation): void
+    {
+        if (!(bool) config('ai_editable_v1.enabled') || blank(config('ai_editable_v1.planner_model'))) {
+            return;
+        }
+
+        $editableRequest = $generation->editableRequest;
+        if (!$editableRequest || $editableRequest->status !== 'queued') {
+            return;
+        }
+
+        try {
+            ProcessAiEditableDocument::dispatch($editableRequest->id)
+                ->onConnection('festival-ai')
+                ->onQueue('festival-ai');
+        } catch (\Throwable $exception) {
+            // The original Festival image is already completed. A V1 worker
+            // failure only marks the optional editable output as failed.
+            $editableRequest->update([
+                'status' => 'failed',
+                'completed_at' => now(),
+                'error_message' => 'The editable layer document could not be queued. Your original AI visual is still available.',
+            ]);
+            Log::warning('AI Editable V1 queue dispatch failed.', [
                 'generation_id' => $generation->id,
             ]);
         }

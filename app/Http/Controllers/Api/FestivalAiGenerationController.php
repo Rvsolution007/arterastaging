@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Jobs\ProcessFestivalAiGeneration;
 use App\Models\AiImageModel;
+use App\Models\AiEditableGenerationRequest;
 use App\Models\FestivalAiConfig;
 use App\Models\FestivalAiGeneration;
 use App\Models\Festivals;
@@ -97,6 +98,10 @@ class FestivalAiGenerationController extends Controller
                 'title' => $language->title,
             ])->values(),
             'festivals' => $festivals,
+            'ai_editable_v1' => [
+                'enabled' => $this->aiEditableV1Available(),
+                'contract' => config('ai_editable_v1.contract'),
+            ],
         ]);
     }
 
@@ -120,7 +125,12 @@ class FestivalAiGenerationController extends Controller
             'product_ids.*' => ['integer', 'distinct'],
             'uploaded_product_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'uploaded_product_name' => ['nullable', 'string', 'max:150'],
+            'output_mode' => ['nullable', 'string', Rule::in(['flat', 'editable_v1'])],
         ]);
+
+        if (($validated['output_mode'] ?? 'flat') === 'editable_v1' && !$this->aiEditableV1Available()) {
+            return $this->error('Editable AI layers are not available right now.', Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
 
         $config = FestivalAiConfig::with([
             'styles' => fn ($query) => $query->where('status', true),
@@ -290,6 +300,7 @@ class FestivalAiGenerationController extends Controller
 
                 $businessSnapshot = $this->businessContext->snapshotForUser($lockedUser);
                 $brandChromeSnapshot = $this->brandChromeSnapshot($config);
+                $outputMode = $validated['output_mode'] ?? 'flat';
                 $compiled = $this->promptCompiler->compile(
                     $config,
                     $style,
@@ -301,12 +312,18 @@ class FestivalAiGenerationController extends Controller
                     [
                         'size_key' => $validated['size_key'],
                         'size_value' => $size['size'],
+                        'mode' => $outputMode,
                     ]
                 );
-                $brandLogoExpected = (bool) ($brandChromeSnapshot['overlay_enabled'] ?? true)
+                // Editable V1 keeps business branding as a real editor layer.
+                // The provider receives product references only, so a logo never
+                // becomes uneditable pixels inside the generated artwork.
+                $brandLogoExpected = $outputMode !== 'editable_v1'
+                    && (bool) ($brandChromeSnapshot['overlay_enabled'] ?? true)
                     && filled($businessSnapshot['logo_path'] ?? null);
                 $expectedReferenceCount = $productSnapshot->count() + ($brandLogoExpected ? 1 : 0);
                 $requestDiagnostics = array_merge($compiled['diagnostics'], [
+                    'output_mode' => $outputMode,
                     'provider' => $model->provider,
                     'model' => $model->model_id,
                     'quality' => $validated['quality'],
@@ -320,7 +337,7 @@ class FestivalAiGenerationController extends Controller
                     'attached_reference_count' => 0,
                 ]);
 
-                return FestivalAiGeneration::create([
+                $generation = FestivalAiGeneration::create([
                     'request_id' => (string) Str::uuid(),
                     'user_id' => $lockedUser->id,
                     'subscription_id' => $plan->id,
@@ -342,6 +359,17 @@ class FestivalAiGenerationController extends Controller
                     'status' => 'queued',
                     'quota_reserved_at' => now(),
                 ]);
+
+                if (($validated['output_mode'] ?? 'flat') === 'editable_v1') {
+                    AiEditableGenerationRequest::create([
+                        'public_id' => (string) Str::uuid(),
+                        'festival_ai_generation_id' => $generation->id,
+                        'user_id' => $lockedUser->id,
+                        'status' => 'queued',
+                    ]);
+                }
+
+                return $generation;
             });
         } catch (\DomainException $exception) {
             $this->deleteUploadedProductImage($storedUploadedProductPath);
@@ -428,6 +456,7 @@ class FestivalAiGenerationController extends Controller
                 'festival:id,title',
                 'style:id,name',
                 'imageModel:id,display_name',
+                'editableRequest.document:id,public_id,status',
             ])
             ->latest('id')
             ->limit(30)
@@ -594,6 +623,10 @@ class FestivalAiGenerationController extends Controller
 
     private function jobPayload(FestivalAiGeneration $generation): array
     {
+        $editableRequest = $generation->relationLoaded('editableRequest')
+            ? $generation->editableRequest
+            : $generation->editableRequest()->with('document:id,public_id,status')->first();
+
         return [
             'id' => $generation->id,
             'request_id' => $generation->request_id,
@@ -608,7 +641,20 @@ class FestivalAiGenerationController extends Controller
             'festival_title' => optional($generation->festival)->title,
             'style_name' => optional($generation->style)->name,
             'model_name' => optional($generation->imageModel)->display_name,
+            'editable_document' => $editableRequest ? [
+                'status' => $editableRequest->status,
+                'document_id' => optional($editableRequest->document)->public_id,
+                'error_message' => $editableRequest->status === 'failed'
+                    ? $editableRequest->error_message
+                    : null,
+            ] : null,
         ];
+    }
+
+    private function aiEditableV1Available(): bool
+    {
+        return (bool) config('ai_editable_v1.enabled')
+            && filled(config('ai_editable_v1.planner_model'));
     }
 
     private function assetUrl(?string $path): ?string

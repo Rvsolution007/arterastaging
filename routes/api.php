@@ -145,6 +145,18 @@ Route::
             Route::get('/festival-ai/generations', [\App\Http\Controllers\Api\FestivalAiGenerationController::class, 'history']);
             Route::get('/festival-ai/generations/{festivalAiGeneration}', [\App\Http\Controllers\Api\FestivalAiGenerationController::class, 'show']);
 
+            // Business Post AI is a separate Custom Post journey. It shares
+            // one-image credits, never a frame/template render contract.
+            Route::get('/business-ai/options', [\App\Http\Controllers\Api\BusinessAiGenerationController::class, 'options']);
+            Route::post('/business-ai/generations', [\App\Http\Controllers\Api\BusinessAiGenerationController::class, 'create'])->middleware('throttle:10,1');
+            Route::get('/business-ai/generations', [\App\Http\Controllers\Api\BusinessAiGenerationController::class, 'history']);
+            Route::get('/business-ai/generations/{businessAiGeneration}', [\App\Http\Controllers\Api\BusinessAiGenerationController::class, 'show']);
+
+            // AI Editable V1 is a separate, frame-free document contract.
+            Route::get('/ai-editable/v1/documents/{publicId}', [\App\Http\Controllers\Api\AiEditableDocumentController::class, 'show']);
+            Route::post('/ai-editable/v1/documents', [\App\Http\Controllers\Api\AiEditableDocumentController::class, 'create'])->middleware('throttle:10,1');
+            Route::post('/ai-editable/v1/documents/{publicId}/save', [\App\Http\Controllers\Api\AiEditableDocumentController::class, 'save'])->middleware('throttle:30,1');
+
             // Setup Wizard Endpoints
             Route::post('/setup-wizard/status', [\App\Http\Controllers\Api\SetupWizardApiController::class, 'status']);
             Route::post('/setup-wizard/analyze', [\App\Http\Controllers\Api\SetupWizardApiController::class, 'analyze']);

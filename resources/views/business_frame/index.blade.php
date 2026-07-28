@@ -390,11 +390,7 @@
     <div class="cf-container pt-0">
       
       <div class="cf-tabs-nav mb-4" id="custom-tabs-four-tab" role="tablist">
-          <a class="cf-tab-btn active" id="tabs-manage-purposes-tab" data-toggle="pill" href="#tabs-manage-purposes" role="tab" aria-controls="tabs-manage-purposes" aria-selected="true"><i class="fa-solid fa-list-check"></i> Manage Purposes</a>
-
-          <a class="cf-tab-btn" id="tabs-purposes-tab" data-toggle="pill" href="#tabs-purposes" role="tab" aria-controls="tabs-purposes" aria-selected="false"><i class="fa-solid fa-robot"></i> Configure AI</a>
-          
-          <a class="cf-tab-btn" id="tabs-image-types-tab" data-toggle="pill" href="#tabs-image-types" role="tab" aria-controls="tabs-image-types" aria-selected="false"><i class="fa-solid fa-images"></i> Image Types</a>
+          <a class="cf-tab-btn active" id="tabs-image-types-tab" data-toggle="pill" href="#tabs-image-types" role="tab" aria-controls="tabs-image-types" aria-selected="true"><i class="fa-solid fa-images"></i> Image Types</a>
           
           <a class="cf-tab-btn" id="tabs-custom-frames-tab" data-toggle="pill" href="#tabs-custom-frames" role="tab" aria-controls="tabs-custom-frames" aria-selected="false"><i class="fa-solid fa-file-zipper"></i> Custom Posts (ZIPs)</a>
       </div>
@@ -405,7 +401,7 @@
       <div class="card-body">
         <div class="tab-content" id="custom-tabs-four-tabContent">
             <!-- Manage Purposes Tab -->
-            <div class="tab-pane fade show active" id="tabs-manage-purposes" role="tabpanel" aria-labelledby="tabs-manage-purposes-tab">
+            <div class="tab-pane fade" id="tabs-manage-purposes" role="tabpanel" aria-labelledby="tabs-manage-purposes-tab">
                 <div class="row">
                     <div class="col-md-4">
                         <div class="cf-panel">
@@ -595,7 +591,7 @@
             </div>
 
             <!-- Image Types Tab -->
-            <div class="tab-pane fade" id="tabs-image-types" role="tabpanel" aria-labelledby="tabs-image-types-tab">
+            <div class="tab-pane fade show active" id="tabs-image-types" role="tabpanel" aria-labelledby="tabs-image-types-tab">
                 <div class="row">
                     <div class="col-md-4">
                         <div class="cf-panel">
@@ -1275,9 +1271,13 @@
           localStorage.setItem('activeTabCustomFrame', target);
       });
 
-      // Restore active tab on load
-      var activeTab = localStorage.getItem('activeTabCustomFrame');
-      if (activeTab) {
+      // Open ZIPs directly when arriving from Custom Post Types; otherwise
+      // restore only a currently available tab.
+      var requestedTab = new URLSearchParams(window.location.search).get('tab');
+      var activeTab = requestedTab === 'custom-frames'
+          ? '#tabs-custom-frames'
+          : localStorage.getItem('activeTabCustomFrame');
+      if (activeTab && $('.cf-tab-btn[href="' + activeTab + '"]').length) {
           $('.cf-tab-btn[href="' + activeTab + '"]').click();
       }
 

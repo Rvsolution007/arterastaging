@@ -6,6 +6,7 @@ import 'home_screen.dart';
 import 'template_grid_screen.dart';
 import 'my_business_screen.dart';
 import 'ai_trends_screen.dart';
+import 'business_ai_post_screen.dart';
 import 'more_screen.dart';
 
 import '../controllers/ad_controller.dart';
@@ -27,22 +28,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   List<Widget> get _pages => [
     const HomeScreen(),
-    Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'custom'.trFormat,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: AppColors.primary,
-        centerTitle: true,
-        elevation: 0,
-      ),
-      body: const ComingSoonWidget(title: 'Custom Posts'),
-    ),
+    const BusinessAiPostScreen(),
     const MyBusinessScreen(),
     const AiTrendsScreen(),
     const MoreScreen(),

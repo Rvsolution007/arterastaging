@@ -31,9 +31,11 @@ class FestivalAiPromptCompiler
         $festivalTitle = $festivalTitle !== '' ? $festivalTitle : 'the selected festival';
         $languageTitle = trim((string) $language->title) ?: 'English';
         $hasProducts = $products->isNotEmpty();
+        $editableArtwork = ($output['mode'] ?? 'flat') === 'editable_v1';
         $brandingEnabled = $brandChrome !== []
             && (bool) ($brandChrome['overlay_enabled'] ?? true)
-            && $business !== [];
+            && $business !== []
+            && !$editableArtwork;
 
         $productNames = $products
             ->map(fn ($product) => trim((string) ($product['title'] ?? '')))
@@ -115,7 +117,9 @@ class FestivalAiPromptCompiler
 
         $parts = [
             'TASK: Create one polished, premium festival marketing visual.',
-            'PRIORITY ORDER: product fidelity, clean composition, exact text policy, festival meaning, visual style, business branding.',
+            $editableArtwork
+                ? 'PRIORITY ORDER: product fidelity, clean composition, reserved editable-overlay zones, festival meaning, visual style.'
+                : 'PRIORITY ORDER: product fidelity, clean composition, exact text policy, festival meaning, visual style, business branding.',
             $outputRule,
             "FESTIVAL CONTENT SOURCE ({$festivalTitle}):\n{$festivalSource['text']}\n"
                 . 'Use only a small selection of culturally appropriate people and objects. Do not attempt to render every listed element. '
@@ -157,6 +161,16 @@ class FestivalAiPromptCompiler
             '- Exception: preserve text and logos already printed on the attached physical product; do not translate or rewrite its label.',
         ]);
 
+        if ($editableArtwork) {
+            $parts[] = implode("\n", [
+                'FINAL EDITABLE ARTWORK OVERRIDE:',
+                '- Create product and background artwork only. All app copy, logo, contact information, CTA buttons, shapes and icons will be rendered later as editable layers.',
+                '- Do not render any headline, readable letters, digits, logo, CTA, contact detail, icon, badge, border, watermark or decorative text in this generated image.',
+                '- Keep one calm, high-contrast, unoccupied area of roughly 35% of the canvas for editable copy.',
+                '- Preserve only wording physically printed on an attached product; never repeat it as poster typography.',
+            ]);
+        }
+
         if ($brandingEnabled) {
             $parts[] = implode("\n", [
                 'AI-BUILT BUSINESS BRANDING — PART OF THIS ONE GENERATED IMAGE:',
@@ -196,6 +210,9 @@ class FestivalAiPromptCompiler
         return [
             'prompt' => $compiled,
             'diagnostics' => [
+                // Flat Festival diagnostics stay at v5 for existing clients.
+                // Editable artwork is identified explicitly by text_policy and
+                // branding_layout_mode rather than a shared-version bump.
                 'compiler_version' => 5,
                 'branding_render_mode' => $brandingEnabled
                     ? 'provider_prompt_and_reference_image_only'
@@ -216,12 +233,16 @@ class FestivalAiPromptCompiler
                     ->keys()
                     ->values()
                     ->all(),
-                'text_policy' => 'one_headline_plus_optional_short_blessing_plus_autonomous_business_branding',
+                'text_policy' => $editableArtwork
+                    ? 'artwork_only_with_editable_overlay_safe_zone'
+                    : 'one_headline_plus_optional_short_blessing_plus_autonomous_business_branding',
                 'product_names' => $productNames,
                 'style_product_placement_enabled' => $stylePlacementRules['text'] !== '',
                 'output_size_key' => $sizeKey,
                 'output_size' => $sizeValue,
-                'branding_layout_mode' => $brandingEnabled ? 'provider_autonomous' : 'disabled',
+                'branding_layout_mode' => $editableArtwork
+                    ? 'editable_overlay'
+                    : ($brandingEnabled ? 'provider_autonomous' : 'disabled'),
                 'visible_business_contact_count' => $brandingEnabled ? count($brandContacts) : 0,
             ],
         ];

@@ -1,10 +1,16 @@
 @extends('layouts.app')
 
+@section('extra_css')
+    @include('partials.modern_admin_css')
+@endsection
+
+
 @section('heading')
 <div class="mt-5">Festival AI Generation Monitor</div>
 @endsection
 
 @section('content')
+<div class="modern-ui-wrapper">
 <div class="row mt-4">
     <div class="col-12">
         <div class="card">
@@ -122,6 +128,7 @@
             </div>
         </div>
     </div>
+</div>
 </div>
 @endsection
 

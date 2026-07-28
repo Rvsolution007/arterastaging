@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../controllers/festival_ai_job_controller.dart';
+import '../features/ai_editable_v1/screens/ai_editable_editor_screen.dart';
 
 class FestivalAiCreationsSheet extends StatelessWidget {
   const FestivalAiCreationsSheet({super.key});
@@ -130,6 +131,11 @@ class FestivalAiCreationsSheet extends StatelessWidget {
     final completed = status == 'completed';
     final failed = status == 'failed';
     final imageUrl = job['image_url']?.toString() ?? '';
+    final editable = job['editable_document'];
+    final editableInfo = editable is Map
+        ? Map<String, dynamic>.from(editable)
+        : const <String, dynamic>{};
+    final editableDocumentId = editableInfo['document_id']?.toString() ?? '';
     final festival = job['festival_title']?.toString().trim();
     final title = (festival == null || festival.isEmpty)
         ? 'Festival AI visual'
@@ -148,8 +154,16 @@ class FestivalAiCreationsSheet extends StatelessWidget {
         : const Color(0xFF5B4BE8);
 
     return InkWell(
-      onTap: completed && imageUrl.isNotEmpty
-          ? () => _preview(context, imageUrl, title)
+      onTap: completed
+          ? () {
+              if (editableDocumentId.isNotEmpty) {
+                Get.to(
+                  () => AiEditableEditorScreen(documentId: editableDocumentId),
+                );
+                return;
+              }
+              if (imageUrl.isNotEmpty) _preview(context, imageUrl, title);
+            }
           : null,
       borderRadius: BorderRadius.circular(16),
       child: Container(
@@ -242,7 +256,27 @@ class FestivalAiCreationsSheet extends StatelessWidget {
                 ),
                 if (completed) ...[
                   const SizedBox(height: 7),
-                  Icon(Icons.open_in_full_rounded, size: 14, color: color),
+                  if (editableDocumentId.isNotEmpty)
+                    IconButton(
+                      tooltip: 'Edit layers',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints.tightFor(
+                        width: 28,
+                        height: 28,
+                      ),
+                      onPressed: () => Get.to(
+                        () => AiEditableEditorScreen(
+                          documentId: editableDocumentId,
+                        ),
+                      ),
+                      icon: const Icon(
+                        Icons.layers_outlined,
+                        size: 18,
+                        color: Color(0xFF4F46E5),
+                      ),
+                    )
+                  else
+                    Icon(Icons.open_in_full_rounded, size: 14, color: color),
                 ],
               ],
             ),

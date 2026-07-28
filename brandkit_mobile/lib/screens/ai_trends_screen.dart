@@ -27,6 +27,8 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
   XFile? _uploadedProductImage;
   String? _productMode;
   bool _modelDropdownOpen = false;
+  bool _aiEditableV1Available = false;
+  bool _createEditableV1 = false;
 
   bool _loading = true;
   bool _submitting = false;
@@ -80,6 +82,9 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
       final festivals = List<dynamic>.from(data['festivals'] ?? []);
       final models = List<dynamic>.from(data['models'] ?? []);
       final languages = List<dynamic>.from(data['languages'] ?? []);
+      final editableConfig = data['ai_editable_v1'];
+      final editableAvailable =
+          editableConfig is Map && editableConfig['enabled'] == true;
       Map<String, dynamic>? initialModel;
       String? initialQuality;
       for (final item in models) {
@@ -124,6 +129,8 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
         _sizeKey = _availableSizes.isNotEmpty
             ? _availableSizes.first['key']?.toString()
             : null;
+        _aiEditableV1Available = editableAvailable;
+        if (!editableAvailable) _createEditableV1 = false;
         _loading = false;
       });
     } catch (error) {
@@ -605,6 +612,7 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
         'product_ids': _selectedProductIds.toList(),
         'product_mode': _productMode ?? 'none',
         'uploaded_product_name': _uploadedProductNameController.text.trim(),
+        'output_mode': _createEditableV1 ? 'editable_v1' : 'flat',
       };
       final response = _productMode == 'upload'
           ? await _createGenerationWithUpload(body)
@@ -782,6 +790,10 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
           const SizedBox(height: 12),
           _sectionTitle('4. Add product'),
           _productCard(),
+          if (_aiEditableV1Available) ...[
+            const SizedBox(height: 12),
+            _editableLayersOption(),
+          ],
           const SizedBox(height: 14),
           _generateButton(),
           Obx(() {
@@ -1834,6 +1846,28 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
     );
   }
 
+  Widget _editableLayersOption() {
+    return Container(
+      decoration: _cardDecoration(),
+      child: SwitchListTile.adaptive(
+        value: _createEditableV1,
+        onChanged: _submitting
+            ? null
+            : (value) => setState(() => _createEditableV1 = value),
+        activeThumbColor: const Color(0xFF4F46E5),
+        secondary: const Icon(Icons.layers_outlined, color: Color(0xFF4F46E5)),
+        title: const Text(
+          'Editable AI layers',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        subtitle: const Text(
+          'Creates a separate background, objects, effects and native text. No frame is added.',
+          style: TextStyle(fontSize: 11, height: 1.25),
+        ),
+      ),
+    );
+  }
+
   Widget _generateButton() {
     return Obx(() {
       final hasActiveJob = _jobs.hasActiveJob;
@@ -1869,6 +1903,8 @@ class _AiTrendsScreenState extends State<AiTrendsScreen> {
                 ? 'Queueing your visual...'
                 : hasActiveJob
                 ? 'View current generation'
+                : _createEditableV1
+                ? 'Generate editable visual'
                 : 'Generate festival visual',
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),

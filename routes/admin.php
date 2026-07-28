@@ -64,6 +64,26 @@ Route::
                 ->except('show')
                 ->parameters(['festival-ai-brand-chrome' => 'festivalAiBrandChrome'])
                 ->names('festival_ai_brand_chrome');
+            Route::resource('business-ai-purposes', 'BusinessAiPurposeController')
+                ->except('show')
+                ->parameters(['business-ai-purposes' => 'businessAiPurpose'])
+                ->names('business_ai_purposes');
+            Route::resource('business-ai-styles', 'BusinessAiStyleController')
+                ->except('show')
+                ->parameters(['business-ai-styles' => 'businessAiStyle'])
+                ->names('business_ai_styles');
+            Route::resource('custom-post-types', 'BusinessAiPurposeController')
+                ->except('show')
+                ->parameters(['custom-post-types' => 'businessAiPurpose'])
+                ->names('custom_post_types');
+            Route::resource('custom-post-styles', 'BusinessAiStyleController')
+                ->except('show')
+                ->parameters(['custom-post-styles' => 'businessAiStyle'])
+                ->names('custom_post_styles');
+            Route::resource('custom-post-header-footer-styles', 'BusinessAiHeaderFooterStyleController')
+                ->except('show')
+                ->parameters(['custom-post-header-footer-styles' => 'businessAiHeaderFooterStyle'])
+                ->names('custom_post_header_footer_styles');
             Route::get('festival-ai-generations', 'FestivalAiGenerationController@index')->name('festival_ai_generations.index');
             Route::resource('festivals', 'FestivalsController');
             Route::Post('festivals-status', 'FestivalsController@festivals_status');

@@ -446,35 +446,72 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: Text(widget.isNew ? 'Create Business' : 'Edit Business', style: AppTextStyles.heading4),
+        title: Text(
+          widget.isNew ? 'Create Business' : 'Edit Business',
+          style: const TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 16,
+            color: Color(0xFF172033),
+          ),
+        ),
+        backgroundColor: const Color(0xFFF8FAFC),
+        elevation: 0,
+        centerTitle: true,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: AppColors.gray900),
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF172033)),
           onPressed: () => Get.back(),
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Logo Upload
-            Center(
-              child: Column(
-                children: [
-                  const Text('Upload Business Logo', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.gray800)),
-                  const SizedBox(height: 12),
-                  Stack(
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFEFF2F7)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.035),
+                    blurRadius: 12,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Column(
+                  children: [
+                    const Text(
+                      'Upload Business Logo',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF172033),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Stack(
                 children: [
                   Container(
-                    width: 120,
-                    height: 120,
+                    width: 108,
+                    height: 108,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.gray200, width: 2),
-                      boxShadow: AppColors.elevatedShadow,
+                      border: Border.all(color: const Color(0xFFE2E8F0), width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 16,
+                          offset: const Offset(0, 7),
+                        ),
+                      ],
                     ),
                     clipBehavior: Clip.antiAlias,
                     child: _selectedImage != null
@@ -496,7 +533,7 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppColors.indigo600,
+                          color: const Color(0xFF6434E8),
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 3),
                         ),
@@ -506,13 +543,14 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
                   )
                 ],
               ),
-                ],
+                  ],
+                ),
               ),
             ),
-            AppSpacing.gapV32,
+            const SizedBox(height: 24),
             
             // Form Fields
-            _buildInputField('Business Name', Icons.business, _nameCtrl),
+            _buildInputField('Business Name', Icons.storefront_outlined, _nameCtrl),
             AppSpacing.gapV16,
             CascadingBusinessDropdowns(
               key: ValueKey('cascade_$_cascadingKey'),
@@ -575,17 +613,17 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
             AppSpacing.gapV16,
             Container(
               decoration: BoxDecoration(
-                color: Colors.lightBlue.shade50,
+                color: const Color(0xFFF5F3FF),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.lightBlue.shade200),
+                border: Border.all(color: const Color(0xFFD8CCFF)),
               ),
               child: CheckboxListTile(
-                title: const Text('Same as personal info (Email & Phone)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                title: const Text('Same as personal info (Email & Phone)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155))),
                 value: _sameAsPersonalInfo,
                 onChanged: _toggleSameAsPersonal,
                 controlAffinity: ListTileControlAffinity.leading,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-                activeColor: AppColors.indigo600,
+                activeColor: const Color(0xFF6434E8),
                 dense: true,
               ),
             ),
@@ -609,21 +647,20 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
             AppSpacing.gapV32,
             
             // Save Button
-            ElevatedButton(
+            FilledButton(
               onPressed: _isLoading ? null : _saveProfile,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.indigo600,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                elevation: 10,
-                shadowColor: AppColors.indigo200,
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF6434E8),
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(52),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
               child: _isLoading
                   ? const SizedBox(
                       width: 24, height: 24,
                       child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                     )
-                  : Text('Save Changes', style: AppTextStyles.buttonPrimary.copyWith(fontSize: 16)),
+                  : const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
             ),
             const SizedBox(height: 40),
           ],
@@ -638,7 +675,7 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(label, style: AppTextStyles.labelSmall),
+          child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF334155))),
         ),
         _buildSingleInput(icon, controller, keyboardType: keyboardType, maxLines: maxLines),
       ],
@@ -654,14 +691,14 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.only(left: 4, bottom: 8),
-              child: Text(label, style: AppTextStyles.labelSmall),
+              child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, color: Color(0xFF334155))),
             ),
             if (extraCtrls.length < 5)
               GestureDetector(
                 onTap: onAdd,
                 child: Padding(
                   padding: const EdgeInsets.only(right: 4, bottom: 8),
-                  child: Icon(Icons.add_circle, color: AppColors.indigo600, size: 20),
+                  child: const Icon(Icons.add_circle_outline_rounded, color: Color(0xFF6434E8), size: 21),
                 ),
               ),
           ],
@@ -677,7 +714,7 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
               children: [
                 Expanded(child: _buildSingleInputWithHide(icon, ctrl, hiddenSet, keyboardType: keyboardType, maxLines: maxLines, readOnly: false)),
                 IconButton(
-                  icon: const Icon(Icons.remove_circle, color: Colors.red),
+                  icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8)),
                   onPressed: () {
                     setState(() {
                       hiddenSet.remove(ctrl);
@@ -712,9 +749,9 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
                   }
                 });
               },
-              activeColor: AppColors.indigo600,
+              activeColor: const Color(0xFF6434E8),
             ),
-            const Text('Hide in frame', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            const Text('Hide in frame', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
           ],
         ),
       ],
@@ -722,37 +759,23 @@ class _BusinessProfileScreenState extends State<BusinessProfileScreen> {
   }
 
   Widget _buildSingleInput(IconData icon, TextEditingController controller, {TextInputType? keyboardType, int maxLines = 1, bool readOnly = false}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: readOnly ? Colors.grey[200] : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.gray100),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          )
-        ],
-      ),
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        maxLines: maxLines,
-        readOnly: readOnly,
-        style: AppTextStyles.bodyMedium,
-        decoration: InputDecoration(
-          prefixIcon: Padding(
-            padding: EdgeInsets.only(left: 16, right: 12, bottom: maxLines > 1 ? (maxLines - 1) * 20.0 : 0),
-            child: Icon(icon, color: AppColors.gray400, size: 22),
-          ),
-          prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          fillColor: Colors.transparent,
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      readOnly: readOnly,
+      style: const TextStyle(fontSize: 14, color: Color(0xFF172033), fontWeight: FontWeight.w500),
+      decoration: InputDecoration(
+        prefixIcon: Padding(
+          padding: EdgeInsets.only(left: 15, right: 11, bottom: maxLines > 1 ? (maxLines - 1) * 20.0 : 0),
+          child: Icon(icon, color: const Color(0xFF94A3B8), size: 20),
         ),
+        prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF6434E8), width: 1.5)),
+        filled: true, fillColor: readOnly ? const Color(0xFFF1F5F9) : const Color(0xFFFBFCFE),
       ),
     );
   }

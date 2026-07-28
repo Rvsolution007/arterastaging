@@ -71,4 +71,14 @@ class FestivalAiGeneration extends Model
     {
         return $this->belongsTo(AiImageModel::class, 'ai_image_model_id');
     }
+
+    /**
+     * Optional standalone AI Editable V1 work. This is intentionally not a
+     * frame/template relation and does not alter the Festival generation's
+     * existing completion or quota lifecycle.
+     */
+    public function editableRequest()
+    {
+        return $this->hasOne(AiEditableGenerationRequest::class);
+    }
 }

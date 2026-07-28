@@ -537,13 +537,36 @@
             @endif
 
             @can('BusinessFrame')
-              <li class="nav-item">
-                <a href="{{route('custom-post.index')}}" class="nav-link {{$active}}" style="color: white;">
+              <li class="nav-item has-treeview {{$class}}">
+                <a href="#" class="nav-link {{$active}}" style="color: white;">
                   <i class="nav-icon fa-solid fa-business-time"></i>
                   <p>
-                    Custom Post <span class="badge badge-secondary right mr-3" style="font-size: 0.6em;">Pkg 2 Silver</span>
+                    Custom Post
+                    <i class="right fa fa-angle-right"></i>
                   </p>
                 </a>
+                <ul class="nav nav-treeview">
+                  <li class="nav-item">
+                    <a href="{{route('custom-post.index')}}" class="nav-link @if(Request::is('admin/custom-post') || Request::is('admin/custom-post/') || Request::is('admin/custom-post-category*') || Request::is('admin/custom-post-frame*')) active @endif" style="color: white;">
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> Custom Post ZIPs</p>
+                    </a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="{{ route('custom_post_types.index') }}" class="nav-link @if(Request::is('admin/custom-post-types*')) active @endif" style="color: white;">
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> Custom Post Types</p>
+                    </a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="{{ route('custom_post_header_footer_styles.index') }}" class="nav-link @if(Request::is('admin/custom-post-header-footer-styles*')) active @endif" style="color: white;">
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> Header &amp; Footer Styles</p>
+                    </a>
+                  </li>
+                  <li class="nav-item">
+                    <a href="{{ route('custom_post_styles.index') }}" class="nav-link @if(Request::is('admin/custom-post-styles*')) active @endif" style="color: white;">
+                      <p><i class="fa fa-angle-right ml-3 mr-1"></i> Custom Post Styles</p>
+                    </a>
+                  </li>
+                </ul>
               </li>
             @endcan
 

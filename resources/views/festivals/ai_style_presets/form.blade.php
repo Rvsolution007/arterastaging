@@ -1,7 +1,12 @@
 @extends('layouts.app')
 
+@section('extra_css')
+    @include('partials.modern_admin_css')
+@endsection
+
+
 @section('content')
-<div class="container-fluid py-3">
+<div class="modern-ui-wrapper container-fluid py-3">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
       <h3 class="mb-1">{{ $preset->exists ? 'Edit Festival Style' : 'Add Festival Style' }}</h3>

@@ -18,7 +18,7 @@ class AppInstallAnalyticsController extends Controller
         $validator = Validator::make($request->all(), [
             'device_id' => 'required|string|max:255',
             'install_id' => 'required|string|max:128',
-            'userId' => 'nullable|integer|exists:users,id',
+            'userId' => 'nullable|integer',
             'platform' => 'nullable|string|max:20',
             'app_version' => 'nullable|string|max:50',
             'device_model' => 'nullable|string|max:120',
@@ -33,8 +33,25 @@ class AppInstallAnalyticsController extends Controller
         }
 
         $data = $validator->validated();
+        $authenticatedUser = $request->user('sanctum');
+
+        // This endpoint is intentionally available before login so a fresh
+        // install can be counted. A client-provided user ID must therefore
+        // never be trusted unless it matches the authenticated mobile user.
+        $userId = null;
+        if ($authenticatedUser) {
+            if (isset($data['userId']) && (int) $data['userId'] !== $authenticatedUser->id) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'The install event does not belong to the authenticated user.',
+                ], 403);
+            }
+
+            $userId = $authenticatedUser->id;
+        }
+
         $event = AppInstallEvent::recordInstall($data['device_id'], $data['install_id'], [
-            'user_id' => isset($data['userId']) ? (int) $data['userId'] : null,
+            'user_id' => $userId,
             'platform' => $data['platform'] ?? 'android',
             'app_version' => $data['app_version'] ?? null,
             'device_model' => $data['device_model'] ?? null,

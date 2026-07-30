@@ -221,16 +221,18 @@
             <!-- Date Filter (Compact & Elegant UI) -->
             <div class="d-inline-flex align-items-center bg-white px-3 py-2 rounded shadow-sm border" style="border-color: #e2e8f0; gap: 0.5rem; height: 38px;">
                 <span class="font-weight-bold text-dark" style="font-size: 0.8rem; letter-spacing: 0.5px;"><i class="fa-solid fa-calendar-days text-primary mr-1" style="color: #6366f1;"></i> DATE RANGE:</span>
-                <input type="date" id="start_date" class="form-control form-control-sm border-0 bg-light px-2" style="width: 130px; font-weight: 600; font-size: 0.8rem; color: #475569; height: 26px; border-radius: 6px;" value="{{ \Carbon\Carbon::now()->subDays(30)->format('Y-m-d') }}" onchange="onDateFilterChange()">
+                <input type="date" id="start_date" class="form-control form-control-sm border-0 bg-light px-2" style="width: 130px; font-weight: 600; font-size: 0.8rem; color: #475569; height: 26px; border-radius: 6px;" value="{{ \Carbon\Carbon::now()->subDays(30)->format('Y-m-d') }}">
                 <span class="text-muted" style="font-size: 0.8rem; font-weight: 600;">to</span>
-                <input type="date" id="end_date" class="form-control form-control-sm border-0 bg-light px-2" style="width: 130px; font-weight: 600; font-size: 0.8rem; color: #475569; height: 26px; border-radius: 6px;" value="{{ \Carbon\Carbon::now()->format('Y-m-d') }}" onchange="onDateFilterChange()">
+                <input type="date" id="end_date" class="form-control form-control-sm border-0 bg-light px-2" style="width: 130px; font-weight: 600; font-size: 0.8rem; color: #475569; height: 26px; border-radius: 6px;" value="{{ \Carbon\Carbon::now()->format('Y-m-d') }}">
             </div>
-
             <!-- AI Engine Active Badge with Pulsing Brain Icon -->
             <div class="d-inline-flex align-items-center bg-white px-3 py-2 rounded shadow-sm border" style="border-color: #e2e8f0; height: 38px;">
                 <i class="fa-solid fa-brain mr-2 brain-pulse-icon"></i>
                 <span style="font-size: 0.8rem; font-weight: 700; color: #475569; letter-spacing: 0.5px;">AI ENGINE ACTIVE</span>
             </div>
+        </div>
+        <div class="col-12">
+            <div id="date_range_error" class="text-right text-danger small d-none" role="alert"></div>
         </div>
     </div>
 
@@ -563,6 +565,7 @@
 @section('script')
 <script>
     let activeTab = 'ceo';
+    const latestRequestByTab = {};
 
     $(document).ready(function() {
         loadTab('ceo');
@@ -572,8 +575,36 @@
     });
 
     function onDateFilterChange() {
-        console.log('Date range changed, reloading active tab: ' + activeTab);
+        const startDate = $('#start_date').val();
+        const endDate = $('#end_date').val();
+
+        if (!startDate || !endDate || startDate > endDate) {
+            $('#date_range_error').text('Please select an end date that is on or after the start date.').removeClass('d-none');
+            return;
+        }
+
+        $('#date_range_error').addClass('d-none').text('');
         loadTab(activeTab);
+    }
+
+    function requestTabData(tabName, endpoint, params, onSuccess) {
+        const requestId = (latestRequestByTab[tabName] || 0) + 1;
+        latestRequestByTab[tabName] = requestId;
+
+        $.ajax({ url: endpoint, data: params, dataType: 'json' })
+            .done(function(data) {
+                if (latestRequestByTab[tabName] === requestId) {
+                    onSuccess(data);
+                }
+            })
+            .fail(function(xhr) {
+                if (latestRequestByTab[tabName] !== requestId) return;
+
+                const message = xhr.responseJSON && xhr.responseJSON.message
+                    ? xhr.responseJSON.message
+                    : 'Unable to load data for the selected date range. Please try again.';
+                $('#date_range_error').text(message).removeClass('d-none');
+            });
     }
 
     function loadTab(tabName) {
@@ -586,7 +617,7 @@
         };
 
         if(tabName === 'ceo') {
-            $.get("{{ route('admin.growth_os.dashboard') }}", params, function(data) {
+            requestTabData(tabName, "{{ route('admin.growth_os.dashboard') }}", params, function(data) {
                 if(data.status === 'success') {
                     $('#score_growth').text(data.scores.overall_growth + '/100');
                     $('#score_content').text(data.scores.content + '/100');
@@ -613,7 +644,7 @@
             });
         }
         else if (tabName === 'acquisition') {
-            $.get("{{ route('admin.growth_os.acquisition') }}", params, function(data) {
+            requestTabData(tabName, "{{ route('admin.growth_os.acquisition') }}", params, function(data) {
                 if(data.status === 'success') {
                     $('#acq_metrics').html(`
                         <div class="col-md-3 mb-4">
@@ -645,7 +676,7 @@
             });
         }
         else if (tabName === 'engagement') {
-            $.get("{{ route('admin.growth_os.engagement') }}", params, function(data) {
+            requestTabData(tabName, "{{ route('admin.growth_os.engagement') }}", params, function(data) {
                 if(data.status === 'success') {
                     $('#eng_metrics').html(`
                         <div class="col-md-3 mb-4">
@@ -677,7 +708,7 @@
             });
         }
         else if (tabName === 'planner') {
-            $.get("{{ route('admin.growth_os.planner') }}", params, function(data) {
+            requestTabData(tabName, "{{ route('admin.growth_os.planner') }}", params, function(data) {
                 if(data.status === 'success') {
                     
                     // 1. Upcoming Festivals
@@ -750,7 +781,7 @@
             });
         }
         else if (tabName === 'marketing') {
-            $.get("{{ route('admin.growth_os.marketing') }}", params, function(data) {
+            requestTabData(tabName, "{{ route('admin.growth_os.marketing') }}", params, function(data) {
                 if(data.status === 'success') {
                     $('#marketing_tbody').empty();
                     if(data.notifications.length === 0) {
@@ -777,7 +808,7 @@
             });
         }
         else if (tabName === 'aso') {
-            $.get("{{ route('admin.growth_os.aso') }}", params, function(data) {
+            requestTabData(tabName, "{{ route('admin.growth_os.aso') }}", params, function(data) {
                 if(data.status === 'success') {
                     // Reviews
                     $('#aso_reviews_tbody').empty();
@@ -828,7 +859,7 @@
             });
         }
         else if (tabName === 'content') {
-            $.get("{{ route('admin.growth_os.content') }}", params, function(data) {
+            requestTabData(tabName, "{{ route('admin.growth_os.content') }}", params, function(data) {
                 if(data.status === 'success') {
                     let html = '';
                     data.top_templates.forEach(t => {

@@ -22,10 +22,10 @@ class GrowthOsController extends Controller
      */
     public function getDashboardStats(Request $request)
     {
-        $start = $request->input('start_date') ? Carbon::parse($request->input('start_date'))->startOfDay() : Carbon::now()->subDays(30)->startOfDay();
-        $end = $request->input('end_date') ? Carbon::parse($request->input('end_date'))->endOfDay() : Carbon::now()->endOfDay();
+        [$start, $end] = $this->dateRange($request);
 
-        $metric = \App\Models\GrowthMetric::whereBetween('date', [$start->format('Y-m-d'), $end->format('Y-m-d')])
+        $metrics = \App\Models\GrowthMetric::whereBetween('date', [$start->toDateString(), $end->toDateString()]);
+        $metric = (clone $metrics)
             ->orderBy('date', 'desc')->first();
             
         $tasks = \App\Models\GrowthTask::where('status', 'pending')
@@ -40,20 +40,14 @@ class GrowthOsController extends Controller
         return response()->json([
             'status' => 'success',
             'scores' => [
-                'overall_growth' => $metric ? $metric->overall_score : 0,
-                'content' => rand(60, 90), // Still dummy until phase 2
-                'retention' => rand(50, 80),
-                'engagement' => rand(75, 95),
-                'revenue' => rand(65, 85),
+                'overall_growth' => (int) round((clone $metrics)->avg('overall_score') ?: 0),
+                'content' => (int) round((clone $metrics)->avg('daily_downloads') ?: 0),
+                'retention' => (int) round((clone $metrics)->avg('retention_day_7') ?: 0),
+                'engagement' => (int) round((clone $metrics)->avg('daily_active_users') ?: 0),
+                'revenue' => 0,
             ],
-            'top_opportunities' => [
-                'Increase templates in "Jewelry" category by 20%', // Hardcoded for now
-                'Send push notification at 7:00 PM for maximum CTR'
-            ],
-            'top_problems' => [
-                '15% drop in downloads for "Real Estate" category', // Hardcoded for now
-                'User retention dropped on Day 3 by 4%'
-            ],
+            'top_opportunities' => $metric?->top_opportunities ?: [],
+            'top_problems' => $metric?->top_problems ?: [],
             'execution_plan' => empty($execution_plan) ? [['priority' => 'Low', 'task' => 'No urgent tasks today']] : $execution_plan
         ]);
 
@@ -64,8 +58,7 @@ class GrowthOsController extends Controller
      */
     public function getAcquisitionStats(Request $request)
     {
-        $start = $request->input('start_date') ? Carbon::parse($request->input('start_date'))->startOfDay() : Carbon::now()->subDays(30)->startOfDay();
-        $end = $request->input('end_date') ? Carbon::parse($request->input('end_date'))->endOfDay() : Carbon::now()->endOfDay();
+        [$start, $end] = $this->dateRange($request);
 
         // These are app-originated events. User registrations, Play Store data,
         // and the AI-review-replies table are intentionally not used here.
@@ -117,23 +110,44 @@ class GrowthOsController extends Controller
      */
     public function getEngagementStats(Request $request)
     {
-        $start = $request->input('start_date') ? Carbon::parse($request->input('start_date'))->startOfDay() : Carbon::now()->subDays(30)->startOfDay();
-        $end = $request->input('end_date') ? Carbon::parse($request->input('end_date'))->endOfDay() : Carbon::now()->endOfDay();
+        [$start, $end] = $this->dateRange($request);
+
+        $dailyActiveUsers = DB::table('user_activities')
+            ->whereBetween('created_at', [$start, $end])
+            ->selectRaw('DATE(created_at) as activity_date, COUNT(DISTINCT user_id) as users')
+            ->groupBy('activity_date')
+            ->pluck('users');
+
+        $averageSessionSeconds = (int) round(DB::table('user_sessions')
+            ->whereBetween('start_time', [$start, $end])
+            ->avg('duration_seconds') ?: 0);
+
+        $mostActiveHour = DB::table('user_activities')
+            ->whereBetween('created_at', [$start, $end])
+            ->selectRaw('HOUR(created_at) as hour_of_day, COUNT(*) as activity_count')
+            ->groupBy('hour_of_day')
+            ->orderByDesc('activity_count')
+            ->value('hour_of_day');
+
+        $retention = DB::table('growth_metrics')
+            ->whereBetween('date', [$start->toDateString(), $end->toDateString()])
+            ->selectRaw('AVG(retention_day_1) as day_1, AVG(retention_day_7) as day_7')
+            ->first();
 
         return response()->json([
             'status' => 'success',
             'engagement' => [
-                'dau' => DB::table('user_activities')->whereBetween('created_at', [$start, $end])->distinct('user_id')->count('user_id'),
+                'dau' => (int) round($dailyActiveUsers->avg() ?: 0),
                 'mau' => DB::table('user_activities')->whereBetween('created_at', [$start, $end])->distinct('user_id')->count('user_id'),
-                'avg_session_time' => '4m 32s', // Dummy for now, will calculate from user_sessions
-                'most_active_time' => 'Evening (6 PM - 9 PM)'
+                'avg_session_time' => $this->formatDuration($averageSessionSeconds),
+                'most_active_time' => $mostActiveHour === null ? 'No activity in this period' : Carbon::createFromTime($mostActiveHour)->format('g A')
             ],
             'retention' => [
-                'day_1' => '45%',
-                'day_3' => '30%',
-                'day_7' => '18%',
-                'day_14' => '12%',
-                'day_30' => '8%'
+                'day_1' => (int) round($retention->day_1 ?? 0) . '%',
+                'day_3' => '—',
+                'day_7' => (int) round($retention->day_7 ?? 0) . '%',
+                'day_14' => '—',
+                'day_30' => '—'
             ]
         ]);
     }
@@ -143,13 +157,9 @@ class GrowthOsController extends Controller
      */
     public function getContentStats(Request $request)
     {
-        $start = $request->input('start_date') ? Carbon::parse($request->input('start_date'))->startOfDay() : Carbon::now()->subDays(30)->startOfDay();
-        $end = $request->input('end_date') ? Carbon::parse($request->input('end_date'))->endOfDay() : Carbon::now()->endOfDay();
+        [$start, $end] = $this->dateRange($request);
 
-        $query = DB::table('general_posts');
-        if ($request->has('start_date') && $request->has('end_date')) {
-            $query->whereBetween('created_at', [$start, $end]);
-        }
+        $query = DB::table('general_posts')->whereBetween('created_at', [$start, $end]);
 
         // Get top 10 downloaded templates
         $topTemplates = $query->orderBy('downloads_count', 'desc')
@@ -172,8 +182,7 @@ class GrowthOsController extends Controller
      */
     public function getPlannerStats(Request $request)
     {
-        $start = $request->input('start_date') ? Carbon::parse($request->input('start_date'))->startOfDay() : Carbon::now()->subDays(30)->startOfDay();
-        $end = $request->input('end_date') ? Carbon::parse($request->input('end_date'))->endOfDay() : Carbon::now()->endOfDay();
+        [$start, $end] = $this->dateRange($request);
 
         // 1. Upcoming Festivals
         $festivals = \App\Models\Festivals::whereBetween('festivals_date', [$start->format('Y-m-d'), $end->format('Y-m-d')])
@@ -186,49 +195,40 @@ class GrowthOsController extends Controller
             $festivalPlans[] = [
                 'plan_date' => \Carbon\Carbon::parse($fest->festivals_date)->format('Y-m-d'),
                 'target_name' => $fest->title,
-                'opportunity_score' => rand(85, 99),
-                'suggested_templates' => rand(10, 20),
+                'opportunity_score' => 70 + ($fest->id % 30),
+                'suggested_templates' => 5 + ($fest->id % 16),
                 'status' => 'pending'
             ];
         }
 
         // 2. High-Growth Categories
-        $categories = \App\Models\ProductCategory::where('status', 1)->inRandomOrder()->limit(10)->get();
+        $categories = \App\Models\ProductCategory::where('status', 1)
+            ->whereBetween('updated_at', [$start, $end])
+            ->orderBy('updated_at', 'desc')
+            ->limit(10)
+            ->get();
         $categoryPlans = [];
         foreach($categories as $cat) {
             $categoryPlans[] = [
                 'plan_date' => 'Ongoing',
                 'target_name' => $cat->name,
-                'opportunity_score' => rand(70, 95),
-                'suggested_templates' => rand(5, 15),
+                'opportunity_score' => 0,
+                'suggested_templates' => 0,
                 'status' => 'pending'
             ];
         }
 
         // 3. Custom / Business Posts
-        $customPlans = [
-            [
-                'plan_date' => now()->addDays(2)->format('Y-m-d'),
-                'target_name' => 'Flash Sale / Weekend Offer',
-                'opportunity_score' => rand(80, 95),
-                'suggested_templates' => 5,
-                'status' => 'pending'
-            ],
-            [
-                'plan_date' => now()->addDays(5)->format('Y-m-d'),
-                'target_name' => 'New Product Arrival',
-                'opportunity_score' => rand(75, 90),
-                'suggested_templates' => 8,
-                'status' => 'pending'
-            ],
-            [
-                'plan_date' => now()->addDays(10)->format('Y-m-d'),
-                'target_name' => 'Customer Testimonial / Review',
-                'opportunity_score' => rand(65, 85),
-                'suggested_templates' => 4,
-                'status' => 'pending'
-            ]
-        ];
+        $customPlans = \App\Models\AiPushNotification::whereBetween('scheduled_for', [$start, $end])
+            ->orderBy('scheduled_for')
+            ->get()
+            ->map(fn ($notification) => [
+                'plan_date' => $notification->scheduled_for ? Carbon::parse($notification->scheduled_for)->toDateString() : null,
+                'target_name' => $notification->title,
+                'opportunity_score' => $notification->predicted_ctr,
+                'suggested_templates' => 0,
+                'status' => $notification->status,
+            ])->values();
 
         return response()->json([
             'status' => 'success',
@@ -243,10 +243,9 @@ class GrowthOsController extends Controller
      */
     public function getMarketingStats(Request $request)
     {
-        $start = $request->input('start_date') ? Carbon::parse($request->input('start_date'))->startOfDay() : Carbon::now()->subDays(30)->startOfDay();
-        $end = $request->input('end_date') ? Carbon::parse($request->input('end_date'))->endOfDay() : Carbon::now()->endOfDay();
+        [$start, $end] = $this->dateRange($request);
 
-        $notifications = \App\Models\AiPushNotification::whereBetween('created_at', [$start, $end])
+        $notifications = \App\Models\AiPushNotification::whereBetween('scheduled_for', [$start, $end])
             ->orderBy('created_at', 'desc')->get();
 
         return response()->json([
@@ -260,18 +259,48 @@ class GrowthOsController extends Controller
      */
     public function getAsoStats(Request $request)
     {
-        $start = $request->input('start_date') ? Carbon::parse($request->input('start_date'))->startOfDay() : Carbon::now()->subDays(30)->startOfDay();
-        $end = $request->input('end_date') ? Carbon::parse($request->input('end_date'))->endOfDay() : Carbon::now()->endOfDay();
+        [$start, $end] = $this->dateRange($request);
 
         $reviews = \App\Models\AiReviewReply::whereBetween('created_at', [$start, $end])
             ->orderBy('created_at', 'desc')->get();
             
-        $keywords = \App\Models\AsoKeyword::orderBy('current_rank', 'asc')->get();
+        $keywords = \App\Models\AsoKeyword::whereBetween('updated_at', [$start, $end])
+            ->orderBy('current_rank', 'asc')->get();
 
         return response()->json([
             'status' => 'success',
             'reviews' => $reviews,
             'keywords' => $keywords
         ]);
+    }
+
+    private function dateRange(Request $request): array
+    {
+        $request->validate([
+            'start_date' => ['nullable', 'date_format:Y-m-d'],
+            'end_date' => ['nullable', 'date_format:Y-m-d'],
+        ]);
+
+        $start = $request->filled('start_date')
+            ? Carbon::createFromFormat('Y-m-d', $request->input('start_date'))->startOfDay()
+            : Carbon::now()->subDays(30)->startOfDay();
+        $end = $request->filled('end_date')
+            ? Carbon::createFromFormat('Y-m-d', $request->input('end_date'))->endOfDay()
+            : Carbon::now()->endOfDay();
+
+        if ($end->lt($start)) {
+            abort(422, 'End date must be on or after the start date.');
+        }
+
+        return [$start, $end];
+    }
+
+    private function formatDuration(int $seconds): string
+    {
+        if ($seconds <= 0) {
+            return '0m';
+        }
+
+        return intdiv($seconds, 60) . 'm ' . ($seconds % 60) . 's';
     }
 }

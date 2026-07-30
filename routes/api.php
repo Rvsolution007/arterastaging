@@ -18,6 +18,13 @@ Route::namespace('Api')->middleware(['throttle:google-login'])->group(function (
     Route::post('/google-sign-in', 'AuthApi@google_sign_in');
 });
 
+// Install telemetry is sent during the splash screen, before a guest has a
+// mobile access token. Keep it public but tightly rate-limited; the controller
+// never trusts a caller-supplied user ID without a matching bearer token.
+Route::namespace('Api')->middleware(['throttle:20,1'])->group(function () {
+    Route::post('/analytics/install', 'AppInstallAnalyticsController@recordInstall')->name('api.analytics.install');
+});
+
 Route::
         namespace('Api')->middleware(['throttle:password-reset'])->group(function () {
             Route::post('/forgot-password', 'AuthApi@forgot_password');
@@ -42,8 +49,6 @@ Route::
             Route::post('/report-error', 'AuthApi@reportError');
             Route::post('/track-activity', 'AuthApi@trackActivity')->name('api.track-activity');
             Route::post('/track-ad-events', 'AuthApi@trackAdEvents')->name('api.track-ad-events');
-            Route::post('/analytics/install', 'AppInstallAnalyticsController@recordInstall')->name('api.analytics.install');
-
             Route::get('/get-home-data', 'HomeApi@getHomeData');
             Route::get('/story', 'ContentApiController@getStory');
             Route::get('/festival', 'ContentApiController@getFestival');
@@ -148,6 +153,7 @@ Route::
             // Business Post AI is a separate Custom Post journey. It shares
             // one-image credits, never a frame/template render contract.
             Route::get('/business-ai/options', [\App\Http\Controllers\Api\BusinessAiGenerationController::class, 'options']);
+            Route::post('/business-ai/content-preview', [\App\Http\Controllers\Api\BusinessAiGenerationController::class, 'preview'])->middleware('throttle:20,1');
             Route::post('/business-ai/generations', [\App\Http\Controllers\Api\BusinessAiGenerationController::class, 'create'])->middleware('throttle:10,1');
             Route::get('/business-ai/generations', [\App\Http\Controllers\Api\BusinessAiGenerationController::class, 'history']);
             Route::get('/business-ai/generations/{businessAiGeneration}', [\App\Http\Controllers\Api\BusinessAiGenerationController::class, 'show']);

@@ -225,6 +225,9 @@
                 <span class="text-muted" style="font-size: 0.8rem; font-weight: 600;">to</span>
                 <input type="date" id="end_date" class="form-control form-control-sm border-0 bg-light px-2" style="width: 130px; font-weight: 600; font-size: 0.8rem; color: #475569; height: 26px; border-radius: 6px;" value="{{ \Carbon\Carbon::now()->format('Y-m-d') }}">
             </div>
+            <button type="button" id="apply_date_filter" class="btn btn-sm text-white px-3" style="background:#6366f1; border-radius:6px; height:38px; font-weight:700; white-space:nowrap;">
+                <i class="fas fa-filter mr-1"></i> Apply Filter
+            </button>
             <!-- AI Engine Active Badge with Pulsing Brain Icon -->
             <div class="d-inline-flex align-items-center bg-white px-3 py-2 rounded shadow-sm border" style="border-color: #e2e8f0; height: 38px;">
                 <i class="fa-solid fa-brain mr-2 brain-pulse-icon"></i>
@@ -233,6 +236,7 @@
         </div>
         <div class="col-12">
             <div id="date_range_error" class="text-right text-danger small d-none" role="alert"></div>
+            <div id="date_range_status" class="text-right text-muted small" role="status" aria-live="polite">Choose dates and click Apply Filter.</div>
         </div>
     </div>
 
@@ -566,15 +570,16 @@
 <script>
     let activeTab = 'ceo';
     const latestRequestByTab = {};
+    let filterIsRunning = false;
 
     $(document).ready(function() {
         loadTab('ceo');
-        $('#start_date, #end_date').on('change', function() {
-            onDateFilterChange();
+        $('#apply_date_filter').on('click', function() {
+            applyDateFilter();
         });
     });
 
-    function onDateFilterChange() {
+    function applyDateFilter() {
         const startDate = $('#start_date').val();
         const endDate = $('#end_date').val();
 
@@ -584,7 +589,28 @@
         }
 
         $('#date_range_error').addClass('d-none').text('');
+        filterIsRunning = true;
+        $('#apply_date_filter').prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Filtering...');
+        $('#date_range_status').removeClass('text-danger').addClass('text-primary').text('Filtering ' + formatRange(startDate, endDate) + '…');
         loadTab(activeTab);
+    }
+
+    function formatRange(startDate, endDate) {
+        const formatDate = date => new Date(date + 'T00:00:00').toLocaleDateString('en-GB', {
+            day: '2-digit', month: 'short', year: 'numeric'
+        });
+        return formatDate(startDate) + ' to ' + formatDate(endDate);
+    }
+
+    function finishFiltering(success) {
+        if (!filterIsRunning) return;
+
+        filterIsRunning = false;
+        $('#apply_date_filter').prop('disabled', false).html('<i class="fas fa-filter mr-1"></i> Apply Filter');
+        if (success) {
+            $('#date_range_status').removeClass('text-primary text-danger').addClass('text-success')
+                .text('Filter applied: ' + formatRange($('#start_date').val(), $('#end_date').val()) + '.');
+        }
     }
 
     function requestTabData(tabName, endpoint, params, onSuccess) {
@@ -595,6 +621,7 @@
             .done(function(data) {
                 if (latestRequestByTab[tabName] === requestId) {
                     onSuccess(data);
+                    finishFiltering(true);
                 }
             })
             .fail(function(xhr) {
@@ -604,6 +631,8 @@
                     ? xhr.responseJSON.message
                     : 'Unable to load data for the selected date range. Please try again.';
                 $('#date_range_error').text(message).removeClass('d-none');
+                $('#date_range_status').removeClass('text-primary').addClass('text-danger').text('Filter could not be applied.');
+                finishFiltering(false);
             });
     }
 

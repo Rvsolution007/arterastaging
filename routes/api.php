@@ -18,6 +18,13 @@ Route::namespace('Api')->middleware(['throttle:google-login'])->group(function (
     Route::post('/google-sign-in', 'AuthApi@google_sign_in');
 });
 
+// Install telemetry is sent during the splash screen, before a guest has a
+// mobile access token. Keep it public but tightly rate-limited; the controller
+// never trusts a caller-supplied user ID without a matching bearer token.
+Route::namespace('Api')->middleware(['throttle:20,1'])->group(function () {
+    Route::post('/analytics/install', 'AppInstallAnalyticsController@recordInstall')->name('api.analytics.install');
+});
+
 Route::
         namespace('Api')->middleware(['throttle:password-reset'])->group(function () {
             Route::post('/forgot-password', 'AuthApi@forgot_password');
@@ -42,8 +49,6 @@ Route::
             Route::post('/report-error', 'AuthApi@reportError');
             Route::post('/track-activity', 'AuthApi@trackActivity')->name('api.track-activity');
             Route::post('/track-ad-events', 'AuthApi@trackAdEvents')->name('api.track-ad-events');
-            Route::post('/analytics/install', 'AppInstallAnalyticsController@recordInstall')->name('api.analytics.install');
-
             Route::get('/get-home-data', 'HomeApi@getHomeData');
             Route::get('/story', 'ContentApiController@getStory');
             Route::get('/festival', 'ContentApiController@getFestival');

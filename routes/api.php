@@ -214,6 +214,23 @@ Route::middleware('mobile.auth')->post('/user', function (Request $request) {
     return $request->user();
 });
 
+// Read-only admin analytics for the external MCP server. This uses a dedicated
+// Sanctum ability and configured owner email, never a browser-admin session.
+Route::prefix('admin/mcp')
+    ->middleware(['throttle:60,1', 'mcp.analytics'])
+    ->group(function () {
+        Route::get('overview', [\App\Http\Controllers\Api\AdminMcpAnalyticsController::class, 'overview']);
+        Route::get('installs', [\App\Http\Controllers\Api\AdminMcpAnalyticsController::class, 'installs']);
+        Route::get('sales', [\App\Http\Controllers\Api\AdminMcpAnalyticsController::class, 'sales']);
+        Route::get('ads', [\App\Http\Controllers\Api\AdminMcpAnalyticsController::class, 'adRevenue']);
+        Route::get('tickets', [\App\Http\Controllers\Api\AdminMcpAnalyticsController::class, 'tickets']);
+        Route::get('templates', [\App\Http\Controllers\Api\AdminMcpAnalyticsController::class, 'templates']);
+        Route::get('reviews', [\App\Http\Controllers\Api\AdminMcpAnalyticsController::class, 'reviews']);
+        Route::get('users/search', [\App\Http\Controllers\Api\AdminMcpAnalyticsController::class, 'searchUsers']);
+        Route::get('users/{userId}', [\App\Http\Controllers\Api\AdminMcpAnalyticsController::class, 'userDetails'])->whereNumber('userId');
+        Route::get('users/{userId}/activity', [\App\Http\Controllers\Api\AdminMcpAnalyticsController::class, 'userActivity'])->whereNumber('userId');
+    });
+
 // Task 12: Dunning Webhook
 Route::post('webhooks/payment/failed', 'Api\PaymentWebhookController@handle');
 

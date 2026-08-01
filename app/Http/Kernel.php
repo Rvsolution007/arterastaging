@@ -79,5 +79,6 @@ class Kernel extends HttpKernel
         'saas.limit' => \App\Http\Middleware\CheckSaaSFeatureLimits::class,
         'mobile.auth' => \App\Http\Middleware\AuthenticateMobileApi::class,
         'mobile.request' => \App\Http\Middleware\ProtectMobileApiRequest::class,
+        'mcp.analytics' => \App\Http\Middleware\EnsureMcpAnalyticsAccess::class,
     ];
 }

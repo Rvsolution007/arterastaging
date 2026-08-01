@@ -6,6 +6,7 @@ import express, { type ErrorRequestHandler } from "express";
 import helmet from "helmet";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { loadConfig } from "./config/env.js";
 import { LaravelAdminToken } from "./auth/laravel-admin-token.js";
 import { createInboundAuth } from "./auth/inbound-auth.js";
@@ -22,9 +23,10 @@ async function start(): Promise<void> {
   const client = new LaravelClient(config, token, logger);
   const ga4Client = new Ga4Client(config);
   const cache = new TtlCache(config.cacheMaxEntries);
-  const mcpServer = createArteraMcpServer({ config, client, ga4Client, cache, logger });
+  const createMcpServer = () => createArteraMcpServer({ config, client, ga4Client, cache, logger });
 
   if (config.transport === "stdio") {
+    const mcpServer = createMcpServer();
     const transport = new StdioServerTransport();
     await mcpServer.connect(transport);
     logger.info("Artera admin analytics MCP server started on stdio");
@@ -41,21 +43,73 @@ async function start(): Promise<void> {
   app.get("/healthz", (_request, response) => response.status(200).json({ status: "ok" }));
   app.use(config.mcpPath, createInboundAuth(config, logger));
 
-  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-  await mcpServer.connect(transport);
-  app.all(config.mcpPath, async (request, response, next) => {
+  const sessions = new Map<string, { server: ReturnType<typeof createMcpServer>; transport: StreamableHTTPServerTransport }>();
+
+  const createSession = async (): Promise<StreamableHTTPServerTransport> => {
+    let transport: StreamableHTTPServerTransport;
+    const server = createMcpServer();
+    transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => randomUUID(),
+      onsessioninitialized: (sessionId) => {
+        sessions.set(sessionId, { server, transport });
+      },
+      onsessionclosed: (sessionId) => {
+        sessions.delete(sessionId);
+      }
+    });
+    transport.onclose = () => {
+      if (transport.sessionId) sessions.delete(transport.sessionId);
+    };
+    await server.connect(transport);
+    return transport;
+  };
+
+  const mcpPostHandler = async (request: express.Request, response: express.Response, next: express.NextFunction): Promise<void> => {
     const requestId = randomUUID();
     const startedAt = performance.now();
     try {
+      const sessionId = request.header("mcp-session-id");
+      const transport = sessionId
+        ? sessions.get(sessionId)?.transport
+        : isInitializeRequest(request.body)
+          ? await createSession()
+          : undefined;
+
+      if (!transport) {
+        response.status(400).json({
+          jsonrpc: "2.0",
+          error: { code: -32000, message: "Invalid or missing MCP session." },
+          id: null
+        });
+        return;
+      }
       await transport.handleRequest(request, response, request.body);
-      logger.info({ requestId, method: request.method, path: config.mcpPath, durationMs: Math.round(performance.now() - startedAt) }, "MCP transport request completed");
+      logger.info({ requestId, method: request.method, path: config.mcpPath, statusCode: response.statusCode, durationMs: Math.round(performance.now() - startedAt) }, "MCP transport request completed");
     } catch (error) {
       next(error);
     }
-  });
+  };
+
+  const mcpSessionHandler = async (request: express.Request, response: express.Response, next: express.NextFunction): Promise<void> => {
+    const sessionId = request.header("mcp-session-id");
+    const transport = sessionId ? sessions.get(sessionId)?.transport : undefined;
+    if (!transport) {
+      response.status(400).json({ error: "Invalid or missing MCP session." });
+      return;
+    }
+    try {
+      await transport.handleRequest(request, response, request.body);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  app.post(config.mcpPath, mcpPostHandler);
+  app.get(config.mcpPath, mcpSessionHandler);
+  app.delete(config.mcpPath, mcpSessionHandler);
 
   const errorHandler: ErrorRequestHandler = (error, _request, response, _next) => {
-    logger.error({ error: error instanceof Error ? error.name : "unknown" }, "Unhandled HTTP server error");
+    logger.error({ error: error instanceof Error ? error.name : "unknown", message: error instanceof Error ? error.message : undefined }, "Unhandled HTTP server error");
     if (!response.headersSent) response.status(500).json({ error: "Internal server error" });
   };
   app.use(errorHandler);

@@ -77,5 +77,6 @@ class Kernel extends HttpKernel
         'canUpdate' => \App\Http\Middleware\canUpdate::class,
         'IsUpdate' => \App\Http\Middleware\IsUpdate::class,
         'saas.limit' => \App\Http\Middleware\CheckSaaSFeatureLimits::class,
+        'mcp.analytics' => \App\Http\Middleware\EnsureMcpAnalyticsAccess::class,
     ];
 }

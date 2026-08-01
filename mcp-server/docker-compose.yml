@@ -1,0 +1,14 @@
+services:
+  artera-admin-analytics-mcp:
+    build:
+      context: .
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:3001:3001"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true

@@ -1,8 +1,21 @@
 <?php
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\AdLiveSsoController;
+use App\Http\Controllers\Api\AdLiveAuthorizationController;
+use App\Http\Controllers\Api\AdLiveMigrationInventoryController;
 
 Route::post('/phonepe-callback', 'Api\HomeApi@phonepe_callback');
+
+// Server-to-server endpoints. They never accept a browser or mobile token.
+Route::post('/internal/adlive/tickets/consume', [AdLiveSsoController::class, 'consume'])
+    ->middleware('throttle:30,1');
+Route::post('/internal/adlive/business-snapshot', [AdLiveSsoController::class, 'businessSnapshot'])
+    ->middleware('throttle:30,1');
+Route::post('/internal/adlive/authorization-codes/consume', [AdLiveAuthorizationController::class, 'consume'])
+    ->middleware('throttle:30,1');
+Route::post('/internal/adlive/migration-inventory', [AdLiveMigrationInventoryController::class, 'index'])
+    ->middleware('throttle:10,1');
 
 
 
@@ -31,6 +44,8 @@ Route::
         namespace('Api')->middleware(['throttle'])->group(function () {
             Route::post('/change-password', 'AuthApi@change_password');
             Route::post('/register-fcm', 'AuthApi@register_fcm');
+            Route::post('/adlive/sso-ticket', [AdLiveSsoController::class, 'issue'])
+                ->middleware(['auth:sanctum', 'throttle:60,1']);
             // Route::post('/logout', 'AuthApi@logout');
             Route::post('/verify-account', 'AuthApi@verifyAccount');
             Route::post('/resend-verify-code', 'AuthApi@resendVerifyCode');

@@ -105,7 +105,7 @@ class ClientAuthController extends Controller
             return redirect('/app-gateway');
         }
 
-        return redirect('/dashboard');
+        return redirect()->intended('/dashboard');
     }
 
     /**

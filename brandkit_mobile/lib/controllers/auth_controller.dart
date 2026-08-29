@@ -339,14 +339,18 @@ class AuthController extends GetxController {
         await GoogleAuthService.signOut();
         final errorData = jsonDecode(response.body);
         throw StateError(
-          errorData['message']?.toString() ?? 'Google sign-in was not accepted.',
+          errorData['message']?.toString() ??
+              'Google sign-in was not accepted.',
         );
       }
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final accessToken = data['access_token']?.toString();
       final userId = data['userId']?.toString();
-      if (accessToken == null || accessToken.isEmpty || userId == null || userId.isEmpty) {
+      if (accessToken == null ||
+          accessToken.isEmpty ||
+          userId == null ||
+          userId.isEmpty) {
         await GoogleAuthService.signOut();
         throw StateError('The server did not return a valid app session.');
       }
@@ -357,12 +361,27 @@ class AuthController extends GetxController {
       await prefs.setBool('isGuest', false);
       await prefs.setString('userName', data['userName']?.toString() ?? '');
       await prefs.setString('emailId', data['emailId']?.toString() ?? '');
-      await prefs.setString('phoneNumber', data['phoneNumber']?.toString() ?? '');
-      await prefs.setString('profileImage', data['profileImage']?.toString() ?? '');
+      await prefs.setString(
+        'phoneNumber',
+        data['phoneNumber']?.toString() ?? '',
+      );
+      await prefs.setString(
+        'profileImage',
+        data['profileImage']?.toString() ?? '',
+      );
       await prefs.setString('planName', data['planName']?.toString() ?? '');
-      await prefs.setString('planDuration', data['planDuration']?.toString() ?? '');
-      await prefs.setString('planStartDate', data['planStartDate']?.toString() ?? '');
-      await prefs.setString('planEndDate', data['planEndDate']?.toString() ?? '');
+      await prefs.setString(
+        'planDuration',
+        data['planDuration']?.toString() ?? '',
+      );
+      await prefs.setString(
+        'planStartDate',
+        data['planStartDate']?.toString() ?? '',
+      );
+      await prefs.setString(
+        'planEndDate',
+        data['planEndDate']?.toString() ?? '',
+      );
       await prefs.setBool('isSubscribe', data['isSubscribe'] == true);
       await prefs.setBool('isPartner', data['isPartner'] == true);
       await prefs.setInt(
@@ -396,10 +415,7 @@ class AuthController extends GetxController {
       if (redirectRoute != null) {
         Get.offAll(() => const DashboardScreen());
         if (redirectRoute.startsWith('/editor')) {
-          checkAndNavigateToEditor(
-            redirectRoute,
-            arguments: redirectArguments,
-          );
+          checkAndNavigateToEditor(redirectRoute, arguments: redirectArguments);
         } else {
           Get.toNamed(redirectRoute, arguments: redirectArguments);
         }
@@ -539,7 +555,6 @@ class AuthController extends GetxController {
             'Error',
             errorData['message'].toString(),
             backgroundColor: Colors.redAccent,
-        await AdLiveTokenStore.clear();
             colorText: Colors.white,
           );
         } catch (_) {

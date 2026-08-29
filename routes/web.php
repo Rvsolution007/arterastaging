@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\AdLiveAuthorizationController;
 
 
 // Client App Routes (Protected)
@@ -93,6 +94,9 @@ Route::get('/api/web/get-products', 'BusinessRegistrationController@getProducts'
 // Shared UI routes
 Route::get('/client/get-sub-categories/{category_id}', 'MainController@getSubCategories')->name('client.get_sub_categories');
 Route::get('/webview-login', 'ClientAuthController@webviewLogin')->name('webview.login')->middleware('signed');
+Route::get('/oauth/adlive/authorize', [AdLiveAuthorizationController::class, 'begin'])
+    ->middleware('throttle:login')
+    ->name('adlive.authorize');
 
 // Client Auth Routes (Guest)
 Route::group(['middleware' => ['guest']], function () {

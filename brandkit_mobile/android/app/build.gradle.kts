@@ -71,4 +71,7 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.3")
+    // The Flutter plugin owns the login surface, while MainActivity sets the
+    // Client Token supplied by AdLive before that surface opens.
+    implementation("com.facebook.android:facebook-core:18.1.3")
 }

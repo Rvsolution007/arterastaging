@@ -29,6 +29,7 @@ import 'search_screen.dart';
 import 'achievements_screen.dart';
 
 import '../widgets/shared_header.dart';
+import '../features/adlive/widgets/adlive_entry_card.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -61,6 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SharedHeader(),
               if (AppConfig.isLocal)
                 Obx(() => hc.showQuickStart.value ? _buildQuickStartButton(context) : const SizedBox.shrink()),
+              const AdLiveEntryCard(),
               _buildSearchBar(),
               _buildStories(hc),
               _buildFestivalSection(hc),

@@ -15,6 +15,7 @@ import '../controllers/home_controller.dart';
 import '../services/notification_service.dart';
 import '../services/app_install_tracker.dart';
 import '../services/google_auth_service.dart';
+import '../features/adlive/services/adlive_token_store.dart';
 
 class AuthController extends GetxController {
   var isLoading = false.obs;
@@ -310,6 +311,7 @@ class AuthController extends GetxController {
     }
 
     await SecureTokenStore.clear();
+    await AdLiveTokenStore.clear();
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
     if (Get.isRegistered<HomeController>()) {
@@ -537,6 +539,7 @@ class AuthController extends GetxController {
             'Error',
             errorData['message'].toString(),
             backgroundColor: Colors.redAccent,
+        await AdLiveTokenStore.clear();
             colorText: Colors.white,
           );
         } catch (_) {

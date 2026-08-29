@@ -1,17 +1,36 @@
+import 'package:flutter/foundation.dart';
+
 /// App Environment Configuration
 class AppConfig {
-  // Read target environment from build-time dart-define, defaulting to local
+  // An explicit dart-define always wins. Without one, debug builds use XAMPP
+  // and release builds use the production servers so a local address can
+  // never be shipped accidentally.
   static const String _rawEnv = String.fromEnvironment(
     'ENV',
     defaultValue: 'production',
   );
   static const String _localBaseUrl = String.fromEnvironment(
     'LOCAL_API_BASE_URL',
-    defaultValue: 'http://192.168.1.40/Artera/123456',
+    // Never use 127.0.0.1 here: on Android that is the phone itself, not the
+    // XAMPP machine. The local runner can still override this when the PC's
+    // LAN address changes.
+    defaultValue: 'http://192.168.1.66/Artera/123456',
   );
   static const bool _localUsesIndexFrontController = bool.fromEnvironment(
     'LOCAL_USE_INDEX_FRONT_CONTROLLER',
     defaultValue: true,
+  );
+  static const String _localAdLiveApiBaseUrl = String.fromEnvironment(
+    'ADLIVE_LOCAL_API_BASE_URL',
+    defaultValue: 'http://192.168.1.66/adlive/public/api/v1',
+  );
+  static const String _stagingAdLiveApiBaseUrl = String.fromEnvironment(
+    'ADLIVE_STAGING_API_BASE_URL',
+    defaultValue: 'https://staging.arteraadlive.com/api/v1',
+  );
+  static const String _productionAdLiveApiBaseUrl = String.fromEnvironment(
+    'ADLIVE_PRODUCTION_API_BASE_URL',
+    defaultValue: 'https://arteraadlive.com/api/v1',
   );
 
   static AppEnvironment get currentEnv {
@@ -21,8 +40,10 @@ class AppConfig {
       case 'production':
         return AppEnvironment.production;
       case 'local':
-      default:
         return AppEnvironment.local;
+      case 'auto':
+      default:
+        return kReleaseMode ? AppEnvironment.production : AppEnvironment.local;
     }
   }
 
@@ -47,6 +68,19 @@ class AppConfig {
         return 'Artera (Staging)';
       case AppEnvironment.production:
         return 'Artera Pixel';
+    }
+  }
+
+  /// Public AdLive API address. Secrets are configured only on the two
+  /// servers; Flutter uses this URL plus the scoped AdLive session token.
+  static String get adLiveApiBaseUrl {
+    switch (currentEnv) {
+      case AppEnvironment.local:
+        return _localAdLiveApiBaseUrl;
+      case AppEnvironment.staging:
+        return _stagingAdLiveApiBaseUrl;
+      case AppEnvironment.production:
+        return _productionAdLiveApiBaseUrl;
     }
   }
 

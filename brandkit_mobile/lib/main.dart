@@ -27,6 +27,8 @@ import 'widgets/error_submission_dialog.dart';
 import 'controllers/console_controller.dart';
 import 'package:http/http.dart' as http;
 import 'config/app_config.dart';
+import 'features/adlive/services/adlive_token_store.dart';
+import 'services/secure_token_store.dart';
 
 // Background message handler — must be top-level function (not inside a class)
 // This runs in a separate isolate when app is in background/terminated
@@ -185,6 +187,30 @@ class _SplashGateState extends State<SplashGate> {
   Future<void> _navigateFast() async {
     // Read login status (SharedPreferences is instant, ~5ms)
     final prefs = await SharedPreferences.getInstance();
+    final hadSessionFromAnotherEnvironment =
+        await SecureTokenStore.prepareCurrentEnvironment();
+    if (hadSessionFromAnotherEnvironment) {
+      await AdLiveTokenStore.clear();
+      await Future.wait([
+        prefs.remove('userId'),
+        prefs.remove('isGuest'),
+        prefs.remove('userName'),
+        prefs.remove('emailId'),
+        prefs.remove('phoneNumber'),
+        prefs.remove('profileImage'),
+        prefs.remove('planName'),
+        prefs.remove('planDuration'),
+        prefs.remove('planStartDate'),
+        prefs.remove('planEndDate'),
+        prefs.remove('isSubscribe'),
+        prefs.remove('isPartner'),
+      ]);
+      await SecureTokenStore.acknowledgeEnvironmentReset();
+      Get.find<HomeController>().clearData();
+      debugPrint(
+        '[SplashGate] Cleared a session from another server environment.',
+      );
+    }
     final userId = prefs.getString('userId');
     final isGuest = prefs.getBool('isGuest') ?? false;
 

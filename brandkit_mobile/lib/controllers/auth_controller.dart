@@ -13,6 +13,8 @@ import '../controllers/ad_controller.dart';
 import '../controllers/home_controller.dart';
 import '../services/notification_service.dart';
 import '../services/app_install_tracker.dart';
+import '../features/adlive/services/adlive_token_store.dart';
+import '../services/secure_token_store.dart';
 
 class AuthController extends GetxController {
   var isLoading = false.obs;
@@ -34,6 +36,11 @@ class AuthController extends GetxController {
         final data = jsonDecode(response.body);
         // Save user session
         final prefs = await SharedPreferences.getInstance();
+        final accessToken = data['access_token']?.toString() ?? '';
+        if (accessToken.isEmpty) {
+          throw StateError('The server did not return a secure app session.');
+        }
+        await SecureTokenStore.write(accessToken);
         await prefs.setString('userId', data['userId'].toString());
         await prefs.setBool('isGuest', false);
         await prefs.setString('userName', data['userName']?.toString() ?? '');
@@ -179,6 +186,11 @@ class AuthController extends GetxController {
 
         // Save user session
         final prefs = await SharedPreferences.getInstance();
+        final accessToken = data['access_token']?.toString() ?? '';
+        if (accessToken.isEmpty) {
+          throw StateError('The server did not return a secure app session.');
+        }
+        await SecureTokenStore.write(accessToken);
         await prefs.setString('userId', data['userId'].toString());
         await prefs.setBool('isGuest', false);
         await prefs.setString('userName', data['userName']?.toString() ?? '');
@@ -287,6 +299,18 @@ class AuthController extends GetxController {
 
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
+    try {
+      final deviceId = await AppInstallTracker.deviceId();
+      await ApiService.post('/logout', {
+        'userId': prefs.getString('userId') ?? '',
+        'deviceId': deviceId,
+      });
+    } catch (_) {
+      // Local sign-out must still finish when the server is unavailable.
+    }
+
+    await SecureTokenStore.clear();
+    await AdLiveTokenStore.clear();
     await prefs.clear();
     if (Get.isRegistered<HomeController>()) {
       Get.find<HomeController>().clearData();

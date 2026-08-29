@@ -4,14 +4,14 @@ import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
 import '../config/app_config.dart';
+import 'secure_token_store.dart';
 
 class ApiService {
   // Base URL is now controlled by AppConfig (staging vs production)
   static String get baseUrl => AppConfig.baseUrl;
 
   static Future<Map<String, String>> _getHeaders() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
+    final token = await SecureTokenStore.read();
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -25,12 +25,16 @@ class ApiService {
     final separator = endpoint.contains('?') ? '&' : '?';
     final url = Uri.parse('$baseUrl$endpoint${separator}t=$timestamp');
     debugPrint('[ApiService] GET: $url');
-    
+
     final headers = await _getHeaders();
     try {
-      final response = await http.get(url, headers: headers).timeout(const Duration(seconds: 15));
+      final response = await http
+          .get(url, headers: headers)
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) {
-        debugPrint('[ApiService] GET Failed (${response.statusCode}): ${response.body}');
+        debugPrint(
+          '[ApiService] GET Failed (${response.statusCode}): ${response.body}',
+        );
       }
       return response;
     } catch (e) {
@@ -39,14 +43,21 @@ class ApiService {
     }
   }
 
-  static Future<http.Response> post(String endpoint, Map<String, dynamic> body) async {
+  static Future<http.Response> post(
+    String endpoint,
+    Map<String, dynamic> body,
+  ) async {
     final url = Uri.parse('$baseUrl$endpoint');
     debugPrint('[ApiService] POST: $url');
     final headers = await _getHeaders();
     try {
-      final response = await http.post(url, headers: headers, body: jsonEncode(body)).timeout(const Duration(seconds: 60));
+      final response = await http
+          .post(url, headers: headers, body: jsonEncode(body))
+          .timeout(const Duration(seconds: 60));
       if (response.statusCode != 200) {
-        debugPrint('[ApiService] POST Failed (${response.statusCode}): ${response.body}');
+        debugPrint(
+          '[ApiService] POST Failed (${response.statusCode}): ${response.body}',
+        );
       }
       return response;
     } catch (e) {
@@ -55,48 +66,63 @@ class ApiService {
     }
   }
 
-
-
-  static Future<http.Response> uploadSetupWizardSource(String endpoint, Map<String, String> fields, {String? filePath, List<int>? fileBytes, String? fileName}) async {
+  static Future<http.Response> uploadSetupWizardSource(
+    String endpoint,
+    Map<String, String> fields, {
+    String? filePath,
+    List<int>? fileBytes,
+    String? fileName,
+  }) async {
     final url = Uri.parse('$baseUrl$endpoint');
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    
+    final token = await SecureTokenStore.read();
+
     var request = http.MultipartRequest('POST', url);
     request.headers.addAll({
       'Accept': 'application/json',
       if (token != null) 'Authorization': 'Bearer $token',
     });
-    
+
     request.fields.addAll(fields);
     if (filePath != null && filePath.isNotEmpty) {
-      request.files.add(await http.MultipartFile.fromPath('catalogue_pdf', filePath));
+      request.files.add(
+        await http.MultipartFile.fromPath('catalogue_pdf', filePath),
+      );
     } else if (fileBytes != null && fileBytes.isNotEmpty && fileName != null) {
-      request.files.add(http.MultipartFile.fromBytes(
-        'catalogue_pdf', 
-        fileBytes, 
-        filename: fileName,
-        contentType: MediaType('application', 'pdf'),
-      ));
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'catalogue_pdf',
+          fileBytes,
+          filename: fileName,
+          contentType: MediaType('application', 'pdf'),
+        ),
+      );
     }
-    
-    final streamedResponse = await request.send().timeout(const Duration(minutes: 5));
+
+    final streamedResponse = await request.send().timeout(
+      const Duration(minutes: 5),
+    );
     return await http.Response.fromStream(streamedResponse);
   }
 
-  static Future<http.Response> multipartPost(String endpoint, Map<String, String> fields, {String? fileKey, String? filePath, List<int>? fileBytes, String? fileName}) async {
+  static Future<http.Response> multipartPost(
+    String endpoint,
+    Map<String, String> fields, {
+    String? fileKey,
+    String? filePath,
+    List<int>? fileBytes,
+    String? fileName,
+  }) async {
     final url = Uri.parse('$baseUrl$endpoint');
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    
+    final token = await SecureTokenStore.read();
+
     var request = http.MultipartRequest('POST', url);
     request.headers.addAll({
       'Accept': 'application/json',
       if (token != null) 'Authorization': 'Bearer $token',
     });
-    
+
     request.fields.addAll(fields);
-    
+
     if (fileKey != null) {
       if (filePath != null && filePath.isNotEmpty) {
         request.files.add(await http.MultipartFile.fromPath(fileKey, filePath));
@@ -104,15 +130,31 @@ class ApiService {
         // Detect content type from file extension for proper server-side handling
         MediaType? contentType;
         final ext = fileName.split('.').last.toLowerCase();
-        final mimeMap = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png', 'gif': 'image/gif', 'webp': 'image/webp', 'jfif': 'image/jpeg', 'bmp': 'image/bmp'};
+        final mimeMap = {
+          'jpg': 'image/jpeg',
+          'jpeg': 'image/jpeg',
+          'png': 'image/png',
+          'gif': 'image/gif',
+          'webp': 'image/webp',
+          'jfif': 'image/jpeg',
+          'bmp': 'image/bmp',
+        };
         if (mimeMap.containsKey(ext)) {
           final parts = mimeMap[ext]!.split('/');
           contentType = MediaType(parts[0], parts[1]);
         }
-        request.files.add(http.MultipartFile.fromBytes(fileKey, fileBytes, filename: fileName, contentType: contentType ?? MediaType('application', 'octet-stream')));
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            fileKey,
+            fileBytes,
+            filename: fileName,
+            contentType:
+                contentType ?? MediaType('application', 'octet-stream'),
+          ),
+        );
       }
     }
-    
+
     final streamedResponse = await request.send();
     return await http.Response.fromStream(streamedResponse);
   }
@@ -121,7 +163,11 @@ class ApiService {
     return await get('/payment-details');
   }
 
-  static Future<http.Response> applyCoupon(String userId, String code, String planId) async {
+  static Future<http.Response> applyCoupon(
+    String userId,
+    String code,
+    String planId,
+  ) async {
     return await post('/coupon-code-validation', {
       'userId': userId,
       'code': code,
@@ -129,7 +175,9 @@ class ApiService {
     });
   }
 
-  static Future<Map<String, dynamic>> updateBusiness(Map<String, dynamic> data) async {
+  static Future<Map<String, dynamic>> updateBusiness(
+    Map<String, dynamic> data,
+  ) async {
     final response = await post('/update-business', data);
     return jsonDecode(response.body);
   }
@@ -152,7 +200,7 @@ class ApiService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('userId');
-      
+
       if (userId == null) return;
 
       await post('/track-activity', {
@@ -168,13 +216,21 @@ class ApiService {
     }
   }
 
-  static Future<String> getWebEditorUrl({required String type, required String id, String designUrl = ''}) async {
+  static Future<String> getWebEditorUrl({
+    required String type,
+    required String id,
+    String designUrl = '',
+  }) async {
     // Construct the direct web editor URL with SSO login
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId') ?? '';
-    
-    final cleanBaseUrl = baseUrl.split('/').take(baseUrl.split('/').length - 1).join('/');
-    final targetUrl = '/edit/$type/$id?from_app=1&design=${Uri.encodeComponent(designUrl)}';
+
+    final cleanBaseUrl = baseUrl
+        .split('/')
+        .take(baseUrl.split('/').length - 1)
+        .join('/');
+    final targetUrl =
+        '/edit/$type/$id?from_app=1&design=${Uri.encodeComponent(designUrl)}';
     return '$cleanBaseUrl/webview-login?user_id=$userId&redirect=${Uri.encodeComponent(targetUrl)}';
   }
 
@@ -197,8 +253,6 @@ class ApiService {
   static Future<http.Response> getUserProducts() async {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId') ?? '';
-    return await post('/products/list', {
-      'userId': userId,
-    });
+    return await post('/products/list', {'userId': userId});
   }
 }

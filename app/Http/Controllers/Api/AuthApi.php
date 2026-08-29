@@ -41,6 +41,7 @@ class AuthApi extends Controller
             
             $res = array(
                 'userId' => $user->id,  
+                'access_token' => $this->issueMobileAccessToken($user),
                 'userName' => $user->name,
                 'emailId' => $user->email, 
                 'password' => "",
@@ -253,6 +254,7 @@ class AuthApi extends Controller
 
             $data = array(
                 'userId' => $user->id, 
+                'access_token' => $this->issueMobileAccessToken($user),
                 'userName' => $user->name,
                 'emailId' => $user->email, 
                 'password' => "",
@@ -1171,6 +1173,11 @@ class AuthApi extends Controller
 
     public function logout(Request $request)
     {
+        $authenticatedUser = $request->user('sanctum');
+        if ($authenticatedUser && $authenticatedUser->currentAccessToken()) {
+            $authenticatedUser->currentAccessToken()->delete();
+        }
+
         $val = AndroidLogin::where('userId',$request->userId)->where('deviceId',$request->deviceId)->get();
 
         if (!empty($val))
@@ -1494,6 +1501,19 @@ class AuthApi extends Controller
                 ]);
             }
         }
+    }
+
+    /**
+     * Issue a single scoped mobile bearer token. The prior token is revoked
+     * before a new mobile sign-in so lost devices cannot retain access.
+     */
+    private function issueMobileAccessToken(User $user)
+    {
+        $user->tokens()
+            ->where('name', 'artera-mobile')
+            ->delete();
+
+        return $user->createToken('artera-mobile', ['mobile:access'])->plainTextToken;
     }
 
     private function updateUserStreak($user)

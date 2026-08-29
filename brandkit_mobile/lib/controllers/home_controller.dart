@@ -593,11 +593,12 @@ class HomeController extends GetxController {
       }
 
       if (successCount == 0) {
-        Get.snackbar(
-          'Error',
-          'Unable to connect to server',
-          backgroundColor: Colors.redAccent,
-          colorText: Colors.white,
+        // The dashboard can render with the signed-in business and cached
+        // content even when these optional discovery feeds are temporarily
+        // unavailable. Keep the prior UI instead of showing a misleading
+        // server-failure popup over a usable screen.
+        debugPrint(
+          '[HomeCtrl] Home content endpoints unavailable; keeping existing dashboard state.',
         );
       } else if (failedEndpoints.isNotEmpty) {
         debugPrint(

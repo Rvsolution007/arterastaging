@@ -27,7 +27,9 @@ class Business extends Model
         'extra_mobile_numbers',
         'extra_websites',
         'extra_addresses',
-        'hidden_frame_fields'
+        'hidden_frame_fields',
+        'brand_primary_color',
+        'brand_secondary_color',
     ];
 
     protected $casts = [

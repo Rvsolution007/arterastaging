@@ -15,10 +15,13 @@ use App\Models\StorageSetting;
 use App\Models\WhatsappMessage;
 use App\Models\WithdrawRequest;
 use App\Models\ReferralRegister;
+use App\Services\AdLiveSecurityEventService;
+use App\Services\AdLiveUserProvisioningClient;
 use Spatie\Permission\Models\Role;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class UserController extends Controller
 {
@@ -38,12 +41,12 @@ class UserController extends Controller
             $index['data'] = User::where('name','like', '%'.$request->search.'%')
             ->orWhere('email','like', '%'.$request->search.'%')
             ->orWhere('mobile_no','like', '%'.$request->search.'%')
-            ->select('id','name','email','mobile_no','is_subscribe','subscription_end_date','user_type','login_type','image','created_at','status')->orderBy('id', 'desc')->paginate(10);
+            ->select('id','name','email','mobile_no','is_subscribe','subscription_end_date','user_type','login_type','registration_source','image','created_at','status')->orderBy('id', 'desc')->paginate(10);
             $index['whatsapp_messages'] = WhatsappMessage::get();
         }
         else
         {
-            $index['data'] = User::select('id','name','email','mobile_no','is_subscribe','subscription_end_date','user_type','login_type','image','created_at','status')->orderBy('id', 'desc')->paginate(10);
+            $index['data'] = User::select('id','name','email','mobile_no','is_subscribe','subscription_end_date','user_type','login_type','registration_source','image','created_at','status')->orderBy('id', 'desc')->paginate(10);
             $index['whatsapp_messages'] = WhatsappMessage::get();
         }
 
@@ -197,11 +200,16 @@ class UserController extends Controller
     //     return view("user.edit", compact("user","gender"));
     // }
 
-    public function update(Request $request, $id)
+    public function update(
+        Request $request,
+        $id,
+        AdLiveUserProvisioningClient $adLiveProvisioning,
+        AdLiveSecurityEventService $adLiveSecurity
+    )
     {
         $validation = Validator::make($request->all(), [
             'name' => 'required',
-            //'password' => 'required|min:8',
+            'password' => ['nullable', 'string', 'confirmed', PasswordRule::min(10)->mixedCase()->numbers()->symbols()],
             "mobile_no" => ['required', 'numeric', \Illuminate\Validation\Rule::unique('users', 'mobile_no')->ignore($id)->whereNull('deleted_at')],
             'email' => ['required', 'email', \Illuminate\Validation\Rule::unique('users', 'email')->ignore($id)->whereNull('deleted_at')],
             "image" => "nullable|mimes:jpg,png,jpeg",
@@ -211,14 +219,29 @@ class UserController extends Controller
             return back()->withErrors($validation)->withInput();
         } else {
             $user = User::findOrFail($id);
+            $passwordChanged = $request->filled('password');
             $user->name = $request->get("name");
             $user->email = $request->get("email");
             $user->mobile_no = $request->get("mobile_no");
             $user->is_partner = $request->has("is_partner") ? 1 : 0;
             $user->partner_commission_percent = $request->get("partner_commission_percent");
-            if(!empty($request->get("password")))
+            if ($passwordChanged)
             {
                 $user->password = bcrypt($request->get("password"));
+            }
+
+            $identityChanged = $user->isDirty(['name', 'email', 'mobile_no']);
+            $emailChanged = $user->isDirty('email');
+
+            // Artera is the only credential authority. Revoke linked AdLive
+            // sessions before changing a password or the email used to sign in.
+            if (($passwordChanged || $emailChanged) && ! $adLiveSecurity->revokeLinkedSessions(
+                $user,
+                $passwordChanged ? 'password_changed' : 'email_changed'
+            )) {
+                return back()->withInput()->withErrors([
+                    $passwordChanged ? 'password' : 'email' => 'The linked AdLive sessions could not be secured. Please try again.',
+                ]);
             }
 
             if ($request->has('role_id')) {
@@ -276,6 +299,9 @@ class UserController extends Controller
             }
             
             $user->save();
+            if ($passwordChanged) {
+                $user->tokens()->delete();
+            }
             
             if(StorageSetting::getStorageSetting("storage") == "DigitalOcean")
             {
@@ -304,6 +330,20 @@ class UserController extends Controller
             {
                 if ($request->file("image") && $request->file('image')->isValid()) {
                     $this->upload_image($request->file("image"),"image", $id);
+                }
+            }
+
+            if ($identityChanged) {
+                $business = Business::query()
+                    ->where('user_id', $user->id)
+                    ->where('status', 1)
+                    ->orderByDesc('is_default')
+                    ->orderBy('id')
+                    ->first();
+
+                $source = $user->registration_source === 'adlive' ? 'adlive' : 'artera_pixel';
+                if (! $adLiveProvisioning->sync($user->fresh(), $business, $source)) {
+                    return redirect()->back()->with('warning', 'Profile updated in Artera, but AdLive synchronization is pending. Save the profile again after the bridge is available.');
                 }
             }
 

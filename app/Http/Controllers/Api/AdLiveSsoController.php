@@ -75,6 +75,8 @@ class AdLiveSsoController extends Controller
                 'email' => $identity['email'],
                 'phone' => $identity['phone'],
                 'business' => $businessSnapshot,
+                'signup_source' => $identity['signup_source'] ?? 'artera_pixel',
+                'email_verified' => (bool) ($identity['email_verified'] ?? false),
                 'consent_version' => $request->input('consent_version', 'adlive-mobile-v1'),
             ],
             'expires_at' => $expiresAt,

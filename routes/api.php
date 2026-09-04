@@ -4,10 +4,13 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AdLiveSsoController;
 use App\Http\Controllers\Api\AdLiveAuthorizationController;
 use App\Http\Controllers\Api\AdLiveMigrationInventoryController;
+use App\Http\Controllers\Api\AdLiveRegistrationController;
+use App\Http\Controllers\Api\AdLiveCredentialVerificationController;
 
 Route::post('/phonepe-callback', 'Api\HomeApi@phonepe_callback');
 
-// Server-to-server endpoints. They never accept a browser or mobile token.
+// This endpoint is not a mobile/browser API. AdLive calls it server-to-server
+// with the configured shared secret to atomically consume a one-time ticket.
 Route::post('/internal/adlive/tickets/consume', [AdLiveSsoController::class, 'consume'])
     ->middleware('throttle:30,1');
 Route::post('/internal/adlive/business-snapshot', [AdLiveSsoController::class, 'businessSnapshot'])
@@ -16,6 +19,12 @@ Route::post('/internal/adlive/authorization-codes/consume', [AdLiveAuthorization
     ->middleware('throttle:30,1');
 Route::post('/internal/adlive/migration-inventory', [AdLiveMigrationInventoryController::class, 'index'])
     ->middleware('throttle:10,1');
+Route::post('/internal/adlive/registration/options', [AdLiveRegistrationController::class, 'options'])
+    ->middleware('throttle:30,1');
+Route::post('/internal/adlive/registrations', [AdLiveRegistrationController::class, 'register'])
+    ->middleware('throttle:10,1');
+Route::post('/internal/adlive/credentials/verify', [AdLiveCredentialVerificationController::class, 'verify'])
+    ->middleware('throttle:login');
 
 
 

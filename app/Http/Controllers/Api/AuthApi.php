@@ -13,12 +13,15 @@ use Illuminate\Http\Request;
 use App\Models\EmailVerified;
 use App\Models\PasswordReset;
 use App\Models\EarningHistory;
+use App\Models\Business;
 use App\Models\ReferralSystem;
 use App\Models\StorageSetting;
 use App\Models\ReferralRegister;
 use App\Http\Controllers\Controller;
 use App\Services\FirebaseIdTokenVerifier;
 use App\Services\MobileAccessTokenService;
+use App\Services\AdLiveSecurityEventService;
+use App\Services\AdLiveUserProvisioningClient;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -82,7 +85,7 @@ class AuthApi extends Controller
         return response()->json($res);
     }
 
-    public function registration(Request $request)
+    public function registration(Request $request, AdLiveUserProvisioningClient $adLiveProvisioning)
     {
         if($request->get('referralCode'))
         {
@@ -127,6 +130,7 @@ class AuthApi extends Controller
                 'login_type' => "normal",
                 "referral_code" => strtoupper(str::random(10)),
                 "user_type" => "User",
+                'registration_source' => 'artera_pixel',
             ])->id;
 
             if($request->get('referralCode')) {
@@ -246,6 +250,12 @@ class AuthApi extends Controller
             }
 
             $user = User::find($id);
+            $business = \App\Models\Business::query()
+                ->where('user_id', $user->id)
+                ->where('status', 1)
+                ->orderByDesc('is_default')
+                ->first();
+            $adLiveProvisioning->sync($user, $business, 'artera_pixel');
             $accessToken = app(MobileAccessTokenService::class)->issue($user);
             $email = $user->email;
             $name = $user->name;
@@ -441,6 +451,7 @@ class AuthApi extends Controller
                     'email_verified_at' => date('Y-m-d H:i:s'),
                     "referral_code" => strtoupper(str::random(10)),
                     "user_type" => "User",
+                'registration_source' => 'artera_pixel',
                 ])->id;
 
                 $user = User::find($id);
@@ -541,7 +552,10 @@ class AuthApi extends Controller
                             'login_type' => 'google',
                             'email_verified_at' => now(),
                             'referral_code' => strtoupper(Str::random(10)),
-                            'registration_source' => 'google',
+                            // Product origin remains Artera Pixel; the
+                            // login_type/federated UID separately record that
+                            // Google was used to authenticate.
+                            'registration_source' => 'artera_pixel',
                         ]);
 
                         $user->forceFill([
@@ -722,6 +736,7 @@ class AuthApi extends Controller
                     'email_verified_at' => date('Y-m-d H:i:s'),
                     "referral_code" => strtoupper(str::random(10)),
                     "user_type" => "User",
+                'registration_source' => 'artera_pixel',
                 ])->id;
 
                 $user = User::find($id);
@@ -889,6 +904,8 @@ class AuthApi extends Controller
                                 $user->country = $request->get("country");
                                 $user->mobile_no = $request->get("mobile_no");
                                 $user->save();
+
+                                $this->syncProfileToAdLive($user);
                     
                                 if(StorageSetting::getStorageSetting("storage") == "DigitalOcean")
                                 {
@@ -1054,6 +1071,8 @@ class AuthApi extends Controller
                                 $user->country = $request->get("country");
                                 $user->mobile_no = $request->get("mobile_no");
                                 $user->save();
+
+                                $this->syncProfileToAdLive($user);
                     
                                 if(StorageSetting::getStorageSetting("storage") == "DigitalOcean")
                                 {
@@ -1144,6 +1163,24 @@ class AuthApi extends Controller
                 'message' => 'Unable to update the profile. Please try again.',
             ], 500);
         }
+    }
+
+    /**
+     * Keep AdLive's read-only identity view aligned with the Artera-owned
+     * account after a Pixel client changes profile data. No password or token
+     * is included in this request.
+     */
+    private function syncProfileToAdLive(User $user): void
+    {
+        $business = Business::query()
+            ->where('user_id', $user->id)
+            ->where('status', 1)
+            ->orderByDesc('is_default')
+            ->orderBy('id')
+            ->first();
+
+        $source = $user->registration_source === 'adlive' ? 'adlive' : 'artera_pixel';
+        app(AdLiveUserProvisioningClient::class)->sync($user->fresh(), $business, $source);
     }
 
     private function upload_image($file,$field,$id)
@@ -1242,6 +1279,13 @@ class AuthApi extends Controller
 
         $user = User::where('email', $email)->first();
         if ($user) {
+            if (! app(AdLiveSecurityEventService::class)->revokeLinkedSessions($user, 'password_reset')) {
+                return response()->json([
+                    'status' => 'Error',
+                    'message' => 'Your password was not changed because linked AdLive sessions could not be secured. Please try again.',
+                ], Response::HTTP_SERVICE_UNAVAILABLE);
+            }
+
             $user->password = Hash::make($validated['new_password']);
             $user->save();
 
@@ -1289,6 +1333,13 @@ class AuthApi extends Controller
                 'status' => 'Error',
                 'message' => 'Your new password must be different from your current password.',
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        if (! app(AdLiveSecurityEventService::class)->revokeLinkedSessions($user, 'password_changed')) {
+            return response()->json([
+                'status' => 'Error',
+                'message' => 'Your password was not changed because linked AdLive sessions could not be secured. Please try again.',
+            ], Response::HTTP_SERVICE_UNAVAILABLE);
         }
 
         $user->password = Hash::make($validated['newPassword']);

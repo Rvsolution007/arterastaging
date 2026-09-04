@@ -128,6 +128,23 @@ class AdLiveAuthorizationController extends Controller
         $clients = config('adlive.web_clients', []);
         $client = is_array($clients) ? ($clients[$clientId] ?? null) : null;
 
-        return is_array($client) && in_array($redirectUri, $client['redirect_uris'] ?? [], true);
+        if (! is_array($client)) {
+            return false;
+        }
+
+        $allowed = $client['redirect_uris'] ?? [];
+        if (in_array($redirectUri, $allowed, true)) {
+            return true;
+        }
+
+        if (app()->environment('local')) {
+            $parsed = parse_url($redirectUri);
+            $path = $parsed['path'] ?? '';
+            if (str_ends_with($path, '/auth/artera/callback')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

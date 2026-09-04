@@ -311,6 +311,15 @@
                         </div>
                     @endif
 
+                    @if (session('warning'))
+                        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                            {{ session('warning') }}
+                            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                    @endif
+
                     @if ($errors->any())
                         <div class="alert alert-danger alert-dismissible fade show" role="alert">
                             <strong>Error!</strong> Please check the form below for errors.
@@ -332,6 +341,9 @@
                         <div class="premium-card-body">
                             {!! Form::open(['route' => ['user.update',$data->id],'method'=>'PATCH','files'=>true]) !!}
                             {!! Form::hidden('id',$data->id) !!}
+                            <div class="alert alert-light border small text-muted mb-4" role="note">
+                                This is the shared Artera account. Profile updates are synchronized to AdLive; changing the password signs the user out of AdLive.
+                            </div>
                             
                             <div class="row">
                                 <div class="col-md-6 mb-4">
@@ -348,7 +360,12 @@
                                 </div>
                                 <div class="col-md-6 mb-4">
                                     <label class="form-label-premium">Change Password (Optional)</label>
-                                    {!! Form::password('password', ['class' => 'form-control-premium w-100', 'placeholder' => 'Enter new password']) !!}
+                                    {!! Form::password('password', ['class' => 'form-control-premium w-100', 'placeholder' => 'New password', 'autocomplete' => 'new-password']) !!}
+                                    <small class="text-muted d-block mt-1">10+ characters, with upper/lowercase letters, a number, and a symbol.</small>
+                                </div>
+                                <div class="col-md-6 mb-4">
+                                    <label class="form-label-premium">Confirm New Password</label>
+                                    {!! Form::password('password_confirmation', ['class' => 'form-control-premium w-100', 'placeholder' => 'Confirm new password', 'autocomplete' => 'new-password']) !!}
                                 </div>
                                 <div class="col-md-12 mb-4">
                                     <label class="form-label-premium">Update Profile Photo</label>

@@ -312,7 +312,11 @@
                                 <td><span class="font-math">{{$row->mobile_no}}</span></td>
                                 <td><span class="badge-soft">{{date('d M Y',strtotime($row->created_at))}}</span></td>
                                 <td>
-                                    @if(isset($row->registration_source) && $row->registration_source == 'Website')
+                                    @if(($row->registration_source ?? null) === 'adlive')
+                                        <span class="badge badge-success px-2 py-1" style="font-size: 0.75rem;"><i class="fa-solid fa-bullhorn mr-1"></i> AdLive</span>
+                                    @elseif(($row->registration_source ?? null) === 'artera_pixel')
+                                        <span class="badge badge-info px-2 py-1" style="font-size: 0.75rem;"><i class="fa-solid fa-mobile-screen mr-1"></i> Artera Pixel</span>
+                                    @elseif(($row->registration_source ?? null) === 'Website')
                                         <span class="badge badge-info px-2 py-1" style="font-size: 0.75rem;"><i class="fa-solid fa-globe mr-1"></i> Website</span>
                                     @else
                                         <span class="badge badge-secondary px-2 py-1" style="font-size: 0.75rem;"><i class="fa-solid fa-mobile-screen mr-1"></i> App</span>

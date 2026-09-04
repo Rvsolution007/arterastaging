@@ -14,6 +14,8 @@ use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\PasswordResetOtp;
 use App\Models\PasswordReset;
+use App\Services\AdLiveSecurityEventService;
+use App\Services\AdLiveUserProvisioningClient;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class ClientAuthController extends Controller
@@ -47,7 +49,7 @@ class ClientAuthController extends Controller
         return view('client.auth.register', compact('categories'));
     }
 
-    public function register(Request $request)
+    public function register(Request $request, AdLiveUserProvisioningClient $adLiveProvisioning)
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
@@ -81,10 +83,11 @@ class ClientAuthController extends Controller
             'image' => $logoName, // Sync logo to user image
             'user_type' => 'O',
             'status' => 1,
+            'registration_source' => 'artera_pixel',
         ]);
 
         // 2. Create Business
-        Business::create([
+        $business = Business::create([
             'user_id' => $user->id,
             'name' => $request->name,
             'email' => $request->email,
@@ -97,6 +100,8 @@ class ClientAuthController extends Controller
             'status' => 1,
             'is_default' => 1,
         ]);
+
+        $adLiveProvisioning->sync($user, $business, 'artera_pixel');
 
         Auth::login($user);
         $request->session()->regenerate();
@@ -152,13 +157,14 @@ class ClientAuthController extends Controller
             'login_type' => 'google',
             'user_type' => 'O',
             'status' => 1,
+            'registration_source' => 'artera_pixel',
             'email_verified_at' => now(), // Google emails are pre-verified
             'referral_code' => strtoupper(Str::random(10)),
         ]);
 
         // Create a default Business profile so they can start immediately
         $defaultCategory = BusinessCategory::where('status', 1)->first();
-        Business::create([
+        $business = Business::create([
             'user_id' => $user->id,
             'name' => $googleUser->getName(),
             'email' => $googleUser->getEmail(),
@@ -166,6 +172,8 @@ class ClientAuthController extends Controller
             'status' => 1,
             'is_default' => 1,
         ]);
+
+        app(AdLiveUserProvisioningClient::class)->sync($user, $business, 'artera_pixel');
 
         Auth::login($user, true);
         $request->session()->regenerate();
@@ -256,7 +264,7 @@ class ClientAuthController extends Controller
     /**
      * Step 3: Update the password.
      */
-    public function updatePassword(Request $request)
+    public function updatePassword(Request $request, AdLiveSecurityEventService $adLiveSecurity)
     {
         if (!session('otp_verified') || !session('reset_email')) {
             return redirect()->route('password.forgot')->with('error', 'Session expired. Please start again.');
@@ -270,6 +278,14 @@ class ClientAuthController extends Controller
 
         if (!$user) {
             return redirect()->route('password.forgot')->with('error', 'User not found.');
+        }
+
+        // Never allow a central password change to leave active AdLive
+        // sessions behind. The password itself remains in Artera only.
+        if (! $adLiveSecurity->revokeLinkedSessions($user, 'password_changed')) {
+            return back()->withErrors([
+                'password' => 'Could not secure linked AdLive sessions. Please try again.',
+            ]);
         }
 
         $user->password = Hash::make($request->password);

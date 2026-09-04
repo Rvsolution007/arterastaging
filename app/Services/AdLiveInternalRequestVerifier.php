@@ -32,8 +32,35 @@ class AdLiveInternalRequestVerifier
             return false;
         }
 
-        $expected = hash_hmac('sha256', $this->signaturePayload($request->method(), $request->path(), $timestamp, $nonce, $payload), $secret);
-        if (! hash_equals($expected, $signature)) {
+        // getRequestUri retains an XAMPP subdirectory such as
+        // /Artera/123456. Request::path() strips that base path, which makes
+        // an otherwise valid signed server-to-server request fail locally.
+        // Accepting the exact signed body also avoids JSON transport changing
+        // empty arrays/objects before the verifier sees the request.
+        $paths = array_unique([
+            '/'.ltrim((string) (parse_url($request->getRequestUri(), PHP_URL_PATH) ?: '/'), '/'),
+            '/'.ltrim($request->path(), '/'),
+        ]);
+        $signatureBodies = array_unique([
+            $this->canonicalPayload($payload),
+            $request->getContent(),
+        ]);
+        $signatureIsValid = collect($paths)->contains(function (string $path) use ($timestamp, $nonce, $request, $signatureBodies, $secret, $signature): bool {
+            foreach ($signatureBodies as $body) {
+                $expected = hash_hmac(
+                    'sha256',
+                    $this->signaturePayloadForBody($request->method(), $path, $timestamp, $nonce, $body),
+                    $secret,
+                );
+
+                if (hash_equals($expected, $signature)) {
+                    return true;
+                }
+            }
+
+            return false;
+        });
+        if (! $signatureIsValid) {
             return false;
         }
 
@@ -56,12 +83,17 @@ class AdLiveInternalRequestVerifier
      */
     public function signaturePayload(string $method, string $path, string $timestamp, string $nonce, array $payload): string
     {
+        return $this->signaturePayloadForBody($method, $path, $timestamp, $nonce, $this->canonicalPayload($payload));
+    }
+
+    public function signaturePayloadForBody(string $method, string $path, string $timestamp, string $nonce, string $body): string
+    {
         return implode("\n", [
             $timestamp,
             $nonce,
             strtoupper($method),
             '/'.ltrim($path, '/'),
-            $this->canonicalPayload($payload),
+            $body,
         ]);
     }
 

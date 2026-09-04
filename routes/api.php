@@ -4,10 +4,13 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AdLiveSsoController;
 use App\Http\Controllers\Api\AdLiveAuthorizationController;
 use App\Http\Controllers\Api\AdLiveMigrationInventoryController;
+use App\Http\Controllers\Api\AdLiveRegistrationController;
+use App\Http\Controllers\Api\AdLiveCredentialVerificationController;
 
 Route::post('/phonepe-callback', 'Api\HomeApi@phonepe_callback');
 
-// Server-to-server endpoints. They never accept a browser or mobile token.
+// This endpoint is not a mobile/browser API. AdLive calls it server-to-server
+// with the configured shared secret to atomically consume a one-time ticket.
 Route::post('/internal/adlive/tickets/consume', [AdLiveSsoController::class, 'consume'])
     ->middleware('throttle:30,1');
 Route::post('/internal/adlive/business-snapshot', [AdLiveSsoController::class, 'businessSnapshot'])
@@ -16,6 +19,12 @@ Route::post('/internal/adlive/authorization-codes/consume', [AdLiveAuthorization
     ->middleware('throttle:30,1');
 Route::post('/internal/adlive/migration-inventory', [AdLiveMigrationInventoryController::class, 'index'])
     ->middleware('throttle:10,1');
+Route::post('/internal/adlive/registration/options', [AdLiveRegistrationController::class, 'options'])
+    ->middleware('throttle:30,1');
+Route::post('/internal/adlive/registrations', [AdLiveRegistrationController::class, 'register'])
+    ->middleware('throttle:10,1');
+Route::post('/internal/adlive/credentials/verify', [AdLiveCredentialVerificationController::class, 'verify'])
+    ->middleware('throttle:login');
 
 
 
@@ -168,10 +177,13 @@ Route::
             // Business Post AI is a separate Custom Post journey. It shares
             // one-image credits, never a frame/template render contract.
             Route::get('/business-ai/options', [\App\Http\Controllers\Api\BusinessAiGenerationController::class, 'options']);
+            Route::post('/business-ai/reference-uploads', [\App\Http\Controllers\Api\BusinessAiGenerationController::class, 'uploadReference'])->middleware('throttle:20,1');
             Route::post('/business-ai/content-preview', [\App\Http\Controllers\Api\BusinessAiGenerationController::class, 'preview'])->middleware('throttle:20,1');
             Route::post('/business-ai/generations', [\App\Http\Controllers\Api\BusinessAiGenerationController::class, 'create'])->middleware('throttle:10,1');
             Route::get('/business-ai/generations', [\App\Http\Controllers\Api\BusinessAiGenerationController::class, 'history']);
+            Route::get('/business-ai/drafts', [\App\Http\Controllers\Api\BusinessAiGenerationController::class, 'drafts']);
             Route::get('/business-ai/generations/{businessAiGeneration}', [\App\Http\Controllers\Api\BusinessAiGenerationController::class, 'show']);
+            Route::post('/business-ai/generations/{businessAiGeneration}/draft', [\App\Http\Controllers\Api\BusinessAiGenerationController::class, 'saveDraft'])->middleware('throttle:30,1');
 
             // AI Editable V1 is a separate, frame-free document contract.
             Route::get('/ai-editable/v1/documents/{publicId}', [\App\Http\Controllers\Api\AiEditableDocumentController::class, 'show']);

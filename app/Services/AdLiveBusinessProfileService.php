@@ -24,12 +24,7 @@ class AdLiveBusinessProfileService
         ]);
 
         return [
-            'identity' => [
-                'artera_user_id' => (string) $user->id,
-                'name' => (string) $user->name,
-                'email' => mb_strtolower(trim((string) $user->email)),
-                'phone' => (string) ($user->mobile_no ?: ''),
-            ],
+            'identity' => $this->identity($user),
             'business' => [
                 'id' => (string) $business->id,
                 'name' => (string) $business->name,
@@ -55,6 +50,19 @@ class AdLiveBusinessProfileService
                 'profile_version' => $this->profileVersion($business),
                 'updated_at' => optional($business->updated_at)->toIso8601String(),
             ],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    public function identity(User $user): array
+    {
+        return [
+            'artera_user_id' => (string) $user->id,
+            'name' => (string) $user->name,
+            'email' => mb_strtolower(trim((string) $user->email)),
+            'phone' => (string) ($user->mobile_no ?: ''),
+            'email_verified' => (bool) $user->email_verified_at,
+            'signup_source' => $user->registration_source === 'adlive' ? 'adlive' : 'artera_pixel',
         ];
     }
 

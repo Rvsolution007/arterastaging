@@ -47,4 +47,32 @@ class AdLiveInternalRequestVerifierTest extends TestCase
 
         $this->assertFalse($verifier->verify($tamperedRequest));
     }
+
+    public function test_it_accepts_an_exact_raw_json_signature_when_json_shape_changes_during_decoding(): void
+    {
+        Cache::flush();
+        config(['adlive.shared_secret' => 'test-shared-secret']);
+
+        $verifier = new AdLiveInternalRequestVerifier;
+        // JSON objects with no properties decode to PHP arrays. Sign the exact
+        // outbound body so this harmless transport conversion cannot reject a
+        // legitimate server-to-server request.
+        $body = '{"identity":{"sub_categories":{},"products":[]}}';
+        $timestamp = (string) now()->timestamp;
+        $nonce = 'e3f4e5f6-1111-2222-3333-444455556667';
+        $signature = hash_hmac(
+            'sha256',
+            $verifier->signaturePayloadForBody('POST', '/api/internal/adlive/credentials/verify', $timestamp, $nonce, $body),
+            'test-shared-secret'
+        );
+
+        $request = Request::create('/api/internal/adlive/credentials/verify', 'POST', [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_ARTERA_ADLIVE_TIMESTAMP' => $timestamp,
+            'HTTP_X_ARTERA_ADLIVE_NONCE' => $nonce,
+            'HTTP_X_ARTERA_ADLIVE_SIGNATURE' => $signature,
+        ], $body);
+
+        $this->assertTrue($verifier->verify($request));
+    }
 }

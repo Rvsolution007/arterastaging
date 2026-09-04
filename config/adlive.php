@@ -14,6 +14,7 @@ return [
     'shared_secret' => env('ADLIVE_SSO_SHARED_SECRET'),
 
     'security_revoke_url' => env('ADLIVE_SSO_SECURITY_REVOKE_URL'),
+    'user_provision_url' => env('ADLIVE_SSO_USER_PROVISION_URL'),
 
     'request_timeout_seconds' => (int) env('ADLIVE_SSO_REQUEST_TIMEOUT_SECONDS', 8),
 

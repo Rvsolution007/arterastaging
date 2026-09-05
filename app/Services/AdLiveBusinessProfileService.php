@@ -16,12 +16,7 @@ class AdLiveBusinessProfileService
      */
     public function snapshot(User $user, Business $business): array
     {
-        $business->loadMissing([
-            'business_category:id,name',
-            'sub_categories:id,name',
-            'types:id,name',
-            'products:id,name',
-        ]);
+        $this->loadProfileRelations($business);
 
         return [
             'identity' => $this->identity($user),
@@ -47,9 +42,28 @@ class AdLiveBusinessProfileService
                 'sub_categories' => $this->taxonomyItems($business->sub_categories),
                 'business_types' => $this->taxonomyItems($business->types),
                 'products' => $this->taxonomyItems($business->products),
-                'profile_version' => $this->profileVersion($business),
-                'updated_at' => optional($business->updated_at)->toIso8601String(),
+                'profile_version' => $this->profileVersion($user, $business),
+                'updated_at' => $this->updatedAt($user, $business),
             ],
+        ];
+    }
+
+    /**
+     * Exact canonical contract returned to AdLive after an inbound update.
+     * Deliberately excludes credentials, advertising data and billing data.
+     *
+     * @return array<string, mixed>
+     */
+    public function sharedSnapshot(User $user, Business $business): array
+    {
+        $this->loadProfileRelations($business);
+
+        return [
+            'identity' => $this->sharedIdentity($user),
+            'business' => array_merge($this->sharedBusiness($business), [
+                'profile_version' => $this->profileVersion($user, $business),
+                'updated_at' => $this->updatedAt($user, $business),
+            ]),
         ];
     }
 
@@ -66,11 +80,74 @@ class AdLiveBusinessProfileService
         ];
     }
 
-    private function profileVersion(Business $business): string
+    /**
+     * The stored UUID guarantees a new version for each accepted AdLive
+     * update. The content fingerprint also detects profile edits made through
+     * existing Pixel flows, including pivot-only taxonomy edits.
+     */
+    public function profileVersion(User $user, Business $business): string
     {
-        $updatedAt = $business->updated_at ? $business->updated_at->format('U.u') : '0';
+        $this->loadProfileRelations($business);
 
-        return 'business:'.$business->id.':'.$updatedAt;
+        $content = [
+            'identity' => $this->sharedIdentity($user),
+            'business' => $this->sharedBusiness($business),
+        ];
+        $fingerprint = hash('sha256', json_encode(
+            $content,
+            JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE
+        ));
+        $storedVersion = (string) ($business->profile_version ?: 'legacy');
+
+        return 'profile:v1:'.$storedVersion.':'.substr($fingerprint, 0, 32);
+    }
+
+    /** @return array<string, string> */
+    private function sharedIdentity(User $user): array
+    {
+        return [
+            'artera_user_id' => (string) $user->id,
+            'name' => (string) $user->name,
+            'email' => mb_strtolower(trim((string) $user->email)),
+            'phone' => (string) ($user->mobile_no ?: ''),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function sharedBusiness(Business $business): array
+    {
+        return [
+            'id' => (string) $business->id,
+            'name' => (string) $business->name,
+            'category' => [
+                'id' => $business->business_category_id === null ? null : (string) $business->business_category_id,
+                'name' => (string) optional($business->business_category)->name,
+            ],
+            'sub_categories' => $this->taxonomyItems($business->sub_categories),
+            'business_types' => $this->taxonomyItems($business->types),
+            'products' => $this->taxonomyItems($business->products),
+            'location' => (string) ($business->address ?: ''),
+        ];
+    }
+
+    private function updatedAt(User $user, Business $business): ?string
+    {
+        $updatedAt = collect([$user->updated_at, $business->updated_at])
+            ->filter()
+            ->sortByDesc(fn ($timestamp) => $timestamp->getTimestamp())
+            ->first();
+
+        return $updatedAt ? $updatedAt->toIso8601String() : null;
+    }
+
+    private function loadProfileRelations(Business $business): void
+    {
+        $business->loadMissing([
+            'business_category:id,name',
+            'sub_categories:id,name',
+            'types:id,name',
+            'products:id,name',
+        ]);
     }
 
     /** @param mixed $items */
@@ -95,6 +172,8 @@ class AdLiveBusinessProfileService
                 'name' => (string) $item->name,
             ];
         }
+
+        usort($result, fn (array $left, array $right): int => strnatcmp($left['id'], $right['id']));
 
         return $result;
     }

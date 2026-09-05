@@ -40,7 +40,9 @@ class AdLiveInternalRequestVerifier
         return Cache::add(
             'adlive:internal-request-nonce:'.hash('sha256', $nonce),
             true,
-            now()->addSeconds($maxAge),
+            // A future-dated request remains valid until timestamp + maxAge.
+            // Retain the nonce across that entire window (including its edge).
+            now()->addSeconds(2 * $maxAge + 1),
         );
     }
 

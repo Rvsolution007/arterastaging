@@ -29,6 +29,11 @@ class RouteServiceProvider extends ServiceProvider
         $this->configureRateLimiting();
 
         $this->routes(function () {
+            // Fixed internal contract; independent of the legacy mobile API prefix.
+            Route::prefix('api/internal/adlive')
+                ->middleware('throttle:30,1')
+                ->group(base_path('routes/internal.php'));
+
             Route::middleware('api')
                 ->prefix(env('API_KEY'))
                 ->namespace($this->namespace)

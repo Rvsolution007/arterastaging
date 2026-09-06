@@ -17,7 +17,9 @@ class AdLiveInternalRequestVerifier
         $timestamp = (string) $request->header('X-Artera-AdLive-Timestamp');
         $nonce = (string) $request->header('X-Artera-AdLive-Nonce');
         $signature = (string) $request->header('X-Artera-AdLive-Signature');
-        $maxAge = max(30, (int) config('adlive.internal_request_max_age_seconds', 300));
+        // Both currently supported AdLive internal APIs have a fixed
+        // five-minute acceptance window. Configuration may only narrow it.
+        $maxAge = min(300, max(30, (int) config('adlive.internal_request_max_age_seconds', 300)));
 
         if ($secret === '' || ! ctype_digit($timestamp) || ! preg_match('/^[A-Za-z0-9-]{16,128}$/', $nonce) || ! preg_match('/^[a-f0-9]{64}$/', $signature)) {
             return false;

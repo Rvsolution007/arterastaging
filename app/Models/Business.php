@@ -21,6 +21,7 @@ class Business extends Model
         'business_category_id',
         'business_sub_category_ids',
         'business_type_id',
+        'adlive_business_type',
         'status',
         'is_default',
         'extra_emails',

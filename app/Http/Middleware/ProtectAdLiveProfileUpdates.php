@@ -8,12 +8,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
-/** Runs before CORS and JSON transformations, only for the profile sync path. */
+/** Runs before CORS and JSON transformations for signed AdLive internal APIs. */
 class ProtectAdLiveProfileUpdates
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (! $request->is('api/internal/adlive/business-profile-updates')) {
+        if (! $request->is('api/internal/adlive/business-profile-updates')
+            && ! $request->is('api/internal/adlive/businesses')) {
             return $next($request);
         }
 
@@ -38,9 +39,9 @@ class ProtectAdLiveProfileUpdates
             $authenticated = app(AdLiveInternalRequestVerifier::class)->verify($request);
         } catch (\Throwable $exception) {
             // Never report an exception object with request headers or bindings.
-            Log::error('AdLive profile request verification is unavailable.');
+            Log::error('AdLive internal request verification is unavailable.');
 
-            return $this->finish(response()->json(['message' => 'Profile synchronization is temporarily unavailable.'], 503));
+            return $this->finish(response()->json(['message' => 'AdLive internal service is temporarily unavailable.'], 503));
         }
 
         if (! $authenticated) {

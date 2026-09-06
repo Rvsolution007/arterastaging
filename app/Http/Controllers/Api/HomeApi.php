@@ -50,7 +50,7 @@ use App\Models\WithdrawRequest;
 use App\Models\AppUpdateSetting;
 use App\Models\BusinessCategory;
 use App\Models\ReferralRegister;
-use App\Services\AdLiveUserProvisioningClient;
+use App\Services\AdLiveIdentitySyncService;
 use Illuminate\Support\Facades\DB;
 use App\Models\BusinessSubCategory;
 use App\Models\NotificationSetting;
@@ -1605,7 +1605,7 @@ class HomeApi extends Controller
         return $data;
     }
 
-    public function addBusiness(Request $request, AdLiveUserProvisioningClient $adLiveProvisioning)
+    public function addBusiness(Request $request, AdLiveIdentitySyncService $adLiveIdentitySync)
     {
         $authenticatedUser = auth('sanctum')->user();
         if (!$authenticatedUser) {
@@ -1729,7 +1729,7 @@ class HomeApi extends Controller
                 }
             }
 
-            $adLiveProvisioning->sync($authenticatedUser, $businessUpdate->fresh(), 'artera_pixel');
+            $adLiveIdentitySync->queueForUser($authenticatedUser);
 
             $business = Business::where('user_id',$request->userId)->get();
 
@@ -1785,7 +1785,7 @@ class HomeApi extends Controller
         }
     }
 
-    public function updateBusiness(Request $request, AdLiveUserProvisioningClient $adLiveProvisioning)
+    public function updateBusiness(Request $request, AdLiveIdentitySyncService $adLiveIdentitySync)
     {
         $authenticatedUser = auth('sanctum')->user();
         if (!$authenticatedUser) {
@@ -1916,7 +1916,7 @@ class HomeApi extends Controller
                 }
             }
 
-            $adLiveProvisioning->sync($authenticatedUser, $business->fresh(), 'artera_pixel');
+            $adLiveIdentitySync->queueForUser($authenticatedUser);
 
             $b = Business::find($business->id);
             $category = BusinessCategory::find($b->business_category_id);

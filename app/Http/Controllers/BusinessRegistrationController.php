@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use App\Services\AdLiveUserProvisioningClient;
+use App\Services\AdLiveIdentitySyncService;
 
 class BusinessRegistrationController extends Controller
 {
@@ -64,7 +64,7 @@ class BusinessRegistrationController extends Controller
         return response()->json(['data' => $products]);
     }
 
-    public function register(Request $request, AdLiveUserProvisioningClient $adLiveProvisioning)
+    public function register(Request $request, AdLiveIdentitySyncService $adLiveIdentitySync)
     {
         $validation = Validator::make($request->all(), [
             'name' => 'required',
@@ -162,7 +162,7 @@ class BusinessRegistrationController extends Controller
             }
         }
 
-        $adLiveProvisioning->sync(User::findOrFail($id), $businessUpdate->fresh(), 'artera_pixel');
+        $adLiveIdentitySync->queueForUser(User::findOrFail($id));
 
         return redirect()->route('business.registration.success');
     }

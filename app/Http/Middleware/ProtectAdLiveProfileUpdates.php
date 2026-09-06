@@ -13,8 +13,14 @@ class ProtectAdLiveProfileUpdates
 {
     public function handle(Request $request, Closure $next): Response
     {
+        $isCredentialVerification = $request->is('api/internal/adlive/credentials/verify');
+        $credentialAcceptsJson = str_contains(
+            strtolower((string) $request->header('Accept')),
+            'application/json',
+        );
         if (! $request->is('api/internal/adlive/business-profile-updates')
-            && ! $request->is('api/internal/adlive/businesses')) {
+            && ! $request->is('api/internal/adlive/businesses')
+            && ! $isCredentialVerification) {
             return $next($request);
         }
 
@@ -27,6 +33,13 @@ class ProtectAdLiveProfileUpdates
             return $this->finish(response()->json(['message' => 'Server-to-server requests only.'], 403));
         }
 
+        // The credential bridge is a JSON-only backend contract. Require the
+        // caller to opt in before overriding the framework's default response
+        // negotiation for its controller action.
+        if ($isCredentialVerification && ! $credentialAcceptsJson) {
+            return $this->finish(response()->json(['message' => 'Accept must be application/json.'], 406));
+        }
+
         if (! $request->isMethod('POST')) {
             return $this->finish(response()->json(['message' => 'Method not allowed.'], 405, ['Allow' => 'POST']));
         }
@@ -36,7 +49,13 @@ class ProtectAdLiveProfileUpdates
         }
 
         try {
-            $authenticated = app(AdLiveInternalRequestVerifier::class)->verify($request);
+            $authenticated = app(AdLiveInternalRequestVerifier::class)->verify(
+                $request,
+                $isCredentialVerification
+                    ? '/api/internal/adlive/credentials/verify'
+                    : null,
+                $isCredentialVerification,
+            );
         } catch (\Throwable $exception) {
             // Never report an exception object with request headers or bindings.
             Log::error('AdLive internal request verification is unavailable.');
@@ -54,7 +73,7 @@ class ProtectAdLiveProfileUpdates
 
         if ($request->getQueryString() !== null || $request->hasHeader('Authorization')
             || $request->hasHeader('Cookie') || $request->hasHeader('X-Artera-AdLive-Secret')) {
-            return $this->finish(response()->json(['message' => 'Use only the signed headers and JSON profile body.'], 400));
+            return $this->finish(response()->json(['message' => 'Use only the signed headers and JSON body.'], 400));
         }
 
         $request->attributes->set('adlive_profile_authenticated', true);

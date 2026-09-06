@@ -16,7 +16,7 @@ use App\Models\WhatsappMessage;
 use App\Models\WithdrawRequest;
 use App\Models\ReferralRegister;
 use App\Services\AdLiveSecurityEventService;
-use App\Services\AdLiveUserProvisioningClient;
+use App\Services\AdLiveIdentitySyncService;
 use Spatie\Permission\Models\Role;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
@@ -203,7 +203,7 @@ class UserController extends Controller
     public function update(
         Request $request,
         $id,
-        AdLiveUserProvisioningClient $adLiveProvisioning,
+        AdLiveIdentitySyncService $adLiveIdentitySync,
         AdLiveSecurityEventService $adLiveSecurity
     )
     {
@@ -334,17 +334,7 @@ class UserController extends Controller
             }
 
             if ($identityChanged) {
-                $business = Business::query()
-                    ->where('user_id', $user->id)
-                    ->where('status', 1)
-                    ->orderByDesc('is_default')
-                    ->orderBy('id')
-                    ->first();
-
-                $source = $user->registration_source === 'adlive' ? 'adlive' : 'artera_pixel';
-                if (! $adLiveProvisioning->sync($user->fresh(), $business, $source)) {
-                    return redirect()->back()->with('warning', 'Profile updated in Artera, but AdLive synchronization is pending. Save the profile again after the bridge is available.');
-                }
+                $adLiveIdentitySync->queueForUser($user->fresh());
             }
 
             return redirect()->back()->with('success', 'Profile updated successfully.');

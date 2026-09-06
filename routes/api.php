@@ -5,7 +5,6 @@ use App\Http\Controllers\Api\AdLiveSsoController;
 use App\Http\Controllers\Api\AdLiveAuthorizationController;
 use App\Http\Controllers\Api\AdLiveMigrationInventoryController;
 use App\Http\Controllers\Api\AdLiveRegistrationController;
-use App\Http\Controllers\Api\AdLiveCredentialVerificationController;
 
 Route::post('/phonepe-callback', 'Api\HomeApi@phonepe_callback');
 
@@ -23,10 +22,6 @@ Route::post('/internal/adlive/registration/options', [AdLiveRegistrationControll
     ->middleware('throttle:30,1');
 Route::post('/internal/adlive/registrations', [AdLiveRegistrationController::class, 'register'])
     ->middleware('throttle:10,1');
-Route::post('/internal/adlive/credentials/verify', [AdLiveCredentialVerificationController::class, 'verify'])
-    ->middleware('throttle:login');
-
-
 
 Route::
         namespace('Api')->middleware(['throttle:login'])->group(function () {

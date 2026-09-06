@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Mail\PasswordResetOtp;
 use App\Models\PasswordReset;
 use App\Services\AdLiveSecurityEventService;
-use App\Services\AdLiveUserProvisioningClient;
+use App\Services\AdLiveIdentitySyncService;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class ClientAuthController extends Controller
@@ -25,7 +25,7 @@ class ClientAuthController extends Controller
         return view('client.auth.login');
     }
 
-    public function login(Request $request)
+    public function login(Request $request, AdLiveIdentitySyncService $adLiveIdentitySync)
     {
         $credentials = $request->validate([
             'email' => ['required', 'email'],
@@ -35,6 +35,7 @@ class ClientAuthController extends Controller
         if (Auth::attempt($credentials, $request->remember)) {
             $request->session()->regenerate();
             $this->updateUserStreak(Auth::user());
+            $adLiveIdentitySync->queueForUser(Auth::user());
             return redirect()->intended('/dashboard');
         }
 
@@ -49,7 +50,7 @@ class ClientAuthController extends Controller
         return view('client.auth.register', compact('categories'));
     }
 
-    public function register(Request $request, AdLiveUserProvisioningClient $adLiveProvisioning)
+    public function register(Request $request, AdLiveIdentitySyncService $adLiveIdentitySync)
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
@@ -101,7 +102,7 @@ class ClientAuthController extends Controller
             'is_default' => 1,
         ]);
 
-        $adLiveProvisioning->sync($user, $business, 'artera_pixel');
+        $adLiveIdentitySync->queueForUser($user);
 
         Auth::login($user);
         $request->session()->regenerate();
@@ -173,7 +174,7 @@ class ClientAuthController extends Controller
             'is_default' => 1,
         ]);
 
-        app(AdLiveUserProvisioningClient::class)->sync($user, $business, 'artera_pixel');
+        app(AdLiveIdentitySyncService::class)->queueForUser($user);
 
         Auth::login($user, true);
         $request->session()->regenerate();

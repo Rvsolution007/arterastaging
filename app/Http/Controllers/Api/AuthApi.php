@@ -21,7 +21,7 @@ use App\Http\Controllers\Controller;
 use App\Services\FirebaseIdTokenVerifier;
 use App\Services\MobileAccessTokenService;
 use App\Services\AdLiveSecurityEventService;
-use App\Services\AdLiveUserProvisioningClient;
+use App\Services\AdLiveIdentitySyncService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -34,7 +34,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class AuthApi extends Controller
 {
-    public function login(Request $request)
+    public function login(Request $request, AdLiveIdentitySyncService $adLiveIdentitySync)
     {
         $credentials = $request->validate([
             'email' => ['required', 'email'],
@@ -46,6 +46,7 @@ class AuthApi extends Controller
         {
             $this->updateUserStreak($user);
             $user->refresh();
+            $adLiveIdentitySync->queueForUser($user);
             $accessToken = app(MobileAccessTokenService::class)->issue($user);
             $ReferralRegister = ReferralRegister::where('user_id', $user->id)->first();
             
@@ -85,7 +86,7 @@ class AuthApi extends Controller
         return response()->json($res);
     }
 
-    public function registration(Request $request, AdLiveUserProvisioningClient $adLiveProvisioning)
+    public function registration(Request $request, AdLiveIdentitySyncService $adLiveIdentitySync)
     {
         if($request->get('referralCode'))
         {
@@ -250,12 +251,7 @@ class AuthApi extends Controller
             }
 
             $user = User::find($id);
-            $business = \App\Models\Business::query()
-                ->where('user_id', $user->id)
-                ->where('status', 1)
-                ->orderByDesc('is_default')
-                ->first();
-            $adLiveProvisioning->sync($user, $business, 'artera_pixel');
+            $adLiveIdentitySync->queueForUser($user);
             $accessToken = app(MobileAccessTokenService::class)->issue($user);
             $email = $user->email;
             $name = $user->name;
@@ -1172,15 +1168,7 @@ class AuthApi extends Controller
      */
     private function syncProfileToAdLive(User $user): void
     {
-        $business = Business::query()
-            ->where('user_id', $user->id)
-            ->where('status', 1)
-            ->orderByDesc('is_default')
-            ->orderBy('id')
-            ->first();
-
-        $source = $user->registration_source === 'adlive' ? 'adlive' : 'artera_pixel';
-        app(AdLiveUserProvisioningClient::class)->sync($user->fresh(), $business, $source);
+        app(AdLiveIdentitySyncService::class)->queueForUser($user->fresh());
     }
 
     private function upload_image($file,$field,$id)

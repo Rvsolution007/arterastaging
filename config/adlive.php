@@ -14,7 +14,21 @@ return [
     'shared_secret' => env('ADLIVE_SSO_SHARED_SECRET'),
 
     'security_revoke_url' => env('ADLIVE_SSO_SECURITY_REVOKE_URL'),
-    'user_provision_url' => env('ADLIVE_SSO_USER_PROVISION_URL'),
+    // Identity provisioning is a server-to-server callback. Keep the old
+    // setting as a rollout fallback only; new deployments use the explicit
+    // identity bridge variable below.
+    'identity_provision_url' => env(
+        'ADLIVE_IDENTITY_PROVISION_URL',
+        env('ADLIVE_SSO_USER_PROVISION_URL')
+    ),
+    // Kept for existing administrative/backfill tooling during the staged
+    // rollout. New login and signup flows use identity_provision_url only.
+    'user_provision_url' => env(
+        'ADLIVE_IDENTITY_PROVISION_URL',
+        env('ADLIVE_SSO_USER_PROVISION_URL')
+    ),
+    'identity_consent_version' => env('ADLIVE_IDENTITY_CONSENT_VERSION', 'shared-identity-v1'),
+    'identity_provision_max_attempts' => (int) env('ADLIVE_IDENTITY_PROVISION_MAX_ATTEMPTS', 5),
 
     'request_timeout_seconds' => (int) env('ADLIVE_SSO_REQUEST_TIMEOUT_SECONDS', 8),
 

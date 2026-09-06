@@ -11,7 +11,7 @@ class AdLiveInternalRequestVerifier
      * Verify a signed server-to-server request and permanently reject a nonce
      * replay during the permitted clock window.
      */
-    public function verify(Request $request): bool
+    public function verify(Request $request, ?string $requiredPath = null, bool $canonicalOnly = false): bool
     {
         $secret = (string) config('adlive.shared_secret');
         $timestamp = (string) $request->header('X-Artera-AdLive-Timestamp');
@@ -39,14 +39,18 @@ class AdLiveInternalRequestVerifier
         // an otherwise valid signed server-to-server request fail locally.
         // Accepting the exact signed body also avoids JSON transport changing
         // empty arrays/objects before the verifier sees the request.
-        $paths = array_unique([
-            '/'.ltrim((string) (parse_url($request->getRequestUri(), PHP_URL_PATH) ?: '/'), '/'),
-            '/'.ltrim($request->path(), '/'),
-        ]);
-        $signatureBodies = array_unique([
-            $this->canonicalPayload($payload),
-            $request->getContent(),
-        ]);
+        $paths = $requiredPath === null
+            ? array_unique([
+                '/'.ltrim((string) (parse_url($request->getRequestUri(), PHP_URL_PATH) ?: '/'), '/'),
+                '/'.ltrim($request->path(), '/'),
+            ])
+            : ['/'.ltrim($requiredPath, '/')];
+        $signatureBodies = $canonicalOnly
+            ? [$this->canonicalPayload($payload)]
+            : array_unique([
+                $this->canonicalPayload($payload),
+                $request->getContent(),
+            ]);
         $signatureIsValid = collect($paths)->contains(function (string $path) use ($timestamp, $nonce, $request, $signatureBodies, $secret, $signature): bool {
             foreach ($signatureBodies as $body) {
                 $expected = hash_hmac(

@@ -4,6 +4,11 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AdLiveAuthorizationController;
 
 
+// DB-independent liveness endpoint for Docker/EasyPanel health checks.
+Route::get('/healthz', static function () {
+    return response()->json(['status' => 'ok']);
+});
+
 // Client App Routes (Protected)
 Route::group(['middleware' => ['auth']], function () {
     Route::get('/dashboard', 'MainController@index')->name('home');

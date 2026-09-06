@@ -48,9 +48,9 @@ php artisan festival-ai:backfill-analytics --limit=500 2>&1 || echo "Festival AI
 
 # Clear and cache config
 echo "Optimizing application..."
-php artisan config:clear
-php artisan cache:clear
-php artisan view:clear
+php artisan config:clear 2>&1 || echo "Config clear warning; continuing to start Apache"
+php artisan cache:clear 2>&1 || echo "Cache clear warning; continuing to start Apache"
+php artisan view:clear 2>&1 || echo "View clear warning; continuing to start Apache"
 
 # Festival AI always uses the dedicated database queue connection. Keep its
 # worker inside the same container so a deploy cannot leave visuals in queued.
@@ -60,7 +60,7 @@ chown www-data:www-data /var/www/html/storage/logs/festival-ai-worker.log
 echo "Starting Festival AI queue worker..."
 (
     while true; do
-        su -s /bin/sh www-data -c 'cd /var/www/html && php artisan queue:work festival-ai --queue=festival-ai --sleep=1 --tries=1 --timeout=210 --max-time=3500' || true
+        su -s /bin/sh www-data -c 'cd /var/www/html && php artisan queue:work --queue=festival-ai --sleep=1 --tries=1 --timeout=210 --max-time=3500' || true
         echo "Festival AI queue worker exited; restarting in 2 seconds..."
         sleep 2
     done

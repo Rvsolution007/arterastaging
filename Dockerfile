@@ -6,6 +6,8 @@ RUN apt-get update && apt-get install -y \
     libonig-dev libxml2-dev libzip-dev mariadb-client \
     && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Enable Apache mod_rewrite
@@ -110,5 +112,10 @@ COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 EXPOSE 80
+
+# EasyPanel uses this endpoint to distinguish a live Apache/Laravel process
+# from a container that exited during optional startup work.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=5 \
+    CMD curl --fail --silent http://127.0.0.1/healthz || exit 1
 
 ENTRYPOINT ["/entrypoint.sh"]

@@ -14,12 +14,14 @@ class AiEditableDocumentContract
     public function validate(array $manifest): array
     {
         $contract = $manifest['document_contract'] ?? null;
-        if ($contract !== config('ai_editable_v1.contract')) {
+        $contracts = (array) config('ai_editable_v1.contracts', []);
+        $definition = (array) ($contracts[$contract] ?? []);
+        if ($definition === []) {
             throw new InvalidArgumentException('Unsupported AI editable document contract.');
         }
 
         $schemaVersion = $this->integer($manifest['schema_version'] ?? null, 'schema_version');
-        if ($schemaVersion !== (int) config('ai_editable_v1.schema_version')) {
+        if ($schemaVersion !== (int) ($definition['schema_version'] ?? 0)) {
             throw new InvalidArgumentException('Unsupported AI editable schema version.');
         }
 
@@ -53,7 +55,7 @@ class AiEditableDocumentContract
             if (!is_array($layer)) {
                 throw new InvalidArgumentException("Layer {$index} is invalid.");
             }
-            $normalisedLayers[] = $this->validateLayer($layer, $width, $height, $seenIds, $index);
+            $normalisedLayers[] = $this->validateLayer($layer, $width, $height, $seenIds, $index, $definition);
         }
 
         usort($normalisedLayers, static fn (array $left, array $right) => $left['z_index'] <=> $right['z_index']);
@@ -72,7 +74,7 @@ class AiEditableDocumentContract
         return hash('sha256', json_encode($this->sortRecursively($manifest), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
     }
 
-    private function validateLayer(array $layer, int $canvasWidth, int $canvasHeight, array &$seenIds, int $index): array
+    private function validateLayer(array $layer, int $canvasWidth, int $canvasHeight, array &$seenIds, int $index, array $definition): array
     {
         foreach (['_is_frame_layer', '_isFrameLayer', 'frame_id', 'render_version'] as $forbiddenKey) {
             if (array_key_exists($forbiddenKey, $layer)) {
@@ -87,7 +89,7 @@ class AiEditableDocumentContract
         $seenIds[$id] = true;
 
         $type = (string) ($layer['type'] ?? '');
-        if (!in_array($type, (array) config('ai_editable_v1.layer_types'), true)) {
+        if (!in_array($type, (array) ($definition['layer_types'] ?? []), true)) {
             throw new InvalidArgumentException("Layer {$id} has an unsupported type.");
         }
 
@@ -144,6 +146,15 @@ class AiEditableDocumentContract
             'height' => $height,
             'rotation' => $rotation,
         ]);
+
+        if (!empty($definition['text_only'])) {
+            if ($type === 'text' && $normalised['locked']) {
+                throw new InvalidArgumentException("Text layer {$id} must remain editable in this document contract.");
+            }
+            if ($type !== 'text' && !$normalised['locked']) {
+                throw new InvalidArgumentException("Only text layers may be editable in this document contract.");
+            }
+        }
 
         return $normalised;
     }

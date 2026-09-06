@@ -194,6 +194,33 @@
                 </div>
             </div>
         </div>
+        <div class="col-lg-4">
+            <div class="premium-card">
+                <div class="premium-card-header">
+                    <h5 class="premium-card-title"><i class="fa-solid fa-wand-magic-sparkles mr-2 text-primary"></i>AI Post Data</h5>
+                </div>
+                <div class="premium-card-body" style="padding: 1.75rem;">
+                    <p style="font-size: 0.9rem; color: #64748b; line-height: 1.6;">Add separate General Data and user Brief fields for each Custom Post Type in this subcategory.</p>
+
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem; margin-bottom: 1.25rem;">
+                        <div style="font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: #94a3b8; font-weight: 700; margin-bottom: 0.45rem;">Fixed Context</div>
+                        <div style="font-weight: 700; color: #334155;">{{ optional($category->business_category)->name ?: 'Parent category' }}</div>
+                        <div style="color: #6366f1; font-weight: 700; margin-top: 0.3rem;"><i class="fa-solid fa-arrow-right mr-1"></i>{{ $category->name }}</div>
+                    </div>
+
+                    <a href="{{ route('business_sub_category.ai_data.index', $category) }}" class="btn-premium d-block text-center" style="padding: 0.75rem 1rem; font-size: 0.9rem; text-decoration: none;">
+                        <i class="fa-solid fa-sliders mr-2"></i>Manage AI Post Data
+                    </a>
+                    <p class="text-center mb-0 mt-3" style="font-size: 0.78rem; color: #94a3b8;">Select only a Custom Post Type there. Category and subcategory stay fixed automatically.</p>
+
+                    @if($category->businessAiPurposeScopes()->exists())
+                        <div class="alert alert-warning border-0 mt-3 mb-0" style="font-size: 0.78rem; padding: 0.8rem;">
+                            <i class="fa-solid fa-triangle-exclamation mr-1"></i> This subcategory already has AI Post Data. Review it before changing the parent category above.
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 @endsection

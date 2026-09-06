@@ -28,7 +28,12 @@ class BusinessAiPurposeController extends Controller
 
     public function index()
     {
-        $purposes = BusinessAiPurpose::with(['headerFooterStyle:id,name'])->withCount('styles')
+        $purposes = BusinessAiPurpose::with([
+            'headerFooterStyle:id,name',
+            'scopes:id,business_ai_purpose_id,business_category_id,business_sub_category_id',
+            'scopes.category:id,name',
+            'scopes.subCategory:id,name,business_category_id',
+        ])->withCount(['styles', 'scopes'])
             ->orderBy('sort_order')->orderBy('title')->paginate(25);
         // ZIP Custom Posts use a legacy purpose table because each record is
         // referenced by stored ZIP templates and its separate AI batch prompt.
@@ -52,7 +57,6 @@ class BusinessAiPurposeController extends Controller
             'max_product_references' => 4,
             'change_instruction_limit' => 300,
             'allowed_size_keys' => array_keys(self::SIZE_OPTIONS),
-            'brief_fields' => [['key' => '', 'label' => '', 'hint' => '', 'required' => false]],
         ]));
     }
 
@@ -78,7 +82,7 @@ class BusinessAiPurposeController extends Controller
         $this->assertEnabledTypeIsComplete($request, $validated);
         // Keep the internal key stable, so generation history and user drafts
         // still point to the same Type after a visible title rename.
-        $businessAiPurpose->update($this->payload($request, $validated, $businessAiPurpose->key));
+        $businessAiPurpose->update($this->payload($request, $validated, $businessAiPurpose->key, $businessAiPurpose));
         $businessAiPurpose->styles()->sync($this->styleIds($validated));
 
         return redirect()->route('custom_post_types.index')
@@ -92,14 +96,63 @@ class BusinessAiPurposeController extends Controller
         return back()->with('success', 'Custom Post Type deleted. Its reusable styles remain in the Style library.');
     }
 
+    /**
+     * Lightweight Select2 data source for the Type Studio. It keeps the
+     * Style Library searchable without loading every Style into the form.
+     */
+    public function styleOptions(Request $request)
+    {
+        $search = trim((string) $request->query('q', ''));
+        $styles = BusinessAiStyle::query()
+            ->where('status', true)
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($styleQuery) use ($search) {
+                    $styleQuery
+                        ->where('name', 'like', '%' . $search . '%')
+                        ->orWhere('description', 'like', '%' . $search . '%')
+                        ->orWhere('key', 'like', '%' . $search . '%');
+                });
+            })
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->paginate(20, ['id', 'name', 'description'], 'page');
+
+        return response()->json([
+            'results' => $styles->getCollection()
+                ->map(fn (BusinessAiStyle $style) => [
+                    'id' => $style->id,
+                    'text' => $style->name . ($style->description ? ' — ' . $style->description : ''),
+                ])
+                ->values(),
+            'pagination' => ['more' => $styles->hasMorePages()],
+        ]);
+    }
+
     private function formResponse(BusinessAiPurpose $type)
     {
+        $oldStyleIds = collect(session()->getOldInput('style_ids', []))
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id);
+        $selectedStyleIds = $type->exists
+            ? $type->styles()->pluck('business_ai_styles.id')->map(fn ($id) => (int) $id)
+            : collect();
+        $initialStyleIds = $selectedStyleIds->merge($oldStyleIds)->unique()->values();
+
         return view('business_ai.purposes.form', [
             'purpose' => $type,
             'sizeOptions' => self::SIZE_OPTIONS,
             'headerFooterStyles' => BusinessAiHeaderFooterStyle::where('status', true)->orderBy('sort_order')->orderBy('name')->get(),
-            'styleLibrary' => BusinessAiStyle::where('status', true)->orderBy('sort_order')->orderBy('name')->get(),
-            'selectedStyleIds' => $type->exists ? $type->styles()->pluck('business_ai_styles.id')->map(fn ($id) => (int) $id)->all() : [],
+            // These records render the already selected styles as Select2
+            // tags; every other option is fetched by AJAX.
+            'initialStyleOptions' => $initialStyleIds->isEmpty()
+                ? collect()
+                : BusinessAiStyle::query()
+                    ->where('status', true)
+                    ->whereIn('id', $initialStyleIds->all())
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->get(['id', 'name', 'description']),
+            'selectedStyleIds' => $selectedStyleIds->all(),
         ]);
     }
 
@@ -109,16 +162,13 @@ class BusinessAiPurposeController extends Controller
             'title' => ['required', 'string', 'max:150'],
             'icon' => ['nullable', 'string', 'max:100'],
             'description' => ['nullable', 'string', 'max:300'],
-            'base_prompt' => ['required', 'string', 'max:10000'],
+            // The system owns the universal AI rule. Admin may add a Type
+            // instruction, but General Data is the primary category input.
+            'base_prompt' => ['nullable', 'string', 'max:10000'],
             'product_prompt' => ['nullable', 'string', 'max:3000'],
             'business_ai_header_footer_style_id' => ['nullable', 'integer', Rule::exists('business_ai_header_footer_styles', 'id')->where('status', true)],
             'style_ids' => ['nullable', 'array'],
             'style_ids.*' => ['integer', 'distinct', Rule::exists('business_ai_styles', 'id')->where('status', true)],
-            'brief_fields' => ['required', 'array', 'min:1', 'max:20'],
-            'brief_fields.*.key' => ['required', 'string', 'max:50', 'alpha_dash', 'distinct'],
-            'brief_fields.*.label' => ['required', 'string', 'max:150'],
-            'brief_fields.*.hint' => ['nullable', 'string', 'max:200'],
-            'brief_fields.*.required' => ['nullable', 'boolean'],
             'allowed_size_keys' => ['required', 'array', 'min:1'],
             'allowed_size_keys.*' => ['string', Rule::in(array_keys(self::SIZE_OPTIONS))],
             'max_product_references' => ['required', 'integer', 'min:1', 'max:4'],
@@ -140,16 +190,21 @@ class BusinessAiPurposeController extends Controller
         }
     }
 
-    private function payload(Request $request, array $validated, string $key): array
+    private function payload(Request $request, array $validated, string $key, ?BusinessAiPurpose $existingType = null): array
     {
         return [
             'key' => $key,
             'title' => trim($validated['title']),
             'icon' => blank($validated['icon'] ?? null) ? null : trim($validated['icon']),
             'description' => blank($validated['description'] ?? null) ? null : trim($validated['description']),
-            'base_prompt' => trim($validated['base_prompt']),
+            'base_prompt' => blank($validated['base_prompt'] ?? null)
+                ? 'Create a polished, professional business post for ' . trim($validated['title']) . '.'
+                : trim($validated['base_prompt']),
             'product_prompt' => blank($validated['product_prompt'] ?? null) ? null : trim($validated['product_prompt']),
-            'brief_fields' => $this->normaliseFields($validated['brief_fields']),
+            // Brief fields are configured only in Business Subcategory AI
+            // Post Data. Older saved fallback data is preserved but is no
+            // longer exposed or edited from this Type Studio.
+            'brief_fields' => $existingType?->brief_fields ?? [],
             'business_ai_header_footer_style_id' => $validated['business_ai_header_footer_style_id'] ?? null,
             'allowed_size_keys' => array_values(array_unique($validated['allowed_size_keys'])),
             'product_upload_enabled' => $request->boolean('product_upload_enabled'),
@@ -159,16 +214,6 @@ class BusinessAiPurposeController extends Controller
             'status' => $request->boolean('status'),
             'sort_order' => $validated['sort_order'] ?? 0,
         ];
-    }
-
-    private function normaliseFields(array $fields): array
-    {
-        return collect($fields)->map(fn (array $field) => [
-            'key' => Str::lower(trim($field['key'])),
-            'label' => trim($field['label']),
-            'hint' => blank($field['hint'] ?? null) ? null : trim($field['hint']),
-            'required' => (bool) ($field['required'] ?? false),
-        ])->values()->all();
     }
 
     private function styleIds(array $validated): array

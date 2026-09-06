@@ -34,7 +34,7 @@ class NotificationService {
 
       // 2. Get FCM token
       String? token = await _fcm.getToken();
-      debugPrint("FCM Token: $token");
+      debugPrint("FCM token available: ${token != null}");
 
       // 3. Initialize flutter_local_notifications
       const AndroidInitializationSettings androidSettings =
@@ -68,7 +68,8 @@ class NotificationService {
 
         final androidPlugin = _localNotifications
             .resolvePlatformSpecificImplementation<
-                AndroidFlutterLocalNotificationsPlugin>();
+              AndroidFlutterLocalNotificationsPlugin
+            >();
 
         if (androidPlugin != null) {
           await androidPlugin.createNotificationChannel(channel);
@@ -76,11 +77,16 @@ class NotificationService {
 
           // CRITICAL: Request POST_NOTIFICATIONS permission for Android 13+ (API 33+)
           // Without this, notifications silently fail - they don't show in shutter
-          final bool? permissionGranted = await androidPlugin.requestNotificationsPermission();
-          debugPrint("Android notification permission granted: $permissionGranted");
-          
+          final bool? permissionGranted = await androidPlugin
+              .requestNotificationsPermission();
+          debugPrint(
+            "Android notification permission granted: $permissionGranted",
+          );
+
           if (permissionGranted != true) {
-            debugPrint("WARNING: Notification permission NOT granted! Notifications will NOT show in shutter.");
+            debugPrint(
+              "WARNING: Notification permission NOT granted! Notifications will NOT show in shutter.",
+            );
           }
         }
       }
@@ -102,7 +108,9 @@ class NotificationService {
         debugPrint("Title: ${message.notification?.title}");
         debugPrint("Body: ${message.notification?.body}");
         debugPrint("Data: ${message.data}");
-        debugPrint("Image (android): ${message.notification?.android?.imageUrl}");
+        debugPrint(
+          "Image (android): ${message.notification?.android?.imageUrl}",
+        );
         debugPrint("Image (data): ${message.data['image']}");
 
         // Show visible snackbar so user knows FCM message arrived
@@ -127,7 +135,9 @@ class NotificationService {
       // 9. Handle notification tap when app was terminated
       RemoteMessage? initialMessage = await _fcm.getInitialMessage();
       if (initialMessage != null) {
-        debugPrint("App opened from terminated notification: ${initialMessage.data}");
+        debugPrint(
+          "App opened from terminated notification: ${initialMessage.data}",
+        );
         // Delay to let app fully initialize
         Future.delayed(const Duration(seconds: 1), () {
           _handleNotificationTap(jsonEncode(initialMessage.data));
@@ -146,14 +156,17 @@ class NotificationService {
     try {
       RemoteNotification? notification = message.notification;
       if (notification == null) {
-        debugPrint("No notification block in message, skipping local notification");
+        debugPrint(
+          "No notification block in message, skipping local notification",
+        );
         return;
       }
 
       // Get image URL from multiple possible sources
-      String? imageUrl = message.notification?.android?.imageUrl
-          ?? message.notification?.apple?.imageUrl
-          ?? message.data['image'];
+      String? imageUrl =
+          message.notification?.android?.imageUrl ??
+          message.notification?.apple?.imageUrl ??
+          message.data['image'];
 
       // Fix localhost URLs — mobile can't reach localhost, use LAN IP instead
       if (imageUrl != null && imageUrl.contains('localhost')) {
@@ -162,7 +175,9 @@ class NotificationService {
         debugPrint("Fixed localhost image URL to: $imageUrl");
       }
 
-      debugPrint("Will show local notification: title=${notification.title}, imageUrl=$imageUrl");
+      debugPrint(
+        "Will show local notification: title=${notification.title}, imageUrl=$imageUrl",
+      );
 
       // Build Android notification details
       AndroidNotificationDetails androidDetails;
@@ -170,10 +185,12 @@ class NotificationService {
       if (imageUrl != null && imageUrl.isNotEmpty) {
         // Try to download image for BigPicture style
         try {
-          final http.Response imgResponse = await http.get(Uri.parse(imageUrl))
+          final http.Response imgResponse = await http
+              .get(Uri.parse(imageUrl))
               .timeout(const Duration(seconds: 10));
 
-          if (imgResponse.statusCode == 200 && imgResponse.bodyBytes.isNotEmpty) {
+          if (imgResponse.statusCode == 200 &&
+              imgResponse.bodyBytes.isNotEmpty) {
             final String imgPath = await _saveFile(
               imgResponse.bodyBytes,
               'notif_${DateTime.now().millisecondsSinceEpoch}.jpg',
@@ -183,7 +200,8 @@ class NotificationService {
             androidDetails = AndroidNotificationDetails(
               'high_importance_channel',
               'High Importance Notifications',
-              channelDescription: 'This channel is used for important notifications.',
+              channelDescription:
+                  'This channel is used for important notifications.',
               importance: Importance.max,
               priority: Priority.high,
               icon: '@drawable/launcher_icon',
@@ -197,7 +215,9 @@ class NotificationService {
               ),
             );
           } else {
-            debugPrint("Image download failed: status=${imgResponse.statusCode}");
+            debugPrint(
+              "Image download failed: status=${imgResponse.statusCode}",
+            );
             androidDetails = _buildSimpleAndroidDetails();
           }
         } catch (imgError) {
@@ -209,7 +229,9 @@ class NotificationService {
       }
 
       // Generate unique notification ID
-      final int notifId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
+      final int notifId = DateTime.now().millisecondsSinceEpoch.remainder(
+        100000,
+      );
 
       // Encode payload as JSON string
       final String payload = jsonEncode(message.data);
@@ -297,8 +319,9 @@ class NotificationService {
           for (var part in content.split(', ')) {
             final colonIdx = part.indexOf(':');
             if (colonIdx > 0) {
-              data[part.substring(0, colonIdx).trim()] =
-                  part.substring(colonIdx + 1).trim();
+              data[part.substring(0, colonIdx).trim()] = part
+                  .substring(colonIdx + 1)
+                  .trim();
             }
           }
         }
@@ -308,11 +331,12 @@ class NotificationService {
 
       final String type = data['type']?.toString() ?? '';
       final int id = int.tryParse(data['id']?.toString() ?? '') ?? 0;
-      final String title = data['name']?.toString()
-          ?? data['festival']?.toString()
-          ?? data['custom']?.toString()
-          ?? data['subscriptionPlan']?.toString()
-          ?? 'Details';
+      final String title =
+          data['name']?.toString() ??
+          data['festival']?.toString() ??
+          data['custom']?.toString() ??
+          data['subscriptionPlan']?.toString() ??
+          'Details';
 
       debugPrint("Navigation: type=$type, id=$id, title=$title");
 
@@ -328,13 +352,19 @@ class NotificationService {
       }
 
       // Category, Festival, Custom, SubscriptionPlan - navigate to detail screen
-      if (id > 0 && (type == 'category' || type == 'festival' || type == 'custom' || type == 'subscriptionPlan')) {
+      if (id > 0 &&
+          (type == 'category' ||
+              type == 'festival' ||
+              type == 'custom' ||
+              type == 'subscriptionPlan')) {
         Future.delayed(const Duration(milliseconds: 300), () {
-          Get.to(() => DetailListScreen(
-            type: type == 'subscriptionPlan' ? 'category' : type,
-            id: id,
-            title: title,
-          ));
+          Get.to(
+            () => DetailListScreen(
+              type: type == 'subscriptionPlan' ? 'category' : type,
+              id: id,
+              title: title,
+            ),
+          );
         });
         return;
       }
@@ -361,8 +391,10 @@ class NotificationService {
   Future<void> testLocalNotification() async {
     try {
       debugPrint("=== TEST LOCAL NOTIFICATION ===");
-      final int notifId = DateTime.now().millisecondsSinceEpoch.remainder(100000);
-      
+      final int notifId = DateTime.now().millisecondsSinceEpoch.remainder(
+        100000,
+      );
+
       await _localNotifications.show(
         notifId,
         'Test Local Notification 🔔',
@@ -371,7 +403,8 @@ class NotificationService {
           android: AndroidNotificationDetails(
             'high_importance_channel',
             'High Importance Notifications',
-            channelDescription: 'This channel is used for important notifications.',
+            channelDescription:
+                'This channel is used for important notifications.',
             importance: Importance.max,
             priority: Priority.high,
             icon: '@drawable/launcher_icon',

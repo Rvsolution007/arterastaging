@@ -117,6 +117,7 @@ class AiEditableDocumentController extends GetxController {
   }
 
   void reorderLayers(int oldIndex, int newIndex) {
+    if (_isTextOnlyContract) return;
     final copy = _copyDocument();
     final manifestCopy = Map<String, dynamic>.from(copy['manifest'] as Map);
     final ordered =
@@ -189,6 +190,7 @@ class AiEditableDocumentController extends GetxController {
     );
     if (index < 0) return;
     final layer = Map<String, dynamic>.from(rawLayers[index] as Map);
+    if (_isTextOnlyContract && layer['type'] != 'text') return;
     mutate(layer);
     rawLayers[index] = layer;
     manifestCopy['layers'] = rawLayers;
@@ -207,4 +209,7 @@ class AiEditableDocumentController extends GetxController {
 
   static double _number(dynamic value) =>
       value is num ? value.toDouble() : double.tryParse('$value') ?? 0;
+
+  bool get _isTextOnlyContract =>
+      document.value?['document_contract'] == 'artera.ai-editable/v2';
 }

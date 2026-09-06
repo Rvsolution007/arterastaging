@@ -381,6 +381,17 @@ class _AiEditableEditorScreenState extends State<AiEditableEditorScreen> {
           ),
         );
       }
+      if (_isTextOnlyDocument && layer['type'] != 'text') {
+        return const SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'Artwork is locked. Only text layers can be edited in this design.',
+            ),
+          ),
+        );
+      }
       final opacity = _number(layer['opacity']).clamp(0, 1).toDouble();
       return SafeArea(
         top: false,
@@ -514,6 +525,10 @@ class _AiEditableEditorScreenState extends State<AiEditableEditorScreen> {
       ],
     );
   }
+
+  bool get _isTextOnlyDocument =>
+      _controller.document.value?['document_contract'] ==
+      'artera.ai-editable/v2';
 
   Future<void> _editTransform(Map<String, dynamic> layer) async {
     final transform = Map<String, dynamic>.from(layer['transform'] as Map);

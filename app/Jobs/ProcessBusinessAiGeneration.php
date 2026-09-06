@@ -57,7 +57,7 @@ class ProcessBusinessAiGeneration implements ShouldQueue
             $generation = BusinessAiGeneration::lockForUpdate()->find($this->generationId);
             if (!$generation || in_array($generation->status, ['completed', 'failed'], true)) return;
             if ($generation->quota_reserved_at && !$generation->quota_refunded_at && ($user = User::lockForUpdate()->find($generation->user_id))) {
-                $user->ai_image_used = max(0, (int) $user->ai_image_used - 1); $user->save();
+                $user->ai_image_used = max(0, (int) $user->ai_image_used - max(1, (int) $generation->credit_cost)); $user->save();
                 $generation->quota_refunded_at = now();
             }
             $generation->status = 'failed';

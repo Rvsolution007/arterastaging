@@ -20,7 +20,7 @@ class Subscription extends Model
         'custom_post_ad_reward_limit','daily_drip_ad_reward_limit',
         'festival_post_ad_reward_limit','category_ad_reward_limit',
         'google_product_enable','google_product_id','photoroom_bg_limit',
-        'ai_image_limit'
+        'ai_image_limit', 'business_ai_generation_credit_cost'
     ];
 
     public function aiImageAccesses()

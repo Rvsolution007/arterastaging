@@ -23,4 +23,10 @@ class BusinessAiStyle extends Model
         return $this->belongsToMany(BusinessAiPurpose::class, 'business_ai_purpose_styles')
             ->withTimestamps()->orderBy('sort_order')->orderBy('title');
     }
+
+    public function scopes()
+    {
+        return $this->belongsToMany(BusinessAiPurposeScope::class, 'business_ai_purpose_scope_styles')
+            ->withTimestamps();
+    }
 }

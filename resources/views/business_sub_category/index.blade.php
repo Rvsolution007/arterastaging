@@ -22,6 +22,8 @@
 .aim-btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; box-shadow: 0 4px 16px rgba(239,68,68,0.3); }
 .aim-btn-danger:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(239,68,68,0.4); color: #fff; }
 .aim-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.aim-btn-ai-data { padding: 7px 11px; border: 1px solid #c7d2fe; border-radius: 8px; background: #eef2ff; color: #4338ca; font-size: 0.74rem; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.aim-btn-ai-data:hover { background: #e0e7ff; color: #3730a3; text-decoration: none; }
 
 /* Search Input */
 .aim-search-bar { position: relative; max-width: 400px; width: 100%; margin-bottom: 1.5rem; }
@@ -69,6 +71,12 @@ input:checked + .slider:before { transform: translateX(18px); }
 
 @section('content')
 <div class="aim-container">
+    @if(session('success'))
+        <div class="alert alert-success mb-3">{{ session('success') }}</div>
+    @endif
+    @if(session('info'))
+        <div class="alert alert-info mb-3">{{ session('info') }}</div>
+    @endif
     <!-- Header -->
     <div class="aim-header">
         <div class="aim-header-left">
@@ -126,6 +134,8 @@ input:checked + .slider:before { transform: translateX(18px); }
                             Parent Category <i class="fa-solid fa-sort sort-icon text-muted" data-col="category_name"></i>
                         </th>
                         <th>Status</th>
+                        <th>Custom Post Type</th>
+                        <th>AI Post Data</th>
                         <th class="text-right">Actions</th>
                     </tr>
                 </thead>
@@ -163,6 +173,24 @@ input:checked + .slider:before { transform: translateX(18px); }
                                 <input type="checkbox" data-id="{{$row->id}}" class="status" @if($row->status==1) checked @endif>
                                 <span class="slider"></span>
                             </label>
+                        </td>
+                        @php($aiPostScopes = $row->businessAiPurposeScopes->filter(fn ($scope) => $scope->purpose))
+                        <td>
+                            @forelse($aiPostScopes as $scope)
+                                @if($scope->purpose)
+                                    <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:4px;">
+                                        <span class="badge-category" style="background:#e0e7ff; color:#4f46e5;">{{ $scope->purpose->title }}</span>
+                                        <span class="badge-category" style="background:{{ !empty($scope->general_data) ? '#ecfdf5' : '#fef2f2' }}; color:{{ !empty($scope->general_data) ? '#059669' : '#dc2626' }};">{{ !empty($scope->general_data) ? 'Yes' : 'No' }}</span>
+                                    </div>
+                                @endif
+                            @empty
+                                <span class="badge-category">No</span>
+                            @endforelse
+                        </td>
+                        <td>
+                            <a href="{{ route('business_sub_category.ai_data.index', $row) }}" class="aim-btn-ai-data" title="Manage AI post data for {{ $row->name }}">
+                                <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Manage Data
+                            </a>
                         </td>
                         <td class="text-right">
                             <div style="display: flex; gap: 8px; justify-content: flex-end;">
@@ -264,6 +292,7 @@ input:checked + .slider:before { transform: translateX(18px); }
 @section('script')
 <script type="text/javascript">
     const csrfToken = $('meta[name="csrf-token"]').attr('content');
+    const aiPostDataUrlTemplate = @json(route('business_sub_category.ai_data.index', ['businessSubCategory' => '__SUBCATEGORY_ID__']));
 
     $('#export_btn').on('click', function(e) {
         e.preventDefault();
@@ -393,7 +422,7 @@ input:checked + .slider:before { transform: translateX(18px); }
                     tbody.empty();
                     
                     if (response.data.length === 0) {
-                        tbody.append('<tr><td colspan="6" class="text-center" style="padding:20px; color:#64748b;">No sub categories found.</td></tr>');
+                        tbody.append('<tr><td colspan="10" class="text-center" style="padding:20px; color:#64748b;">No sub categories found.</td></tr>');
                     } else {
                         response.data.forEach(function(row) {
                             var iconHtml = '';
@@ -406,6 +435,21 @@ input:checked + .slider:before { transform: translateX(18px); }
                             var isChecked = row.status == 1 ? 'checked' : '';
                             var editUrl = "{{url('admin/business-sub-category')}}/" + row.id + "/edit";
                             var deleteUrl = "{{url('admin/business-sub-category')}}/" + row.id;
+                            var aiPostDataUrl = aiPostDataUrlTemplate.replace('__SUBCATEGORY_ID__', encodeURIComponent(row.id));
+                            var customPostTypeText = (row.custom_post_types || []).length
+                                ? row.custom_post_types.map(function(type) {
+                                    var typeBadge = $('<span>', { class: 'badge-category', text: type.title })
+                                        .css({ background: '#e0e7ff', color: '#4f46e5' });
+                                    var statusBadge = $('<span>', { class: 'badge-category', text: type.has_general_data ? 'Yes' : 'No' })
+                                        .css(type.has_general_data
+                                            ? { background: '#ecfdf5', color: '#059669' }
+                                            : { background: '#fef2f2', color: '#dc2626' });
+                                    return $('<div>')
+                                        .css({ display: 'flex', 'flex-wrap': 'wrap', gap: '4px', 'margin-bottom': '4px' })
+                                        .append(typeBadge, statusBadge)
+                                        .prop('outerHTML');
+                                }).join('')
+                                : $('<span>', { class: 'badge-category', text: 'No' }).prop('outerHTML');
 
                             var tr = `
                                 <tr>
@@ -436,6 +480,12 @@ input:checked + .slider:before { transform: translateX(18px); }
                                             <input type="checkbox" data-id="${row.id}" class="status" ${isChecked}>
                                             <span class="slider"></span>
                                         </label>
+                                    </td>
+                                    <td>${customPostTypeText}</td>
+                                    <td>
+                                        <a href="${aiPostDataUrl}" class="aim-btn-ai-data" title="Manage AI post data for this sub category">
+                                            <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Manage Data
+                                        </a>
                                     </td>
                                     <td class="text-right">
                                         <div style="display: flex; gap: 8px; justify-content: flex-end;">

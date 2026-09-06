@@ -66,7 +66,9 @@ class SubscriptionController extends Controller
             'business_limit' => 'required',
             'custom_post_edit_limit' => 'required|numeric',
             'festival_post_limit' => 'required|numeric',
-            'category_post_limit' => 'required|numeric'
+            'category_post_limit' => 'required|numeric',
+            'ai_image_limit' => 'required|integer|min:0',
+            'business_ai_generation_credit_cost' => 'required|integer|min:1|max:1000',
         ]);
 
         if ($validation->fails()) {
@@ -91,6 +93,7 @@ class SubscriptionController extends Controller
                     "category_post_limit" => $request->get("category_post_limit", 0),
                     "photoroom_bg_limit" => $request->get("photoroom_bg_limit", 0),
                     "ai_image_limit" => $request->get("ai_image_limit", 0),
+                    "business_ai_generation_credit_cost" => $request->get("business_ai_generation_credit_cost", 1),
                     "custom_post_ad_reward_limit" => $request->get("custom_post_ad_reward_limit", 5),
                     "festival_post_ad_reward_limit" => $request->get("festival_post_ad_reward_limit", 5),
                     "category_ad_reward_limit" => $request->get("category_ad_reward_limit", 5),
@@ -133,6 +136,8 @@ class SubscriptionController extends Controller
             "monthly_discount_price" => 'required|numeric',
             'yearly_price' => 'required|numeric',
             "yearly_discount_price" => 'required|numeric',
+            'ai_image_limit' => 'required|integer|min:0',
+            'business_ai_generation_credit_cost' => 'required|integer|min:1|max:1000',
         ]);
 
         if ($validation->fails()) {
@@ -157,6 +162,7 @@ class SubscriptionController extends Controller
                 $subscription->category_post_limit = $request->get("category_post_limit", 0);
                 $subscription->photoroom_bg_limit = $request->get("photoroom_bg_limit", 0);
                 $subscription->ai_image_limit = $request->get("ai_image_limit", 0);
+                $subscription->business_ai_generation_credit_cost = $request->get("business_ai_generation_credit_cost", 1);
                 $subscription->custom_post_ad_reward_limit = $request->get("custom_post_ad_reward_limit", 5);
                 $subscription->festival_post_ad_reward_limit = $request->get("festival_post_ad_reward_limit", 5);
                 $subscription->category_ad_reward_limit = $request->get("category_ad_reward_limit", 5);

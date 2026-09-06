@@ -25,10 +25,22 @@ class FestivalAiBusinessContextService
             return [];
         }
 
+        return $this->snapshotForBusiness($business);
+    }
+
+    /**
+     * Lets Custom Post AI use the exact business selected in its scoped flow
+     * instead of accidentally falling back to another business owned by the
+     * same user. Existing Festival AI callers keep using snapshotForUser().
+     */
+    public function snapshotForBusiness(Business $business): array
+    {
+
         return array_filter([
             'business_id' => $business->id,
-            'name' => $this->value($business->name),
-            'logo_path' => $this->value($business->logo),
+            'name' => $this->hiddenFlag($business->hidden_frame_fields, 'business_name') ? null : $this->value($business->name),
+            'logo_path' => $this->hiddenFlag($business->hidden_frame_fields, 'logo') ? null : $this->value($business->logo),
+            'brand_theme' => $this->brandTheme($business),
             'phones' => $this->visibleValues(
                 $business->mobile_no,
                 $business->extra_mobile_numbers,
@@ -77,5 +89,24 @@ class FestivalAiBusinessContextService
     private function value($value): ?string
     {
         return is_string($value) && trim($value) !== '' ? trim($value) : null;
+    }
+
+    private function hiddenFlag($hiddenFields, string $key): bool
+    {
+        $value = collect((array) $hiddenFields)->get($key, false);
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    private function brandTheme(Business $business): ?array
+    {
+        $colors = collect([$business->brand_primary_color, $business->brand_secondary_color])
+            ->map(fn ($color) => strtoupper(trim((string) $color)))
+            ->filter(fn ($color) => preg_match('/^#[A-F0-9]{6}$/', $color) === 1)
+            ->values()
+            ->all();
+
+        return count($colors) === 2
+            ? ['primary_color' => $colors[0], 'secondary_color' => $colors[1]]
+            : null;
     }
 }

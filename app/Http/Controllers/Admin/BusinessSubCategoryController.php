@@ -9,8 +9,10 @@ use Illuminate\Http\Request;
 use App\Models\BusinessFrame;
 use App\Models\StorageSetting;
 use App\Models\BusinessCategory;
+use App\Models\BusinessAiPurposeScope;
 use App\Models\BusinessSubCategory;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
@@ -26,7 +28,14 @@ class BusinessSubCategoryController extends Controller
         $sort_col = $request->input('sort_col', 'id');
         $sort_dir = $request->input('sort_dir', 'desc');
 
-        $query = BusinessSubCategory::with('business_category')
+        $query = BusinessSubCategory::with([
+                'business_category',
+                'businessAiPurposeScopes' => function ($scopeQuery) {
+                    $scopeQuery->where('status', true)
+                        ->with('purpose:id,title')
+                        ->orderBy('business_ai_purpose_id');
+                },
+            ])
             ->join('business_category', 'business_sub_category.business_category_id', '=', 'business_category.id')
             ->select('business_sub_category.*')
             ->withCount('types', 'products');
@@ -121,17 +130,37 @@ class BusinessSubCategoryController extends Controller
     {
         $validation = Validator::make($request->all(), [
             'name' => 'required',
-            "business_category_id" => 'required',
+            "business_category_id" => 'required|integer|exists:business_category,id',
             "icon" => "nullable|mimes:jpg,png,jpeg",
         ]);
 
         if ($validation->fails()) {
             return back()->withErrors($validation)->withInput();
         } else {
-            $category = BusinessSubCategory::find($request->get("id"));
-            $category->name = $request->get("name");
-            $category->business_category_id = $request->get("business_category_id");
-            $category->save();
+            DB::transaction(function () use ($request, $id) {
+                // Lock the subcategory while moving it. This is the same
+                // record locked by the nested AI-data controller, so a scope
+                // cannot be saved with the old category midway through a move.
+                $category = BusinessSubCategory::query()->lockForUpdate()->findOrFail($id);
+                $oldBusinessCategoryId = (int) $category->business_category_id;
+                $newBusinessCategoryId = (int) $request->get('business_category_id');
+
+                $category->name = $request->get("name");
+                $category->business_category_id = $newBusinessCategoryId;
+                $category->save();
+
+                // A scope is physically attached to this subcategory, but it
+                // stores its parent category too for fast matching. Keep that
+                // denormalised value in sync whenever Admin moves the row.
+                if ($oldBusinessCategoryId !== $newBusinessCategoryId) {
+                    BusinessAiPurposeScope::query()
+                        ->where('business_sub_category_id', $category->id)
+                        ->update([
+                            'business_category_id' => $newBusinessCategoryId,
+                            'updated_at' => now(),
+                        ]);
+                }
+            });
 
             if(StorageSetting::getStorageSetting("storage") == "DigitalOcean")
             {
@@ -211,7 +240,14 @@ class BusinessSubCategoryController extends Controller
         $sort_col = $request->input('sort_col', 'id');
         $sort_dir = $request->input('sort_dir', 'desc');
 
-        $dbQuery = BusinessSubCategory::with('business_category')
+        $dbQuery = BusinessSubCategory::with([
+                'business_category',
+                'businessAiPurposeScopes' => function ($scopeQuery) {
+                    $scopeQuery->where('status', true)
+                        ->with('purpose:id,title')
+                        ->orderBy('business_ai_purpose_id');
+                },
+            ])
             ->join('business_category', 'business_sub_category.business_category_id', '=', 'business_category.id')
             ->select('business_sub_category.*')
             ->withCount('types', 'products');
@@ -241,6 +277,15 @@ class BusinessSubCategoryController extends Controller
         $data->getCollection()->transform(function ($item) use ($isDO) {
             $item->icon_url = $item->icon ? ($isDO ? Storage::disk('spaces')->url('uploads/'.$item->icon) : asset('uploads/'.$item->icon)) : '';
             $item->category_name = $item->business_category ? $item->business_category->name : '--';
+            $scopes = $item->businessAiPurposeScopes;
+            $item->custom_post_types = $scopes
+                ->filter(fn (BusinessAiPurposeScope $scope) => $scope->purpose)
+                ->map(fn (BusinessAiPurposeScope $scope) => [
+                    'title' => $scope->purpose->title,
+                    'has_general_data' => !empty($scope->general_data),
+                ])
+                ->values();
+            $item->unsetRelation('businessAiPurposeScopes');
             return $item;
         });
 
@@ -367,11 +412,22 @@ class BusinessSubCategoryController extends Controller
                 if (!empty($id) && is_numeric($id)) {
                     $subCat = BusinessSubCategory::find($id);
                     if ($subCat) {
+                        $oldCategoryId = (int) $subCat->business_category_id;
                         $subCat->update([
                             'name' => $name,
                             'business_category_id' => $categoryId,
                             'status' => $status
                         ]);
+                        // Import can also move an existing subcategory. Keep
+                        // its denormalised AI-scope category in sync, exactly
+                        // like the normal edit screen does.
+                        if ($oldCategoryId !== (int) $categoryId) {
+                            BusinessAiPurposeScope::where('business_sub_category_id', $subCat->id)
+                                ->update([
+                                    'business_category_id' => $categoryId,
+                                    'updated_at' => now(),
+                                ]);
+                        }
                         continue;
                     }
                 }

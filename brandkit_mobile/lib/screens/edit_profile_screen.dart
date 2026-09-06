@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../services/secure_token_store.dart';
+import '../features/adlive/services/adlive_token_store.dart';
 import '../utils/app_colors.dart';
 import '../utils/app_spacing.dart';
 import '../utils/app_text_styles.dart';
@@ -20,7 +21,7 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
-  
+
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
@@ -63,13 +64,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_passwordCtrl.text.isNotEmpty && _currentPasswordCtrl.text.isEmpty) {
-      Get.snackbar('Current password required', 'Enter your current password to set a new password.',
-          backgroundColor: Colors.red, colorText: Colors.white);
+      Get.snackbar(
+        'Current password required',
+        'Enter your current password to set a new password.',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
       return;
     }
-    if (_passwordCtrl.text.isNotEmpty && !_isStrongPassword(_passwordCtrl.text)) {
-      Get.snackbar('Choose a stronger password', 'Use 10+ characters with uppercase, lowercase, number and symbol.',
-          backgroundColor: Colors.red, colorText: Colors.white);
+    if (_passwordCtrl.text.isNotEmpty &&
+        !_isStrongPassword(_passwordCtrl.text)) {
+      Get.snackbar(
+        'Choose a stronger password',
+        'Use 10+ characters with uppercase, lowercase, number and symbol.',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
       return;
     }
 
@@ -105,10 +115,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               'newPassword': _passwordCtrl.text,
             });
             if (passRes.statusCode != 200) {
-               Get.snackbar('Error', 'Profile updated but password change failed', 
-                backgroundColor: Colors.red, colorText: Colors.white);
-                setState(() => _isLoading = false);
-                return;
+              Get.snackbar(
+                'Error',
+                'Profile updated but password change failed',
+                backgroundColor: Colors.red,
+                colorText: Colors.white,
+              );
+              setState(() => _isLoading = false);
+              return;
             }
             passwordChanged = true;
           }
@@ -129,27 +143,48 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
           if (passwordChanged) {
             await SecureTokenStore.clear();
+            await AdLiveTokenStore.clear();
             await prefs.clear();
             Get.offAllNamed('/LoginScreen');
-            Get.snackbar('Password updated', 'Please sign in again with your new password.',
-                backgroundColor: Colors.green, colorText: Colors.white);
+            Get.snackbar(
+              'Password updated',
+              'Please sign in again with your new password.',
+              backgroundColor: Colors.green,
+              colorText: Colors.white,
+            );
             return;
           }
 
           Get.back();
-          Get.snackbar('Success', 'Profile updated successfully',
-              backgroundColor: Colors.green, colorText: Colors.white);
+          Get.snackbar(
+            'Success',
+            'Profile updated successfully',
+            backgroundColor: Colors.green,
+            colorText: Colors.white,
+          );
         } else {
-          Get.snackbar('Error', data['message'] ?? 'Failed to update profile',
-              backgroundColor: Colors.red, colorText: Colors.white);
+          Get.snackbar(
+            'Error',
+            data['message'] ?? 'Failed to update profile',
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+          );
         }
       } else {
-        Get.snackbar('Error', 'Server error. Please try again.',
-            backgroundColor: Colors.red, colorText: Colors.white);
+        Get.snackbar(
+          'Error',
+          'Server error. Please try again.',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
       }
     } catch (e) {
-      Get.snackbar('Error', 'An error occurred: $e',
-          backgroundColor: Colors.red, colorText: Colors.white);
+      Get.snackbar(
+        'Error',
+        'An error occurred: $e',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -175,7 +210,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
+        Text(
+          label,
+          style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
@@ -193,7 +231,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               hintStyle: const TextStyle(color: AppColors.gray400),
               prefixIcon: Icon(prefixIcon, color: AppColors.gray400),
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 16,
+              ),
             ),
           ),
         ),
@@ -229,13 +270,31 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.gray200, width: 1),
+                          border: Border.all(
+                            color: AppColors.gray200,
+                            width: 1,
+                          ),
                         ),
                         child: _selectedImage != null
-                            ? ClipOval(child: Image.file(_selectedImage!, fit: BoxFit.cover))
-                            : (_currentImageUrl != null && _currentImageUrl!.isNotEmpty)
-                                ? ClipOval(child: Image.network(_currentImageUrl!, fit: BoxFit.cover))
-                                : const Icon(Icons.person, size: 50, color: AppColors.textSecondary),
+                            ? ClipOval(
+                                child: Image.file(
+                                  _selectedImage!,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : (_currentImageUrl != null &&
+                                  _currentImageUrl!.isNotEmpty)
+                            ? ClipOval(
+                                child: Image.network(
+                                  _currentImageUrl!,
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.person,
+                                size: 50,
+                                color: AppColors.textSecondary,
+                              ),
                       ),
                       Positioned(
                         bottom: 0,
@@ -246,7 +305,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             color: AppColors.primary,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            color: Colors.white,
+                            size: 16,
+                          ),
                         ),
                       ),
                     ],
@@ -254,36 +317,39 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
               ),
               const SizedBox(height: 32),
-              
+
               _buildTextField(
                 controller: _nameCtrl,
                 label: 'Full Name',
                 hint: 'Enter your full name',
                 prefixIcon: Icons.person_outline,
-                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                validator: (val) =>
+                    val == null || val.isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 16),
-              
+
               _buildTextField(
                 controller: _emailCtrl,
                 label: 'Email Address',
                 hint: 'Enter your email',
                 prefixIcon: Icons.email_outlined,
                 keyboardType: TextInputType.emailAddress,
-                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                validator: (val) =>
+                    val == null || val.isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 16),
-              
+
               _buildTextField(
                 controller: _phoneCtrl,
                 label: 'Mobile Number',
                 hint: 'Enter your mobile number',
                 prefixIcon: Icons.phone_outlined,
                 keyboardType: TextInputType.phone,
-                validator: (val) => val == null || val.isEmpty ? 'Required' : null,
+                validator: (val) =>
+                    val == null || val.isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 16),
-              
+
               _buildTextField(
                 controller: _currentPasswordCtrl,
                 label: 'Current Password',
@@ -301,7 +367,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 obscureText: true,
               ),
               const SizedBox(height: 32),
-              
+
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -309,11 +375,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                  child: _isLoading 
-                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Save Changes', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Save Changes',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
             ],

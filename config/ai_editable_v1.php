@@ -15,6 +15,23 @@ return [
     'planner_model' => trim((string) env('AI_EDITABLE_V1_PLANNER_MODEL', '')),
     'contract' => 'artera.ai-editable/v1',
     'schema_version' => 1,
+    // V2 is used only by new Business/Custom Post AI generations. V1 remains
+    // fully readable for existing Festival and Business documents.
+    'business_custom_contract' => 'artera.ai-editable/v2',
+    'contracts' => [
+        'artera.ai-editable/v1' => [
+            'schema_version' => 1,
+            'module_version' => 'ai_editable_v1',
+            'layer_types' => ['bitmap', 'text', 'gradient', 'shape', 'icon', 'effect'],
+            'text_only' => false,
+        ],
+        'artera.ai-editable/v2' => [
+            'schema_version' => 2,
+            'module_version' => 'ai_editable_v2',
+            'layer_types' => ['bitmap', 'text'],
+            'text_only' => true,
+        ],
+    ],
     'max_layers' => 32,
     'max_canvas_dimension' => 8192,
 

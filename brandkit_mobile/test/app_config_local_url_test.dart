@@ -6,9 +6,10 @@ void main() {
     'local API URL uses the front controller for a subdirectory install',
     () {
       expect(AppConfig.currentEnv, AppEnvironment.local);
+      expect(AppConfig.baseUrl, 'http://192.168.1.66/Artera/index.php/123456');
       expect(
-        AppConfig.baseUrl,
-        'http://192.168.1.40/artera/index.php/your_api_route_prefix',
+        AppConfig.adLiveApiBaseUrl,
+        'http://192.168.1.66/adlive/public/api/v1',
       );
     },
   );

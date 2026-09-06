@@ -36,14 +36,16 @@ class AiEditableDocumentService
     {
         $manifest = $this->contract->validate($manifest);
         $checksum = $this->contract->checksum($manifest);
+        $contractDefinition = (array) (((array) config('ai_editable_v1.contracts', []))[$manifest['document_contract']] ?? []);
+        $moduleVersion = (string) ($contractDefinition['module_version'] ?? 'ai_editable_v1');
 
-        return DB::transaction(function () use ($user, $manifest, $checksum, $festivalGeneration, $businessGeneration) {
+        return DB::transaction(function () use ($user, $manifest, $checksum, $festivalGeneration, $businessGeneration, $moduleVersion) {
             $document = AiEditableDocument::create([
                 'public_id' => (string) Str::uuid(),
                 'user_id' => $user->id,
                 'festival_ai_generation_id' => $festivalGeneration?->id,
                 'business_ai_generation_id' => $businessGeneration?->id,
-                'module_version' => 'ai_editable_v1',
+                'module_version' => $moduleVersion,
                 'document_contract' => $manifest['document_contract'],
                 'schema_version' => $manifest['schema_version'],
                 'status' => 'ready',
@@ -75,6 +77,10 @@ class AiEditableDocumentService
             if ($locked->revision !== $expectedRevision) {
                 throw new RuntimeException('This document was changed on another device. Refresh it before saving again.', 409);
             }
+            $contracts = (array) config('ai_editable_v1.contracts', []);
+            if ((bool) data_get($contracts[$locked->document_contract] ?? [], 'text_only', false)) {
+                $this->assertTextOnlyRevision((array) $locked->manifest, $manifest);
+            }
 
             $nextRevision = $locked->revision + 1;
             $locked->update([
@@ -96,5 +102,30 @@ class AiEditableDocumentService
 
             return $locked->fresh();
         });
+    }
+
+    /** V2 permits changes only to its text layers; artwork stays immutable. */
+    private function assertTextOnlyRevision(array $original, array $candidate): void
+    {
+        $originalLayers = collect((array) ($original['layers'] ?? []))
+            ->filter(fn ($layer) => is_array($layer) && filled($layer['id'] ?? null))
+            ->keyBy(fn ($layer) => (string) $layer['id']);
+        $candidateLayers = collect((array) ($candidate['layers'] ?? []))
+            ->filter(fn ($layer) => is_array($layer) && filled($layer['id'] ?? null))
+            ->keyBy(fn ($layer) => (string) $layer['id']);
+
+        if ($originalLayers->keys()->sort()->values()->all() !== $candidateLayers->keys()->sort()->values()->all()) {
+            throw new \InvalidArgumentException('Text-only documents cannot add, remove, or replace layers.');
+        }
+
+        foreach ($originalLayers as $id => $originalLayer) {
+            $candidateLayer = $candidateLayers->get($id);
+            if (($originalLayer['type'] ?? null) !== ($candidateLayer['type'] ?? null)) {
+                throw new \InvalidArgumentException('Text-only documents cannot change layer types.');
+            }
+            if (($originalLayer['type'] ?? null) !== 'text' && $originalLayer !== $candidateLayer) {
+                throw new \InvalidArgumentException('Only text layers can be changed in this document.');
+            }
+        }
     }
 }

@@ -20,7 +20,7 @@
   @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
 
   <div class="alert alert-info border-0 shadow-sm">
-    <strong>App flow:</strong> Custom Post Type → that Type's Brief → only that Type's linked Custom Post Styles → AI Preview. Each Type also decides its Header &amp; Footer Style, allowed sizes, product rule and change-instruction limit.
+    <strong>App flow:</strong> Custom Post Type → matching Category General Data and Brief → only that Type's linked Custom Post Styles → AI Preview. Each Type also decides its Header &amp; Footer Style, allowed sizes, product rule and change-instruction limit.
   </div>
 
   <ul class="nav nav-pills mb-3" id="custom-post-type-tabs" role="tablist">
@@ -36,13 +36,30 @@
     <div class="tab-pane fade show active" id="ai-post-types" role="tabpanel" aria-labelledby="ai-post-types-tab">
       <div class="card shadow-sm"><div class="card-header bg-white"><strong>AI Custom Post Types</strong><small class="text-muted ml-2">Mobile Custom tab cards and AI editable-image rules</small></div><div class="table-responsive">
     <table class="table table-hover mb-0">
-      <thead><tr><th>Custom Post Type</th><th>Header &amp; Footer</th><th>Brief fields</th><th>Linked styles</th><th>Product rule</th><th>Status</th><th class="text-right">Action</th></tr></thead>
+      <thead><tr><th>Custom Post Type</th><th>Header &amp; Footer</th><th>Connected Category</th><th>Connected Subcategory</th><th>Linked styles</th><th>Product rule</th><th>Status</th><th class="text-right">Action</th></tr></thead>
       <tbody>
         @forelse($purposes as $purpose)
+          @php
+            $connectedCategories = $purpose->scopes->map(fn ($scope) => $scope->category)->filter()->unique('id')->values();
+            $connectedSubcategories = $purpose->scopes->map(fn ($scope) => $scope->subCategory)->filter()->unique('id')->values();
+          @endphp
           <tr>
             <td class="align-middle"><strong>{{ $purpose->title }}</strong><br><small class="text-muted">{{ $purpose->description ?: 'No app description' }}</small></td>
             <td class="align-middle">{{ optional($purpose->headerFooterStyle)->name ?: 'Not selected' }}</td>
-            <td class="align-middle">{{ count($purpose->brief_fields ?? []) }}</td>
+            <td class="align-middle">
+              @forelse($connectedCategories as $category)
+                <span class="badge badge-light border mr-1 mb-1">{{ $category->name }}</span>
+              @empty
+                <span class="text-muted">Not connected</span>
+              @endforelse
+            </td>
+            <td class="align-middle">
+              @forelse($connectedSubcategories as $subcategory)
+                <span class="badge badge-info mr-1 mb-1">{{ $subcategory->name }}</span>
+              @empty
+                <span class="text-muted">Not connected</span>
+              @endforelse
+            </td>
             <td class="align-middle">{{ $purpose->styles_count }}</td>
             <td class="align-middle">{{ $purpose->product_upload_enabled ? ($purpose->product_required ? 'Required' : 'Optional') . ' · max ' . $purpose->max_product_references : 'Off' }}</td>
             <td class="align-middle"><span class="badge badge-{{ $purpose->status ? 'success' : 'secondary' }}">{{ $purpose->status ? 'Active' : 'Hidden' }}</span></td>
@@ -52,7 +69,7 @@
             </td>
           </tr>
         @empty
-          <tr><td colspan="7" class="text-center text-muted py-5">No AI Custom Post Type exists. Add the first card, its Type Prompt and style configuration.</td></tr>
+          <tr><td colspan="8" class="text-center text-muted py-5">No AI Custom Post Type exists. Add the first card, its Type Prompt and style configuration.</td></tr>
         @endforelse
       </tbody>
     </table>

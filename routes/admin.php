@@ -72,10 +72,25 @@ Route::
                 ->except('show')
                 ->parameters(['business-ai-styles' => 'businessAiStyle'])
                 ->names('business_ai_styles');
+            Route::get('custom-post-types/style-options', 'BusinessAiPurposeController@styleOptions')
+                ->name('custom_post_types.styles.search');
             Route::resource('custom-post-types', 'BusinessAiPurposeController')
                 ->except('show')
                 ->parameters(['custom-post-types' => 'businessAiPurpose'])
                 ->names('custom_post_types');
+            // One Custom Post Type can carry separate approved General Data,
+            // brief fields and style choices for each business subcategory.
+            // Example: Treatment Process → Eye Clinic and Skin Care Clinic.
+            Route::prefix('custom-post-types/{businessAiPurpose}/category-data')
+                ->name('custom_post_types.scopes.')
+                ->group(function () {
+                    Route::get('/', 'BusinessAiPurposeScopeController@index')->name('index');
+                    Route::get('/create', 'BusinessAiPurposeScopeController@create')->name('create');
+                    Route::post('/', 'BusinessAiPurposeScopeController@store')->name('store');
+                    Route::get('/{businessAiPurposeScope}/edit', 'BusinessAiPurposeScopeController@edit')->name('edit');
+                    Route::put('/{businessAiPurposeScope}', 'BusinessAiPurposeScopeController@update')->name('update');
+                    Route::delete('/{businessAiPurposeScope}', 'BusinessAiPurposeScopeController@destroy')->name('destroy');
+                });
             Route::resource('custom-post-styles', 'BusinessAiStyleController')
                 ->except('show')
                 ->parameters(['custom-post-styles' => 'businessAiStyle'])
@@ -147,6 +162,20 @@ Route::
             Route::post('business-sub-category/bulk-delete', 'BusinessSubCategoryController@bulkDelete');
             Route::post('business-sub-category/search', 'BusinessSubCategoryController@search');
             Route::Post('business-sub-category-status', 'BusinessSubCategoryController@business_sub_category_status');
+            // AI General Data belongs to a concrete subcategory. The parent
+            // category is derived from this nested route, never selected in
+            // the form, so Eye Clinic data cannot accidentally become Skin
+            // Care Clinic (or category-wide) data.
+            Route::prefix('business-sub-category/{businessSubCategory}/custom-post-data')
+                ->name('business_sub_category.ai_data.')
+                ->group(function () {
+                    Route::get('/', 'BusinessSubCategoryAiDataController@index')->name('index');
+                    Route::get('/create', 'BusinessSubCategoryAiDataController@create')->name('create');
+                    Route::post('/', 'BusinessSubCategoryAiDataController@store')->name('store');
+                    Route::get('/{businessAiPurposeScope}/edit', 'BusinessSubCategoryAiDataController@edit')->name('edit');
+                    Route::put('/{businessAiPurposeScope}', 'BusinessSubCategoryAiDataController@update')->name('update');
+                    Route::delete('/{businessAiPurposeScope}', 'BusinessSubCategoryAiDataController@destroy')->name('destroy');
+                });
             Route::resource('business-sub-category', 'BusinessSubCategoryController');
             
             Route::Post('business-type-status', 'BusinessTypeController@business_type_status');

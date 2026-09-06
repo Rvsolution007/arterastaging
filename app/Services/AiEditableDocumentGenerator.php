@@ -42,23 +42,30 @@ class AiEditableDocumentGenerator
             'transform' => $this->bounds(0, 0, $canvas['width'], $canvas['height']),
         ]];
 
-        foreach ((array) $plan['shapes'] as $index => $shape) {
-            $layers[] = [
-                'id' => 'shape_' . ($index + 1),
-                'name' => Str::limit(trim((string) ($shape['name'] ?? 'Shape')) ?: 'Shape', 120),
-                'type' => 'shape',
-                'z_index' => 10 + $index,
-                'opacity' => 1,
-                'blend_mode' => 'normal',
-                'visible' => true,
-                'locked' => false,
-                'style' => [
-                    'kind' => in_array($shape['kind'] ?? null, ['rectangle', 'pill', 'circle'], true) ? $shape['kind'] : 'rectangle',
-                    'color' => $this->color($shape['color'] ?? null, $plan['palette'][0]),
-                    'radius' => max(0, min((float) ($shape['radius'] ?? 16), 999)),
-                ],
-                'transform' => $this->bounds($shape['x'], $shape['y'], $shape['width'], $shape['height']),
-            ];
+        $textOnly = $generation instanceof BusinessAiGeneration;
+
+        // New Business/Custom posts keep every non-text visual inside the
+        // generated artwork. Existing Festival V1 documents intentionally
+        // retain their old overlay behaviour.
+        if (!$textOnly) {
+            foreach ((array) $plan['shapes'] as $index => $shape) {
+                $layers[] = [
+                    'id' => 'shape_' . ($index + 1),
+                    'name' => Str::limit(trim((string) ($shape['name'] ?? 'Shape')) ?: 'Shape', 120),
+                    'type' => 'shape',
+                    'z_index' => 10 + $index,
+                    'opacity' => 1,
+                    'blend_mode' => 'normal',
+                    'visible' => true,
+                    'locked' => false,
+                    'style' => [
+                        'kind' => in_array($shape['kind'] ?? null, ['rectangle', 'pill', 'circle'], true) ? $shape['kind'] : 'rectangle',
+                        'color' => $this->color($shape['color'] ?? null, $plan['palette'][0]),
+                        'radius' => max(0, min((float) ($shape['radius'] ?? 16), 999)),
+                    ],
+                    'transform' => $this->bounds($shape['x'], $shape['y'], $shape['width'], $shape['height']),
+                ];
+            }
         }
 
         $textZ = 30;
@@ -83,52 +90,56 @@ class AiEditableDocumentGenerator
             ];
         }
 
-        foreach ((array) $plan['icons'] as $index => $icon) {
-            $layers[] = [
-                'id' => 'icon_' . ($index + 1),
-                'name' => Str::limit(trim((string) ($icon['name'] ?? 'Icon')) ?: 'Icon', 120),
-                'type' => 'icon',
-                'z_index' => 45 + $index,
-                'opacity' => 1,
-                'blend_mode' => 'normal',
-                'visible' => true,
-                'locked' => false,
-                'style' => [
-                    'icon_name' => in_array($icon['icon_name'] ?? null, ['phone', 'whatsapp', 'email', 'website', 'location', 'star', 'arrow'], true)
-                        ? $icon['icon_name'] : 'star',
-                    'color' => $this->color($icon['color'] ?? null, '#FFFFFF'),
-                ],
-                'transform' => $this->bounds($icon['x'], $icon['y'], $icon['width'], $icon['height']),
-            ];
-        }
+        if (!$textOnly) {
+            foreach ((array) $plan['icons'] as $index => $icon) {
+                $layers[] = [
+                    'id' => 'icon_' . ($index + 1),
+                    'name' => Str::limit(trim((string) ($icon['name'] ?? 'Icon')) ?: 'Icon', 120),
+                    'type' => 'icon',
+                    'z_index' => 45 + $index,
+                    'opacity' => 1,
+                    'blend_mode' => 'normal',
+                    'visible' => true,
+                    'locked' => false,
+                    'style' => [
+                        'icon_name' => in_array($icon['icon_name'] ?? null, ['phone', 'whatsapp', 'email', 'website', 'location', 'star', 'arrow'], true)
+                            ? $icon['icon_name'] : 'star',
+                        'color' => $this->color($icon['color'] ?? null, '#FFFFFF'),
+                    ],
+                    'transform' => $this->bounds($icon['x'], $icon['y'], $icon['width'], $icon['height']),
+                ];
+            }
 
-        $logoPath = trim((string) data_get($generation->business_snapshot, 'logo_path'));
-        if ($logoPath !== '') {
-            $layers[] = [
-                'id' => 'business_logo',
-                'name' => 'Business logo',
-                'type' => 'bitmap',
-                'z_index' => 60,
-                'opacity' => 1,
-                'blend_mode' => 'normal',
-                'visible' => true,
-                'locked' => false,
-                'asset' => ['path' => $logoPath, 'fit' => 'contain'],
-                'transform' => $this->bounds($canvas['width'] * .06, $canvas['height'] * .05, $canvas['width'] * .22, $canvas['height'] * .10),
-            ];
+            $logoPath = trim((string) data_get($generation->business_snapshot, 'logo_path'));
+            if ($logoPath !== '') {
+                $layers[] = [
+                    'id' => 'business_logo',
+                    'name' => 'Business logo',
+                    'type' => 'bitmap',
+                    'z_index' => 60,
+                    'opacity' => 1,
+                    'blend_mode' => 'normal',
+                    'visible' => true,
+                    'locked' => false,
+                    'asset' => ['path' => $logoPath, 'fit' => 'contain'],
+                    'transform' => $this->bounds($canvas['width'] * .06, $canvas['height'] * .05, $canvas['width'] * .22, $canvas['height'] * .10),
+                ];
+            }
         }
 
         $manifest = [
-            'document_contract' => config('ai_editable_v1.contract'),
-            'schema_version' => (int) config('ai_editable_v1.schema_version'),
+            'document_contract' => $textOnly
+                ? config('ai_editable_v1.business_custom_contract')
+                : config('ai_editable_v1.contract'),
+            'schema_version' => $textOnly ? 2 : (int) config('ai_editable_v1.schema_version'),
             'canvas' => $canvas,
             'layers' => $layers,
             'extensions' => [
                 'ai_editable_v1' => [
-                    'mode' => 'single_artwork_editable_overlay',
+                    'mode' => $textOnly ? 'single_artwork_text_only_overlay' : 'single_artwork_editable_overlay',
                     'source_generation_id' => $generation->id,
                     'image_generation_count' => 1,
-                    'editable_layer_types' => ['text', 'shape', 'icon', 'bitmap'],
+                    'editable_layer_types' => $textOnly ? ['text'] : ['text', 'shape', 'icon', 'bitmap'],
                 ],
             ],
         ];

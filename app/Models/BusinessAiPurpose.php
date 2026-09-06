@@ -33,4 +33,12 @@ class BusinessAiPurpose extends Model
     {
         return $this->belongsTo(BusinessAiHeaderFooterStyle::class, 'business_ai_header_footer_style_id');
     }
+
+    /** Category/subcategory-specific approved content configurations. */
+    public function scopes()
+    {
+        return $this->hasMany(BusinessAiPurposeScope::class, 'business_ai_purpose_id')
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
 }

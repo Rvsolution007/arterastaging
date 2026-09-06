@@ -276,7 +276,12 @@
                                         <label class="small text-muted font-weight-bold mb-1">Base Limit</label>
                                         {!! Form::number('ai_image_limit', $subscription->ai_image_limit ?? 0,['class' => 'form-control form-control-sm','required','min'=>0]) !!}
                                     </div>
-                                    <div class="col-sm-6 pt-2 pt-sm-0">
+                                    <div class="col-sm-6">
+                                        <label class="small text-muted font-weight-bold mb-1">Custom AI credits per generation</label>
+                                        {!! Form::number('business_ai_generation_credit_cost', $subscription->business_ai_generation_credit_cost ?? 1,['class' => 'form-control form-control-sm','required','min'=>1,'max'=>1000]) !!}
+                                        <small class="text-muted">Custom Post initial, Another Version, Change Brief and Change Style each use this many AI credits.</small>
+                                    </div>
+                                    <div class="col-sm-12 pt-2">
                                         <small class="text-muted"><i class="fas fa-info-circle text-info"></i> Paid API — no AdMob extension.</small>
                                     </div>
                                 </div>

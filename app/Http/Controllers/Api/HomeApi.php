@@ -50,6 +50,7 @@ use App\Models\WithdrawRequest;
 use App\Models\AppUpdateSetting;
 use App\Models\BusinessCategory;
 use App\Models\ReferralRegister;
+use App\Services\AdLiveUserProvisioningClient;
 use Illuminate\Support\Facades\DB;
 use App\Models\BusinessSubCategory;
 use App\Models\NotificationSetting;
@@ -1585,6 +1586,8 @@ class HomeApi extends Controller
                     "extra_websites" => $b->extra_websites ?? [],
                     "extra_addresses" => $b->extra_addresses ?? [],
                     "hidden_frame_fields" => $b->hidden_frame_fields ?? [],
+                    'brand_primary_color' => $b->brand_primary_color,
+                    'brand_secondary_color' => $b->brand_secondary_color,
                     "business_category_id" => $b->business_category_id,
                     "business_sub_category_ids" => $b->sub_categories()->pluck('business_sub_category_id')->toArray() ?? [],
                     "business_type_id" => $b->business_type_id,
@@ -1602,7 +1605,7 @@ class HomeApi extends Controller
         return $data;
     }
 
-    public function addBusiness(Request $request)
+    public function addBusiness(Request $request, AdLiveUserProvisioningClient $adLiveProvisioning)
     {
         $authenticatedUser = auth('sanctum')->user();
         if (!$authenticatedUser) {
@@ -1619,6 +1622,8 @@ class HomeApi extends Controller
             "bussinessImage" => "nullable|mimes:jpg,png,jpeg",
             "bussinessWebsite" => 'required',
             "bussinessAddress" => 'required',
+            'brand_primary_color' => ['nullable', 'regex:/^#[A-Fa-f0-9]{6}$/'],
+            'brand_secondary_color' => ['nullable', 'regex:/^#[A-Fa-f0-9]{6}$/'],
         ]);
 
         if ($validation->fails()) {
@@ -1658,6 +1663,8 @@ class HomeApi extends Controller
                 "extra_websites" => $request->has('extra_websites') ? (is_string($request->get('extra_websites')) ? json_decode($request->get('extra_websites'), true) : $request->get('extra_websites')) : null,
                 "extra_addresses" => $request->has('extra_addresses') ? (is_string($request->get('extra_addresses')) ? json_decode($request->get('extra_addresses'), true) : $request->get('extra_addresses')) : null,
                 "hidden_frame_fields" => $request->has('hidden_frame_fields') ? (is_string($request->get('hidden_frame_fields')) ? json_decode($request->get('hidden_frame_fields'), true) : $request->get('hidden_frame_fields')) : null,
+                'brand_primary_color' => $request->get('brand_primary_color'),
+                'brand_secondary_color' => $request->get('brand_secondary_color'),
             ])->id;
 
             $businessUpdate = Business::find($id);
@@ -1722,6 +1729,8 @@ class HomeApi extends Controller
                 }
             }
 
+            $adLiveProvisioning->sync($authenticatedUser, $businessUpdate->fresh(), 'artera_pixel');
+
             $business = Business::where('user_id',$request->userId)->get();
 
             foreach ($business as $b) {
@@ -1761,6 +1770,8 @@ class HomeApi extends Controller
                     ),
                     "isDefault" => ($b->is_default == 1)?true:false,
                     "hidden_frame_fields" => $b->hidden_frame_fields ?? [],
+                    'brand_primary_color' => $b->brand_primary_color,
+                    'brand_secondary_color' => $b->brand_secondary_color,
                     "business_category_id" => $b->business_category_id,
                     "business_sub_category_ids" => $b->sub_categories()->pluck('business_sub_category_id')->toArray() ?? [],
                     "business_type_id" => $b->business_type_id,
@@ -1774,7 +1785,7 @@ class HomeApi extends Controller
         }
     }
 
-    public function updateBusiness(Request $request)
+    public function updateBusiness(Request $request, AdLiveUserProvisioningClient $adLiveProvisioning)
     {
         $authenticatedUser = auth('sanctum')->user();
         if (!$authenticatedUser) {
@@ -1789,6 +1800,8 @@ class HomeApi extends Controller
             "bussinessWebsite" => 'required',
             "bussinessAddress" => 'required',
             'businessCategoryId' => 'nullable',
+            'brand_primary_color' => ['nullable', 'regex:/^#[A-Fa-f0-9]{6}$/'],
+            'brand_secondary_color' => ['nullable', 'regex:/^#[A-Fa-f0-9]{6}$/'],
         ]);
 
         if ($validation->fails()) {
@@ -1856,6 +1869,16 @@ class HomeApi extends Controller
             if ($request->has('hidden_frame_fields')) {
                 $business->hidden_frame_fields = is_string($request->get('hidden_frame_fields')) ? json_decode($request->get('hidden_frame_fields'), true) : $request->get('hidden_frame_fields');
             }
+            if ($request->has('brand_primary_color')) {
+                $business->brand_primary_color = blank($request->get('brand_primary_color'))
+                    ? null
+                    : strtoupper((string) $request->get('brand_primary_color'));
+            }
+            if ($request->has('brand_secondary_color')) {
+                $business->brand_secondary_color = blank($request->get('brand_secondary_color'))
+                    ? null
+                    : strtoupper((string) $request->get('brand_secondary_color'));
+            }
             $business->save();
 
             if ($request->has('product_ids')) {
@@ -1892,6 +1915,8 @@ class HomeApi extends Controller
                     $this->upload_image($request->file("bussinessImage"),"logo", $request->get("bussinessId"));
                 }
             }
+
+            $adLiveProvisioning->sync($authenticatedUser, $business->fresh(), 'artera_pixel');
 
             $b = Business::find($business->id);
             $category = BusinessCategory::find($b->business_category_id);
@@ -1934,6 +1959,8 @@ class HomeApi extends Controller
                 "extra_websites" => $b->extra_websites ?? [],
                 "extra_addresses" => $b->extra_addresses ?? [],
                 "hidden_frame_fields" => $b->hidden_frame_fields ?? [],
+                'brand_primary_color' => $b->brand_primary_color,
+                'brand_secondary_color' => $b->brand_secondary_color,
                 "business_category_id" => $b->business_category_id,
                 "business_sub_category_ids" => $b->sub_categories()->pluck('business_sub_category_id')->toArray() ?? [],
                 "business_type_id" => $b->business_type_id,

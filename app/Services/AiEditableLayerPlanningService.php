@@ -44,6 +44,10 @@ class AiEditableLayerPlanningService
                         'type' => 'input_text',
                         'text' => json_encode([
                             'poster_request' => $generation->final_prompt,
+                            // The user approved this copy before the artwork
+                            // was queued. It is a normal editable overlay
+                            // source, not a frame/render-version payload.
+                            'approved_content_preview' => (array) ($generation->content_preview ?? []),
                             'canvas' => $canvas,
                             'business' => [
                                 'name' => data_get($generation->business_snapshot, 'name'),
@@ -186,12 +190,14 @@ class AiEditableLayerPlanningService
 
     private function fallbackPlan(object $generation, array $canvas): array
     {
+        $approvedPreview = (array) ($generation->content_preview ?? []);
         $brief = collect((array) ($generation->brief ?? []))
             ->filter(fn ($value) => is_scalar($value) && trim((string) $value) !== '')
             ->map(fn ($value) => Str::limit(Str::squish((string) $value), 120))
             ->values();
-        $title = $brief->first() ?: (string) ($generation->purpose_title ?? 'Your Business Post');
-        $support = $brief->skip(1)->first() ?: trim((string) data_get($generation->business_snapshot, 'name'));
+        $title = trim((string) ($approvedPreview['headline'] ?? '')) ?: ($brief->first() ?: (string) ($generation->purpose_title ?? 'Your Business Post'));
+        $support = trim((string) ($approvedPreview['content'] ?? '')) ?: ($brief->skip(1)->first() ?: trim((string) data_get($generation->business_snapshot, 'name')));
+        $cta = trim((string) ($approvedPreview['cta'] ?? ''));
         $phone = collect((array) data_get($generation->business_snapshot, 'phones', []))->first();
         $width = $canvas['width'];
         $height = $canvas['height'];
@@ -201,6 +207,9 @@ class AiEditableLayerPlanningService
         ];
         if ($support !== '') {
             $texts[] = ['name' => 'Supporting text', 'text' => $support, 'role' => 'subheading', 'font_token' => 'sans', 'color' => '#FFFFFF', 'x' => $width * .07, 'y' => $height * .36, 'width' => $width * .52, 'height' => $height * .10];
+        }
+        if ($cta !== '') {
+            $texts[] = ['name' => 'Call to action', 'text' => $cta, 'role' => 'cta', 'font_token' => 'sans', 'color' => '#FFFFFF', 'x' => $width * .16, 'y' => $height * .755, 'width' => $width * .42, 'height' => $height * .05];
         }
         if (is_string($phone) && trim($phone) !== '') {
             $texts[] = ['name' => 'Contact', 'text' => trim($phone), 'role' => 'contact', 'font_token' => 'sans', 'color' => '#FFFFFF', 'x' => $width * .16, 'y' => $height * .78, 'width' => $width * .42, 'height' => $height * .06];

@@ -75,7 +75,7 @@ class AiEditableDocumentController extends Controller
             $document = $this->documents->save(
                 $document,
                 (int) $validated['expected_revision'],
-                $validated['manifest']
+                $this->stripPresentationFields($validated['manifest'])
             );
         } catch (\InvalidArgumentException $exception) {
             return $this->error($exception->getMessage(), Response::HTTP_UNPROCESSABLE_ENTITY);
@@ -165,6 +165,22 @@ class AiEditableDocumentController extends Controller
                 $layer['asset'] = $asset;
                 $layers[$index] = $layer;
             }
+        }
+        $manifest['layers'] = $layers;
+
+        return $manifest;
+    }
+
+    /** Asset URLs are API presentation data, never user-editable document data. */
+    private function stripPresentationFields(array $manifest): array
+    {
+        $layers = (array) ($manifest['layers'] ?? []);
+        foreach ($layers as $index => $layer) {
+            if (!is_array($layer) || !is_array($layer['asset'] ?? null)) {
+                continue;
+            }
+            unset($layer['asset']['url']);
+            $layers[$index] = $layer;
         }
         $manifest['layers'] = $layers;
 

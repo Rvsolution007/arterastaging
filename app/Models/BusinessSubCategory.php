@@ -40,4 +40,9 @@ class BusinessSubCategory extends Model
     {
         return $this->hasMany(BusinessProduct::class, 'business_sub_category_id');
     }
+
+    public function businessAiPurposeScopes()
+    {
+        return $this->hasMany(BusinessAiPurposeScope::class, 'business_sub_category_id');
+    }
 }

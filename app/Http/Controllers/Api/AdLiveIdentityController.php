@@ -80,15 +80,22 @@ class AdLiveIdentityController extends Controller
     public function adminResetCredentials(Request $request, AdLiveIdentityMutationService $mutations)
     {
         return $this->handle($request, function (array $data) use ($mutations) {
+            if (array_key_exists('artera_user_id', $data) === array_key_exists('email', $data)) {
+                throw ValidationException::withMessages([
+                    'identity' => ['Provide exactly one existing Pixel identity selector.'],
+                ]);
+            }
+
             return response()->json(['identity' => $mutations->changePassword($data, true)]);
         }, [
             'request_id' => ['required', 'uuid'],
             'occurred_at' => $this->occurredAtRules(),
             'source' => ['required', 'in:adlive'],
-            'artera_user_id' => ['required', 'integer', 'min:1'],
+            'artera_user_id' => ['nullable', 'integer', 'min:1', 'required_without:email'],
+            'email' => ['nullable', 'email', 'max:255', 'required_without:artera_user_id'],
             'admin_authorized' => ['required', 'accepted'],
             'new_password' => ['required', 'string', Password::min(10)->mixedCase()->numbers()->symbols()],
-        ], ['request_id', 'occurred_at', 'source', 'artera_user_id', 'admin_authorized', 'new_password']);
+        ], ['request_id', 'occurred_at', 'source', 'artera_user_id', 'email', 'admin_authorized', 'new_password']);
     }
 
     /**

@@ -175,8 +175,29 @@ class AdLiveIdentityMutationService
     public function changePassword(array $data, bool $adminReset = false): array
     {
         return DB::transaction(function () use ($data, $adminReset): array {
-            $user = User::query()->whereKey($data['artera_user_id'])->lockForUpdate()->first(['id', 'name', 'email', 'mobile_no', 'password', 'status', 'user_type', 'registration_source', 'email_verified_at', 'created_at', 'updated_at']);
-            if (! $user || (int) $user->status !== 1 || $this->isProtectedIdentity($user)) {
+            $query = User::query()->lockForUpdate();
+            $lookupByEmail = $adminReset && array_key_exists('email', $data);
+            if (array_key_exists('artera_user_id', $data)) {
+                $query->whereKey($data['artera_user_id']);
+            } elseif ($lookupByEmail) {
+                // Email addresses are case-insensitive, but this is still an
+                // exact unique identity lookup (never a name/phone search).
+                $query->whereRaw('LOWER(email) = ?', [Str::lower(trim((string) $data['email']))]);
+            } else {
+                $this->reject(422, ['message' => 'Provide a valid identity selector.']);
+            }
+
+            $user = $query->first(['id', 'name', 'email', 'mobile_no', 'password', 'status', 'user_type', 'registration_source', 'email_verified_at', 'created_at', 'updated_at']);
+            if (! $user) {
+                if ($lookupByEmail) {
+                    // Only the mutually authenticated AdLive service receives
+                    // this result. It chooses the controlled legacy fallback.
+                    $this->reject(404, ['code' => 'identity_not_found', 'message' => 'No matching Pixel customer was found.']);
+                }
+
+                $this->reject(403, ['message' => 'This identity is not available for credential changes.']);
+            }
+            if ((int) $user->status !== 1 || $this->isProtectedIdentity($user)) {
                 $this->reject(403, ['message' => 'This identity is not available for credential changes.']);
             }
 

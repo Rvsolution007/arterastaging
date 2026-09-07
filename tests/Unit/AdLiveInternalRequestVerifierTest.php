@@ -75,4 +75,30 @@ class AdLiveInternalRequestVerifierTest extends TestCase
 
         $this->assertTrue($verifier->verify($request));
     }
+
+    public function test_it_accepts_a_valid_required_route_signature_when_xampp_adds_a_base_path(): void
+    {
+        Cache::flush();
+        config(['adlive.shared_secret' => 'test-shared-secret']);
+
+        $verifier = new AdLiveInternalRequestVerifier;
+        $payload = ['email' => 'customer@example.test', 'password' => null];
+        $timestamp = (string) now()->timestamp;
+        $nonce = 'e3f4e5f6-1111-2222-3333-444455556668';
+        $signedPath = '/Artera/api/internal/adlive/credentials/verify';
+        $signature = hash_hmac(
+            'sha256',
+            $verifier->signaturePayload('POST', $signedPath, $timestamp, $nonce, $payload),
+            'test-shared-secret'
+        );
+
+        $request = Request::create($signedPath, 'POST', [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_ARTERA_ADLIVE_TIMESTAMP' => $timestamp,
+            'HTTP_X_ARTERA_ADLIVE_NONCE' => $nonce,
+            'HTTP_X_ARTERA_ADLIVE_SIGNATURE' => $signature,
+        ], json_encode($payload));
+
+        $this->assertTrue($verifier->verify($request, '/api/internal/adlive/credentials/verify', true));
+    }
 }

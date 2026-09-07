@@ -39,12 +39,13 @@ class AdLiveInternalRequestVerifier
         // an otherwise valid signed server-to-server request fail locally.
         // Accepting the exact signed body also avoids JSON transport changing
         // empty arrays/objects before the verifier sees the request.
+        $requestUriPath = '/'.ltrim((string) (parse_url($request->getRequestUri(), PHP_URL_PATH) ?: '/'), '/');
         $paths = $requiredPath === null
             ? array_unique([
-                '/'.ltrim((string) (parse_url($request->getRequestUri(), PHP_URL_PATH) ?: '/'), '/'),
+                $requestUriPath,
                 '/'.ltrim($request->path(), '/'),
             ])
-            : ['/'.ltrim($requiredPath, '/')];
+            : $this->allowedPathsForRequiredPath($requestUriPath, $requiredPath);
         $signatureBodies = $canonicalOnly
             ? [$this->canonicalPayload($payload)]
             : array_unique([
@@ -138,5 +139,23 @@ class AdLiveInternalRequestVerifier
         }
 
         return array_keys($array) === range(0, count($array) - 1);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function allowedPathsForRequiredPath(string $requestUriPath, string $requiredPath): array
+    {
+        $normalizedRequiredPath = '/'.ltrim($requiredPath, '/');
+
+        // Production routes are rooted at /api, while a local XAMPP install
+        // may be served from /Artera/api. Accept that actual request URI only
+        // when it ends at the protected route; it still requires a valid HMAC
+        // over the method, path and canonical request body.
+        if (str_ends_with($requestUriPath, $normalizedRequiredPath)) {
+            return array_values(array_unique([$normalizedRequiredPath, $requestUriPath]));
+        }
+
+        return [$normalizedRequiredPath];
     }
 }

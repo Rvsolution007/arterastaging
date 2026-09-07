@@ -31,6 +31,17 @@ class AdLiveBusinessCreationController extends Controller
                 throw ValidationException::withMessages(['body' => ['Use only the documented JSON business fields.']]);
             }
 
+            // The AdLive form deliberately makes these profile details
+            // optional. Normalize its JSON empty strings before validation so
+            // an omitted website/location is stored as an absent Pixel value,
+            // rather than rejecting an otherwise valid business.
+            foreach (['website', 'location'] as $field) {
+                if (array_key_exists($field, $data['business']) && is_string($data['business'][$field])) {
+                    $data['business'][$field] = trim($data['business'][$field]);
+                    $data['business'][$field] = $data['business'][$field] === '' ? null : $data['business'][$field];
+                }
+            }
+
             foreach (['sub_category_ids', 'products'] as $field) {
                 if (! is_array($json->business->{$field} ?? null)) {
                     throw ValidationException::withMessages(['business.'.$field => ['The field must be a JSON list.']]);
@@ -66,8 +77,8 @@ class AdLiveBusinessCreationController extends Controller
             'business.business_type' => ['required', 'string', Rule::in(['product', 'service', 'product_and_service'])],
             'business.products' => ['required', 'array', 'max:100'],
             'business.products.*' => ['required', 'string', 'distinct', 'max:255'],
-            'business.website' => ['required', 'string', 'url', 'regex:/^https:\/\//i', 'max:2048'],
-            'business.location' => ['required', 'string', 'max:1000'],
+            'business.website' => ['nullable', 'string', 'url', 'regex:/^https:\/\//i', 'max:2048'],
+            'business.location' => ['nullable', 'string', 'max:1000'],
         ];
     }
 }

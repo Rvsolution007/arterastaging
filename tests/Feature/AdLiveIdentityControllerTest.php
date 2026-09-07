@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AdLiveIdentityEvent;
+use App\Models\AdLiveIdentityRequest;
 use App\Models\User;
 use App\Services\AdLiveInternalRequestVerifier;
 use Illuminate\Database\Schema\Blueprint;
@@ -127,6 +128,27 @@ class AdLiveIdentityControllerTest extends TestCase
         Log::shouldNotHaveReceived('warning');
     }
 
+    public function test_signed_admin_reset_returns_the_existing_legacy_identity_after_migration(): void
+    {
+        $this->user->forceFill(['registration_source' => null])->save();
+        $newPassword = Str::random(32).'aA1!';
+        $payload = $this->envelope([
+            'email' => strtoupper($this->user->email),
+            'admin_authorized' => true,
+            'new_password' => $newPassword,
+        ]);
+
+        $response = $this->signedPost('credentials/admin-reset', $payload)
+            ->assertOk()
+            ->assertJsonPath('identity.artera_user_id', (string) $this->user->id)
+            ->assertJsonPath('identity.signup_source', 'artera_pixel');
+
+        $this->assertTrue(Hash::check($newPassword, (string) $this->user->fresh()->password));
+        $this->assertSame('admin_reset', AdLiveIdentityRequest::firstOrFail()->operation);
+        $this->assertSame(1, User::count());
+        $this->assertStringNotContainsString($newPassword, $response->getContent());
+    }
+
     /** @param array<string, mixed> $replace */
     private function envelope(array $replace = []): array
     {
@@ -162,9 +184,12 @@ class AdLiveIdentityControllerTest extends TestCase
         Schema::create('users', function (Blueprint $table) {
             $table->id(); $table->string('name'); $table->string('email')->unique(); $table->string('password');
             $table->string('mobile_no')->nullable()->unique(); $table->unsignedInteger('status')->default(1);
-            $table->string('user_type')->nullable(); $table->string('login_type')->nullable(); $table->string('registration_source')->nullable();
+            $table->string('user_type')->nullable(); $table->string('login_type')->nullable();
             $table->string('referral_code')->nullable(); $table->timestamp('email_verified_at')->nullable(); $table->softDeletes(); $table->timestamps();
         });
+        // Exercise the shipped migration instead of adding the field only in
+        // the fixture, which previously hid the live database schema gap.
+        (require database_path('migrations/2026_09_07_000003_ensure_registration_source_on_users_table.php'))->up();
         Schema::create('business', function (Blueprint $table) {
             $table->id(); $table->unsignedBigInteger('user_id'); $table->string('name')->nullable(); $table->string('website')->nullable();
             $table->text('address')->nullable(); $table->unsignedBigInteger('business_category_id')->nullable(); $table->json('business_sub_category_ids')->nullable();

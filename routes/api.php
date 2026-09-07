@@ -18,11 +18,6 @@ Route::post('/internal/adlive/authorization-codes/consume', [AdLiveAuthorization
     ->middleware('throttle:30,1');
 Route::post('/internal/adlive/migration-inventory', [AdLiveMigrationInventoryController::class, 'index'])
     ->middleware('throttle:10,1');
-Route::post('/internal/adlive/registration/options', [AdLiveRegistrationController::class, 'options'])
-    ->middleware('throttle:30,1');
-Route::post('/internal/adlive/registrations', [AdLiveRegistrationController::class, 'register'])
-    ->middleware('throttle:10,1');
-
 Route::
         namespace('Api')->middleware(['throttle:login'])->group(function () {
             Route::post('/login', 'AuthApi@login');

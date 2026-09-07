@@ -30,7 +30,7 @@ class AdLiveRegistrationController extends Controller
      */
     public function options(Request $request, AdLiveInternalRequestVerifier $requestVerifier)
     {
-        if (! $requestVerifier->verify($request)) {
+        if (! $this->hasAuthenticatedInternalRequest($request, $requestVerifier)) {
             return response()->json(['message' => 'Unauthorized.'], Response::HTTP_UNAUTHORIZED);
         }
 
@@ -66,7 +66,7 @@ class AdLiveRegistrationController extends Controller
         AdLiveInternalRequestVerifier $requestVerifier,
         AdLiveBusinessProfileService $businessProfiles,
     ) {
-        if (! $requestVerifier->verify($request)) {
+        if (! $this->hasAuthenticatedInternalRequest($request, $requestVerifier)) {
             return response()->json(['message' => 'Unauthorized.'], Response::HTTP_UNAUTHORIZED);
         }
 
@@ -218,6 +218,21 @@ class AdLiveRegistrationController extends Controller
                 'email_verified' => (bool) $user->email_verified_at,
             ]),
         ], Response::HTTP_CREATED);
+    }
+
+    /**
+     * The global internal-API middleware validates the HMAC and consumes the
+     * one-time nonce before the route action runs. Retesting that same nonce
+     * here would always look like a replay. The fallback preserves the
+     * controller's protection when it is invoked outside the HTTP middleware
+     * pipeline, such as a focused controller test.
+     */
+    private function hasAuthenticatedInternalRequest(
+        Request $request,
+        AdLiveInternalRequestVerifier $requestVerifier,
+    ): bool {
+        return $request->attributes->get('adlive_profile_authenticated') === true
+            || $requestVerifier->verify($request);
     }
 
     private function bypassesEmailVerification(): bool

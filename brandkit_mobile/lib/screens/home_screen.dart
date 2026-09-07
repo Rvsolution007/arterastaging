@@ -29,7 +29,7 @@ import 'search_screen.dart';
 import 'achievements_screen.dart';
 
 import '../widgets/shared_header.dart';
-import '../features/adlive/widgets/adlive_entry_card.dart';
+import '../adlive_one_tap_entry.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -67,7 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       : const SizedBox.shrink(),
                 ),
               _buildSearchBar(),
-              const AdLiveEntryCard(),
+              const AdLiveOneTapEntryCard(),
               _buildStories(hc),
               _buildFestivalSection(hc),
               if (!AppConfig.isStaging) _buildCustomPostsSection(hc),

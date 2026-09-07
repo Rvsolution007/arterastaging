@@ -69,8 +69,6 @@ class Kernel extends ConsoleKernel
             ->when(fn () => !empty(config('services.google_play.service_account_json')))
             ->runInBackground();
 
-        // Durable retry for non-blocking Pixel-to-AdLive identity deliveries.
-        $schedule->command('adlive:drain-identity-outbox')->everyMinute()->runInBackground();
     }
 
     /**

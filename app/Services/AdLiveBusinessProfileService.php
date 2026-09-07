@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Business;
 use App\Models\User;
+use Illuminate\Support\Facades\Schema;
 
 class AdLiveBusinessProfileService
 {
@@ -67,6 +68,63 @@ class AdLiveBusinessProfileService
         ];
     }
 
+    /**
+     * Contract used by credential verification, the signed identity APIs, and
+     * Pixel-to-AdLive events. It is intentionally limited to Pixel-owned
+     * customer/business fields; it has no credential, campaign, Meta, wallet,
+     * billing, permission, or advertising data.
+     *
+     * When a business is supplied for a business event, only that exact saved
+     * business is included. Identity events return every active business in a
+     * deterministic default-first/id order.
+     *
+     * @return array<string, mixed>
+     */
+    public function canonicalIdentitySnapshot(User $user, ?Business $business = null, bool $includeAllBusinesses = true): array
+    {
+        $activeBusinesses = $includeAllBusinesses
+            ? Business::query()
+                ->where('user_id', $user->id)
+                ->where('status', 1)
+                ->orderByDesc('is_default')
+                ->orderBy('id')
+                ->get()
+            : collect($business ? [$business] : []);
+
+        $activeBusiness = $activeBusinesses->first();
+        $businesses = $activeBusinesses
+            ->map(function (Business $item): array {
+                $this->loadProfileRelations($item);
+
+                return $this->sharedBusiness($item);
+            })
+            ->values()
+            ->all();
+
+        // Do not load a relationship for every item merely to calculate its
+        // profile version. The authoritative user is already present here.
+        foreach ($activeBusinesses as $index => $item) {
+            $businesses[$index]['profile_version'] = $this->profileVersion($user, $item);
+            $businesses[$index]['updated_at'] = $this->updatedAt($user, $item);
+        }
+
+        return [
+            'artera_user_id' => (string) $user->id,
+            'name' => (string) $user->name,
+            'email' => mb_strtolower(trim((string) $user->email)),
+            'phone' => (string) ($user->mobile_no ?: ''),
+            'email_verified' => (bool) $user->email_verified_at,
+            'status' => (int) $user->status === 1 && ! $user->trashed() ? 'active' : 'deleted',
+            'signup_source' => $user->registration_source === 'adlive' ? 'adlive' : 'artera_pixel',
+            'created_at' => $user->created_at?->toIso8601String(),
+            'updated_at' => $user->updated_at?->toIso8601String(),
+            'active_business_id' => $activeBusiness ? (string) $activeBusiness->id : null,
+            // Keep this compatibility field even when a user has no business.
+            'business' => $businesses[0] ?? null,
+            'businesses' => $businesses,
+        ];
+    }
+
     /** @return array<string, mixed> */
     public function identity(User $user): array
     {
@@ -125,7 +183,8 @@ class AdLiveBusinessProfileService
             ],
             'sub_categories' => $this->taxonomyItems($business->sub_categories),
             'business_types' => $this->taxonomyItems($business->types),
-            'products' => $this->taxonomyItems($business->products),
+            'products' => $this->productItems($business),
+            'website' => (string) ($business->website ?: ''),
             'location' => (string) ($business->address ?: ''),
         ];
     }
@@ -148,6 +207,10 @@ class AdLiveBusinessProfileService
             'types:id,name',
             'products:id,name',
         ]);
+
+        if (Schema::hasTable('business_product_requests')) {
+            $business->loadMissing('custom_product_requests:id,business_id,requested_name,status');
+        }
     }
 
     /** @param mixed $items */
@@ -173,6 +236,28 @@ class AdLiveBusinessProfileService
             ];
         }
 
+        usort($result, fn (array $left, array $right): int => strnatcmp($left['id'], $right['id']));
+
+        return $result;
+    }
+
+    /** @return array<int, array{id: string, name: string}> */
+    private function productItems(Business $business): array
+    {
+        $result = $this->taxonomyItems($business->products);
+        if (! $business->relationLoaded('custom_product_requests')) {
+            return $result;
+        }
+
+        foreach ($business->custom_product_requests as $request) {
+            if (! in_array((string) $request->status, ['pending', 'approved'], true)) {
+                continue;
+            }
+            $result[] = [
+                'id' => 'custom:'.$request->id,
+                'name' => (string) $request->requested_name,
+            ];
+        }
         usort($result, fn (array $left, array $right): int => strnatcmp($left['id'], $right['id']));
 
         return $result;

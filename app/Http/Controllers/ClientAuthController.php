@@ -14,7 +14,7 @@ use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\PasswordResetOtp;
 use App\Models\PasswordReset;
-use App\Services\AdLiveSecurityEventService;
+use App\Services\AdLiveSignedSecurityEventService;
 use App\Services\AdLiveIdentitySyncService;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 
@@ -33,9 +33,14 @@ class ClientAuthController extends Controller
         ]);
 
         if (Auth::attempt($credentials, $request->remember)) {
+            if ((int) Auth::user()->status !== 1) {
+                Auth::logout();
+
+                return back()->withErrors(['email' => 'Invalid login credentials.'])->withInput();
+            }
             $request->session()->regenerate();
             $this->updateUserStreak(Auth::user());
-            $adLiveIdentitySync->queueForUser(Auth::user());
+            $adLiveIdentitySync->queueForUser(Auth::user(), 'identity.updated');
             return redirect()->intended('/dashboard');
         }
 
@@ -102,7 +107,7 @@ class ClientAuthController extends Controller
             'is_default' => 1,
         ]);
 
-        $adLiveIdentitySync->queueForUser($user);
+        $adLiveIdentitySync->queueForUser($user, 'identity.created');
 
         Auth::login($user);
         $request->session()->regenerate();
@@ -130,7 +135,7 @@ class ClientAuthController extends Controller
      * If the email is new → create user + default business → log them in.
      * Both paths end at /app-gateway.
      */
-    public function handleGoogleCallback(Request $request)
+    public function handleGoogleCallback(Request $request, AdLiveIdentitySyncService $adLiveIdentitySync)
     {
         try {
             $googleUser = Socialite::driver('google')->user();
@@ -142,10 +147,14 @@ class ClientAuthController extends Controller
         $existingUser = User::where('email', $googleUser->getEmail())->first();
 
         if ($existingUser) {
+            if ((int) $existingUser->status !== 1) {
+                return redirect('/auth-gate')->withErrors(['google' => 'This account is not available.']);
+            }
             // Existing user → just log them in
             Auth::login($existingUser, true);
             $request->session()->regenerate();
             $this->updateUserStreak($existingUser);
+            $adLiveIdentitySync->queueForUser($existingUser->fresh(), 'identity.updated');
             return redirect('/app-gateway');
         }
 
@@ -174,7 +183,7 @@ class ClientAuthController extends Controller
             'is_default' => 1,
         ]);
 
-        app(AdLiveIdentitySyncService::class)->queueForUser($user);
+        $adLiveIdentitySync->queueForUser($user, 'identity.created');
 
         Auth::login($user, true);
         $request->session()->regenerate();
@@ -265,7 +274,7 @@ class ClientAuthController extends Controller
     /**
      * Step 3: Update the password.
      */
-    public function updatePassword(Request $request, AdLiveSecurityEventService $adLiveSecurity)
+    public function updatePassword(Request $request, AdLiveSignedSecurityEventService $adLiveSecurity)
     {
         if (!session('otp_verified') || !session('reset_email')) {
             return redirect()->route('password.forgot')->with('error', 'Session expired. Please start again.');
@@ -300,7 +309,7 @@ class ClientAuthController extends Controller
         return redirect()->route('client.login')->with('status', 'Password updated successfully! Please login with your new password.');
     }
 
-    public function webviewLogin(Request $request)
+    public function webviewLogin(Request $request, AdLiveIdentitySyncService $adLiveIdentitySync)
     {
         // Security fix: Require a valid signed URL instead of raw user_id
         if (!$request->hasValidSignature()) {
@@ -316,10 +325,11 @@ class ClientAuthController extends Controller
 
         $user = User::find($userId);
 
-        if ($user) {
+        if ($user && (int) $user->status === 1) {
             Auth::login($user, true);
             $request->session()->regenerate();
             $this->updateUserStreak($user);
+            $adLiveIdentitySync->queueForUser($user->fresh(), 'identity.updated');
             
             // Whitelist allowed redirect paths to prevent open redirect
             $parsedPath = parse_url($redirectUrl, PHP_URL_PATH);

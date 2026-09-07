@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Business;
 use App\Models\User;
 use App\Services\AdLiveBusinessProfileService;
 use Illuminate\Http\Request;
@@ -60,27 +59,12 @@ class AdLiveCredentialsVerificationController extends Controller
                 return $this->invalidCredentials();
             }
 
-            $business = Business::query()
-                ->where('user_id', $user->id)
-                ->where('status', 1)
-                ->orderByDesc('is_default')
-                ->orderBy('id')
-                ->first();
-            if (! $business) {
-                return response()->json([
-                    'message' => 'The active business profile is unavailable.',
-                ], Response::HTTP_CONFLICT);
-            }
-
-            $profile = $businessProfiles->sharedSnapshot($user, $business);
-
+            // A valid Pixel account remains valid even before it has created a
+            // business. The canonical snapshot deterministically includes all
+            // active businesses and retains `business` as the active/default
+            // compatibility field.
             return response()->json([
-                'identity' => array_merge($profile['identity'], [
-                    'email_verified' => (bool) $user->email_verified_at,
-                    'signup_source' => $user->registration_source === 'adlive' ? 'adlive' : 'artera_pixel',
-                    'consent_version' => (string) config('adlive.identity_consent_version'),
-                    'business' => $profile['business'],
-                ]),
+                'identity' => $businessProfiles->canonicalIdentitySnapshot($user),
             ]);
         } catch (\Throwable) {
             // Never report an exception object from a password-bearing request.

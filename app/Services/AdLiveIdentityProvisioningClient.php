@@ -2,12 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\AdLiveIdentityEvent;
 use App\Models\Business;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-/** Delivers a strictly non-secret canonical identity/business snapshot to AdLive. */
+/** Delivers a signed, non-secret event envelope to AdLive. */
 class AdLiveIdentityProvisioningClient
 {
     public function __construct(
@@ -22,29 +23,54 @@ class AdLiveIdentityProvisioningClient
             && (string) config('adlive.shared_secret') !== '';
     }
 
-    /**
-     * Build the current source-of-truth snapshot at delivery time. The outbox
-     * and queued job therefore contain IDs only, never email or password data.
-     */
-    public function sync(User $user, Business $business, string $signupSource): bool
+    /** Build the current canonical snapshot only when a worker is delivering. */
+    public function deliver(AdLiveIdentityEvent $event): bool
     {
         $url = (string) config('adlive.identity_provision_url');
         $secret = (string) config('adlive.shared_secret');
         if ($url === '' || $secret === '') {
-            $this->logFailure($user, $business, 'not_configured');
+            $this->logFailure($event, 'not_configured');
 
             return false;
         }
 
         try {
-            $profile = $this->profiles->sharedSnapshot($user, $business);
+            $user = User::query()->withTrashed()->whereKey($event->artera_user_id)->first([
+                'id', 'name', 'email', 'mobile_no', 'status', 'registration_source',
+                'email_verified_at', 'created_at', 'updated_at', 'deleted_at',
+            ]);
+            if (! $user || ($event->event_type !== 'identity.deleted' && (int) $user->status !== 1)) {
+                $this->logFailure($event, 'source_not_available');
+
+                return false;
+            }
+
+            $business = null;
+            if ($event->artera_business_id !== null) {
+                $business = Business::query()
+                    ->whereKey($event->artera_business_id)
+                    ->where('user_id', $user->id)
+                    ->where('status', 1)
+                    ->first();
+                if (! $business) {
+                    $this->logFailure($event, 'source_not_available');
+
+                    return false;
+                }
+            }
+
+            $identity = $this->profiles->canonicalIdentitySnapshot(
+                $user,
+                $business,
+                $event->event_type !== 'identity.deleted'
+                    && str_starts_with($event->event_type, 'identity.'),
+            );
             $payload = [
-                'identity' => array_merge($profile['identity'], [
-                    'email_verified' => (bool) $user->email_verified_at,
-                    'signup_source' => $signupSource,
-                    'consent_version' => (string) config('adlive.identity_consent_version'),
-                    'business' => $profile['business'],
-                ]),
+                'event_id' => (string) $event->event_id,
+                'event_type' => (string) $event->event_type,
+                'occurred_at' => $event->occurred_at->utc()->toIso8601String(),
+                'source' => 'artera_pixel',
+                'identity' => $identity,
             ];
             $body = $this->signer->encodePayload($payload);
             $headers = $this->signer->headers('POST', $url, $payload, $secret);
@@ -54,14 +80,14 @@ class AdLiveIdentityProvisioningClient
                 ->withBody($body, 'application/json')
                 ->post($url);
         } catch (\Throwable) {
-            $this->logFailure($user, $business, 'transport');
+            $this->logFailure($event, 'transport');
 
             return false;
         }
 
         if (! $response->successful()) {
-            // Do not capture the response body; it could reflect request data.
-            $this->logFailure($user, $business, 'http_'.$response->status());
+            // A remote response body could reflect identity input; never log it.
+            $this->logFailure($event, 'http_'.$response->status());
 
             return false;
         }
@@ -69,11 +95,12 @@ class AdLiveIdentityProvisioningClient
         return true;
     }
 
-    private function logFailure(User $user, Business $business, string $reason): void
+    private function logFailure(AdLiveIdentityEvent $event, string $reason): void
     {
-        Log::warning('AdLive identity provisioning delivery failed.', [
-            'artera_user_id' => (string) $user->getKey(),
-            'artera_business_id' => (string) $business->getKey(),
+        Log::warning('AdLive identity event delivery failed.', [
+            'event_id' => (string) $event->event_id,
+            'event_type' => (string) $event->event_type,
+            'artera_user_id' => (string) $event->artera_user_id,
             'reason' => $reason,
         ]);
     }

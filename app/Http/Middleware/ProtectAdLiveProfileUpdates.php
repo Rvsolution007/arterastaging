@@ -13,14 +13,13 @@ class ProtectAdLiveProfileUpdates
 {
     public function handle(Request $request, Closure $next): Response
     {
+        $isInternalAdLive = $request->is('api/internal/adlive/*');
         $isCredentialVerification = $request->is('api/internal/adlive/credentials/verify');
-        $credentialAcceptsJson = str_contains(
+        $acceptsJson = str_contains(
             strtolower((string) $request->header('Accept')),
             'application/json',
         );
-        if (! $request->is('api/internal/adlive/business-profile-updates')
-            && ! $request->is('api/internal/adlive/businesses')
-            && ! $isCredentialVerification) {
+        if (! $isInternalAdLive) {
             return $next($request);
         }
 
@@ -33,10 +32,9 @@ class ProtectAdLiveProfileUpdates
             return $this->finish(response()->json(['message' => 'Server-to-server requests only.'], 403));
         }
 
-        // The credential bridge is a JSON-only backend contract. Require the
-        // caller to opt in before overriding the framework's default response
-        // negotiation for its controller action.
-        if ($isCredentialVerification && ! $credentialAcceptsJson) {
+        // Every internal endpoint is JSON-only. This is a server contract, not
+        // a browser API, so callers must explicitly request JSON.
+        if (! $acceptsJson) {
             return $this->finish(response()->json(['message' => 'Accept must be application/json.'], 406));
         }
 

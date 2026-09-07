@@ -25,7 +25,7 @@ import 'achievements_screen.dart';
 import 'mini_website_dashboard_screen.dart';
 import '../controllers/app_update_controller.dart';
 import 'business_ai_drafts_screen.dart';
-import '../features/adlive/widgets/adlive_entry_card.dart';
+import '../adlive_one_tap_entry.dart';
 
 class MoreScreen extends StatefulWidget {
   const MoreScreen({super.key});
@@ -164,7 +164,7 @@ class _MoreScreenState extends State<MoreScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionTitle('Business growth'),
-        _buildSectionContainer(children: const [AdLiveEntryTile()]),
+        _buildSectionContainer(children: const [AdLiveOneTapEntryTile()]),
         AppSpacing.gapV24,
       ],
     );

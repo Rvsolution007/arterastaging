@@ -205,6 +205,7 @@ class AdLiveBusinessProfileUpdateTest extends TestCase
 
         return $this->call('POST', '/api/internal/adlive/business-profile-updates', [], [], [], [
             'CONTENT_TYPE' => 'application/json',
+            'HTTP_ACCEPT' => 'application/json',
             'HTTP_X_ARTERA_ADLIVE_TIMESTAMP' => $timestamp,
             'HTTP_X_ARTERA_ADLIVE_NONCE' => $nonce,
             'HTTP_X_ARTERA_ADLIVE_SIGNATURE' => $signature,

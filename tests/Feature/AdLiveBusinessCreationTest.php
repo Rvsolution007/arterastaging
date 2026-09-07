@@ -200,6 +200,7 @@ class AdLiveBusinessCreationTest extends TestCase
 
         return $this->call('POST', '/api/internal/adlive/businesses', [], [], [], [
             'CONTENT_TYPE' => 'application/json',
+            'HTTP_ACCEPT' => 'application/json',
             'HTTP_X_ARTERA_ADLIVE_TIMESTAMP' => $timestamp,
             'HTTP_X_ARTERA_ADLIVE_NONCE' => $nonce,
             'HTTP_X_ARTERA_ADLIVE_SIGNATURE' => $signature,

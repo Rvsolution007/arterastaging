@@ -15,8 +15,9 @@ use App\Models\StorageSetting;
 use App\Models\WhatsappMessage;
 use App\Models\WithdrawRequest;
 use App\Models\ReferralRegister;
-use App\Services\AdLiveSecurityEventService;
+use App\Services\AdLiveSignedSecurityEventService;
 use App\Services\AdLiveIdentitySyncService;
+use App\Services\AdLiveIdentityMutationService;
 use Spatie\Permission\Models\Role;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Storage;
@@ -204,7 +205,7 @@ class UserController extends Controller
         Request $request,
         $id,
         AdLiveIdentitySyncService $adLiveIdentitySync,
-        AdLiveSecurityEventService $adLiveSecurity
+        AdLiveSignedSecurityEventService $adLiveSecurity
     )
     {
         $validation = Validator::make($request->all(), [
@@ -334,7 +335,7 @@ class UserController extends Controller
             }
 
             if ($identityChanged) {
-                $adLiveIdentitySync->queueForUser($user->fresh());
+                $adLiveIdentitySync->queueForUser($user->fresh(), 'identity.updated');
             }
 
             return redirect()->back()->with('success', 'Profile updated successfully.');
@@ -374,78 +375,41 @@ class UserController extends Controller
         return $detail;
     }
 
-    public function destroy($id)
+    public function destroy($id, AdLiveIdentityMutationService $identities)
     {
-        $this->deleteUser($id);
-        return redirect()->route('user.index');
+        if (! $this->deactivateUser((int) $id, $identities)) {
+            return redirect()->route('user.index')->with('error', 'This customer account could not be deactivated.');
+        }
+
+        return redirect()->route('user.index')->with('success', 'Customer account deactivated.');
     }
 
-    public function bulkDelete(Request $request)
+    public function bulkDelete(Request $request, AdLiveIdentityMutationService $identities)
     {
         $ids = $request->ids;
         if (is_array($ids) && count($ids) > 0) {
             foreach ($ids as $id) {
-                $this->deleteUser($id);
+                $this->deactivateUser((int) $id, $identities);
             }
-            return response()->json(['status' => true, 'message' => 'Users deleted successfully.']);
+            return response()->json(['status' => true, 'message' => 'Customer accounts were deactivated.']);
         }
         return response()->json(['status' => false, 'message' => 'Please select at least one user.']);
     }
 
-    private function deleteUser($id)
+    private function deactivateUser(int $id, AdLiveIdentityMutationService $identities): bool
     {
-        $user = User::find($id);
-        if (!$user) {
+        try {
+            $identities->deactivate([
+                'request_id' => (string) Str::uuid(),
+                'occurred_at' => now()->utc()->toIso8601String(),
+                'source' => 'artera_pixel',
+                'artera_user_id' => (string) $id,
+            ]);
+
+            return true;
+        } catch (\Throwable) {
             return false;
         }
-        
-        if($user->user_type == "Super Admin") {
-            return false;
-        }
-
-        $business = Business::where("user_id",$id)->get();
-        $customFrame = CustomFrame::where("user_id",$id)->get();
-        
-        if(StorageSetting::getStorageSetting("storage") == "DigitalOcean")
-        {
-            foreach($business as $b)
-            {
-                if ($b->logo) {
-                    Storage::disk('spaces')->delete('uploads/'.$b->logo);
-                }
-            }
-            foreach($customFrame as $frame)
-            {
-                if ($frame->frame_image) {
-                    Storage::disk('spaces')->delete('uploads/'.$frame->frame_image);
-                }
-            }
-        }
-        else
-        {
-            foreach($business as $b)
-            {
-                if ($b->logo && file_exists(public_path('uploads/').$b->logo)) {
-                    unlink(public_path('uploads/').$b->logo);
-                }
-            }
-            foreach($customFrame as $frame)
-            {
-                if ($frame->frame_image && file_exists(public_path('uploads/').$frame->frame_image)) {
-                    unlink(public_path('uploads/').$frame->frame_image);
-                }
-            }
-        }
-
-        $user->delete();
-        Business::where("user_id",$id)->delete();
-        Transaction::where("user_id",$id)->delete();
-        WithdrawRequest::where("user_id",$id)->delete();
-        CustomFrame::where("user_id",$id)->delete();
-        ReferralRegister::where("user_id",$id)->delete();
-        EarningHistory::where("user_id",$id)->delete();
-        
-        return true;
     }
 
     private function upload_image($file,$field,$id)

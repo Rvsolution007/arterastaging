@@ -70,23 +70,41 @@ class AdLiveCredentialVerificationTest extends TestCase
         $this->assertSame(['identity'], array_keys($body));
         $this->assertSame([
             'artera_user_id', 'name', 'email', 'phone', 'email_verified',
-            'signup_source', 'consent_version', 'business',
+            'status', 'signup_source', 'created_at', 'updated_at',
+            'active_business_id', 'business', 'businesses',
         ], array_keys($body['identity']));
         $this->assertSame([
             'id', 'name', 'category', 'sub_categories', 'business_types',
-            'products', 'location', 'profile_version', 'updated_at',
+            'products', 'website', 'location', 'profile_version', 'updated_at',
         ], array_keys($body['identity']['business']));
         $this->assertSame((string) $this->user->id, $body['identity']['artera_user_id']);
         $this->assertSame('pixel.owner@example.test', $body['identity']['email']);
         $this->assertTrue($body['identity']['email_verified']);
         $this->assertSame('artera_pixel', $body['identity']['signup_source']);
-        $this->assertSame('consent-v2', $body['identity']['consent_version']);
+        $this->assertSame('active', $body['identity']['status']);
         $this->assertSame((string) $this->business->id, $body['identity']['business']['id']);
+        $this->assertCount(1, $body['identity']['businesses']);
         $this->assertNotEmpty($body['identity']['business']['profile_version']);
         $this->assertNotFalse(strtotime($body['identity']['business']['updated_at']));
         $this->assertArrayNotHasKey('password', $body['identity']);
         $this->assertArrayNotHasKey('password_hash', $body['identity']);
         $this->assertStringNotContainsString($this->password, $response->getContent());
+    }
+
+    public function test_valid_credentials_without_a_business_return_an_empty_business_list(): void
+    {
+        $user = User::create([
+            'name' => 'No Business Yet',
+            'email' => 'no-business@example.test',
+            'password' => Hash::make($this->password),
+            'status' => 1,
+        ]);
+
+        $this->signedPost(['email' => $user->email, 'password' => $this->password])
+            ->assertOk()
+            ->assertJsonPath('identity.artera_user_id', (string) $user->id)
+            ->assertJsonPath('identity.business', null)
+            ->assertJsonPath('identity.businesses', []);
     }
 
     public function test_invalid_credentials_and_missing_user_have_the_same_generic_response(): void

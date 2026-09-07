@@ -37,6 +37,7 @@ class AuthController extends GetxController {
         final data = jsonDecode(response.body);
         // Save user session
         final prefs = await SharedPreferences.getInstance();
+        await _clearAdLiveForAccountSwitch(prefs, data['userId']?.toString() ?? '');
         await prefs.setString('userId', data['userId'].toString());
         final accessToken = data['access_token']?.toString();
         if (accessToken != null && accessToken.isNotEmpty) {
@@ -186,6 +187,7 @@ class AuthController extends GetxController {
 
         // Save user session
         final prefs = await SharedPreferences.getInstance();
+        await _clearAdLiveForAccountSwitch(prefs, data['userId']?.toString() ?? '');
         await prefs.setString('userId', data['userId'].toString());
         final accessToken = data['access_token']?.toString();
         if (accessToken != null && accessToken.isNotEmpty) {
@@ -320,6 +322,20 @@ class AuthController extends GetxController {
     Get.offAll(() => const LoginScreen());
   }
 
+  Future<void> _clearAdLiveForAccountSwitch(
+    SharedPreferences prefs,
+    String incomingUserId,
+  ) async {
+    final currentUserId = prefs.getString('userId');
+    if (currentUserId != null &&
+        currentUserId.isNotEmpty &&
+        currentUserId != incomingUserId) {
+      await AdLiveTokenStore.clear();
+      await prefs.remove('adlive_scoped_artera_user_id');
+      await prefs.remove('adlive_scoped_business_id');
+    }
+  }
+
   Future<void> signInWithGoogle({
     String? redirectRoute,
     dynamic redirectArguments,
@@ -356,6 +372,7 @@ class AuthController extends GetxController {
       }
 
       final prefs = await SharedPreferences.getInstance();
+      await _clearAdLiveForAccountSwitch(prefs, userId);
       await SecureTokenStore.write(accessToken);
       await prefs.setString('userId', userId);
       await prefs.setBool('isGuest', false);

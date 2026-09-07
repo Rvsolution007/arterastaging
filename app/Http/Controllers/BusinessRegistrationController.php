@@ -162,7 +162,7 @@ class BusinessRegistrationController extends Controller
             }
         }
 
-        $adLiveIdentitySync->queueForUser(User::findOrFail($id));
+        $adLiveIdentitySync->queueForUser(User::findOrFail($id), 'identity.created');
 
         return redirect()->route('business.registration.success');
     }

@@ -1729,7 +1729,13 @@ class HomeApi extends Controller
                 }
             }
 
-            $adLiveIdentitySync->queueForUser($authenticatedUser);
+            // Publish only after the business and its taxonomy/product writes
+            // have succeeded, and scope the event to this exact business.
+            $adLiveIdentitySync->queueBusiness(
+                $authenticatedUser->fresh(),
+                Business::findOrFail($id),
+                'business.created',
+            );
 
             $business = Business::where('user_id',$request->userId)->get();
 
@@ -1916,7 +1922,12 @@ class HomeApi extends Controller
                 }
             }
 
-            $adLiveIdentitySync->queueForUser($authenticatedUser);
+            // Do not resend unrelated businesses on an explicit business save.
+            $adLiveIdentitySync->queueBusiness(
+                $authenticatedUser->fresh(),
+                $business->fresh(),
+                'business.updated',
+            );
 
             $b = Business::find($business->id);
             $category = BusinessCategory::find($b->business_category_id);

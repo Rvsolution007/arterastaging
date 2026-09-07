@@ -20,8 +20,9 @@ use App\Models\ReferralRegister;
 use App\Http\Controllers\Controller;
 use App\Services\FirebaseIdTokenVerifier;
 use App\Services\MobileAccessTokenService;
-use App\Services\AdLiveSecurityEventService;
+use App\Services\AdLiveSignedSecurityEventService;
 use App\Services\AdLiveIdentitySyncService;
+use App\Services\AdLiveIdentityMutationService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -42,11 +43,11 @@ class AuthApi extends Controller
         ]);
         $user = User::where('email', mb_strtolower(trim($credentials['email'])))->first();
 
-        if ($user && Hash::check($credentials['password'], $user->password))
+        if ($user && (int) $user->status === 1 && Hash::check($credentials['password'], $user->password))
         {
             $this->updateUserStreak($user);
             $user->refresh();
-            $adLiveIdentitySync->queueForUser($user);
+            $adLiveIdentitySync->queueForUser($user, 'identity.updated');
             $accessToken = app(MobileAccessTokenService::class)->issue($user);
             $ReferralRegister = ReferralRegister::where('user_id', $user->id)->first();
             
@@ -251,7 +252,7 @@ class AuthApi extends Controller
             }
 
             $user = User::find($id);
-            $adLiveIdentitySync->queueForUser($user);
+            $adLiveIdentitySync->queueForUser($user, 'identity.created');
             $accessToken = app(MobileAccessTokenService::class)->issue($user);
             $email = $user->email;
             $name = $user->name;
@@ -486,7 +487,7 @@ class AuthApi extends Controller
      * ID token. The email, name, and Firebase UID are never accepted from the
      * request body because they can be forged by a modified app.
      */
-    public function google_sign_in(Request $request, FirebaseIdTokenVerifier $tokenVerifier)
+    public function google_sign_in(Request $request, FirebaseIdTokenVerifier $tokenVerifier, AdLiveIdentitySyncService $adLiveIdentitySync)
     {
         $validated = $request->validate([
             'firebase_id_token' => ['required', 'string', 'max:4096'],
@@ -583,6 +584,7 @@ class AuthApi extends Controller
 
         $this->updateUserStreak($user);
         $user->refresh();
+        $adLiveIdentitySync->queueForUser($user, $isNewUser ? 'identity.created' : 'identity.updated');
         $accessToken = app(MobileAccessTokenService::class)->issue($user);
 
         return response()->json($this->mobileSessionPayload($user, $accessToken, [
@@ -1168,7 +1170,7 @@ class AuthApi extends Controller
      */
     private function syncProfileToAdLive(User $user): void
     {
-        app(AdLiveIdentitySyncService::class)->queueForUser($user->fresh());
+        app(AdLiveIdentitySyncService::class)->queueForUser($user->fresh(), 'identity.updated');
     }
 
     private function upload_image($file,$field,$id)
@@ -1267,7 +1269,7 @@ class AuthApi extends Controller
 
         $user = User::where('email', $email)->first();
         if ($user) {
-            if (! app(AdLiveSecurityEventService::class)->revokeLinkedSessions($user, 'password_reset')) {
+            if (! app(AdLiveSignedSecurityEventService::class)->revokeLinkedSessions($user, 'password_reset')) {
                 return response()->json([
                     'status' => 'Error',
                     'message' => 'Your password was not changed because linked AdLive sessions could not be secured. Please try again.',
@@ -1323,7 +1325,7 @@ class AuthApi extends Controller
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        if (! app(AdLiveSecurityEventService::class)->revokeLinkedSessions($user, 'password_changed')) {
+        if (! app(AdLiveSignedSecurityEventService::class)->revokeLinkedSessions($user, 'password_changed')) {
             return response()->json([
                 'status' => 'Error',
                 'message' => 'Your password was not changed because linked AdLive sessions could not be secured. Please try again.',
@@ -1400,53 +1402,42 @@ class AuthApi extends Controller
         ], Response::HTTP_OK);
     }
 
-    public function delete_user_account(Request $request) {
-		try {
-            \DB::beginTransaction();
-
-            $data = User::where('id', $request->get('userId'))->first();
-
-            // Security: IDOR protection - verify ownership when authenticated
-            if (auth('sanctum')->check() && auth('sanctum')->id() != $request->get('userId')) {
-                \Log::warning('IDOR attempt on delete_user_account', [
-                    'auth_user' => auth('sanctum')->id(),
-                    'target_user' => $request->get('userId'),
-                    'ip' => $request->ip(),
-                ]);
-                return response()->json(['status' => 'Error', 'message' => 'Unauthorized'], 403);
-            }
-
-			if ($data) {
-                $emaildata = $data->email."_deleted";
-                User::where('id', $request->get('userId'))->update([
-                    'email' => $emaildata,
-                    'name' => 'Deleted User',
-                    'mobile_no' => null,
-                    'password' => \Hash::make(\Illuminate\Support\Str::random(16))
-                ]);
-
-				$data->delete();
-                \DB::commit();
-
-				return response()->json([
-                    'status' => "success",
-                    'message' => "User Account Deleted Successfully!",
-                ], 200);
-			} else {
-                
-                return response()->json([
-                    'status' => "Error",
-                    'message' => "Invalid userId",
-                ], 404);
-			}
-		} catch (\Throwable $th) {
-            \DB::rollback();
+    public function delete_user_account(Request $request, AdLiveIdentityMutationService $identityMutations)
+    {
+        $user = auth('sanctum')->user();
+        if (! $user) {
+            return response()->json(['status' => 'Error', 'message' => 'Authentication is required.'], Response::HTTP_UNAUTHORIZED);
+        }
+        if ($request->filled('userId') && (int) $request->input('userId') !== (int) $user->id) {
+            return response()->json(['status' => 'Error', 'message' => 'Unauthorized'], Response::HTTP_FORBIDDEN);
+        }
+        if ($request->input('confirmation') !== 'DELETE') {
             return response()->json([
-                'status' => "Error",
-                'message' => "Server Error",
-            ], 500);
-		}
-	}
+                'status' => 'Error',
+                'message' => 'Confirm account deletion by sending confirmation=DELETE.',
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        try {
+            $identityMutations->deactivate([
+                'request_id' => (string) Str::uuid(),
+                'occurred_at' => now()->utc()->toIso8601String(),
+                'source' => 'artera_pixel',
+                'artera_user_id' => $user->id,
+            ]);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'User Account Deleted Successfully!',
+            ]);
+        } catch (\Illuminate\Http\Exceptions\HttpResponseException $exception) {
+            return $exception->getResponse();
+        } catch (\Throwable) {
+            Log::error('Pixel self-service account deletion failed.');
+
+            return response()->json(['status' => 'Error', 'message' => 'Server Error'], Response::HTTP_SERVICE_UNAVAILABLE);
+        }
+    }
 
     public function reportError(Request $request)
     {

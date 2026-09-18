@@ -8,6 +8,7 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class AdLiveBusinessProfileUpdateController extends Controller
@@ -30,10 +31,15 @@ class AdLiveBusinessProfileUpdateController extends Controller
                 throw ValidationException::withMessages(['body' => ['Use only the documented JSON profile fields.']]);
             }
 
-            foreach (['sub_categories', 'business_types', 'products'] as $field) {
+            foreach (['sub_categories', 'business_types', 'products', 'product_names'] as $field) {
                 if (property_exists($json->business, $field) && ! is_array($json->business->{$field})) {
                     throw ValidationException::withMessages(['business.'.$field => ['The field must be a JSON list.']]);
                 }
+            }
+
+            if (array_key_exists('website', $data['business']) && is_string($data['business']['website'])) {
+                $data['business']['website'] = trim($data['business']['website']);
+                $data['business']['website'] = $data['business']['website'] === '' ? null : $data['business']['website'];
             }
 
             $data = Validator::make($data, $this->rules())->validate();
@@ -68,12 +74,16 @@ class AdLiveBusinessProfileUpdateController extends Controller
             // users.mobile_no is a legacy numeric column, so retain the
             // existing mobile-profile format rather than coercing a string.
             'identity.phone' => ['sometimes', 'string', 'regex:/^(?:|[0-9]{7,20})$/'],
-            'business' => ['required', 'array:id,name,category,sub_categories,business_types,products,location,client_profile_version'],
+            'business' => ['required', 'array:id,name,category,sub_categories,business_types,products,business_type,product_names,website,location,client_profile_version'],
             'business.id' => ['required', 'integer', 'min:1'],
             'business.name' => ['sometimes', 'required', 'string', 'max:255'],
             'business.category' => ['sometimes', 'required', 'array:id,name'],
             'business.category.id' => ['sometimes', 'required', 'integer', 'min:1'],
             'business.category.name' => ['sometimes', 'required', 'string', 'max:255'],
+            'business.business_type' => ['sometimes', 'required', 'string', Rule::in(['product', 'service', 'product_and_service'])],
+            'business.product_names' => ['sometimes', 'array', 'max:100'],
+            'business.product_names.*' => ['required', 'string', 'distinct', 'max:255'],
+            'business.website' => ['sometimes', 'nullable', 'string', 'url', 'regex:/^https:\/\//i', 'max:2048'],
             'business.location' => ['sometimes', 'string', 'max:1000'],
             'business.client_profile_version' => ['sometimes', 'required', 'string', 'max:128'],
         ];

@@ -41,8 +41,8 @@ class AdLiveBusinessProfileService
                     'name' => (string) optional($business->business_category)->name,
                 ],
                 'sub_categories' => $this->taxonomyItems($business->sub_categories),
-                'business_types' => $this->taxonomyItems($business->types),
-                'products' => $this->taxonomyItems($business->products),
+                'business_types' => $this->businessTypeItems($business),
+                'products' => $this->productItems($business),
                 'profile_version' => $this->profileVersion($user, $business),
                 'updated_at' => $this->updatedAt($user, $business),
             ],
@@ -182,7 +182,7 @@ class AdLiveBusinessProfileService
                 'name' => (string) optional($business->business_category)->name,
             ],
             'sub_categories' => $this->taxonomyItems($business->sub_categories),
-            'business_types' => $this->taxonomyItems($business->types),
+            'business_types' => $this->businessTypeItems($business),
             'products' => $this->productItems($business),
             'website' => (string) ($business->website ?: ''),
             'location' => (string) ($business->address ?: ''),
@@ -239,6 +239,25 @@ class AdLiveBusinessProfileService
         usort($result, fn (array $left, array $right): int => strnatcmp($left['id'], $right['id']));
 
         return $result;
+    }
+
+    /** @return array<int, array{id: string, name: string}> */
+    private function businessTypeItems(Business $business): array
+    {
+        $items = $this->taxonomyItems($business->types);
+        if ($items !== []) {
+            return $items;
+        }
+
+        $type = (string) ($business->adlive_business_type ?: '');
+        $name = match ($type) {
+            'product' => 'Product business',
+            'service' => 'Service business',
+            'product_and_service' => 'Products and services',
+            default => '',
+        };
+
+        return $name === '' ? [] : [['id' => $type, 'name' => $name]];
     }
 
     /** @return array<int, array{id: string, name: string}> */

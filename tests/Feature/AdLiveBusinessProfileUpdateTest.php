@@ -94,6 +94,34 @@ class AdLiveBusinessProfileUpdateTest extends TestCase
         $this->assertStringContainsString('identity.email', $audit->changed_fields);
     }
 
+    public function test_adlive_business_editor_contract_updates_website_type_and_custom_products(): void
+    {
+        $this->business->types()->detach();
+        $this->business->products()->detach();
+        $payload = $this->payload([
+            'business' => [
+                'id' => (string) $this->business->id,
+                'business_type' => 'product_and_service',
+                'product_names' => ['Campaign management', 'Website design'],
+                'website' => 'https://updated.example.test',
+            ],
+        ]);
+
+        $response = $this->signedPost($payload)->assertOk();
+
+        $business = $this->business->fresh();
+        $this->assertSame('product_and_service', $business->adlive_business_type);
+        $this->assertSame('https://updated.example.test', $business->website);
+        $this->assertSame(2, DB::table('business_product_requests')
+            ->where('business_id', $business->id)->where('status', 'pending')->count());
+        $response->assertJsonPath('profile.business.business_types.0.id', 'product_and_service')
+            ->assertJsonPath('profile.business.website', 'https://updated.example.test');
+        $this->assertSame(
+            ['Campaign management', 'Website design'],
+            collect($response->json('profile.business.products'))->pluck('name')->sort()->values()->all(),
+        );
+    }
+
     public function test_invalid_signature_is_rejected_before_any_profile_or_audit_write(): void
     {
         $payload = $this->payload();
@@ -229,10 +257,12 @@ class AdLiveBusinessProfileUpdateTest extends TestCase
             $table->id();
             $table->unsignedBigInteger('user_id');
             $table->string('name')->nullable();
+            $table->string('website')->nullable();
             $table->text('address')->nullable();
             $table->unsignedBigInteger('business_category_id')->nullable();
             $table->json('business_sub_category_ids')->nullable();
             $table->unsignedBigInteger('business_type_id')->nullable();
+            $table->string('adlive_business_type', 32)->nullable();
             $table->unsignedInteger('status')->default(1);
             $table->unsignedInteger('is_default')->default(1);
             $table->uuid('profile_version')->nullable()->unique();
@@ -260,6 +290,15 @@ class AdLiveBusinessProfileUpdateTest extends TestCase
                 $table->unique(['business_id', $relatedKey]);
             });
         }
+        Schema::create('business_product_requests', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('business_id');
+            $table->unsignedBigInteger('business_sub_category_id');
+            $table->string('requested_name');
+            $table->string('status', 16)->default('pending');
+            $table->unsignedBigInteger('resolved_product_id')->nullable();
+            $table->timestamps();
+        });
         Schema::create('adlive_business_profile_updates', function (Blueprint $table) {
             $table->id(); $table->uuid('request_id')->unique(); $table->char('request_fingerprint', 64); $table->string('source', 32);
             $table->unsignedBigInteger('artera_user_id'); $table->unsignedBigInteger('artera_business_id'); $table->json('changed_fields');

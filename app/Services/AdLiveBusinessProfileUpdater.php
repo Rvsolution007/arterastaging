@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AdLiveBusinessProfileUpdate;
 use App\Models\Business;
+use App\Models\BusinessProductRequest;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -92,7 +93,7 @@ class AdLiveBusinessProfileUpdater
 
             $selection = $this->taxonomy->validate($data['business'], $business);
             $this->applyIdentity($data['identity'], $user);
-            foreach (['name' => 'name', 'location' => 'address'] as $field => $column) {
+            foreach (['name' => 'name', 'website' => 'website', 'location' => 'address'] as $field => $column) {
                 if (array_key_exists($field, $data['business'])) {
                     $business->{$column} = $data['business'][$field];
                 }
@@ -111,6 +112,12 @@ class AdLiveBusinessProfileUpdater
             if (array_key_exists('products', $data['business'])) {
                 $business->products()->sync($selection['products']);
             }
+            if (array_key_exists('business_type', $data['business'])) {
+                $business->adlive_business_type = $data['business']['business_type'];
+            }
+            if (array_key_exists('product_names', $data['business'])) {
+                $this->syncCustomProductNames($business, $selection, $data['business']['product_names']);
+            }
 
             // A new UUID prevents same-second and no-op updates from sharing a
             // revision. Existing Pixel writes are detected by the content hash.
@@ -121,7 +128,7 @@ class AdLiveBusinessProfileUpdater
             $after = $this->profiles->sharedSnapshot($user, $business);
 
             $changed = [];
-            foreach (['identity' => ['name', 'email', 'phone'], 'business' => ['name', 'category', 'sub_categories', 'business_types', 'products', 'location']] as $section => $fields) {
+            foreach (['identity' => ['name', 'email', 'phone'], 'business' => ['name', 'category', 'sub_categories', 'business_types', 'products', 'website', 'location']] as $section => $fields) {
                 foreach ($fields as $field) {
                     if ($before[$section][$field] !== $after[$section][$field]) {
                         $changed[] = $section.'.'.$field;
@@ -158,6 +165,64 @@ class AdLiveBusinessProfileUpdater
         // shared fields. Credential and verification flows stay unchanged.
         if ($user->isDirty()) {
             $user->save();
+        }
+    }
+
+    /**
+     * Reconcile only AdLive-owned free-text product requests. Approved/global
+     * Pixel taxonomy mappings are preserved and never deleted by this flow.
+     *
+     * @param array<string, mixed> $selection
+     * @param list<string> $names
+     */
+    private function syncCustomProductNames(Business $business, array $selection, array $names): void
+    {
+        $desired = collect($names)
+            ->map(fn (string $name): string => trim($name))
+            ->filter()
+            ->unique(fn (string $name): string => mb_strtolower($name))
+            ->keyBy(fn (string $name): string => mb_strtolower($name));
+
+        $business->loadMissing('products:id,name');
+        foreach ($business->products as $product) {
+            $desired->forget(mb_strtolower(trim((string) $product->name)));
+        }
+
+        $requests = BusinessProductRequest::query()
+            ->where('business_id', $business->id)
+            ->whereIn('status', ['pending', 'approved'])
+            ->lockForUpdate()
+            ->get();
+        $subCategoryId = $selection['sub_categories'][0] ?? null;
+
+        foreach ($requests as $request) {
+            $key = mb_strtolower(trim((string) $request->requested_name));
+            if ($desired->has($key)) {
+                $desired->forget($key);
+                if ($request->status === 'pending' && $subCategoryId !== null
+                    && (int) $request->business_sub_category_id !== (int) $subCategoryId) {
+                    $request->business_sub_category_id = $subCategoryId;
+                    $request->save();
+                }
+            } elseif ($request->status === 'pending') {
+                $request->status = 'rejected';
+                $request->save();
+            }
+        }
+
+        if ($desired->isNotEmpty() && $subCategoryId === null) {
+            throw ValidationException::withMessages([
+                'business.product_names' => ['Choose a sub-category before adding products or services.'],
+            ]);
+        }
+
+        foreach ($desired->values() as $name) {
+            BusinessProductRequest::create([
+                'business_id' => $business->id,
+                'business_sub_category_id' => $subCategoryId,
+                'requested_name' => $name,
+                'status' => 'pending',
+            ]);
         }
     }
 

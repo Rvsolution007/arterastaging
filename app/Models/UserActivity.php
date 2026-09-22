@@ -9,6 +9,7 @@ class UserActivity extends Model
 {
     protected $fillable = [
         'user_id',
+        'client_event_id',
         'url',
         'method',
         'action',

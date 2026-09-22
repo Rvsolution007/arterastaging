@@ -62,6 +62,9 @@ Route::
             Route::post('/user-account-delete', 'AuthApi@delete_user_account');
             Route::post('/report-error', 'AuthApi@reportError');
             Route::post('/track-activity', 'AuthApi@trackActivity')->name('api.track-activity');
+            Route::post('/track-session-activity', [\App\Http\Controllers\Api\SessionActivityTrackingController::class, 'store'])
+                ->middleware(['mobile.auth', 'throttle:120,1'])
+                ->name('api.track-session-activity');
             Route::post('/track-ad-events', 'AuthApi@trackAdEvents')->name('api.track-ad-events');
             Route::get('/get-home-data', 'HomeApi@getHomeData');
             Route::get('/story', 'ContentApiController@getStory');

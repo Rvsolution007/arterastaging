@@ -42,7 +42,12 @@ class ProtectAdLiveProfileUpdates
             return $this->finish(response()->json(['message' => 'Method not allowed.'], 405, ['Allow' => 'POST']));
         }
 
-        if (strlen($request->getContent()) > 131072) {
+        // Registration accepts a 2 MiB logo as base64 JSON (about 2.8 MiB),
+        // plus business fields. Keep the smaller cap for other internal APIs.
+        $maxBodyBytes = $request->is('api/internal/adlive/registrations')
+            ? 3 * 1024 * 1024
+            : 131072;
+        if (strlen($request->getContent()) > $maxBodyBytes) {
             return $this->finish(response()->json(['message' => 'The request body is too large.'], 413));
         }
 

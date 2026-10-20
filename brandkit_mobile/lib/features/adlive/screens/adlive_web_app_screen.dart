@@ -23,11 +23,6 @@ class _AdLiveWebAppScreenState extends State<AdLiveWebAppScreen> {
   var _loading = true;
   String? _error;
 
-  String get _businessName {
-    final name = widget.business['name']?.toString().trim() ?? '';
-    return name.isEmpty ? 'Selected business' : name;
-  }
-
   @override
   void initState() {
     super.initState();
@@ -83,78 +78,58 @@ class _AdLiveWebAppScreenState extends State<AdLiveWebAppScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        if (await _webView.canGoBack()) {
+          await _webView.goBack();
+        }
+        if (!mounted) return;
+        Navigator.of(this.context).pop();
+      },
+      child: Scaffold(
         backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        titleSpacing: 0,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'AdLive',
-              style: TextStyle(
-                color: Color(0xFF047857),
-                fontSize: 19,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            Text(
-              _businessName,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFF64748B),
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Reload',
-            onPressed: _loading ? null : _open,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          WebViewWidget(controller: _webView),
-          if (_loading) const LinearProgressIndicator(minHeight: 3),
-          if (_error != null)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.cloud_off_outlined,
-                      color: Color(0xFF92400E),
-                      size: 42,
+        body: SafeArea(
+          bottom: false,
+          child: Stack(
+            children: [
+              WebViewWidget(controller: _webView),
+              if (_loading) const LinearProgressIndicator(minHeight: 3),
+              if (_error != null)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.cloud_off_outlined,
+                          color: Color(0xFF92400E),
+                          size: 42,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          _error!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Color(0xFF334155),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton.icon(
+                          onPressed: _open,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Try again'),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      _error!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Color(0xFF334155),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton.icon(
-                      onPressed: _open,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Try again'),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -38,6 +38,23 @@ class AdLiveApiService {
   static Future<Map<String, dynamic>> launchConnectedAccounts() =>
       _post('/mobile/connected-accounts/launch', const {});
 
+  /// Exchanges the AdLive-only mobile token for a short-lived, opaque browser
+  /// handoff. The returned URL contains no bearer token or Pixel credential.
+  static Future<String> launchBrowserApp({String? businessId}) async {
+    final response = await _post('/mobile/app/launch', {
+      if (businessId != null && businessId.isNotEmpty)
+        'artera_business_id': businessId,
+    });
+    final url = response['url']?.toString() ?? '';
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+      throw const AdLiveApiException(
+        'AdLive did not create a secure mobile session.',
+      );
+    }
+    return uri.toString();
+  }
+
   static Future<Map<String, dynamic>> completeNativeMetaConnection(
     String token,
   ) => _post('/mobile/meta/native/complete', {'access_token': token});

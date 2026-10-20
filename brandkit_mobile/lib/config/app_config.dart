@@ -11,10 +11,10 @@ class AppConfig {
   );
   static const String _localBaseUrl = String.fromEnvironment(
     'LOCAL_API_BASE_URL',
-    // Never use 127.0.0.1 here: on Android that is the phone itself, not the
-    // XAMPP machine. The local runner can still override this when the PC's
-    // LAN address changes.
-    defaultValue: 'http://192.168.1.66/Artera/123456',
+    // scripts/run_local_android.ps1 forwards phone port 8080 to XAMPP.
+    // USB forwarding survives PC Wi-Fi address changes. LAN builds must
+    // explicitly supply the host for both products.
+    defaultValue: 'http://127.0.0.1:8080/Artera/123456',
   );
   static const bool _localUsesIndexFrontController = bool.fromEnvironment(
     'LOCAL_USE_INDEX_FRONT_CONTROLLER',
@@ -22,7 +22,7 @@ class AppConfig {
   );
   static const String _localAdLiveApiBaseUrl = String.fromEnvironment(
     'ADLIVE_LOCAL_API_BASE_URL',
-    defaultValue: 'http://192.168.1.66/adlive/public/api/v1',
+    defaultValue: 'http://127.0.0.1:8080/adlive/public/api/v1',
   );
   static const String _stagingAdLiveApiBaseUrl = String.fromEnvironment(
     'ADLIVE_STAGING_API_BASE_URL',

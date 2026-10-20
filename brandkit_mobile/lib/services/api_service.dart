@@ -37,11 +37,11 @@ class ApiService {
     try {
       final response = await http.get(url, headers: headers).timeout(const Duration(seconds: 15));
       if (response.statusCode != 200) {
-        debugPrint('[ApiService] GET Failed (${response.statusCode}): ${response.body}');
+        debugPrint('[ApiService] GET Failed (${response.statusCode})');
       }
       return response;
     } catch (e) {
-      debugPrint('[ApiService] GET Exception: $e');
+      debugPrint('[ApiService] GET Exception: ${e.runtimeType}');
       rethrow;
     }
   }
@@ -53,11 +53,11 @@ class ApiService {
     try {
       final response = await http.post(url, headers: headers, body: jsonEncode(body)).timeout(const Duration(seconds: 60));
       if (response.statusCode != 200) {
-        debugPrint('[ApiService] POST Failed (${response.statusCode}): ${response.body}');
+        debugPrint('[ApiService] POST Failed (${response.statusCode})');
       }
       return response;
     } catch (e) {
-      debugPrint('[ApiService] POST Exception: $e');
+      debugPrint('[ApiService] POST Exception: ${e.runtimeType}');
       rethrow;
     }
   }

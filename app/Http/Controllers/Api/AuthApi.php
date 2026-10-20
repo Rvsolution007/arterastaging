@@ -89,6 +89,7 @@ class AuthApi extends Controller
 
     public function registration(Request $request, AdLiveIdentitySyncService $adLiveIdentitySync)
     {
+        \App\Support\SharedRegistrationInput::normalize($request);
         if($request->get('referralCode'))
         {
             $referral_exist = User::where('referral_code', $request->get('referralCode'))->first();
@@ -108,7 +109,7 @@ class AuthApi extends Controller
             'country' => 'nullable|numeric',
             'mobile_no' => 'required|digits_between:7,20|unique:users,mobile_no,NULL,id,deleted_at,NULL',
             'image' => "nullable|image|mimes:jpg,png,jpeg,webp|max:2048",
-        ]);
+        ], \App\Support\SharedRegistrationInput::messages());
 
         if ($validation->fails()) {
             $errors = [];
@@ -119,7 +120,8 @@ class AuthApi extends Controller
             return response()->json([
               'status' => "Error",
               'message' => $errors,
-            ], 404);
+              'errors' => $validation->errors(),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
         else
         {

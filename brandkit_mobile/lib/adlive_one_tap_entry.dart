@@ -28,7 +28,7 @@ class AdLiveOneTapEntry {
         : null;
 
     final hasToken = await AdLiveTokenStore.read() != null;
-    if (!AdLiveScopedSelection.canOpen(
+    if (selectedBusiness == null || !AdLiveScopedSelection.canOpen(
       currentUserId: userId,
       storedUserId: prefs.getString(_userKey),
       selectedBusinessId: selectedId,

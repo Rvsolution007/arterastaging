@@ -70,6 +70,8 @@ class AdLiveRegistrationController extends Controller
             return response()->json(['message' => 'Unauthorized.'], Response::HTTP_UNAUTHORIZED);
         }
 
+        \App\Support\SharedRegistrationInput::normalize($request);
+
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
             'email' => [
@@ -89,7 +91,7 @@ class AdLiveRegistrationController extends Controller
             'logo' => ['nullable', 'array:mime,data'],
             'logo.mime' => ['required_with:logo', 'string', 'in:image/jpeg,image/png,image/webp'],
             'logo.data' => ['required_with:logo', 'string', 'max:2800000'],
-        ]);
+        ], \App\Support\SharedRegistrationInput::messages());
 
         if ($validator->fails()) {
             return response()->json([
@@ -128,7 +130,14 @@ class AdLiveRegistrationController extends Controller
 
         try {
             [$user, $business] = DB::transaction(function () use ($data, $subCategoryIds, $category, $logo) {
-            $user = User::withTrashed()->where('email', $data['email'])->first();
+            $user = User::withTrashed()->where('email', $data['email'])->lockForUpdate()->first();
+            // A concurrent registration must never overwrite an active
+            // customer's password or business after validation has passed.
+            if ($user && ! $user->trashed()) {
+                throw ValidationException::withMessages([
+                    'email' => [\App\Support\SharedRegistrationInput::messages()['email.unique']],
+                ]);
+            }
             if ($user) {
                 $user->restore();
                 $user->name = $data['name'];

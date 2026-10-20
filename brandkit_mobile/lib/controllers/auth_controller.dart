@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import '../services/auth_failure_message.dart';
 import '../services/secure_token_store.dart';
 import '../screens/dashboard_screen.dart'; // We will create this next
 import '../screens/login_screen.dart';
@@ -120,17 +121,16 @@ class AuthController extends GetxController {
         }
       } else {
         try {
-          final errorData = jsonDecode(response.body);
           Get.snackbar(
             'Error',
-            errorData['message'] ?? 'Invalid login credentials',
+            authResponseMessage(response.statusCode, response.body),
             backgroundColor: Colors.redAccent,
             colorText: Colors.white,
           );
         } catch (_) {
           Get.snackbar(
             'Error',
-            'Server Error (${response.statusCode}). Please check staging config.',
+            authResponseMessage(response.statusCode, response.body),
             backgroundColor: Colors.redAccent,
             colorText: Colors.white,
           );
@@ -139,7 +139,7 @@ class AuthController extends GetxController {
     } catch (e) {
       Get.snackbar(
         'Error',
-        'Failed to connect to the server. $e',
+        authFailureMessage(e),
         backgroundColor: Colors.redAccent,
         colorText: Colors.white,
       );
@@ -270,17 +270,16 @@ class AuthController extends GetxController {
         }
       } else {
         try {
-          final errorData = jsonDecode(response.body);
           Get.snackbar(
             'Error',
-            errorData['message'].toString(),
+            authResponseMessage(response.statusCode, response.body),
             backgroundColor: Colors.redAccent,
             colorText: Colors.white,
           );
         } catch (_) {
           Get.snackbar(
             'Error',
-            'Server Error (${response.statusCode}). Please check staging config.',
+            authResponseMessage(response.statusCode, response.body),
             backgroundColor: Colors.redAccent,
             colorText: Colors.white,
           );
@@ -289,7 +288,7 @@ class AuthController extends GetxController {
     } catch (e) {
       Get.snackbar(
         'Error',
-        'Failed to register. $e',
+        authFailureMessage(e),
         backgroundColor: Colors.redAccent,
         colorText: Colors.white,
       );

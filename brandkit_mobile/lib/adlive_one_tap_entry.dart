@@ -2,7 +2,7 @@ import 'package:brandkit_mobile/controllers/home_controller.dart';
 import 'package:brandkit_mobile/features/adlive/controllers/adlive_session_controller.dart';
 import 'package:brandkit_mobile/features/adlive/services/adlive_api_service.dart';
 import 'package:brandkit_mobile/features/adlive/services/adlive_token_store.dart';
-import 'package:brandkit_mobile/features/adlive/screens/adlive_web_app_screen.dart';
+import 'package:brandkit_mobile/features/adlive/screens/adlive_native_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -123,10 +123,11 @@ class AdLiveOneTapEntry {
     Map<String, dynamic> bootstrap,
   ) {
     Get.to(
-      () => AdLiveWebAppScreen(
+      () => AdLiveNativeScreen(
         business: bootstrap['business'] is Map
             ? Map<String, dynamic>.from(bootstrap['business'] as Map)
             : selectedBusiness,
+        bootstrap: bootstrap,
       ),
     );
   }

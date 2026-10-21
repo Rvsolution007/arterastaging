@@ -10,9 +10,11 @@ class AdLiveWebAppScreen extends StatefulWidget {
   const AdLiveWebAppScreen({
     super.key,
     required this.business,
+    this.initialPath,
   });
 
   final Map<String, dynamic> business;
+  final String? initialPath;
 
   @override
   State<AdLiveWebAppScreen> createState() => _AdLiveWebAppScreenState();
@@ -22,6 +24,8 @@ class _AdLiveWebAppScreenState extends State<AdLiveWebAppScreen> {
   late final WebViewController _webView;
   var _loading = true;
   String? _error;
+  bool _directPathLoaded = false;
+  String? _adLiveHost;
 
   @override
   void initState() {
@@ -33,14 +37,32 @@ class _AdLiveWebAppScreenState extends State<AdLiveWebAppScreen> {
           onPageStarted: (_) {
             if (mounted) setState(() => _loading = true);
           },
-          onPageFinished: (_) {
+          onPageFinished: (url) async {
+            final path = widget.initialPath;
+            if (!_directPathLoaded &&
+                path != null &&
+                path.startsWith('/') &&
+                !path.startsWith('//')) {
+              final current = Uri.tryParse(url);
+              final destination = current?.resolve(path);
+              if (current != null &&
+                  destination != null &&
+                  current.host == _adLiveHost &&
+                  destination.host == _adLiveHost &&
+                  destination.scheme == 'https') {
+                _directPathLoaded = true;
+                await _webView.loadRequest(destination);
+                return;
+              }
+            }
             if (mounted) setState(() => _loading = false);
           },
           onWebResourceError: (error) {
             if (!mounted || error.isForMainFrame != true) return;
             setState(() {
               _loading = false;
-              _error = 'AdLive could not load. Check your connection and try again.';
+              _error =
+                  'AdLive could not load. Check your connection and try again.';
             });
           },
         ),
@@ -53,11 +75,13 @@ class _AdLiveWebAppScreenState extends State<AdLiveWebAppScreen> {
       _loading = true;
       _error = null;
     });
+    _directPathLoaded = false;
 
     try {
       final url = await AdLiveApiService.launchBrowserApp(
         businessId: widget.business['id']?.toString(),
       );
+      _adLiveHost = Uri.parse(url).host;
       await _webView.loadRequest(Uri.parse(url));
     } on AdLiveApiException catch (error) {
       if (mounted) {

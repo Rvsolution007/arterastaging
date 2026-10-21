@@ -26,6 +26,17 @@ class AdLiveApiService {
 
   static Future<Map<String, dynamic>> bootstrap() => _get('/mobile/bootstrap');
 
+  static Future<Map<String, dynamic>> dashboard({String range = '7d'}) =>
+      _get('/mobile/dashboard?range=${Uri.encodeQueryComponent(range)}');
+
+  static Future<Map<String, dynamic>> campaigns() =>
+      _get('/mobile/campaigns?per_page=50');
+
+  static Future<Map<String, dynamic>> campaign(String id) =>
+      _get('/mobile/campaigns/${Uri.encodeComponent(id)}');
+
+  static Future<Map<String, dynamic>> billing() => _get('/billing');
+
   static Future<Map<String, dynamic>> metaConnectionStatus() =>
       _get('/mobile/meta/status');
 

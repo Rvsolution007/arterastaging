@@ -28,13 +28,14 @@ class AdLiveOneTapEntry {
         : null;
 
     final hasToken = await AdLiveTokenStore.read() != null;
-    if (selectedBusiness == null || !AdLiveScopedSelection.canOpen(
-      currentUserId: userId,
-      storedUserId: prefs.getString(_userKey),
-      selectedBusinessId: selectedId,
-      businessAvailable: selectedBusiness != null,
-      hasToken: hasToken,
-    )) {
+    if (selectedBusiness == null ||
+        !AdLiveScopedSelection.canOpen(
+          currentUserId: userId,
+          storedUserId: prefs.getString(_userKey),
+          selectedBusinessId: selectedId,
+          businessAvailable: selectedBusiness != null,
+          hasToken: hasToken,
+        )) {
       await _clearScope(prefs);
       if (context.mounted) {
         await showModalBottomSheet<void>(
@@ -44,7 +45,8 @@ class AdLiveOneTapEntry {
           builder: (_) => _AdLiveActivation(
             home: home,
             userId: userId,
-            onActivated: (business, bootstrap) => _showShell(context, business, bootstrap),
+            onActivated: (business, bootstrap) =>
+                _showShell(context, business, bootstrap),
           ),
         );
       }
@@ -160,6 +162,32 @@ class AdLiveScopedSelection {
   }
 }
 
+/// Resolves the active business again whenever the business list arrives.
+/// A late API response must not leave the activation button disabled.
+class AdLiveBusinessSelection {
+  const AdLiveBusinessSelection._();
+
+  static Map<String, dynamic>? resolve({
+    required List<Map<String, dynamic>> businesses,
+    required String currentBusinessId,
+    Map<String, dynamic>? selectedBusiness,
+  }) {
+    final selectedId = selectedBusiness?['id']?.toString();
+    for (final business in businesses) {
+      if (selectedId != null && business['id']?.toString() == selectedId) {
+        return business;
+      }
+    }
+    for (final business in businesses) {
+      if (currentBusinessId.isNotEmpty &&
+          business['id']?.toString() == currentBusinessId) {
+        return business;
+      }
+    }
+    return businesses.length == 1 ? businesses.first : null;
+  }
+}
+
 class AdLiveOneTapEntryCard extends StatelessWidget {
   const AdLiveOneTapEntryCard({super.key});
 
@@ -170,20 +198,42 @@ class AdLiveOneTapEntryCard extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(colors: [Color(0xFF047857), Color(0xFF10B981)]),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF047857), Color(0xFF10B981)],
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('ADLIVE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, letterSpacing: 1.1)),
+          const Text(
+            'ADLIVE',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.1,
+            ),
+          ),
           const SizedBox(height: 12),
-          const Text('Grow your business\nwith Meta ads', style: TextStyle(color: Colors.white, fontSize: 23, fontWeight: FontWeight.w800)),
+          const Text(
+            'Grow your business\nwith Meta ads',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 23,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(height: 8),
-          const Text('Launch, track and improve campaigns with AdLive.', style: TextStyle(color: Color(0xFFD1FAE5))),
+          const Text(
+            'Launch, track and improve campaigns with AdLive.',
+            style: TextStyle(color: Color(0xFFD1FAE5)),
+          ),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: () => AdLiveOneTapEntry.open(context),
-            style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF047857)),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: const Color(0xFF047857),
+            ),
             icon: const Icon(Icons.campaign_outlined),
             label: const Text('Open AdLive'),
           ),
@@ -209,7 +259,11 @@ class AdLiveOneTapEntryTile extends StatelessWidget {
 }
 
 class _AdLiveActivation extends StatefulWidget {
-  const _AdLiveActivation({required this.home, required this.userId, required this.onActivated});
+  const _AdLiveActivation({
+    required this.home,
+    required this.userId,
+    required this.onActivated,
+  });
 
   final HomeController home;
   final String userId;
@@ -222,72 +276,154 @@ class _AdLiveActivation extends StatefulWidget {
 class _AdLiveActivationState extends State<_AdLiveActivation> {
   Map<String, dynamic>? _selected;
   var _opening = false;
+  var _loadingBusinesses = false;
 
   @override
   void initState() {
     super.initState();
     final currentId = widget.home.businessId.value;
     _selected = AdLiveOneTapEntry._businessForId(widget.home, currentId);
+    if (widget.userId.isNotEmpty && widget.home.businesses.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _reloadBusinesses();
+      });
+    }
+  }
+
+  Future<void> _reloadBusinesses() async {
+    if (_loadingBusinesses) return;
+    setState(() => _loadingBusinesses = true);
+    try {
+      await widget.home.loadBusinessInfo();
+    } finally {
+      if (mounted) setState(() => _loadingBusinesses = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final businesses = widget.home.businesses
-        .whereType<Map>()
-        .map((business) => Map<String, dynamic>.from(business))
-        .toList();
     return SafeArea(
       top: false,
       child: Container(
         margin: const EdgeInsets.only(top: 80),
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('Choose a business for AdLive', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
-          const Text('Confirm once. Later taps open this business directly.', textAlign: TextAlign.center),
-          const SizedBox(height: 16),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 260),
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: businesses.length,
-              itemBuilder: (context, index) {
-                final business = businesses[index];
-                final selected = business['id']?.toString() == _selected?['id']?.toString();
-                return RadioListTile<String>(
-                  value: business['id']?.toString() ?? '',
-                  groupValue: _selected?['id']?.toString(),
-                  title: Text(business['name']?.toString() ?? 'Business'),
-                  selected: selected,
-                  onChanged: (_) => setState(() => _selected = business),
-                );
-              },
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Choose a business for AdLive',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
             ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: _opening || _selected == null || widget.userId.isEmpty ? null : _confirm,
-              child: _opening ? const CircularProgressIndicator() : const Text('Open AdLive'),
+            const SizedBox(height: 8),
+            const Text(
+              'Confirm once. Later taps open this business directly.',
+              textAlign: TextAlign.center,
             ),
-          ),
-        ]),
+            const SizedBox(height: 16),
+            Obx(() {
+              final businesses = widget.home.businesses
+                  .whereType<Map>()
+                  .map((business) => Map<String, dynamic>.from(business))
+                  .toList();
+              final selection = AdLiveBusinessSelection.resolve(
+                businesses: businesses,
+                currentBusinessId: widget.home.businessId.value,
+                selectedBusiness: _selected,
+              );
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (businesses.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: Column(
+                        children: [
+                          Text(
+                            _loadingBusinesses
+                                ? 'Loading your businesses...'
+                                : 'No business loaded. Check internet and retry.',
+                          ),
+                          if (_loadingBusinesses)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 12),
+                              child: CircularProgressIndicator(),
+                            )
+                          else
+                            TextButton(
+                              onPressed: _reloadBusinesses,
+                              child: const Text('Reload businesses'),
+                            ),
+                        ],
+                      ),
+                    )
+                  else
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 260),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: businesses.length,
+                        itemBuilder: (context, index) {
+                          final business = businesses[index];
+                          final selected =
+                              business['id']?.toString() ==
+                              selection?['id']?.toString();
+                          return RadioListTile<String>(
+                            value: business['id']?.toString() ?? '',
+                            groupValue: selection?['id']?.toString(),
+                            title: Text(
+                              business['name']?.toString() ?? 'Business',
+                            ),
+                            selected: selected,
+                            onChanged: (_) =>
+                                setState(() => _selected = business),
+                          );
+                        },
+                      ),
+                    ),
+                  if (widget.userId.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: Text('Sign in to Pixel to open AdLive.'),
+                    ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed:
+                          _opening || selection == null || widget.userId.isEmpty
+                          ? null
+                          : () => _confirm(selection),
+                      child: _opening
+                          ? const CircularProgressIndicator()
+                          : const Text('Open AdLive'),
+                    ),
+                  ),
+                ],
+              );
+            }),
+          ],
+        ),
       ),
     );
   }
 
-  Future<void> _confirm() async {
+  Future<void> _confirm(Map<String, dynamic> business) async {
     setState(() => _opening = true);
     try {
       final session = Get.isRegistered<AdLiveSessionController>()
           ? Get.find<AdLiveSessionController>()
           : Get.put(AdLiveSessionController());
-      final business = _selected!;
       final bootstrap = await session.openForBusiness(business);
       final prefs = await SharedPreferences.getInstance();
-      await AdLiveOneTapEntry._saveScope(prefs, widget.userId, business['id']?.toString() ?? '');
+      await AdLiveOneTapEntry._saveScope(
+        prefs,
+        widget.userId,
+        business['id']?.toString() ?? '',
+      );
       if (mounted) Navigator.of(context).pop();
       widget.onActivated(business, bootstrap);
     } on AdLiveApiException catch (error) {

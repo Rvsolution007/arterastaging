@@ -52,6 +52,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
   bool _working = false;
   bool _catalogueLoading = false;
   bool _quoteRefreshing = false;
+  bool _walletRefreshing = false;
   bool _overrideAge = false;
   bool _overrideGender = false;
   bool _overrideLanguages = false;
@@ -71,6 +72,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
   int _creativeQuantity = 1;
   String? _mediaPath;
   String? _whatsAppPhoneId;
+  double? _walletAvailable;
   Map<String, dynamic> _bootstrap = {};
   Map<String, dynamic> _quote = {};
   Map<String, dynamic> _checkout = {};
@@ -135,6 +137,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
       _error = null;
     });
     try {
+      unawaited(_refreshWallet());
       final data = await AdLiveApiService.campaignWorkflowBootstrap();
       final defaults = _flowMap(data['business_defaults']);
       final packages = _flowMaps(data['packages']);
@@ -165,6 +168,21 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
       if (mounted) setState(() => _error = error.message);
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _refreshWallet() async {
+    if (mounted) setState(() => _walletRefreshing = true);
+    try {
+      final billing = await AdLiveApiService.billing();
+      final wallet = _flowMap(billing['wallet']);
+      if (!mounted) return;
+      setState(() => _walletAvailable = _flowAmount(wallet['available']));
+    } on AdLiveApiException {
+      // Campaign creation remains usable when the balance summary is
+      // temporarily unavailable. A tap on the header balance retries it.
+    } finally {
+      if (mounted) setState(() => _walletRefreshing = false);
     }
   }
 
@@ -620,8 +638,14 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
 
   Future<void> _afterPaid() async {
     if ((_campaignId ?? '').isEmpty) return;
-    final creative = await AdLiveApiService.campaignCreative(_campaignId!);
-    final meta = await AdLiveApiService.campaignMetaSetup(_campaignId!);
+    final walletRefresh = _refreshWallet();
+    final results = await Future.wait([
+      AdLiveApiService.campaignCreative(_campaignId!),
+      AdLiveApiService.campaignMetaSetup(_campaignId!),
+    ]);
+    await walletRefresh;
+    final creative = results[0];
+    final meta = results[1];
     if (!mounted) return;
     setState(() {
       _creative = creative;
@@ -857,8 +881,10 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
     backgroundColor: AdLiveDesign.canvas,
     appBar: AppBar(
       title: const Text('New campaign'),
+      titleSpacing: 0,
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.white,
+      actions: [_walletHeader(), const SizedBox(width: 12)],
     ),
     body: _loading
         ? const Center(
@@ -884,6 +910,80 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
               ),
             ],
           ),
+  );
+
+  Widget _walletHeader() => Tooltip(
+    message: 'Available AdLive wallet balance',
+    child: InkWell(
+      onTap: _walletRefreshing ? null : _refreshWallet,
+      borderRadius: BorderRadius.circular(13),
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 104, maxWidth: 132),
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: AdLiveDesign.mint,
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: const Color(0xFFBDEBDA)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.account_balance_wallet_outlined,
+              size: 17,
+              color: AdLiveDesign.green,
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Available wallet',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AdLiveDesign.body(
+                      size: 8.5,
+                      color: AdLiveDesign.muted,
+                    ),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          _walletAvailable == null
+                              ? '—'
+                              : _money(_walletAvailable!),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AdLiveDesign.heading(
+                            12,
+                          ).copyWith(color: AdLiveDesign.deepGreen),
+                        ),
+                      ),
+                      if (_walletRefreshing) ...[
+                        const SizedBox(width: 5),
+                        const SizedBox(
+                          width: 9,
+                          height: 9,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 1.4,
+                            color: AdLiveDesign.green,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
   );
 
   Widget _steps() => LayoutBuilder(

@@ -51,11 +51,13 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
   bool _loading = true;
   bool _working = false;
   bool _catalogueLoading = false;
+  bool _quoteRefreshing = false;
   bool _overrideAge = false;
   bool _overrideGender = false;
   bool _overrideLanguages = false;
   int _step = 0;
   int _catalogueRevision = 0;
+  int _quoteRevision = 0;
   int _ageMin = 18;
   int _ageMax = 65;
   String? _error;
@@ -71,6 +73,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
   String? _whatsAppPhoneId;
   Map<String, dynamic> _bootstrap = {};
   Map<String, dynamic> _quote = {};
+  Map<String, dynamic> _checkout = {};
   Map<String, dynamic> _audience = {};
   Map<String, dynamic> _creative = {};
   Map<String, dynamic> _meta = {};
@@ -88,6 +91,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
   List<Map<String, dynamic>> _locations = [];
   Map<String, dynamic>? _selectedLocation;
   Timer? _locationDebounce;
+  Timer? _quoteDebounce;
 
   @override
   void initState() {
@@ -101,6 +105,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
   void dispose() {
     _razorpay.clear();
     _locationDebounce?.cancel();
+    _quoteDebounce?.cancel();
     for (final controller in [
       _campaignName,
       _businessName,
@@ -492,6 +497,43 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
     }
   }
 
+  Future<void> _refreshQuote() async {
+    if ((_draftId ?? '').isEmpty) return;
+    final revision = ++_quoteRevision;
+    setState(() => _quoteRefreshing = true);
+    try {
+      final data = await AdLiveApiService.saveCampaignDraft(
+        draftId: _draftId,
+        currentStep: 2,
+        payload: _payload(),
+        finalize: true,
+      );
+      if (!mounted || revision != _quoteRevision) return;
+      setState(() {
+        _draftId = _flowText(data['id']);
+        _quote = _flowMap(data['quote']);
+        _checkout = {};
+      });
+    } on AdLiveApiException catch (error) {
+      if (mounted && revision == _quoteRevision) {
+        _show(error.message, error: true);
+      }
+    } finally {
+      if (mounted && revision == _quoteRevision) {
+        setState(() => _quoteRefreshing = false);
+      }
+    }
+  }
+
+  void _scheduleQuoteRefresh() {
+    _quoteDebounce?.cancel();
+    setState(() => _quoteRefreshing = true);
+    _quoteDebounce = Timer(
+      const Duration(milliseconds: 300),
+      () => unawaited(_refreshQuote()),
+    );
+  }
+
   Future<void> _pay() async {
     setState(() => _working = true);
     try {
@@ -506,15 +548,27 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
         _draftId!,
       );
       _campaignId = _flowText(checkout['campaign_id']);
-      if (checkout['paid'] == true ||
-          _flowAmount(checkout['amount_due']) <= 0) {
+      if (mounted) {
+        setState(() {
+          _checkout = checkout;
+          _quote = _flowMap(checkout['quote']);
+        });
+      }
+      if (checkout['paid'] == true) {
         await _afterPaid();
         return;
+      }
+      final amountDue = _flowAmount(checkout['amount_due']);
+      if (amountDue <= 0) {
+        throw const AdLiveApiException(
+          'Payment is not confirmed yet. Refresh the estimate and try again.',
+        );
       }
       final order = await AdLiveApiService.createCampaignPaymentOrder(
         _campaignId!,
       );
       if (order['settled'] == true) {
+        _show('₹${amountDue.toStringAsFixed(2)} paid from your AdLive wallet.');
         await _afterPaid();
         return;
       }
@@ -525,6 +579,10 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
           'Payment gateway is not ready. Please try again.',
         );
       }
+      final shortfall = _flowAmount(order['amount']) / 100;
+      _show(
+        'Wallet balance is short by ₹${shortfall.toStringAsFixed(2)}. Complete the secure top-up to fund this campaign.',
+      );
       _razorpay.open({
         'key': key,
         'amount': order['amount'],
@@ -1090,9 +1148,23 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
 
   Widget _payment() {
     final services = _flowMaps(_bootstrap['creative_services']);
-    final total = _flowAmount(
-      _quote['total'] ?? _quote['service_charge'] ?? _quote['payable'],
+    final duration = (_quote['duration_days'] as num?)?.toInt();
+    final mediaSpend = _flowAmount(_quote['meta_ad_spend']);
+    final serviceCharge = _flowAmount(
+      _quote['adlive_service_charge'] ??
+          _quote['service_fee_payable'] ??
+          _quote['platform_fee'],
     );
+    final creativeCharge = _flowAmount(_quote['creative_charge']);
+    final tax = _flowAmount(_quote['gst']);
+    final discount = _flowAmount(
+      _quote['coupon_discount'] ?? _quote['coupon_discount_amount'],
+    );
+    final payableNow = _flowAmount(_quote['payable_now'] ?? _quote['total']);
+    final wallet = _flowMap(_checkout['wallet']);
+    final walletAvailable = _flowAmount(wallet['available']);
+    final mediaPending = _quote['meta_ad_spend_pending'] == true;
+    final mediaWalletPending = _quote['meta_ad_spend_wallet_pending'] == true;
     return _flowPage([
       _pageIntro(
         'Creative & payment',
@@ -1104,24 +1176,28 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
           _radioChoice(
             'Upload my creative',
             _creativeMode == 'self_upload',
-            () => setState(() => _creativeMode = 'self_upload'),
+            () {
+              setState(() => _creativeMode = 'self_upload');
+              _scheduleQuoteRefresh();
+            },
           ),
           _radioChoice(
             'AdLive designs it',
             _creativeMode == 'adlive_design',
-            () => setState(() => _creativeMode = 'adlive_design'),
+            () {
+              setState(() => _creativeMode = 'adlive_design');
+              _scheduleQuoteRefresh();
+            },
           ),
           compactTwoColumn: true,
         ),
         if (_creativeMode == 'adlive_design') ...[
           const SizedBox(height: 10),
           _responsivePair(
-            _dropdown(
-              'Creative type',
-              services,
-              _serviceCode,
-              (value) => setState(() => _serviceCode = value),
-            ),
+            _dropdown('Creative type', services, _serviceCode, (value) {
+              setState(() => _serviceCode = value);
+              _scheduleQuoteRefresh();
+            }),
             DropdownButtonFormField<int>(
               key: ValueKey(_creativeQuantity),
               initialValue: _creativeQuantity,
@@ -1138,8 +1214,10 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
                   child: Text('${i + 1} creative${i == 0 ? '' : 's'}'),
                 ),
               ),
-              onChanged: (value) =>
-                  setState(() => _creativeQuantity = value ?? 1),
+              onChanged: (value) {
+                setState(() => _creativeQuantity = value ?? 1);
+                _scheduleQuoteRefresh();
+              },
             ),
             compactTwoColumn: true,
           ),
@@ -1152,6 +1230,8 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
           _campaignName.text.isEmpty ? 'Untitled' : _campaignName.text,
         ),
         _summaryRow('Daily media budget', '₹${_budget.text.trim()}'),
+        if (duration != null)
+          _summaryRow('Campaign duration', '$duration days'),
         _summaryRow(
           'Creative',
           _creativeMode == 'self_upload'
@@ -1159,16 +1239,39 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
               : 'AdLive design × $_creativeQuantity',
         ),
         const Divider(height: 18),
-        _summaryRow(
-          'Estimated service payment',
-          total > 0
-              ? '₹${total.toStringAsFixed(2)}'
-              : 'Calculated securely at checkout',
-          strong: true,
-        ),
+        _summaryRow('Estimated Meta ad spend', _money(mediaSpend)),
+        _summaryRow('AdLive service charge', _money(serviceCharge)),
+        _summaryRow('Creative services', _money(creativeCharge)),
+        if (tax > 0) _summaryRow('Tax / other charges', _money(tax)),
+        if (discount > 0) _summaryRow('Discount', '-${_money(discount)}'),
+        if (wallet.isNotEmpty)
+          _summaryRow('Available AdLive wallet', _money(walletAvailable)),
+        const Divider(height: 18),
+        _summaryRow('Payable now', _money(payableNow), strong: true),
+        if (_quoteRefreshing)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: LinearProgressIndicator(
+              minHeight: 2,
+              color: AdLiveDesign.green,
+              backgroundColor: AdLiveDesign.mint,
+            ),
+          ),
+        if (mediaPending)
+          _paymentNote(
+            'Meta ad spend is paid directly in your selected client-owned Meta ad account.',
+          )
+        else if (mediaWalletPending)
+          _paymentNote(
+            'Meta ad spend is funded separately in your AdLive campaign balance.',
+          )
+        else
+          _paymentNote(
+            'Payable now includes the estimated Meta spend shown above.',
+          ),
         const SizedBox(height: 5),
         Text(
-          'Wallet settlement and payment verification happen on AdLive before this campaign opens the next step.',
+          'AdLive uses this business wallet first. Razorpay opens only for the shortfall. Step 3 unlocks after server-confirmed wallet settlement.',
           style: AdLiveDesign.body(size: 11),
         ),
       ]),
@@ -1176,7 +1279,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
       _mainButton(
         'Continue to secure payment',
         Icons.lock_outline_rounded,
-        _working ? null : _pay,
+        _working || _quoteRefreshing ? null : _pay,
       ),
     ]);
   }
@@ -2427,6 +2530,35 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
       ),
     ),
   );
+  String _money(double amount) => '₹${amount.toStringAsFixed(2)}';
+
+  Widget _paymentNote(String text) => Container(
+    margin: const EdgeInsets.only(bottom: 7),
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+    decoration: BoxDecoration(
+      color: const Color(0xFFF7FBF9),
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: const Color(0xFFD5EAE0)),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(
+          Icons.account_balance_wallet_outlined,
+          size: 15,
+          color: AdLiveDesign.green,
+        ),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(
+            text,
+            style: AdLiveDesign.body(size: 10.5, color: AdLiveDesign.deepGreen),
+          ),
+        ),
+      ],
+    ),
+  );
+
   Widget _summaryRow(String label, String value, {bool strong = false}) =>
       Padding(
         padding: const EdgeInsets.only(bottom: 9),

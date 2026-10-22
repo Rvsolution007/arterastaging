@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../services/adlive_api_service.dart';
+import 'adlive_campaign_flow_screen.dart';
+import 'adlive_connections_screen.dart';
 import 'adlive_design.dart';
-import 'adlive_web_app_screen.dart';
 
 Map<String, dynamic> _map(dynamic value) =>
     value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
@@ -40,8 +41,8 @@ String _date(dynamic value) {
   return '${parsed.day} ${months[parsed.month - 1]} ${parsed.year}';
 }
 
-/// Native read surfaces use the AdLive-scoped token. Payment, campaign
-/// creation and Meta mutations keep their established server workflow.
+/// Native AdLive workspace. Every mutating action is sent through the
+/// business-scoped AdLive API, which retains payment, approval and Meta gates.
 class AdLiveNativeScreen extends StatefulWidget {
   const AdLiveNativeScreen({super.key, required this.business, this.bootstrap});
 
@@ -107,12 +108,9 @@ class _AdLiveNativeScreenState extends State<AdLiveNativeScreen> {
     });
   }
 
-  Future<void> _openWeb({String? path}) async {
+  Future<void> _openCampaignFlow() async {
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) =>
-            AdLiveWebAppScreen(business: widget.business, initialPath: path),
-      ),
+      MaterialPageRoute<void>(builder: (_) => const AdLiveCampaignFlowScreen()),
     );
     if (mounted) _refresh();
   }
@@ -367,8 +365,7 @@ class _AdLiveNativeScreenState extends State<AdLiveNativeScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    onPressed: () =>
-                        _openWeb(path: '/start-campaign?mobile_app=1'),
+                    onPressed: _openCampaignFlow,
                     icon: const Icon(Icons.add_rounded, size: 19),
                     label: const Text('Create campaign'),
                     style: FilledButton.styleFrom(
@@ -490,7 +487,7 @@ class _AdLiveNativeScreenState extends State<AdLiveNativeScreen> {
               ),
               IconButton.filled(
                 tooltip: 'New campaign',
-                onPressed: () => _openWeb(path: '/start-campaign?mobile_app=1'),
+                onPressed: _openCampaignFlow,
                 style: IconButton.styleFrom(
                   backgroundColor: AdLiveDesign.green,
                 ),
@@ -675,9 +672,9 @@ class _AdLiveNativeScreenState extends State<AdLiveNativeScreen> {
           SizedBox(
             width: double.infinity,
             child: _primaryButton(
-              'Manage payments',
-              Icons.open_in_new_rounded,
-              () => _openWeb(path: '/billing'),
+              'Create a campaign',
+              Icons.add_rounded,
+              _openCampaignFlow,
             ),
           ),
           const SizedBox(height: 23),
@@ -754,7 +751,11 @@ class _AdLiveNativeScreenState extends State<AdLiveNativeScreen> {
         Icons.tune_rounded,
         'Manage connections',
         'Facebook, Instagram & WhatsApp',
-        () => _openWeb(path: '/facebook'),
+        () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const AdLiveConnectionsScreen(),
+          ),
+        ),
       ),
       _menuItem(
         Icons.insights_rounded,
@@ -768,19 +769,17 @@ class _AdLiveNativeScreenState extends State<AdLiveNativeScreen> {
         Icons.receipt_long_outlined,
         'Invoices',
         'Payments and documents',
-        () => _openWeb(path: '/billing'),
+        () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const _InvoicesScreen()),
+        ),
       ),
       _menuItem(
         Icons.account_circle_outlined,
         'Profile',
         'Your AdLive account',
-        () => _openWeb(path: '/profile'),
-      ),
-      _menuItem(
-        Icons.settings_outlined,
-        'All AdLive tools',
-        'Open the complete workspace',
-        () => _openWeb(),
+        () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute<void>(builder: (_) => const _ProfileScreen())),
       ),
       const SizedBox(height: 16),
       _surface(
@@ -1188,7 +1187,6 @@ class _CampaignDetailScreenState extends State<_CampaignDetailScreen> {
         final budget = _map(campaign['budget']);
         final performance = _map(campaign['performance']);
         final totals = _map(performance['totals']);
-        final id = Uri.encodeComponent(widget.id);
         return ListView(
           padding: const EdgeInsets.all(18),
           children: [
@@ -1221,24 +1219,274 @@ class _CampaignDetailScreenState extends State<_CampaignDetailScreen> {
               ),
             ),
             const SizedBox(height: 15),
-            SizedBox(
-              width: double.infinity,
-              child: _primaryButton('Edit in AdLive', Icons.edit_outlined, () {
-                Navigator.of(context)
-                    .push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => AdLiveWebAppScreen(
-                          business: widget.business,
-                          initialPath: '/campaigns/$id',
-                        ),
-                      ),
-                    )
-                    .then((_) => _reload());
-              }),
+            _surface(
+              color: AdLiveDesign.mint,
+              child: Text(
+                'Campaign changes remain subject to AdLive review. Create a new campaign from the native Campaigns tab when you need a new plan.',
+                style: AdLiveDesign.body(color: AdLiveDesign.deepGreen),
+              ),
             ),
           ],
         );
       },
+    ),
+  );
+}
+
+class _InvoicesScreen extends StatefulWidget {
+  const _InvoicesScreen();
+
+  @override
+  State<_InvoicesScreen> createState() => _InvoicesScreenState();
+}
+
+class _InvoicesScreenState extends State<_InvoicesScreen> {
+  late Future<Map<String, dynamic>> _future = AdLiveApiService.billing();
+
+  void _reload() => setState(() => _future = AdLiveApiService.billing());
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: AdLiveDesign.canvas,
+    appBar: AppBar(
+      title: const Text('Invoices & payments'),
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
+    ),
+    body: FutureBuilder<Map<String, dynamic>>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData && !snapshot.hasError) {
+          return const Center(
+            child: CircularProgressIndicator(color: AdLiveDesign.green),
+          );
+        }
+        if (snapshot.hasError) {
+          return _errorState('Invoice history could not load.', _reload);
+        }
+        final history = _maps(snapshot.data?['wallet_history']);
+        final payments = _maps(snapshot.data?['payments']);
+        final entries = [...payments, ...history].take(50).toList();
+        return RefreshIndicator(
+          color: AdLiveDesign.green,
+          onRefresh: () async => _reload(),
+          child: ListView(
+            padding: const EdgeInsets.all(18),
+            children: [
+              Text('Payment history', style: AdLiveDesign.heading(24)),
+              const SizedBox(height: 5),
+              Text(
+                'AdLive billing remains separate from Pixel.',
+                style: AdLiveDesign.body(),
+              ),
+              const SizedBox(height: 16),
+              if (entries.isEmpty)
+                _emptyCard('No payment records are available yet.'),
+              ...entries.map(
+                (entry) => Padding(
+                  padding: const EdgeInsets.only(bottom: 9),
+                  child: _surface(
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: AdLiveDesign.mint,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.receipt_long_outlined,
+                            color: AdLiveDesign.deepGreen,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                entry['campaign']?.toString() ??
+                                    entry['description']?.toString() ??
+                                    entry['event']?.toString() ??
+                                    'AdLive payment',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AdLiveDesign.heading(13),
+                              ),
+                              Text(
+                                _date(entry['created_at']),
+                                style: AdLiveDesign.body(size: 11),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          _money(
+                            entry['amount'] ??
+                                (_amount(entry['amount_minor']) / 100),
+                          ),
+                          style: AdLiveDesign.heading(13),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+}
+
+class _ProfileScreen extends StatefulWidget {
+  const _ProfileScreen();
+
+  @override
+  State<_ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<_ProfileScreen> {
+  final _name = TextEditingController();
+  final _email = TextEditingController();
+  final _phone = TextEditingController();
+  bool _loading = true;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _email.dispose();
+    _phone.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final response = await AdLiveApiService.profile();
+      final user = _map(response['data']).isEmpty
+          ? _map(response['user'])
+          : _map(response['data']);
+      if (!mounted) return;
+      setState(() {
+        _name.text = user['name']?.toString() ?? '';
+        _email.text = user['email']?.toString() ?? '';
+        _phone.text = user['phone']?.toString() ?? '';
+      });
+    } on AdLiveApiException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      await AdLiveApiService.updateProfile({
+        'name': _name.text.trim(),
+        'email': _email.text.trim(),
+        'phone': _phone.text.trim(),
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile saved.'),
+            backgroundColor: AdLiveDesign.deepGreen,
+          ),
+        );
+      }
+    } on AdLiveApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.message), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: AdLiveDesign.canvas,
+    appBar: AppBar(
+      title: const Text('Profile'),
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
+    ),
+    body: _loading
+        ? const Center(
+            child: CircularProgressIndicator(color: AdLiveDesign.green),
+          )
+        : _error != null
+        ? _errorState(_error!, _load)
+        : ListView(
+            padding: const EdgeInsets.all(18),
+            children: [
+              Text('Your AdLive profile', style: AdLiveDesign.heading(24)),
+              const SizedBox(height: 5),
+              Text(
+                'Profile changes synchronize with your Pixel account.',
+                style: AdLiveDesign.body(),
+              ),
+              const SizedBox(height: 18),
+              _surface(
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _name,
+                      decoration: _profileInput('Full name'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _email,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: _profileInput('Email address'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _phone,
+                      keyboardType: TextInputType.phone,
+                      decoration: _profileInput('Phone (optional)'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 17),
+              _primaryButton(
+                _saving ? 'Saving…' : 'Save profile',
+                Icons.save_outlined,
+                _saving ? () {} : _save,
+              ),
+            ],
+          ),
+  );
+
+  InputDecoration _profileInput(String label) => InputDecoration(
+    labelText: label,
+    filled: true,
+    fillColor: Colors.white,
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: AdLiveDesign.line),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: AdLiveDesign.green),
     ),
   );
 }

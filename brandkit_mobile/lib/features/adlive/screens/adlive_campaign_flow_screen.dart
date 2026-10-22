@@ -50,7 +50,9 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
 
   bool _loading = true;
   bool _working = false;
+  bool _catalogueLoading = false;
   int _step = 0;
+  int _catalogueRevision = 0;
   String? _error;
   String? _draftId;
   String? _campaignId;
@@ -58,8 +60,6 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
   String _creativeMode = 'self_upload';
   String _format = 'single_image';
   String? _packageId;
-  String? _customerType;
-  String? _industry;
   String? _serviceCode;
   int _creativeQuantity = 1;
   String? _mediaPath;
@@ -73,6 +73,10 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
   final Map<String, TextEditingController> _requirementControllers = {};
   final Map<String, List<String>> _requirementFiles = {};
   final List<_CarouselCard> _carouselCards = [_CarouselCard(), _CarouselCard()];
+  final Set<String> _customerTypes = {};
+  final Set<String> _buyingRoles = {};
+  final Set<String> _selectedIndustries = {};
+  List<Map<String, dynamic>> _roles = [];
   List<Map<String, dynamic>> _industries = [];
   List<Map<String, dynamic>> _locations = [];
   Map<String, dynamic>? _selectedLocation;
@@ -152,37 +156,85 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
     }
   }
 
-  Future<void> _loadIndustries(String? type) async {
+  Future<void> _changeCustomerTypes(Set<String> selected) async {
+    final revision = ++_catalogueRevision;
     setState(() {
-      _customerType = type;
-      _industry = null;
+      _customerTypes
+        ..clear()
+        ..addAll(selected);
+      _buyingRoles.clear();
+      _selectedIndustries.clear();
+      _roles = [];
       _industries = [];
+      _audience = {};
+      _catalogueLoading = selected.isNotEmpty;
     });
-    if (type == null || type.isEmpty) return;
+    if (selected.isEmpty) return;
+    try {
+      final roleData = await AdLiveApiService.campaignCatalogueOptions(
+        kind: 'role',
+        catalogue: _catalogue(),
+      );
+      if (!mounted || revision != _catalogueRevision) return;
+      setState(() => _roles = _flowMaps(roleData['options']));
+      final industryData = await AdLiveApiService.campaignCatalogueOptions(
+        kind: 'industry',
+        catalogue: _catalogue(),
+      );
+      if (!mounted || revision != _catalogueRevision) return;
+      setState(() => _industries = _flowMaps(industryData['options']));
+    } on AdLiveApiException catch (error) {
+      _show(error.message, error: true);
+    } finally {
+      if (mounted && revision == _catalogueRevision) {
+        setState(() => _catalogueLoading = false);
+      }
+    }
+  }
+
+  Future<void> _changeBuyingRoles(Set<String> selected) async {
+    final revision = ++_catalogueRevision;
+    setState(() {
+      _buyingRoles
+        ..clear()
+        ..addAll(selected);
+      _selectedIndustries.clear();
+      _industries = [];
+      _audience = {};
+      _catalogueLoading = _customerTypes.isNotEmpty;
+    });
+    if (_customerTypes.isEmpty) return;
     try {
       final data = await AdLiveApiService.campaignCatalogueOptions(
         kind: 'industry',
         catalogue: _catalogue(),
       );
-      if (mounted) setState(() => _industries = _flowMaps(data['options']));
+      if (!mounted || revision != _catalogueRevision) return;
+      setState(() => _industries = _flowMaps(data['options']));
     } on AdLiveApiException catch (error) {
       _show(error.message, error: true);
+    } finally {
+      if (mounted && revision == _catalogueRevision) {
+        setState(() => _catalogueLoading = false);
+      }
     }
   }
+
+  List<String> _sortedSelection(Set<String> values) => values.toList()..sort();
 
   Map<String, dynamic> _catalogue() => {
     'schema_version': 1,
     'selections': {
-      'customer_type': _customerType == null ? <String>[] : [_customerType],
-      'industry': _industry == null ? <String>[] : [_industry],
-      'role': <String>[],
+      'customer_type': _sortedSelection(_customerTypes),
+      'role': _sortedSelection(_buyingRoles),
+      'industry': _sortedSelection(_selectedIndustries),
       'subcategory': <String>[],
       'product': <String>[],
     },
     'states': {
-      'customer_type': _customerType == null ? 'unselected' : 'selected',
-      'industry': _industry == null ? 'unselected' : 'selected',
-      'role': 'skipped',
+      'customer_type': _customerTypes.isEmpty ? 'unselected' : 'selected',
+      'industry': _selectedIndustries.isEmpty ? 'unselected' : 'selected',
+      'role': _buyingRoles.isEmpty ? 'skipped' : 'selected',
       'subcategory': 'skipped',
       'product': 'skipped',
     },
@@ -190,6 +242,9 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
 
   Map<String, dynamic> _payload() {
     final selected = _selectedLocation;
+    final customerTypes = _sortedSelection(_customerTypes);
+    final buyingRoles = _sortedSelection(_buyingRoles);
+    final industries = _sortedSelection(_selectedIndustries);
     final geo = <String, dynamic>{};
     if (selected != null) {
       final type = _flowText(selected['type']).toLowerCase();
@@ -238,17 +293,20 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
       },
       'goal': _goal,
       'audience': {
-        'target_customer': _customerType ?? '',
+        'target_customer': customerTypes.length == 1
+            ? customerTypes.first
+            : customerTypes,
         'locations': label,
-        'industry': _industry ?? '',
-        'buyer_type': _customerType ?? '',
+        'industry': industries.length == 1 ? industries.first : industries,
+        'buyer_type': customerTypes,
         'smart_profile': {
           'business_name': _businessName.text.trim(),
           'product_name': _product.text.trim(),
           'product_details': _details.text.trim(),
           'business_model': 'b2b',
-          'buyer_type': _customerType == null ? <String>[] : [_customerType],
-          'target_industry': _industry == null ? <String>[] : [_industry],
+          'buyer_type': customerTypes,
+          'decision_makers': buyingRoles,
+          'target_industry': industries,
           'catalogue': _catalogue(),
         },
         'admin_match': _audience.isEmpty
@@ -833,24 +891,57 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
           _field(_website, 'Website URL'),
         ],
         const SizedBox(height: 10),
-        _dropdown(
-          'Customer type',
-          customerTypes,
-          _customerType,
-          _loadIndustries,
+        _multiSelectField(
+          label: 'Customer type',
+          options: customerTypes,
+          selected: _customerTypes,
+          placeholder: 'Select customer types',
+          enabled: !_catalogueLoading,
+          onChanged: _changeCustomerTypes,
         ),
         const SizedBox(height: 10),
-        _dropdown(
-          'Industry',
-          _industries,
-          _industry,
-          (value) => setState(() => _industry = value),
+        _multiSelectField(
+          label: 'Approved buying roles',
+          options: _roles,
+          selected: _buyingRoles,
+          placeholder: _customerTypes.isEmpty
+              ? 'Select customer type first'
+              : 'Select roles (optional)',
+          enabled: _customerTypes.isNotEmpty && !_catalogueLoading,
+          onChanged: _changeBuyingRoles,
         ),
+        const SizedBox(height: 10),
+        _multiSelectField(
+          label: 'Industry',
+          options: _industries,
+          selected: _selectedIndustries,
+          placeholder: _customerTypes.isEmpty
+              ? 'Select customer type first'
+              : 'Select industries',
+          enabled: _customerTypes.isNotEmpty && !_catalogueLoading,
+          onChanged: (selected) async {
+            setState(() {
+              _selectedIndustries
+                ..clear()
+                ..addAll(selected);
+              _audience = {};
+            });
+          },
+        ),
+        if (_catalogueLoading)
+          const Padding(
+            padding: EdgeInsets.only(top: 9),
+            child: LinearProgressIndicator(
+              minHeight: 2,
+              color: AdLiveDesign.green,
+              backgroundColor: AdLiveDesign.mint,
+            ),
+          ),
         const SizedBox(height: 10),
         _outlineButton(
           'Generate Smart Audience',
           Icons.auto_awesome_rounded,
-          _working ? null : _previewAudience,
+          _working || _catalogueLoading ? null : _previewAudience,
         ),
         if (_audience.isNotEmpty)
           Padding(
@@ -876,29 +967,25 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
         if (_selectedLocation != null)
           Padding(
             padding: const EdgeInsets.only(top: 9),
-            child: Chip(
+            child: InputChip(
               label: Text(_flowText(_selectedLocation!['name'])),
               onDeleted: () => setState(() => _selectedLocation = null),
               backgroundColor: AdLiveDesign.mint,
+              side: const BorderSide(color: Color(0xFFBDE7D3)),
+              deleteIconColor: AdLiveDesign.deepGreen,
+              labelStyle: AdLiveDesign.body(
+                size: 11,
+                color: AdLiveDesign.deepGreen,
+              ).copyWith(fontWeight: FontWeight.w700),
             ),
           ),
-        ..._locations
-            .take(5)
-            .map(
-              (place) => ListTile(
-                dense: true,
-                visualDensity: VisualDensity.compact,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 2),
-                title: Text(_flowText(place['name'])),
-                subtitle: Text(_flowText(place['type'])),
-                trailing: const Icon(Icons.add_circle_outline_rounded),
-                onTap: () => setState(() {
-                  _selectedLocation = place;
-                  _locations = [];
-                  _locationQuery.clear();
-                }),
-              ),
+        if (_locations.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Column(
+              children: _locations.take(5).map(_locationResult).toList(),
             ),
+          ),
         const SizedBox(height: 6),
         Text(
           'Age, gender and language stay on the approved Smart Audience unless changed during review.',
@@ -1409,6 +1496,349 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
           ],
         );
       },
+    );
+  }
+
+  String _optionId(Map<String, dynamic> option) =>
+      _flowText(option['id'] ?? option['value'] ?? option['key']);
+
+  String _optionLabel(Map<String, dynamic> option) => _flowText(
+    option['label'] ??
+        option['name'] ??
+        option['title'] ??
+        option['id'] ??
+        option['value'],
+  );
+
+  Widget _multiSelectField({
+    required String label,
+    required List<Map<String, dynamic>> options,
+    required Set<String> selected,
+    required String placeholder,
+    required bool enabled,
+    required Future<void> Function(Set<String>) onChanged,
+  }) {
+    final labels = options
+        .where((option) => selected.contains(_optionId(option)))
+        .map(_optionLabel)
+        .where((value) => value.isNotEmpty)
+        .toList();
+    final canOpen = enabled && options.isNotEmpty;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: canOpen
+            ? () async {
+                final result = await _showMultiSelectSheet(
+                  title: label,
+                  options: options,
+                  selected: selected,
+                );
+                if (result != null && mounted) await onChanged(result);
+              }
+            : null,
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.fromLTRB(12, 7, 10, 7),
+          decoration: BoxDecoration(
+            color: canOpen ? Colors.white : const Color(0xFFF7F9F8),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AdLiveDesign.line),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: AdLiveDesign.body(
+                        size: 10.5,
+                        color: canOpen
+                            ? AdLiveDesign.deepGreen
+                            : AdLiveDesign.muted,
+                      ).copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      labels.isEmpty
+                          ? placeholder
+                          : '${labels.length} selected · ${labels.join(', ')}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AdLiveDesign.body(
+                        size: 12,
+                        color: labels.isEmpty
+                            ? AdLiveDesign.muted
+                            : AdLiveDesign.ink,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                canOpen
+                    ? Icons.keyboard_arrow_down_rounded
+                    : Icons.lock_outline_rounded,
+                size: 20,
+                color: AdLiveDesign.muted,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<Set<String>?> _showMultiSelectSheet({
+    required String title,
+    required List<Map<String, dynamic>> options,
+    required Set<String> selected,
+  }) async {
+    final search = TextEditingController();
+    final pending = Set<String>.from(selected);
+    var query = '';
+    final result = await showModalBottomSheet<Set<String>>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          final filtered = options.where((option) {
+            if (query.isEmpty) return true;
+            return _optionLabel(option).toLowerCase().contains(query);
+          }).toList();
+          return FractionallySizedBox(
+            heightFactor: .72,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AdLiveDesign.line,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(title, style: AdLiveDesign.heading(18)),
+                      ),
+                      if (pending.isNotEmpty)
+                        TextButton(
+                          onPressed: () => setSheetState(pending.clear),
+                          child: const Text('Clear'),
+                        ),
+                    ],
+                  ),
+                  Text(
+                    'Choose up to 8 approved options.',
+                    style: AdLiveDesign.body(size: 11),
+                  ),
+                  if (options.length > 7) ...[
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: search,
+                      autofocus: false,
+                      style: AdLiveDesign.body(
+                        size: 12,
+                        color: AdLiveDesign.ink,
+                      ),
+                      decoration: _input(
+                        'Search approved options',
+                        icon: Icons.search_rounded,
+                      ),
+                      onChanged: (value) => setSheetState(
+                        () => query = value.trim().toLowerCase(),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, _) =>
+                          const Divider(height: 1, color: AdLiveDesign.line),
+                      itemBuilder: (context, index) {
+                        final option = filtered[index];
+                        final id = _optionId(option);
+                        final checked = pending.contains(id);
+                        return CheckboxListTile(
+                          value: checked,
+                          dense: true,
+                          visualDensity: VisualDensity.compact,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 2,
+                          ),
+                          activeColor: AdLiveDesign.green,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          title: Text(
+                            _optionLabel(option),
+                            style: AdLiveDesign.body(
+                              size: 12,
+                              color: AdLiveDesign.ink,
+                            ).copyWith(fontWeight: FontWeight.w600),
+                          ),
+                          onChanged: (value) {
+                            if (value == true && pending.length >= 8) {
+                              ScaffoldMessenger.of(sheetContext).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'You can select up to 8 options.',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+                            setSheetState(() {
+                              if (value == true) {
+                                pending.add(id);
+                              } else {
+                                pending.remove(id);
+                              }
+                            });
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _mainButton(
+                    pending.isEmpty
+                        ? 'Apply selection'
+                        : 'Apply ${pending.length} selection${pending.length == 1 ? '' : 's'}',
+                    Icons.check_rounded,
+                    () => Navigator.of(
+                      sheetContext,
+                    ).pop(Set<String>.from(pending)),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    search.dispose();
+    return result;
+  }
+
+  Widget _locationResult(Map<String, dynamic> place) {
+    final type = _flowText(place['type']).toLowerCase();
+    final colors = switch (type) {
+      'city' => (AdLiveDesign.mint, AdLiveDesign.deepGreen),
+      'region' => (const Color(0xFFFFF2D6), const Color(0xFF925E00)),
+      'country' => (const Color(0xFFF0EAFF), const Color(0xFF6941C6)),
+      'zip' => (const Color(0xFFFFEAF2), const Color(0xFFA83262)),
+      _ => (const Color(0xFFEAF3FF), const Color(0xFF2866A6)),
+    };
+    final detailParts = <String>[
+      _flowText(place['region']),
+      _flowText(place['country_name']).isEmpty
+          ? _flowText(place['country_code'])
+          : _flowText(place['country_name']),
+    ].where((value) => value.isNotEmpty).toSet().toList();
+    final badge = type.isEmpty
+        ? 'LOCATION'
+        : type.replaceAll('_', ' ').toUpperCase();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 7),
+      child: Material(
+        color: const Color(0xFFFAFCFB),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => setState(() {
+            _selectedLocation = place;
+            _locations = [];
+            _locationQuery.clear();
+          }),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            decoration: BoxDecoration(
+              border: Border.all(color: AdLiveDesign.line),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    color: AdLiveDesign.mint,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.location_on_outlined,
+                    size: 17,
+                    color: AdLiveDesign.green,
+                  ),
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _flowText(place['name']),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AdLiveDesign.heading(12.5),
+                      ),
+                      if (detailParts.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          detailParts.join(', '),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AdLiveDesign.body(size: 10.5),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colors.$1,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(
+                    badge,
+                    style: TextStyle(
+                      color: colors.$2,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: .25,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

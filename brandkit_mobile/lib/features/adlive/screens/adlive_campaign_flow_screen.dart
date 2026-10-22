@@ -690,60 +690,95 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
           ),
   );
 
-  Widget _steps() => Container(
-    color: Colors.white,
-    padding: const EdgeInsets.fromLTRB(18, 14, 18, 13),
-    child: Row(
-      children: List.generate(
-        3,
-        (index) => Expanded(
-          child: Row(
-            children: [
+  Widget _steps() => LayoutBuilder(
+    builder: (context, constraints) {
+      final compact = constraints.maxWidth < 390;
+      const labels = ['Plan', 'Creative & payment', 'Creative & Meta'];
+      return Container(
+        color: Colors.white,
+        padding: EdgeInsets.fromLTRB(
+          compact ? 12 : 20,
+          9,
+          compact ? 12 : 20,
+          8,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var index = 0; index < labels.length; index++) ...[
               Expanded(
                 child: Column(
                   children: [
-                    CircleAvatar(
-                      radius: 13,
-                      backgroundColor: index <= _step
-                          ? AdLiveDesign.green
-                          : AdLiveDesign.line,
-                      child: Text(
-                        '${index + 1}',
-                        style: TextStyle(
-                          color: index <= _step
-                              ? Colors.white
-                              : AdLiveDesign.muted,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                        ),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      width: 25,
+                      height: 25,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: index <= _step
+                            ? AdLiveDesign.green
+                            : const Color(0xFFF0F5F2),
+                        shape: BoxShape.circle,
                       ),
+                      child: index < _step
+                          ? const Icon(
+                              Icons.check_rounded,
+                              size: 15,
+                              color: Colors.white,
+                            )
+                          : Text(
+                              '${index + 1}',
+                              style: TextStyle(
+                                color: index <= _step
+                                    ? Colors.white
+                                    : AdLiveDesign.muted,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      ['Plan', 'Payment', 'Creative & Meta'][index],
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AdLiveDesign.body(
-                        size: 10,
-                        color: index == _step
-                            ? AdLiveDesign.deepGreen
-                            : AdLiveDesign.muted,
+                    SizedBox(
+                      height: compact ? 27 : 16,
+                      child: Text(
+                        labels[index],
+                        maxLines: compact ? 2 : 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style:
+                            AdLiveDesign.body(
+                              size: compact ? 9 : 10,
+                              color: index == _step
+                                  ? AdLiveDesign.deepGreen
+                                  : AdLiveDesign.muted,
+                            ).copyWith(
+                              height: 1.15,
+                              fontWeight: index == _step
+                                  ? FontWeight.w800
+                                  : FontWeight.w600,
+                            ),
                       ),
                     ),
                   ],
                 ),
               ),
-              if (index < 2)
+              if (index < labels.length - 1)
                 Container(
+                  width: compact ? 12 : 28,
                   height: 2,
-                  width: 18,
-                  color: index < _step ? AdLiveDesign.green : AdLiveDesign.line,
+                  margin: const EdgeInsets.only(top: 12),
+                  decoration: BoxDecoration(
+                    color: index < _step
+                        ? AdLiveDesign.green
+                        : AdLiveDesign.line,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
                 ),
             ],
-          ),
+          ],
         ),
-      ),
-    ),
+      );
+    },
   );
 
   Widget _plan() {
@@ -751,128 +786,135 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
     final customerTypes = _flowMaps(
       _flowMap(_bootstrap['catalogue'])['customer_types'],
     );
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 32),
-      children: [
-        Text('Package & audience', style: AdLiveDesign.heading(24)),
-        const SizedBox(height: 5),
-        Text(
-          'Set your campaign essentials and smart audience in one place.',
-          style: AdLiveDesign.body(),
-        ),
-        const SizedBox(height: 17),
-        _label('Campaign package'),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: packages
-              .map(
-                (item) => _choice(
-                  _flowText(item['name']),
-                  _packageId == _flowText(item['id']),
-                  () => setState(() => _packageId = _flowText(item['id'])),
-                ),
-              )
+    return _flowPage([
+      _pageIntro(
+        'Package & audience',
+        'Set campaign essentials and build the audience.',
+      ),
+      const SizedBox(height: 12),
+      _section('Campaign basics', [
+        _label('Package'),
+        _choiceGrid(
+          packages
+              .map((item) => (_flowText(item['id']), _flowText(item['name'])))
               .toList(),
+          _packageId,
+          (value) => setState(() => _packageId = value),
+          preferredColumns: 2,
         ),
-        const SizedBox(height: 15),
-        _field(_campaignName, 'Campaign name'),
         const SizedBox(height: 10),
-        _goalPicker(),
-        const SizedBox(height: 15),
-        _section('Business & audience', [
-          _field(_businessName, 'Business name'),
-          const SizedBox(height: 10),
-          _field(_product, 'Product or service'),
-          const SizedBox(height: 10),
-          _field(_details, 'Offer details (optional)', maxLines: 2),
-          if (_goal == 'website') ...[
-            const SizedBox(height: 10),
-            _field(_website, 'Website URL'),
+        _responsivePair(
+          _field(_campaignName, 'Campaign name'),
+          _field(_budget, 'Daily budget (₹)', keyboard: TextInputType.number),
+          compactTwoColumn: true,
+        ),
+        const SizedBox(height: 10),
+        _label('Lead destination'),
+        _choiceGrid(
+          const [
+            ('whatsapp', 'WhatsApp'),
+            ('website', 'Website'),
+            ('instant_form', 'Instant form'),
           ],
-          const SizedBox(height: 14),
-          _label('Target customer'),
+          _goal,
+          (value) => setState(() => _goal = value),
+          preferredColumns: 3,
+        ),
+      ]),
+      const SizedBox(height: 12),
+      _section('Business & audience', [
+        _responsivePair(
+          _field(_businessName, 'Business name'),
+          _field(_product, 'Product or service'),
+          compactTwoColumn: true,
+        ),
+        const SizedBox(height: 10),
+        _field(_details, 'Offer details (optional)', maxLines: 2),
+        if (_goal == 'website') ...[
+          const SizedBox(height: 10),
+          _field(_website, 'Website URL'),
+        ],
+        const SizedBox(height: 10),
+        _responsivePair(
           _dropdown(
-            'Choose customer type',
+            'Customer type',
             customerTypes,
             _customerType,
-            (value) => _loadIndustries(value),
+            _loadIndustries,
           ),
-          const SizedBox(height: 10),
-          _label('Target industry'),
           _dropdown(
-            'Choose industry',
+            'Industry',
             _industries,
             _industry,
             (value) => setState(() => _industry = value),
           ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: _working ? null : _previewAudience,
-            icon: const Icon(Icons.auto_awesome_rounded),
-            label: const Text('Generate Smart Audience'),
-          ),
-          if (_audience.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: _note(
-                _flowText(_audience['matched_description']).isEmpty
-                    ? 'Smart audience is ready.'
-                    : _flowText(_audience['matched_description']),
-              ),
-            ),
-        ]),
-        const SizedBox(height: 14),
-        _section('Location & targeting', [
-          TextField(
-            controller: _locationQuery,
-            onChanged: _searchLocations,
-            decoration: _input(
-              'Search Meta location',
-              icon: Icons.search_rounded,
-            ),
-          ),
-          if (_selectedLocation != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 9),
-              child: Chip(
-                label: Text(_flowText(_selectedLocation!['name'])),
-                onDeleted: () => setState(() => _selectedLocation = null),
-                backgroundColor: AdLiveDesign.mint,
-              ),
-            ),
-          ..._locations
-              .take(5)
-              .map(
-                (place) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(_flowText(place['name'])),
-                  subtitle: Text(_flowText(place['type'])),
-                  trailing: const Icon(Icons.add_circle_outline_rounded),
-                  onTap: () => setState(() {
-                    _selectedLocation = place;
-                    _locations = [];
-                    _locationQuery.clear();
-                  }),
-                ),
-              ),
-          const SizedBox(height: 8),
-          Text(
-            'Age, gender and language stay on the approved Smart Audience unless changed during review.',
-            style: AdLiveDesign.body(size: 11),
-          ),
-        ]),
-        const SizedBox(height: 15),
-        _label('Daily Meta ads budget'),
-        _field(_budget, 'Amount in ₹', keyboard: TextInputType.number),
-        const SizedBox(height: 20),
-        _mainButton(
-          'Continue to creative & payment',
-          Icons.arrow_forward_rounded,
-          _working ? null : _continueFromPlan,
+          compactTwoColumn: true,
         ),
-      ],
-    );
+        const SizedBox(height: 10),
+        _outlineButton(
+          'Generate Smart Audience',
+          Icons.auto_awesome_rounded,
+          _working ? null : _previewAudience,
+        ),
+        if (_audience.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: _note(
+              _flowText(_audience['matched_description']).isEmpty
+                  ? 'Smart audience is ready.'
+                  : _flowText(_audience['matched_description']),
+            ),
+          ),
+      ]),
+      const SizedBox(height: 12),
+      _section('Location & targeting', [
+        TextField(
+          controller: _locationQuery,
+          onChanged: _searchLocations,
+          decoration: _input(
+            'Search Meta location',
+            icon: Icons.search_rounded,
+          ),
+        ),
+        if (_selectedLocation != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 9),
+            child: Chip(
+              label: Text(_flowText(_selectedLocation!['name'])),
+              onDeleted: () => setState(() => _selectedLocation = null),
+              backgroundColor: AdLiveDesign.mint,
+            ),
+          ),
+        ..._locations
+            .take(5)
+            .map(
+              (place) => ListTile(
+                dense: true,
+                visualDensity: VisualDensity.compact,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 2),
+                title: Text(_flowText(place['name'])),
+                subtitle: Text(_flowText(place['type'])),
+                trailing: const Icon(Icons.add_circle_outline_rounded),
+                onTap: () => setState(() {
+                  _selectedLocation = place;
+                  _locations = [];
+                  _locationQuery.clear();
+                }),
+              ),
+            ),
+        const SizedBox(height: 6),
+        Text(
+          'Age, gender and language stay on the approved Smart Audience unless changed during review.',
+          style: AdLiveDesign.body(size: 11),
+        ),
+      ]),
+      const SizedBox(height: 14),
+      _mainButton(
+        'Continue to creative & payment',
+        Icons.arrow_forward_rounded,
+        _working ? null : _continueFromPlan,
+      ),
+    ]);
   }
 
   Widget _payment() {
@@ -880,41 +922,43 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
     final total = _flowAmount(
       _quote['total'] ?? _quote['service_charge'] ?? _quote['payable'],
     );
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 32),
-      children: [
-        Text('Creative & payment', style: AdLiveDesign.heading(24)),
-        const SizedBox(height: 5),
-        Text(
-          'Your selection updates the verified campaign estimate.',
-          style: AdLiveDesign.body(),
-        ),
-        const SizedBox(height: 16),
-        _section('Creative preference', [
+    return _flowPage([
+      _pageIntro(
+        'Creative & payment',
+        'Your choices update the verified estimate.',
+      ),
+      const SizedBox(height: 12),
+      _section('Creative preference', [
+        _responsivePair(
           _radioChoice(
-            'I will upload my own creative',
+            'Upload my creative',
             _creativeMode == 'self_upload',
             () => setState(() => _creativeMode = 'self_upload'),
           ),
-          const SizedBox(height: 8),
           _radioChoice(
-            'Ask AdLive to design it',
+            'AdLive designs it',
             _creativeMode == 'adlive_design',
             () => setState(() => _creativeMode = 'adlive_design'),
           ),
-          if (_creativeMode == 'adlive_design') ...[
-            const SizedBox(height: 12),
+          compactTwoColumn: true,
+        ),
+        if (_creativeMode == 'adlive_design') ...[
+          const SizedBox(height: 10),
+          _responsivePair(
             _dropdown(
               'Creative type',
               services,
               _serviceCode,
               (value) => setState(() => _serviceCode = value),
             ),
-            const SizedBox(height: 10),
             DropdownButtonFormField<int>(
               key: ValueKey(_creativeQuantity),
               initialValue: _creativeQuantity,
-              decoration: _input('Number of creatives'),
+              isExpanded: true,
+              isDense: true,
+              menuMaxHeight: 280,
+              borderRadius: BorderRadius.circular(14),
+              decoration: _input('Quantity'),
               items: List.generate(
                 10,
                 (i) => DropdownMenuItem(
@@ -925,43 +969,44 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
               onChanged: (value) =>
                   setState(() => _creativeQuantity = value ?? 1),
             ),
-          ],
-        ]),
-        const SizedBox(height: 15),
-        _section('Review & payment', [
-          _summaryRow(
-            'Campaign',
-            _campaignName.text.isEmpty ? 'Untitled' : _campaignName.text,
+            compactTwoColumn: true,
           ),
-          _summaryRow('Daily media budget', '₹${_budget.text.trim()}'),
-          _summaryRow(
-            'Creative',
-            _creativeMode == 'self_upload'
-                ? 'Own upload'
-                : 'AdLive design × $_creativeQuantity',
-          ),
-          const Divider(height: 24),
-          _summaryRow(
-            'Estimated service payment',
-            total > 0
-                ? '₹${total.toStringAsFixed(2)}'
-                : 'Calculated securely at checkout',
-            strong: true,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Wallet settlement and payment verification happen on AdLive before this campaign opens the next step.',
-            style: AdLiveDesign.body(size: 11),
-          ),
-        ]),
-        const SizedBox(height: 20),
-        _mainButton(
-          'Continue to secure payment',
-          Icons.lock_outline_rounded,
-          _working ? null : _pay,
+        ],
+      ]),
+      const SizedBox(height: 12),
+      _section('Review & payment', [
+        _summaryRow(
+          'Campaign',
+          _campaignName.text.isEmpty ? 'Untitled' : _campaignName.text,
         ),
-      ],
-    );
+        _summaryRow('Daily media budget', '₹${_budget.text.trim()}'),
+        _summaryRow(
+          'Creative',
+          _creativeMode == 'self_upload'
+              ? 'Own upload'
+              : 'AdLive design × $_creativeQuantity',
+        ),
+        const Divider(height: 18),
+        _summaryRow(
+          'Estimated service payment',
+          total > 0
+              ? '₹${total.toStringAsFixed(2)}'
+              : 'Calculated securely at checkout',
+          strong: true,
+        ),
+        const SizedBox(height: 5),
+        Text(
+          'Wallet settlement and payment verification happen on AdLive before this campaign opens the next step.',
+          style: AdLiveDesign.body(size: 11),
+        ),
+      ]),
+      const SizedBox(height: 14),
+      _mainButton(
+        'Continue to secure payment',
+        Icons.lock_outline_rounded,
+        _working ? null : _pay,
+      ),
+    ]);
   }
 
   Widget _finalize() {
@@ -970,50 +1015,46 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
         _flowMap(_meta['campaign'])['meta_setup_completed'] == true;
     final own = _flowText(brief['mode']) == 'self_upload';
     final requiresWhatsApp = _meta['requires_whatsapp'] == true;
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 32),
-      children: [
-        Text('Creative & Meta setup', style: AdLiveDesign.heading(24)),
-        const SizedBox(height: 5),
+    return _flowPage([
+      _pageIntro(
+        'Creative & Meta setup',
+        'Save creative and Meta setup separately.',
+      ),
+      const SizedBox(height: 12),
+      if (own) _creativeUpload() else _designRequirements(brief),
+      const SizedBox(height: 12),
+      _section('Meta setup', [
         Text(
-          'Creative and Meta setup are saved separately, so you can complete both in parallel.',
+          metaReady
+              ? 'Meta setup is complete and remains subject to campaign review.'
+              : 'Connect the Facebook assets for this campaign. Creative and Meta setup have separate save actions.',
           style: AdLiveDesign.body(),
         ),
-        const SizedBox(height: 15),
-        if (own) _creativeUpload() else _designRequirements(brief),
-        const SizedBox(height: 15),
-        _section('Meta setup', [
-          Text(
-            metaReady
-                ? 'Meta setup is complete and remains subject to campaign review.'
-                : 'Connect the Facebook assets for this campaign. Creative and Meta setup have separate save actions.',
-            style: AdLiveDesign.body(),
+        const SizedBox(height: 10),
+        if (requiresWhatsApp &&
+            _flowText(_meta['connection_mode']) == 'adlive_managed') ...[
+          _assetDropdown(
+            'Business WhatsApp number',
+            _whatsAppNumbers,
+            _whatsAppPhoneId,
+            (value) => setState(() => _whatsAppPhoneId = value),
           ),
-          const SizedBox(height: 13),
-          _mainButton(
-            'Open Meta setup',
+          const SizedBox(height: 10),
+        ],
+        _responsiveActions(
+          _outlineButton(
+            'Connect assets',
             Icons.tune_rounded,
             _working ? null : _openConnections,
           ),
-          if (requiresWhatsApp &&
-              _flowText(_meta['connection_mode']) == 'adlive_managed') ...[
-            const SizedBox(height: 12),
-            _assetDropdown(
-              'Business WhatsApp number',
-              _whatsAppNumbers,
-              _whatsAppPhoneId,
-              (value) => setState(() => _whatsAppPhoneId = value),
-            ),
-          ],
-          const SizedBox(height: 9),
-          OutlinedButton.icon(
-            onPressed: _working ? null : _confirmMeta,
-            icon: const Icon(Icons.check_circle_outline_rounded),
-            label: Text(metaReady ? 'Meta setup confirmed' : 'Save Meta setup'),
+          _mainButton(
+            metaReady ? 'Confirmed' : 'Save Meta setup',
+            Icons.check_circle_outline_rounded,
+            _working ? null : _confirmMeta,
           ),
-        ]),
-      ],
-    );
+        ),
+      ]),
+    ]);
   }
 
   Widget _creativeUpload() => _section('Upload your creative', [
@@ -1022,21 +1063,15 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
       style: AdLiveDesign.body(),
     ),
     const SizedBox(height: 12),
-    Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final choice in const [
-          ('single_image', 'Single image'),
-          ('single_video', 'Single video'),
-          ('carousel', 'Carousel'),
-        ])
-          _choice(
-            choice.$2,
-            _format == choice.$1,
-            () => setState(() => _format = choice.$1),
-          ),
+    _choiceGrid(
+      const [
+        ('single_image', 'Single image'),
+        ('single_video', 'Single video'),
+        ('carousel', 'Carousel'),
       ],
+      _format,
+      (value) => setState(() => _format = value),
+      preferredColumns: 3,
     ),
     if (_format == 'carousel') ...[
       const SizedBox(height: 12),
@@ -1045,7 +1080,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(11),
             decoration: BoxDecoration(
               color: const Color(0xFFF9FBFA),
               borderRadius: BorderRadius.circular(14),
@@ -1066,17 +1101,20 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
                           removed.dispose();
                         }),
                         icon: const Icon(Icons.close_rounded, size: 19),
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints(
+                          minWidth: 34,
+                          minHeight: 34,
+                        ),
                       ),
                   ],
                 ),
-                OutlinedButton.icon(
-                  onPressed: _working ? null : () => _pickCarouselImage(index),
-                  icon: const Icon(Icons.image_outlined),
-                  label: Text(
-                    card.imagePath == null
-                        ? 'Choose card image'
-                        : 'Image selected',
-                  ),
+                _outlineButton(
+                  card.imagePath == null
+                      ? 'Choose card image'
+                      : 'Image selected',
+                  Icons.image_outlined,
+                  _working ? null : () => _pickCarouselImage(index),
                 ),
                 const SizedBox(height: 9),
                 _field(card.headline, 'Card headline'),
@@ -1088,19 +1126,19 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
         );
       }),
       if (_carouselCards.length < 10)
-        OutlinedButton.icon(
-          onPressed: _working
+        _outlineButton(
+          'Add card',
+          Icons.add_rounded,
+          _working
               ? null
               : () => setState(() => _carouselCards.add(_CarouselCard())),
-          icon: const Icon(Icons.add_rounded),
-          label: const Text('Add card'),
         ),
     ] else ...[
       const SizedBox(height: 12),
-      OutlinedButton.icon(
-        onPressed: _working ? null : _pickMedia,
-        icon: const Icon(Icons.upload_file_rounded),
-        label: Text(_mediaPath == null ? 'Choose media' : 'Media selected'),
+      _outlineButton(
+        _mediaPath == null ? 'Choose media' : 'Media selected',
+        Icons.upload_file_rounded,
+        _working ? null : _pickMedia,
       ),
       const SizedBox(height: 10),
       _field(_headline, 'Headline'),
@@ -1161,25 +1199,6 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
     ]);
   }
 
-  Widget _goalPicker() => _section('Where should leads go?', [
-    Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final item in const [
-          ('whatsapp', 'WhatsApp'),
-          ('website', 'Website'),
-          ('instant_form', 'Instant form'),
-        ])
-          _choice(
-            item.$2,
-            _goal == item.$1,
-            () => setState(() => _goal = item.$1),
-          ),
-      ],
-    ),
-  ]);
-
   Widget _requirementField(int item, Map<String, dynamic> field) {
     final key = _flowText(field['key']);
     final label = _flowText(field['label']).isEmpty
@@ -1193,16 +1212,12 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
         children: [
           Text('$label$required', style: AdLiveDesign.heading(13)),
           const SizedBox(height: 7),
-          OutlinedButton.icon(
-            onPressed: _working
-                ? null
-                : () => _pickRequirementFile(item, field),
-            icon: const Icon(Icons.attach_file_rounded),
-            label: Text(
-              selected.isEmpty
-                  ? 'Attach file'
-                  : '${selected.length} file${selected.length == 1 ? '' : 's'} selected',
-            ),
+          _outlineButton(
+            selected.isEmpty
+                ? 'Attach file'
+                : '${selected.length} file${selected.length == 1 ? '' : 's'} selected',
+            Icons.attach_file_rounded,
+            _working ? null : () => _pickRequirementFile(item, field),
           ),
         ],
       );
@@ -1229,6 +1244,10 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
       key: ValueKey('asset-$label-${valid ? value : ''}'),
       initialValue: valid ? value : null,
       isExpanded: true,
+      isDense: true,
+      menuMaxHeight: 280,
+      borderRadius: BorderRadius.circular(14),
+      icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
       decoration: _input(label),
       items: options
           .map(
@@ -1266,6 +1285,134 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
       ),
     ),
   );
+
+  Widget _flowPage(List<Widget> children) => LayoutBuilder(
+    builder: (context, constraints) {
+      final horizontal = constraints.maxWidth < 390 ? 12.0 : 18.0;
+      return ListView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: EdgeInsets.fromLTRB(horizontal, 12, horizontal, 28),
+        children: [
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 820),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: children,
+              ),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+
+  Widget _pageIntro(String title, String subtitle) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Container(
+        width: 32,
+        height: 32,
+        alignment: Alignment.center,
+        decoration: const BoxDecoration(
+          color: AdLiveDesign.mint,
+          shape: BoxShape.circle,
+        ),
+        child: Text(
+          '${_step + 1}',
+          style: AdLiveDesign.heading(13).copyWith(color: AdLiveDesign.green),
+        ),
+      ),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: AdLiveDesign.heading(21)),
+            const SizedBox(height: 2),
+            Text(subtitle, style: AdLiveDesign.body(size: 12)),
+          ],
+        ),
+      ),
+    ],
+  );
+
+  Widget _responsivePair(
+    Widget first,
+    Widget second, {
+    bool compactTwoColumn = false,
+  }) => LayoutBuilder(
+    builder: (context, constraints) {
+      final twoColumns = constraints.maxWidth >= (compactTwoColumn ? 300 : 560);
+      if (!twoColumns) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [first, const SizedBox(height: 9), second],
+        );
+      }
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: first),
+          const SizedBox(width: 9),
+          Expanded(child: second),
+        ],
+      );
+    },
+  );
+
+  Widget _responsiveActions(Widget first, Widget second) => LayoutBuilder(
+    builder: (context, constraints) {
+      if (constraints.maxWidth < 300) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [first, const SizedBox(height: 8), second],
+        );
+      }
+      return Row(
+        children: [
+          Expanded(child: first),
+          const SizedBox(width: 8),
+          Expanded(child: second),
+        ],
+      );
+    },
+  );
+
+  Widget _choiceGrid(
+    List<(String, String)> items,
+    String? selected,
+    ValueChanged<String> changed, {
+    required int preferredColumns,
+  }) {
+    if (items.isEmpty) return const SizedBox.shrink();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        var columns = items.length < preferredColumns
+            ? items.length
+            : preferredColumns;
+        if (constraints.maxWidth < 300 && columns > 2) columns = 2;
+        const gap = 7.0;
+        final width = (constraints.maxWidth - (gap * (columns - 1))) / columns;
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final item in items)
+              SizedBox(
+                width: width,
+                child: _choice(
+                  item.$2,
+                  selected == item.$1,
+                  () => changed(item.$1),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _field(
     TextEditingController controller,
     String label, {
@@ -1275,60 +1422,94 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
     controller: controller,
     maxLines: maxLines,
     keyboardType: keyboard,
+    style: AdLiveDesign.body(size: 13, color: AdLiveDesign.ink),
     decoration: _input(label),
   );
   InputDecoration _input(String label, {IconData? icon}) => InputDecoration(
     labelText: label,
-    prefixIcon: icon == null ? null : Icon(icon),
+    isDense: true,
+    floatingLabelStyle: const TextStyle(color: AdLiveDesign.deepGreen),
+    prefixIcon: icon == null ? null : Icon(icon, size: 19),
+    prefixIconConstraints: icon == null
+        ? null
+        : const BoxConstraints(minWidth: 40, minHeight: 40),
     filled: true,
     fillColor: Colors.white,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
     enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(12),
       borderSide: const BorderSide(color: AdLiveDesign.line),
     ),
     focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(12),
       borderSide: const BorderSide(color: AdLiveDesign.green),
+    ),
+    disabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: AdLiveDesign.line),
     ),
   );
   Widget _label(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 7),
-    child: Text(text, style: AdLiveDesign.heading(14)),
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Text(text, style: AdLiveDesign.heading(13)),
   );
-  Widget _section(String title, List<Widget> children) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: AdLiveDesign.surface(),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: AdLiveDesign.heading(17)),
-        const SizedBox(height: 12),
-        ...children,
-      ],
-    ),
-  );
-  Widget _choice(String label, bool selected, VoidCallback onTap) => ChoiceChip(
-    label: Text(label),
-    selected: selected,
-    onSelected: (_) => onTap(),
-    selectedColor: AdLiveDesign.mint,
-    backgroundColor: Colors.white,
-    side: const BorderSide(color: AdLiveDesign.line),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
-    labelStyle: TextStyle(
-      color: selected ? AdLiveDesign.deepGreen : AdLiveDesign.ink,
-      fontWeight: FontWeight.w700,
+  Widget _section(String title, List<Widget> children) {
+    final compact = MediaQuery.sizeOf(context).width < 390;
+    return Container(
+      padding: EdgeInsets.all(compact ? 12 : 15),
+      decoration: AdLiveDesign.surface(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(title, style: AdLiveDesign.heading(compact ? 15 : 17)),
+          SizedBox(height: compact ? 9 : 11),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _choice(String label, bool selected, VoidCallback onTap) => Material(
+    color: Colors.transparent,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(11),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        constraints: const BoxConstraints(minHeight: 42),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 8),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? AdLiveDesign.mint : Colors.white,
+          borderRadius: BorderRadius.circular(11),
+          border: Border.all(
+            color: selected ? const Color(0xFF82D4B1) : AdLiveDesign.line,
+          ),
+        ),
+        child: Text(
+          label,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: selected ? AdLiveDesign.deepGreen : AdLiveDesign.ink,
+            fontSize: 11.5,
+            height: 1.15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
     ),
   );
   Widget _radioChoice(String label, bool selected, VoidCallback tap) => InkWell(
     onTap: tap,
-    borderRadius: BorderRadius.circular(14),
+    borderRadius: BorderRadius.circular(12),
     child: Container(
-      padding: const EdgeInsets.all(13),
+      constraints: const BoxConstraints(minHeight: 44),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
         color: selected ? AdLiveDesign.mint : Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: selected ? const Color(0xFF8ED8B8) : AdLiveDesign.line,
         ),
@@ -1340,9 +1521,17 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
                 ? Icons.radio_button_checked_rounded
                 : Icons.radio_button_off_rounded,
             color: selected ? AdLiveDesign.green : AdLiveDesign.muted,
+            size: 19,
           ),
-          const SizedBox(width: 9),
-          Expanded(child: Text(label, style: AdLiveDesign.heading(13))),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: AdLiveDesign.heading(12),
+            ),
+          ),
         ],
       ),
     ),
@@ -1361,6 +1550,10 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
       key: ValueKey('catalogue-$label-${valid ? value : ''}'),
       initialValue: valid ? value : null,
       isExpanded: true,
+      isDense: true,
+      menuMaxHeight: 280,
+      borderRadius: BorderRadius.circular(14),
+      icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
       decoration: _input(label),
       items: options.map((option) {
         final id = _flowText(option['id'] ?? option['value'] ?? option['key']);
@@ -1379,7 +1572,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
   }
 
   Widget _note(String message) => Container(
-    padding: const EdgeInsets.all(12),
+    padding: const EdgeInsets.all(10),
     decoration: BoxDecoration(
       color: AdLiveDesign.mint,
       borderRadius: BorderRadius.circular(13),
@@ -1389,36 +1582,73 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
       style: AdLiveDesign.body(size: 11, color: AdLiveDesign.deepGreen),
     ),
   );
-  Widget _mainButton(String label, IconData icon, VoidCallback? pressed) =>
-      SizedBox(
-        width: double.infinity,
-        child: FilledButton.icon(
-          onPressed: pressed,
-          icon: Icon(icon),
-          label: Text(label),
-          style: FilledButton.styleFrom(
-            backgroundColor: AdLiveDesign.green,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
-        ),
-      );
+  Widget _outlineButton(
+    String label,
+    IconData icon,
+    VoidCallback? pressed,
+  ) => SizedBox(
+    width: double.infinity,
+    height: 44,
+    child: OutlinedButton.icon(
+      onPressed: pressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AdLiveDesign.deepGreen,
+        side: const BorderSide(color: AdLiveDesign.line),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    ),
+  );
+
+  Widget _mainButton(
+    String label,
+    IconData icon,
+    VoidCallback? pressed,
+  ) => SizedBox(
+    width: double.infinity,
+    height: 46,
+    child: FilledButton.icon(
+      onPressed: pressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+      style: FilledButton.styleFrom(
+        backgroundColor: AdLiveDesign.green,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        textStyle: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    ),
+  );
   Widget _summaryRow(String label, String value, {bool strong = false}) =>
       Padding(
         padding: const EdgeInsets.only(bottom: 9),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: Text(label, style: AdLiveDesign.body(size: 12))),
-            Text(
-              value,
-              style:
-                  (strong
-                          ? AdLiveDesign.heading(14)
-                          : AdLiveDesign.body(size: 12))
-                      .copyWith(color: strong ? AdLiveDesign.deepGreen : null),
+            Expanded(
+              flex: 4,
+              child: Text(label, style: AdLiveDesign.body(size: 12)),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              flex: 5,
+              child: Text(
+                value,
+                textAlign: TextAlign.end,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    (strong
+                            ? AdLiveDesign.heading(14)
+                            : AdLiveDesign.body(size: 12))
+                        .copyWith(
+                          color: strong ? AdLiveDesign.deepGreen : null,
+                        ),
+              ),
             ),
           ],
         ),

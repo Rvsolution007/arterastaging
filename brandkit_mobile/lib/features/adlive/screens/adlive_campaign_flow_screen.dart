@@ -28,7 +28,16 @@ double _flowAmount(dynamic value) => value is num
 /// data, quotes the plan, validates payment, stores creative files and gates
 /// Meta activation. This screen never creates a Meta campaign directly.
 class AdLiveCampaignFlowScreen extends StatefulWidget {
-  const AdLiveCampaignFlowScreen({super.key});
+  const AdLiveCampaignFlowScreen({
+    super.key,
+    this.draftId,
+    this.campaignId,
+    this.resume = 'plan',
+  });
+
+  final String? draftId;
+  final String? campaignId;
+  final String resume;
 
   @override
   State<AdLiveCampaignFlowScreen> createState() =>
@@ -53,6 +62,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
   bool _catalogueLoading = false;
   bool _quoteRefreshing = false;
   bool _walletRefreshing = false;
+  bool _materializedDraft = false;
   bool _overrideAge = false;
   bool _overrideGender = false;
   bool _overrideLanguages = false;
@@ -98,6 +108,9 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
   @override
   void initState() {
     super.initState();
+    _draftId = widget.draftId;
+    _campaignId = widget.campaignId;
+    _materializedDraft = (widget.campaignId ?? '').isNotEmpty;
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaymentSuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _onPaymentError);
     _load();
@@ -164,10 +177,138 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
             ? _website.text
             : _flowText(defaults['website_url']);
       });
+      if ((_draftId ?? '').isNotEmpty) {
+        final draft = await AdLiveApiService.campaignDraft(_draftId!);
+        if (!mounted) return;
+        setState(() => _restoreDraft(draft));
+        await _loadRestoredCatalogue();
+      }
+      if (widget.resume == 'setup' && (_campaignId ?? '').isNotEmpty) {
+        final results = await Future.wait([
+          AdLiveApiService.campaignCreative(_campaignId!),
+          AdLiveApiService.campaignMetaSetup(_campaignId!),
+        ]);
+        if (!mounted) return;
+        setState(() {
+          _creative = results[0];
+          _meta = results[1];
+          _step = 2;
+        });
+        _prepareRequirementControllers();
+        await _loadWhatsAppNumbers();
+      }
     } on AdLiveApiException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _restoreDraft(Map<String, dynamic> data) {
+    final payload = _flowMap(data['payload']);
+    final business = _flowMap(payload['business']);
+    final budget = _flowMap(payload['budget']);
+    final creative = _flowMap(payload['creative']);
+    final audience = _flowMap(payload['audience']);
+    final smartProfile = _flowMap(audience['smart_profile']);
+    final catalogue = _flowMap(smartProfile['catalogue']);
+    final selections = _flowMap(catalogue['selections']);
+    final overrides = _flowMap(payload['targeting_overrides']);
+    final planner = _flowMap(payload['planner_state']);
+    final locations = _flowMaps(planner['meta_locations']);
+
+    _campaignName.text = _flowText(payload['campaign_name']);
+    _businessName.text = _flowText(business['business_name']);
+    _product.text = _flowText(business['product_name']);
+    _details.text = _flowText(business['product_summary']);
+    _website.text = _flowText(business['website_url']);
+    _budget.text = _flowText(budget['daily_budget']);
+    if (_budget.text.isEmpty) _budget.text = '500';
+    final savedPackageId = _flowText(payload['package_id']);
+    if (savedPackageId.isNotEmpty) _packageId = savedPackageId;
+    _goal = _flowText(payload['goal']).isEmpty
+        ? 'whatsapp'
+        : _flowText(payload['goal']);
+    _creativeMode = _flowText(creative['mode']).isEmpty
+        ? 'self_upload'
+        : _flowText(creative['mode']);
+    _serviceCode = _flowText(creative['service_code']).isEmpty
+        ? _serviceCode
+        : _flowText(creative['service_code']);
+    _creativeQuantity = _audienceInt(creative['quantity'], 1).clamp(1, 50);
+    _customerTypes
+      ..clear()
+      ..addAll(_audienceStrings(selections['customer_type']));
+    _buyingRoles
+      ..clear()
+      ..addAll(_audienceStrings(selections['role']));
+    _selectedIndustries
+      ..clear()
+      ..addAll(_audienceStrings(selections['industry']));
+    _audience = _flowMap(planner['audience_match']);
+    _selectedLocation = locations.isEmpty ? null : locations.first;
+    _locationQuery.text = _selectedLocation == null
+        ? ''
+        : _flowText(_selectedLocation!['name']);
+    _restoreTargetingOverrides(overrides);
+    _quote = _flowMap(data['quote']);
+    _step = widget.resume == 'setup'
+        ? 2
+        : widget.resume == 'payment'
+        ? 1
+        : 0;
+  }
+
+  void _restoreTargetingOverrides(Map<String, dynamic> overrides) {
+    final age = _flowMap(overrides['age']);
+    final ageValue = _flowMap(age['value']);
+    _overrideAge = _flowText(age['mode']) == 'custom';
+    if (_overrideAge) {
+      _ageMin = _audienceInt(ageValue['min'], 18).clamp(13, 65);
+      _ageMax = _audienceInt(ageValue['max'], 65).clamp(_ageMin, 65);
+    }
+
+    final gender = _flowMap(overrides['gender']);
+    final genders = _audienceStrings(gender['value']);
+    _overrideGender = _flowText(gender['mode']) == 'custom';
+    _selectedGender =
+        genders.length == 1 && {'male', 'female'}.contains(genders.first)
+        ? genders.first
+        : 'all';
+
+    final languages = _flowMap(overrides['languages']);
+    _overrideLanguages = _flowText(languages['mode']) == 'custom';
+    _selectedLanguages
+      ..clear()
+      ..addAll(_audienceStrings(languages['value']));
+  }
+
+  Future<void> _loadRestoredCatalogue() async {
+    if (_customerTypes.isEmpty) return;
+    final revision = ++_catalogueRevision;
+    if (mounted) setState(() => _catalogueLoading = true);
+    try {
+      final results = await Future.wait([
+        AdLiveApiService.campaignCatalogueOptions(
+          kind: 'role',
+          catalogue: _catalogue(),
+        ),
+        AdLiveApiService.campaignCatalogueOptions(
+          kind: 'industry',
+          catalogue: _catalogue(),
+        ),
+      ]);
+      if (!mounted || revision != _catalogueRevision) return;
+      setState(() {
+        _roles = _flowMaps(results[0]['options']);
+        _industries = _flowMaps(results[1]['options']);
+      });
+    } on AdLiveApiException catch (error) {
+      if (mounted) _show(error.message, error: true);
+    } finally {
+      if (mounted && revision == _catalogueRevision) {
+        setState(() => _catalogueLoading = false);
+      }
     }
   }
 
@@ -544,6 +685,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
   }
 
   void _scheduleQuoteRefresh() {
+    if (_materializedDraft) return;
     _quoteDebounce?.cancel();
     setState(() => _quoteRefreshing = true);
     _quoteDebounce = Timer(
@@ -555,17 +697,20 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
   Future<void> _pay() async {
     setState(() => _working = true);
     try {
-      final draft = await AdLiveApiService.saveCampaignDraft(
-        draftId: _draftId,
-        currentStep: 2,
-        payload: _payload(),
-        finalize: true,
-      );
-      _draftId = _flowText(draft['id']);
+      if (!_materializedDraft) {
+        final draft = await AdLiveApiService.saveCampaignDraft(
+          draftId: _draftId,
+          currentStep: 2,
+          payload: _payload(),
+          finalize: true,
+        );
+        _draftId = _flowText(draft['id']);
+      }
       final checkout = await AdLiveApiService.prepareCampaignCheckout(
         _draftId!,
       );
       _campaignId = _flowText(checkout['campaign_id']);
+      _materializedDraft = true;
       if (mounted) {
         setState(() {
           _checkout = checkout;
@@ -880,7 +1025,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: AdLiveDesign.canvas,
     appBar: AppBar(
-      title: const Text('New campaign'),
+      title: Text(widget.draftId == null ? 'New campaign' : 'Campaign draft'),
       titleSpacing: 0,
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.white,
@@ -1272,22 +1417,32 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
       ),
       const SizedBox(height: 12),
       _section('Creative preference', [
+        if (_materializedDraft) ...[
+          _note(
+            'This draft is already in checkout. Its approved estimate is locked; continue with payment below.',
+          ),
+          const SizedBox(height: 10),
+        ],
         _responsivePair(
           _radioChoice(
             'Upload my creative',
             _creativeMode == 'self_upload',
-            () {
-              setState(() => _creativeMode = 'self_upload');
-              _scheduleQuoteRefresh();
-            },
+            _materializedDraft
+                ? null
+                : () {
+                    setState(() => _creativeMode = 'self_upload');
+                    _scheduleQuoteRefresh();
+                  },
           ),
           _radioChoice(
             'AdLive designs it',
             _creativeMode == 'adlive_design',
-            () {
-              setState(() => _creativeMode = 'adlive_design');
-              _scheduleQuoteRefresh();
-            },
+            _materializedDraft
+                ? null
+                : () {
+                    setState(() => _creativeMode = 'adlive_design');
+                    _scheduleQuoteRefresh();
+                  },
           ),
           compactTwoColumn: true,
         ),
@@ -1297,7 +1452,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
             _dropdown('Creative type', services, _serviceCode, (value) {
               setState(() => _serviceCode = value);
               _scheduleQuoteRefresh();
-            }),
+            }, enabled: !_materializedDraft),
             DropdownButtonFormField<int>(
               key: ValueKey(_creativeQuantity),
               initialValue: _creativeQuantity,
@@ -1314,10 +1469,12 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
                   child: Text('${i + 1} creative${i == 0 ? '' : 's'}'),
                 ),
               ),
-              onChanged: (value) {
-                setState(() => _creativeQuantity = value ?? 1);
-                _scheduleQuoteRefresh();
-              },
+              onChanged: _materializedDraft
+                  ? null
+                  : (value) {
+                      setState(() => _creativeQuantity = value ?? 1);
+                      _scheduleQuoteRefresh();
+                    },
             ),
             compactTwoColumn: true,
           ),
@@ -2507,47 +2664,49 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
       ),
     ),
   );
-  Widget _radioChoice(String label, bool selected, VoidCallback tap) => InkWell(
-    onTap: tap,
-    borderRadius: BorderRadius.circular(12),
-    child: Container(
-      constraints: const BoxConstraints(minHeight: 44),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-      decoration: BoxDecoration(
-        color: selected ? AdLiveDesign.mint : Colors.white,
+  Widget _radioChoice(String label, bool selected, VoidCallback? tap) =>
+      InkWell(
+        onTap: tap,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: selected ? const Color(0xFF8ED8B8) : AdLiveDesign.line,
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            selected
-                ? Icons.radio_button_checked_rounded
-                : Icons.radio_button_off_rounded,
-            color: selected ? AdLiveDesign.green : AdLiveDesign.muted,
-            size: 19,
-          ),
-          const SizedBox(width: 7),
-          Expanded(
-            child: Text(
-              label,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AdLiveDesign.heading(12),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 44),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+          decoration: BoxDecoration(
+            color: selected ? AdLiveDesign.mint : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? const Color(0xFF8ED8B8) : AdLiveDesign.line,
             ),
           ),
-        ],
-      ),
-    ),
-  );
+          child: Row(
+            children: [
+              Icon(
+                selected
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_off_rounded,
+                color: selected ? AdLiveDesign.green : AdLiveDesign.muted,
+                size: 19,
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AdLiveDesign.heading(12),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
   Widget _dropdown(
     String label,
     List<Map<String, dynamic>> options,
     String? value,
-    ValueChanged<String?> changed,
-  ) {
+    ValueChanged<String?> changed, {
+    bool enabled = true,
+  }) {
     final valid = options.any(
       (option) =>
           _flowText(option['id'] ?? option['value'] ?? option['key']) == value,
@@ -2574,7 +2733,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
           ),
         );
       }).toList(),
-      onChanged: options.isEmpty ? null : changed,
+      onChanged: options.isEmpty || !enabled ? null : changed,
     );
   }
 

@@ -36,6 +36,22 @@ class AdLiveApiService {
   static Future<Map<String, dynamic>> campaign(String id) =>
       _get('/mobile/campaigns/${Uri.encodeComponent(id)}');
 
+  static Future<Map<String, dynamic>> campaignDrafts() =>
+      _get('/mobile/campaign-drafts');
+
+  static Future<Map<String, dynamic>> campaignDraft(String id) =>
+      _get('/mobile/campaign-workflow/drafts/${Uri.encodeComponent(id)}');
+
+  static Future<Map<String, dynamic>> deleteCampaignDraft(String id) =>
+      _delete('/mobile/campaign-drafts/${Uri.encodeComponent(id)}');
+
+  static Future<Map<String, dynamic>> requestCampaignUnpublish(
+    String campaignId,
+  ) => _post(
+    '/mobile/campaigns/${Uri.encodeComponent(campaignId)}/unpublish-request',
+    const {},
+  );
+
   static Future<Map<String, dynamic>> billing() => _get('/billing');
 
   static Future<Map<String, dynamic>> metaConnectionStatus() =>
@@ -246,6 +262,14 @@ class AdLiveApiService {
           headers: await _headers(),
           body: jsonEncode(body),
         )
+        .timeout(const Duration(seconds: 20));
+
+    return _decode(response);
+  }
+
+  static Future<Map<String, dynamic>> _delete(String endpoint) async {
+    final response = await http
+        .delete(Uri.parse('$baseUrl$endpoint'), headers: await _headers())
         .timeout(const Duration(seconds: 20));
 
     return _decode(response);

@@ -56,11 +56,14 @@ class AdLiveNativeScreen extends StatefulWidget {
 class _AdLiveNativeScreenState extends State<AdLiveNativeScreen> {
   int _tab = 0;
   bool _loading = true;
+  final Set<String> _workingDrafts = {};
   String? _error;
   String _search = '';
   String _status = 'All';
+  String _campaignSection = 'campaigns';
   Map<String, dynamic> _dashboard = {};
   Map<String, dynamic> _campaignPage = {};
+  Map<String, dynamic> _draftPage = {};
   Map<String, dynamic> _billing = {};
 
   String get _businessName {
@@ -100,13 +103,15 @@ class _AdLiveNativeScreenState extends State<AdLiveNativeScreen> {
     final results = await Future.wait([
       safe(AdLiveApiService.dashboard()),
       safe(AdLiveApiService.campaigns()),
+      safe(AdLiveApiService.campaignDrafts()),
       safe(AdLiveApiService.billing()),
     ]);
     if (!mounted) return;
     setState(() {
       _dashboard = results[0];
       _campaignPage = results[1];
-      _billing = results[2];
+      _draftPage = results[2];
+      _billing = results[3];
       _loading = false;
       if (results.every((result) => result.isEmpty)) {
         _error = 'AdLive data could not load. Check your connection and retry.';
@@ -119,6 +124,86 @@ class _AdLiveNativeScreenState extends State<AdLiveNativeScreen> {
       MaterialPageRoute<void>(builder: (_) => const AdLiveCampaignFlowScreen()),
     );
     if (mounted) _refresh();
+  }
+
+  Future<void> _openDraft(Map<String, dynamic> draft) async {
+    final draftId = draft['id']?.toString() ?? '';
+    if (draftId.isEmpty || draft['can_resume'] != true) return;
+    final campaignId = draft['campaign_id']?.toString();
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AdLiveCampaignFlowScreen(
+          draftId: draftId,
+          campaignId: campaignId == null || campaignId.isEmpty
+              ? null
+              : campaignId,
+          resume: draft['resume']?.toString() ?? 'plan',
+        ),
+      ),
+    );
+    if (mounted) _refresh();
+  }
+
+  Future<void> _deleteDraft(Map<String, dynamic> draft) async {
+    final draftId = draft['id']?.toString() ?? '';
+    final campaignId = draft['campaign_id']?.toString() ?? '';
+    final needsBilling = draft['can_request_unpublish'] == true;
+    if (draftId.isEmpty || (!needsBilling && draft['can_delete'] != true)) {
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(needsBilling ? 'Request draft deletion?' : 'Delete draft?'),
+        content: Text(
+          needsBilling
+              ? 'This paid draft has a Pending balance. Admin billing must approve returning it to Available before the campaign and draft are removed.'
+              : 'This unpaid draft has no reserved balance and will be removed.',
+          style: AdLiveDesign.body(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: needsBilling
+                  ? const Color(0xFFB45309)
+                  : const Color(0xFFBE123C),
+            ),
+            child: Text(needsBilling ? 'Send for approval' : 'Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _workingDrafts.add(draftId));
+    try {
+      final response = needsBilling
+          ? await AdLiveApiService.requestCampaignUnpublish(campaignId)
+          : await AdLiveApiService.deleteCampaignDraft(draftId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(response['message']?.toString() ?? 'Draft updated.'),
+          backgroundColor: AdLiveDesign.deepGreen,
+        ),
+      );
+      await _refresh();
+    } on AdLiveApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.message),
+          backgroundColor: Colors.red[700],
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _workingDrafts.remove(draftId));
+    }
   }
 
   void _openCampaign(Map<String, dynamic> campaign) {
@@ -522,10 +607,21 @@ class _AdLiveNativeScreenState extends State<AdLiveNativeScreen> {
   }
 
   Widget _campaigns() {
-    if (_campaignPage.isEmpty) {
+    if (_campaignPage.isEmpty && _draftPage.isEmpty) {
       return _errorState('Campaigns could not load.', _refresh);
     }
-    final all = _maps(_campaignPage['data']);
+    final drafts = _maps(_draftPage['data']);
+    final draftCampaignIds = drafts
+        .map((draft) => draft['campaign_id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    final all = _maps(_campaignPage['data'])
+        .where(
+          (campaign) =>
+              !draftCampaignIds.contains(campaign['id']?.toString() ?? ''),
+        )
+        .toList();
+    final showingDrafts = _campaignSection == 'drafts';
     final filtered = all.where((item) {
       final matchText = (item['name']?.toString() ?? '').toLowerCase().contains(
         _search.toLowerCase(),
@@ -551,7 +647,7 @@ class _AdLiveNativeScreenState extends State<AdLiveNativeScreen> {
                   children: [
                     Text('Campaigns', style: AdLiveDesign.heading(26)),
                     Text(
-                      '${_campaignPage['total'] ?? all.length} campaigns',
+                      '${drafts.length} drafts · ${all.length} campaigns',
                       style: AdLiveDesign.body(),
                     ),
                   ],
@@ -567,75 +663,183 @@ class _AdLiveNativeScreenState extends State<AdLiveNativeScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 17),
-          TextField(
-            onChanged: (value) => setState(() => _search = value),
-            decoration: InputDecoration(
-              hintText: 'Search campaigns',
-              prefixIcon: const Icon(Icons.search_rounded, size: 20),
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(
-                vertical: 12,
-                horizontal: 14,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AdLiveDesign.line),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AdLiveDesign.green),
-              ),
+          const SizedBox(height: 15),
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEAF2EE),
+              borderRadius: BorderRadius.circular(14),
             ),
-          ),
-          const SizedBox(height: 13),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                for (final status in ['All', 'Active', 'Pending', 'Paused'])
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(status),
-                      selected: _status == status,
-                      onSelected: (_) => setState(() => _status = status),
-                      selectedColor: AdLiveDesign.mint,
-                      backgroundColor: Colors.white,
-                      side: BorderSide(
-                        color: _status == status
-                            ? const Color(0xFF8ED8B8)
-                            : AdLiveDesign.line,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(11),
-                      ),
-                      labelStyle: TextStyle(
-                        color: _status == status
-                            ? AdLiveDesign.deepGreen
-                            : AdLiveDesign.muted,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
+                _campaignSectionButton(
+                  'Campaigns',
+                  all.length,
+                  'campaigns',
+                  Icons.campaign_outlined,
+                ),
+                _campaignSectionButton(
+                  'Drafts',
+                  drafts.length,
+                  'drafts',
+                  Icons.edit_note_rounded,
+                ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          if (filtered.isEmpty)
-            _emptyCard(
-              all.isEmpty
-                  ? 'No campaigns yet. Start your first campaign.'
-                  : 'No campaigns match these filters.',
+          const SizedBox(height: 15),
+          if (showingDrafts) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF8E7),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFF3D79B)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    color: Color(0xFF9A5B0A),
+                    size: 19,
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Text(
+                      'Campaigns stay here until payment and admin publishing checks are complete. Paid draft deletion always needs billing approval.',
+                      style: AdLiveDesign.body(
+                        size: 11,
+                        color: const Color(0xFF6B4310),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ...filtered.map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _campaignCard(item),
+            const SizedBox(height: 13),
+            if (drafts.isEmpty)
+              _emptyCard('No campaign drafts. Incomplete plans appear here.'),
+            ...drafts.map(
+              (draft) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _draftCard(draft),
+              ),
+            ),
+          ] else ...[
+            TextField(
+              onChanged: (value) => setState(() => _search = value),
+              decoration: InputDecoration(
+                hintText: 'Search campaigns',
+                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 14,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AdLiveDesign.line),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AdLiveDesign.green),
+                ),
+              ),
+            ),
+            const SizedBox(height: 13),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (final status in ['All', 'Active', 'Pending', 'Paused'])
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(status),
+                        selected: _status == status,
+                        onSelected: (_) => setState(() => _status = status),
+                        selectedColor: AdLiveDesign.mint,
+                        backgroundColor: Colors.white,
+                        side: BorderSide(
+                          color: _status == status
+                              ? const Color(0xFF8ED8B8)
+                              : AdLiveDesign.line,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(11),
+                        ),
+                        labelStyle: TextStyle(
+                          color: _status == status
+                              ? AdLiveDesign.deepGreen
+                              : AdLiveDesign.muted,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (filtered.isEmpty)
+              _emptyCard(
+                all.isEmpty
+                    ? 'No campaigns yet. Start your first campaign.'
+                    : 'No campaigns match these filters.',
+              ),
+            ...filtered.map(
+              (item) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _campaignCard(item),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _campaignSectionButton(
+    String label,
+    int count,
+    String value,
+    IconData icon,
+  ) {
+    final selected = _campaignSection == value;
+    return Expanded(
+      child: Material(
+        color: selected ? Colors.white : Colors.transparent,
+        borderRadius: BorderRadius.circular(11),
+        child: InkWell(
+          onTap: () => setState(() => _campaignSection = value),
+          borderRadius: BorderRadius.circular(11),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 17,
+                  color: selected ? AdLiveDesign.green : AdLiveDesign.muted,
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    '$label ($count)',
+                    overflow: TextOverflow.ellipsis,
+                    style: AdLiveDesign.heading(12).copyWith(
+                      color: selected
+                          ? AdLiveDesign.deepGreen
+                          : AdLiveDesign.muted,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -911,6 +1115,177 @@ class _AdLiveNativeScreenState extends State<AdLiveNativeScreen> {
       ),
     ),
   );
+
+  Widget _draftCard(Map<String, dynamic> draft) {
+    final id = draft['id']?.toString() ?? '';
+    final working = _workingDrafts.contains(id);
+    final billingPending = draft['billing_review_pending'] == true;
+    final canResume = draft['can_resume'] == true && !working;
+    final canDelete =
+        (draft['can_delete'] == true ||
+            draft['can_request_unpublish'] == true) &&
+        !working;
+    final resume = draft['resume']?.toString() ?? 'plan';
+    final actionLabel = resume == 'setup'
+        ? 'Resume setup'
+        : resume == 'payment'
+        ? 'Continue payment'
+        : 'Edit draft';
+    final pending = _amount(draft['pending_balance']);
+
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: AdLiveDesign.surface(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: billingPending
+                      ? const Color(0xFFFFF1DA)
+                      : AdLiveDesign.mint,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  billingPending
+                      ? Icons.hourglass_top_rounded
+                      : Icons.edit_note_rounded,
+                  size: 20,
+                  color: billingPending
+                      ? const Color(0xFF9A5B0A)
+                      : AdLiveDesign.green,
+                ),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      draft['name']?.toString() ?? 'Untitled campaign plan',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: AdLiveDesign.heading(15),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Saved ${_date(draft['saved_at'])}',
+                      style: AdLiveDesign.body(size: 10.5),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 11),
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: billingPending
+                      ? const Color(0xFFFFF1DA)
+                      : const Color(0xFFEFF3FF),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  draft['status_label']?.toString() ?? 'Draft',
+                  style: TextStyle(
+                    color: billingPending
+                        ? const Color(0xFF8A4F08)
+                        : const Color(0xFF3447A8),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              if (pending > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF8E7),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Pending ${_money(pending)}',
+                    style: const TextStyle(
+                      color: Color(0xFF7C4A0A),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 13),
+          if (billingPending)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFAEF),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Text(
+                'Deletion is waiting for admin billing approval. The Pending balance remains protected until the decision.',
+                style: AdLiveDesign.body(
+                  size: 10.5,
+                  color: const Color(0xFF6B4310),
+                ),
+              ),
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: canResume ? () => _openDraft(draft) : null,
+                    icon: const Icon(Icons.arrow_forward_rounded, size: 17),
+                    label: Text(
+                      actionLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 42),
+                      backgroundColor: AdLiveDesign.green,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  onPressed: canDelete ? () => _deleteDraft(draft) : null,
+                  icon: working
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.delete_outline_rounded, size: 17),
+                  label: const Text('Delete'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 42),
+                    foregroundColor: const Color(0xFFBE123C),
+                    side: const BorderSide(color: Color(0xFFF2B8C6)),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
 
   Widget _campaignCard(Map<String, dynamic> item) => Material(
     color: Colors.white,

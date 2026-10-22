@@ -871,6 +871,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
         TextField(
           controller: _locationQuery,
           onChanged: _searchLocations,
+          style: AdLiveDesign.body(size: 12, color: AdLiveDesign.ink),
           decoration: _input(
             'Search Meta location',
             icon: Icons.search_rounded,
@@ -958,6 +959,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
               isDense: true,
               menuMaxHeight: 280,
               borderRadius: BorderRadius.circular(14),
+              style: AdLiveDesign.body(size: 12, color: AdLiveDesign.ink),
               decoration: _input('Quantity'),
               items: List.generate(
                 10,
@@ -1248,6 +1250,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
       menuMaxHeight: 280,
       borderRadius: BorderRadius.circular(14),
       icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
+      style: AdLiveDesign.body(size: 12, color: AdLiveDesign.ink),
       decoration: _input(label),
       items: options
           .map(
@@ -1422,13 +1425,23 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
     controller: controller,
     maxLines: maxLines,
     keyboardType: keyboard,
-    style: AdLiveDesign.body(size: 13, color: AdLiveDesign.ink),
-    decoration: _input(label),
+    style: AdLiveDesign.body(size: 12, color: AdLiveDesign.ink),
+    decoration: _input(label, alignLabelWithHint: maxLines > 1),
   );
-  InputDecoration _input(String label, {IconData? icon}) => InputDecoration(
+  InputDecoration _input(
+    String label, {
+    IconData? icon,
+    bool alignLabelWithHint = false,
+  }) => InputDecoration(
     labelText: label,
+    alignLabelWithHint: alignLabelWithHint,
     isDense: true,
-    floatingLabelStyle: const TextStyle(color: AdLiveDesign.deepGreen),
+    labelStyle: AdLiveDesign.body(size: 12, color: AdLiveDesign.ink),
+    floatingLabelStyle: AdLiveDesign.body(
+      size: 10.5,
+      color: AdLiveDesign.deepGreen,
+    ).copyWith(fontWeight: FontWeight.w600),
+    hintStyle: AdLiveDesign.body(size: 12),
     prefixIcon: icon == null ? null : Icon(icon, size: 19),
     prefixIconConstraints: icon == null
         ? null
@@ -1554,6 +1567,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
       menuMaxHeight: 280,
       borderRadius: BorderRadius.circular(14),
       icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
+      style: AdLiveDesign.body(size: 12, color: AdLiveDesign.ink),
       decoration: _input(label),
       items: options.map((option) {
         final id = _flowText(option['id'] ?? option['value'] ?? option['key']);

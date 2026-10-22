@@ -51,8 +51,13 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
   bool _loading = true;
   bool _working = false;
   bool _catalogueLoading = false;
+  bool _overrideAge = false;
+  bool _overrideGender = false;
+  bool _overrideLanguages = false;
   int _step = 0;
   int _catalogueRevision = 0;
+  int _ageMin = 18;
+  int _ageMax = 65;
   String? _error;
   String? _draftId;
   String? _campaignId;
@@ -76,6 +81,8 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
   final Set<String> _customerTypes = {};
   final Set<String> _buyingRoles = {};
   final Set<String> _selectedIndustries = {};
+  final Set<String> _selectedLanguages = {};
+  String _selectedGender = 'all';
   List<Map<String, dynamic>> _roles = [];
   List<Map<String, dynamic>> _industries = [];
   List<Map<String, dynamic>> _locations = [];
@@ -166,7 +173,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
       _selectedIndustries.clear();
       _roles = [];
       _industries = [];
-      _audience = {};
+      _clearAudienceMatch();
       _catalogueLoading = selected.isNotEmpty;
     });
     if (selected.isEmpty) return;
@@ -200,7 +207,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
         ..addAll(selected);
       _selectedIndustries.clear();
       _industries = [];
-      _audience = {};
+      _clearAudienceMatch();
       _catalogueLoading = _customerTypes.isNotEmpty;
     });
     if (_customerTypes.isEmpty) return;
@@ -221,6 +228,67 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
   }
 
   List<String> _sortedSelection(Set<String> values) => values.toList()..sort();
+
+  int _audienceInt(dynamic value, int fallback) =>
+      value is num ? value.toInt() : int.tryParse('$value') ?? fallback;
+
+  List<String> _audienceStrings(dynamic value) => value is List
+      ? value
+            .map((item) => item.toString().trim())
+            .where((item) => item.isNotEmpty)
+            .toList()
+      : <String>[];
+
+  Map<String, dynamic> get _audienceDefaults {
+    final defaults = _flowMap(_audience['audience_defaults']);
+    final targeting = _flowMap(_audience['targeting_spec']);
+    return {
+      'age_min': defaults['age_min'] ?? targeting['suggested_age_min'] ?? 18,
+      'age_max': defaults['age_max'] ?? targeting['suggested_age_max'] ?? 65,
+      'gender': defaults['gender'] ?? targeting['suggested_gender'] ?? 'all',
+      'locales':
+          defaults['locales'] ?? targeting['suggested_languages'] ?? const [],
+    };
+  }
+
+  void _clearAudienceMatch() {
+    _audience = {};
+    _overrideAge = false;
+    _overrideGender = false;
+    _overrideLanguages = false;
+    _selectedLanguages.clear();
+    _selectedGender = 'all';
+    _ageMin = 18;
+    _ageMax = 65;
+  }
+
+  void _applyAudienceDefaults(Map<String, dynamic> data) {
+    _audience = data;
+    final defaults = _flowMap(data['audience_defaults']);
+    final targeting = _flowMap(data['targeting_spec']);
+    _ageMin = _audienceInt(
+      defaults['age_min'] ?? targeting['suggested_age_min'],
+      18,
+    ).clamp(13, 65);
+    _ageMax = _audienceInt(
+      defaults['age_max'] ?? targeting['suggested_age_max'],
+      65,
+    ).clamp(_ageMin, 65);
+    final gender = _flowText(
+      defaults['gender'] ?? targeting['suggested_gender'],
+    ).toLowerCase();
+    _selectedGender = {'male', 'female'}.contains(gender) ? gender : 'all';
+    _selectedLanguages
+      ..clear()
+      ..addAll(
+        _audienceStrings(
+          defaults['locales'] ?? targeting['suggested_languages'],
+        ),
+      );
+    _overrideAge = false;
+    _overrideGender = false;
+    _overrideLanguages = false;
+  }
 
   Map<String, dynamic> _catalogue() => {
     'schema_version': 1,
@@ -337,9 +405,23 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
         'location': selected == null
             ? {'mode': 'inherit'}
             : {'mode': 'custom', 'value': geo, 'labels': label},
-        'age': {'mode': 'inherit'},
-        'gender': {'mode': 'inherit'},
-        'languages': {'mode': 'inherit'},
+        'age': _overrideAge
+            ? {
+                'mode': 'custom',
+                'value': {'min': _ageMin, 'max': _ageMax},
+              }
+            : {'mode': 'inherit'},
+        'gender': _overrideGender
+            ? {
+                'mode': 'custom',
+                'value': _selectedGender == 'all'
+                    ? ['male', 'female']
+                    : [_selectedGender],
+              }
+            : {'mode': 'inherit'},
+        'languages': _overrideLanguages
+            ? {'mode': 'custom', 'value': _sortedSelection(_selectedLanguages)}
+            : {'mode': 'inherit'},
       },
       'planner_state': {
         'step_key': [
@@ -359,7 +441,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
       final data = await AdLiveApiService.previewCampaignAudience(
         _flowMap(_payload()['audience'])['smart_profile'],
       );
-      if (mounted) setState(() => _audience = data);
+      if (mounted) setState(() => _applyAudienceDefaults(data));
       if (data['is_unmatched'] == true) {
         _show(_flowText(data['error']), error: true);
       }
@@ -924,7 +1006,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
               _selectedIndustries
                 ..clear()
                 ..addAll(selected);
-              _audience = {};
+              _clearAudienceMatch();
             });
           },
         ),
@@ -951,6 +1033,11 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
                   ? 'Smart audience is ready.'
                   : _flowText(_audience['matched_description']),
             ),
+          ),
+        if (_audience.isNotEmpty && _audience['is_unmatched'] != true)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: _verifiedAudiencePanel(),
           ),
       ]),
       const SizedBox(height: 12),
@@ -988,7 +1075,9 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
           ),
         const SizedBox(height: 6),
         Text(
-          'Age, gender and language stay on the approved Smart Audience unless changed during review.',
+          _audience.isEmpty
+              ? 'Generate Smart Audience above to see its approved age, gender and language settings.'
+              : 'The selected Meta location is combined with the audience settings shown above.',
           style: AdLiveDesign.body(size: 11),
         ),
       ]),
@@ -1738,6 +1827,283 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
     search.dispose();
     return result;
   }
+
+  String _genderLabel(String value) => switch (value.toLowerCase()) {
+    'male' => 'Male',
+    'female' => 'Female',
+    _ => 'All',
+  };
+
+  String _languageLabel(String code) => switch (code) {
+    '6' => 'English',
+    '24' => 'Hindi',
+    '67' => 'Gujarati',
+    _ => 'Locale $code',
+  };
+
+  Widget _verifiedAudiencePanel() {
+    final defaults = _audienceDefaults;
+    final defaultAgeMin = _audienceInt(defaults['age_min'], 18).clamp(13, 65);
+    final defaultAgeMax = _audienceInt(
+      defaults['age_max'],
+      65,
+    ).clamp(defaultAgeMin, 65);
+    final defaultGender = _genderLabel(_flowText(defaults['gender']));
+    final defaultLocales = _audienceStrings(defaults['locales']);
+    final defaultLanguage = defaultLocales.isEmpty
+        ? 'All'
+        : defaultLocales.map(_languageLabel).join(', ');
+    return Container(
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7FBF9),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFD5EAE0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.verified_rounded,
+                size: 17,
+                color: AdLiveDesign.green,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Verified audience settings',
+                  style: AdLiveDesign.heading(12.5),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 9),
+          Row(
+            children: [
+              Expanded(
+                child: _audienceSummary('AGE', '$defaultAgeMin–$defaultAgeMax'),
+              ),
+              const SizedBox(width: 6),
+              Expanded(child: _audienceSummary('GENDER', defaultGender)),
+              const SizedBox(width: 6),
+              Expanded(child: _audienceSummary('LANGUAGE', defaultLanguage)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _targetingToggle(
+            title: 'Change age range',
+            value: _overrideAge,
+            onChanged: (value) => setState(() => _overrideAge = value),
+          ),
+          if (_overrideAge) ...[
+            const SizedBox(height: 7),
+            Row(
+              children: [
+                Expanded(
+                  child: _ageDropdown(
+                    'Minimum age',
+                    _ageMin,
+                    (value) => setState(() {
+                      _ageMin = value;
+                      if (_ageMax < value) _ageMax = value;
+                    }),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _ageDropdown(
+                    'Maximum age',
+                    _ageMax,
+                    (value) => setState(() {
+                      _ageMax = value;
+                      if (_ageMin > value) _ageMin = value;
+                    }),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const Divider(height: 15, color: AdLiveDesign.line),
+          _targetingToggle(
+            title: 'Change gender',
+            value: _overrideGender,
+            onChanged: (value) => setState(() => _overrideGender = value),
+          ),
+          if (_overrideGender) ...[
+            const SizedBox(height: 7),
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: ['all', 'male', 'female']
+                  .map(
+                    (value) => _targetingChip(
+                      _genderLabel(value),
+                      _selectedGender == value,
+                      () => setState(() => _selectedGender = value),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
+          const Divider(height: 15, color: AdLiveDesign.line),
+          _targetingToggle(
+            title: 'Change languages',
+            value: _overrideLanguages,
+            onChanged: (value) => setState(() => _overrideLanguages = value),
+          ),
+          if (_overrideLanguages) ...[
+            const SizedBox(height: 7),
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: [
+                _targetingChip(
+                  'All languages',
+                  _selectedLanguages.isEmpty,
+                  () => setState(_selectedLanguages.clear),
+                ),
+                for (final item in const {
+                  '6': 'English',
+                  '24': 'Hindi',
+                  '67': 'Gujarati',
+                }.entries)
+                  _targetingChip(
+                    item.value,
+                    _selectedLanguages.contains(item.key),
+                    () => setState(() {
+                      if (!_selectedLanguages.add(item.key)) {
+                        _selectedLanguages.remove(item.key);
+                      }
+                    }),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _audienceSummary(String label, String value) => Container(
+    constraints: const BoxConstraints(minHeight: 48),
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: AdLiveDesign.line),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          label,
+          maxLines: 1,
+          style: AdLiveDesign.body(
+            size: 8.5,
+            color: AdLiveDesign.muted,
+          ).copyWith(fontWeight: FontWeight.w800, letterSpacing: .35),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: AdLiveDesign.body(
+            size: 10.5,
+            color: AdLiveDesign.ink,
+          ).copyWith(fontWeight: FontWeight.w700),
+        ),
+      ],
+    ),
+  );
+
+  Widget _targetingToggle({
+    required String title,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) => Row(
+    children: [
+      Expanded(
+        child: Text(
+          title,
+          style: AdLiveDesign.body(
+            size: 11.5,
+            color: AdLiveDesign.ink,
+          ).copyWith(fontWeight: FontWeight.w700),
+        ),
+      ),
+      SizedBox(
+        height: 30,
+        child: Switch(
+          value: value,
+          onChanged: onChanged,
+          activeTrackColor: AdLiveDesign.green,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ),
+    ],
+  );
+
+  Widget _ageDropdown(String label, int value, ValueChanged<int> onChanged) =>
+      DropdownButtonFormField<int>(
+        key: ValueKey('$label-$value'),
+        initialValue: value,
+        isExpanded: true,
+        isDense: true,
+        menuMaxHeight: 280,
+        borderRadius: BorderRadius.circular(14),
+        style: AdLiveDesign.body(size: 11.5, color: AdLiveDesign.ink),
+        decoration: _input(label),
+        items: [
+          for (var age = 13; age <= 65; age++)
+            DropdownMenuItem(value: age, child: Text('$age')),
+        ],
+        onChanged: (selected) {
+          if (selected != null) onChanged(selected);
+        },
+      );
+
+  Widget _targetingChip(String label, bool selected, VoidCallback onTap) =>
+      Material(
+        color: selected ? AdLiveDesign.mint : Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: selected ? const Color(0xFF9ED9BE) : AdLiveDesign.line,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (selected) ...[
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    size: 14,
+                    color: AdLiveDesign.green,
+                  ),
+                  const SizedBox(width: 5),
+                ],
+                Text(
+                  label,
+                  style: AdLiveDesign.body(
+                    size: 10.5,
+                    color: selected ? AdLiveDesign.deepGreen : AdLiveDesign.ink,
+                  ).copyWith(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
 
   Widget _locationResult(Map<String, dynamic> place) {
     final type = _flowText(place['type']).toLowerCase();

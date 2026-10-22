@@ -68,6 +68,12 @@ class _AdLiveNativeScreenState extends State<AdLiveNativeScreen> {
     return name.isEmpty ? 'Your business' : name;
   }
 
+  dynamic get _availableWallet {
+    final liveWallet = _map(_billing['wallet']);
+    if (liveWallet.containsKey('available')) return liveWallet['available'];
+    return _map(widget.bootstrap?['wallet'])['available'];
+  }
+
   @override
   void initState() {
     super.initState();
@@ -200,6 +206,78 @@ class _AdLiveNativeScreenState extends State<AdLiveNativeScreen> {
     );
   }
 
+  Widget _walletHeader() => Tooltip(
+    message: 'Available AdLive wallet balance',
+    child: InkWell(
+      onTap: _loading ? null : _refresh,
+      borderRadius: BorderRadius.circular(13),
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 92, maxWidth: 116),
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        decoration: BoxDecoration(
+          color: AdLiveDesign.mint,
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: const Color(0xFFBDEBDA)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.account_balance_wallet_outlined,
+              size: 16,
+              color: AdLiveDesign.green,
+            ),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Available',
+                    style: AdLiveDesign.body(
+                      size: 8.5,
+                      color: AdLiveDesign.muted,
+                    ),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          _availableWallet == null
+                              ? '—'
+                              : _money(_availableWallet),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AdLiveDesign.heading(
+                            11.5,
+                          ).copyWith(color: AdLiveDesign.deepGreen),
+                        ),
+                      ),
+                      if (_loading) ...[
+                        const SizedBox(width: 4),
+                        const SizedBox(
+                          width: 8,
+                          height: 8,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 1.3,
+                            color: AdLiveDesign.green,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     return Theme(
@@ -240,6 +318,7 @@ class _AdLiveNativeScreenState extends State<AdLiveNativeScreen> {
             ],
           ),
           actions: [
+            _walletHeader(),
             IconButton(
               tooltip: 'Switch business',
               onPressed: _showBusiness,
@@ -248,14 +327,7 @@ class _AdLiveNativeScreenState extends State<AdLiveNativeScreen> {
                 color: AdLiveDesign.deepGreen,
               ),
             ),
-            IconButton(
-              tooltip: 'Refresh',
-              onPressed: _refresh,
-              icon: const Icon(
-                Icons.refresh_rounded,
-                color: AdLiveDesign.deepGreen,
-              ),
-            ),
+            const SizedBox(width: 4),
           ],
         ),
         body:

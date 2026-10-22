@@ -828,27 +828,23 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
           _field(_product, 'Product or service'),
           compactTwoColumn: true,
         ),
-        const SizedBox(height: 10),
-        _field(_details, 'Offer details (optional)', maxLines: 2),
         if (_goal == 'website') ...[
           const SizedBox(height: 10),
           _field(_website, 'Website URL'),
         ],
         const SizedBox(height: 10),
-        _responsivePair(
-          _dropdown(
-            'Customer type',
-            customerTypes,
-            _customerType,
-            _loadIndustries,
-          ),
-          _dropdown(
-            'Industry',
-            _industries,
-            _industry,
-            (value) => setState(() => _industry = value),
-          ),
-          compactTwoColumn: true,
+        _dropdown(
+          'Customer type',
+          customerTypes,
+          _customerType,
+          _loadIndustries,
+        ),
+        const SizedBox(height: 10),
+        _dropdown(
+          'Industry',
+          _industries,
+          _industry,
+          (value) => setState(() => _industry = value),
         ),
         const SizedBox(height: 10),
         _outlineButton(

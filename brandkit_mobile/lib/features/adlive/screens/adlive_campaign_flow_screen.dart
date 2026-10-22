@@ -361,12 +361,10 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
       },
       'goal': _goal,
       'audience': {
-        'target_customer': customerTypes.length == 1
-            ? customerTypes.first
-            : customerTypes,
+        'target_customer': customerTypes.join(', '),
         'locations': label,
-        'industry': industries.length == 1 ? industries.first : industries,
-        'buyer_type': customerTypes,
+        'industry': industries.join(', '),
+        'buyer_type': customerTypes.join(', '),
         'smart_profile': {
           'business_name': _businessName.text.trim(),
           'product_name': _product.text.trim(),

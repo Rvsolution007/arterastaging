@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../services/adlive_api_service.dart';
 import '../services/native_facebook_auth_service.dart';
@@ -37,6 +38,7 @@ class _AdLiveConnectionsScreenState extends State<AdLiveConnectionsScreen> {
   bool _working = false;
   String? _error;
   Map<String, dynamic> _assets = {};
+  List<Map<String, dynamic>> _stores = [];
   String? _selectedAccount;
   String? _selectedPage;
   String? _selectedPhone;
@@ -67,10 +69,16 @@ class _AdLiveConnectionsScreenState extends State<AdLiveConnectionsScreen> {
       _error = null;
     });
     try {
-      final assets = await AdLiveApiService.metaAssets(widget.accountMode);
+      final results = await Future.wait([
+        AdLiveApiService.metaAssets(widget.accountMode),
+        AdLiveApiService.ecommerceStores(),
+      ]);
+      final assets = results[0];
+      final stores = results[1];
       if (!mounted) return;
       setState(() {
         _assets = assets;
+        _stores = _connectionMaps(stores['stores']);
         final selection = _connectionMap(assets['selection']);
         _selectedAccount ??= selection['ad_account_id']?.toString();
         _selectedPage ??=
@@ -234,9 +242,376 @@ class _AdLiveConnectionsScreenState extends State<AdLiveConnectionsScreen> {
                   _message(
                     'Connect Facebook to load the Pages, Instagram account and WhatsApp numbers available to you.',
                   ),
+                const SizedBox(height: 22),
+                _ecommerceStores(),
               ],
             ),
           ),
+  );
+
+  Widget _ecommerceStores() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        children: [
+          Expanded(
+            child: Text('Ecommerce stores', style: AdLiveDesign.heading(17)),
+          ),
+          TextButton.icon(
+            onPressed: _working ? null : _connectStore,
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: const Text('Add store'),
+          ),
+        ],
+      ),
+      const SizedBox(height: 5),
+      Text(
+        'Use a verified Shopify, WooCommerce, or custom store for Purchase campaigns.',
+        style: AdLiveDesign.body(size: 11),
+      ),
+      const SizedBox(height: 10),
+      if (_stores.isEmpty)
+        _message('No ecommerce store is connected for this business.')
+      else
+        ..._stores.map((store) {
+          final connected = store['status']?.toString() == 'connected';
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 9),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: AdLiveDesign.surface(),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: connected
+                          ? AdLiveDesign.mint
+                          : const Color(0xFFFFF5E8),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.storefront_outlined,
+                      color: connected
+                          ? AdLiveDesign.deepGreen
+                          : Colors.orange.shade800,
+                    ),
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          store['name']?.toString().isNotEmpty == true
+                              ? store['name'].toString()
+                              : store['url']?.toString() ?? 'Store',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AdLiveDesign.heading(13),
+                        ),
+                        Text(
+                          '${store['platform'] ?? 'custom'} • ${connected ? 'Verified' : 'Needs attention'}',
+                          style: AdLiveDesign.body(
+                            size: 10.5,
+                            color: connected
+                                ? AdLiveDesign.deepGreen
+                                : Colors.orange.shade900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  PopupMenuButton<String>(
+                    enabled: !_working,
+                    onSelected: (action) => action == 'verify'
+                        ? _verifyStore(store)
+                        : _disconnectStore(store),
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(
+                        value: 'verify',
+                        child: Text('Verify again'),
+                      ),
+                      if (connected)
+                        const PopupMenuItem(
+                          value: 'disconnect',
+                          child: Text('Disconnect'),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+    ],
+  );
+
+  Future<void> _verifyStore(Map<String, dynamic> store) async {
+    setState(() => _working = true);
+    try {
+      await AdLiveApiService.verifyEcommerceStore(
+        store['id']?.toString() ?? '',
+      );
+      await _load();
+      _notice('Store verification refreshed.');
+    } on AdLiveApiException catch (error) {
+      _notice(error.message, failed: true);
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  Future<void> _disconnectStore(Map<String, dynamic> store) async {
+    setState(() => _working = true);
+    try {
+      await AdLiveApiService.disconnectEcommerceStore(
+        store['id']?.toString() ?? '',
+      );
+      await _load();
+      _notice('Store disconnected. Existing campaign records were kept.');
+    } on AdLiveApiException catch (error) {
+      _notice(error.message, failed: true);
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
+  Future<void> _connectStore() async {
+    final name = TextEditingController();
+    final url = TextEditingController();
+    final token = TextEditingController();
+    final webhookSecret = TextEditingController();
+    final key = TextEditingController();
+    final secret = TextEditingController();
+    var platform = 'shopify';
+    var saving = false;
+    String? errorText;
+    final response = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) => SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              18,
+              16,
+              18,
+              18 + MediaQuery.viewInsetsOf(context).bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('Connect store', style: AdLiveDesign.heading(20)),
+                const SizedBox(height: 5),
+                Text(
+                  'Credentials are encrypted by AdLive and never shown after verification.',
+                  style: AdLiveDesign.body(size: 11),
+                ),
+                const SizedBox(height: 13),
+                DropdownButtonFormField<String>(
+                  initialValue: platform,
+                  isExpanded: true,
+                  decoration: _storeInput('Platform'),
+                  items: const [
+                    DropdownMenuItem(value: 'shopify', child: Text('Shopify')),
+                    DropdownMenuItem(
+                      value: 'woocommerce',
+                      child: Text('WooCommerce / WordPress'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'custom',
+                      child: Text('Custom website'),
+                    ),
+                  ],
+                  onChanged: saving
+                      ? null
+                      : (value) =>
+                            setSheetState(() => platform = value ?? 'shopify'),
+                ),
+                const SizedBox(height: 9),
+                TextField(
+                  controller: name,
+                  decoration: _storeInput('Store name'),
+                ),
+                const SizedBox(height: 9),
+                TextField(
+                  controller: url,
+                  keyboardType: TextInputType.url,
+                  decoration: _storeInput('HTTPS store URL'),
+                ),
+                if (platform == 'shopify') ...[
+                  const SizedBox(height: 9),
+                  TextField(
+                    controller: token,
+                    obscureText: true,
+                    enableSuggestions: false,
+                    autocorrect: false,
+                    decoration: _storeInput('Shopify Admin API token'),
+                  ),
+                  const SizedBox(height: 9),
+                  TextField(
+                    controller: webhookSecret,
+                    obscureText: true,
+                    enableSuggestions: false,
+                    autocorrect: false,
+                    decoration: _storeInput('Shopify app API secret'),
+                  ),
+                ],
+                if (platform == 'woocommerce') ...[
+                  const SizedBox(height: 9),
+                  TextField(
+                    controller: key,
+                    obscureText: true,
+                    enableSuggestions: false,
+                    autocorrect: false,
+                    decoration: _storeInput('Consumer key'),
+                  ),
+                  const SizedBox(height: 9),
+                  TextField(
+                    controller: secret,
+                    obscureText: true,
+                    enableSuggestions: false,
+                    autocorrect: false,
+                    decoration: _storeInput('Consumer secret'),
+                  ),
+                ],
+                if (errorText != null) ...[
+                  const SizedBox(height: 9),
+                  Text(
+                    errorText!,
+                    style: AdLiveDesign.body(
+                      size: 11,
+                      color: Colors.red.shade700,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 14),
+                FilledButton.icon(
+                  onPressed: saving
+                      ? null
+                      : () async {
+                          setSheetState(() {
+                            saving = true;
+                            errorText = null;
+                          });
+                          try {
+                            final response =
+                                await AdLiveApiService.connectEcommerceStore(
+                                  platform: platform,
+                                  storeName: name.text.trim(),
+                                  storeUrl: url.text.trim(),
+                                  accessToken: token.text.trim(),
+                                  apiKey: key.text.trim(),
+                                  apiSecret: secret.text.trim(),
+                                  webhookSecret: webhookSecret.text.trim(),
+                                );
+                            if (sheetContext.mounted) {
+                              Navigator.of(sheetContext).pop(response);
+                            }
+                          } on AdLiveApiException catch (error) {
+                            if (sheetContext.mounted) {
+                              setSheetState(() {
+                                errorText = error.message;
+                                saving = false;
+                              });
+                            }
+                          }
+                        },
+                  icon: const Icon(Icons.verified_user_outlined),
+                  label: Text(saving ? 'Verifying…' : 'Connect & verify'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AdLiveDesign.green,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    name.dispose();
+    url.dispose();
+    token.dispose();
+    webhookSecret.dispose();
+    key.dispose();
+    secret.dispose();
+    if (response != null) {
+      await _load();
+      await _showStoreIntegration(_connectionMap(response['integration']));
+      _notice('Store connected and verified.');
+    }
+  }
+
+  Future<void> _showStoreIntegration(Map<String, dynamic> integration) async {
+    final webhookUrl = integration['webhook_url']?.toString() ?? '';
+    final signingSecret = integration['webhook_secret']?.toString() ?? '';
+    if (!mounted || webhookUrl.isEmpty || signingSecret.isEmpty) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Purchase webhook'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Configure an order-paid webhook. This signing secret is shown for this setup.',
+                style: AdLiveDesign.body(size: 11),
+              ),
+              const SizedBox(height: 12),
+              Text('Webhook URL', style: AdLiveDesign.heading(12)),
+              SelectableText(webhookUrl, style: AdLiveDesign.body(size: 11)),
+              TextButton.icon(
+                onPressed: () =>
+                    Clipboard.setData(ClipboardData(text: webhookUrl)),
+                icon: const Icon(Icons.copy_rounded, size: 16),
+                label: const Text('Copy URL'),
+              ),
+              const SizedBox(height: 8),
+              Text('Signing secret', style: AdLiveDesign.heading(12)),
+              SelectableText(signingSecret, style: AdLiveDesign.body(size: 11)),
+              TextButton.icon(
+                onPressed: () =>
+                    Clipboard.setData(ClipboardData(text: signingSecret)),
+                icon: const Icon(Icons.copy_rounded, size: 16),
+                label: const Text('Copy secret'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  InputDecoration _storeInput(String label) => InputDecoration(
+    labelText: label,
+    isDense: true,
+    filled: true,
+    fillColor: Colors.white,
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: AdLiveDesign.line),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: AdLiveDesign.green),
+    ),
   );
 
   Widget _managedPages() {

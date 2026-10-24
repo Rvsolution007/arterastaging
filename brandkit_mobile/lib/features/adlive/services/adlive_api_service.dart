@@ -90,6 +90,42 @@ class AdLiveApiService {
   static Future<Map<String, dynamic>> campaignWorkflowBootstrap() =>
       _get('/mobile/campaign-workflow/bootstrap');
 
+  static Future<Map<String, dynamic>> ecommerceStores() =>
+      _get('/mobile/ecommerce/stores');
+
+  static Future<Map<String, dynamic>> connectEcommerceStore({
+    required String platform,
+    required String storeName,
+    required String storeUrl,
+    String? accessToken,
+    String? apiKey,
+    String? apiSecret,
+    String? webhookSecret,
+  }) => _post('/mobile/ecommerce/stores', {
+    'platform': platform,
+    'store_name': storeName,
+    'store_url': storeUrl,
+    if (accessToken != null && accessToken.isNotEmpty)
+      'access_token': accessToken,
+    if (apiKey != null && apiKey.isNotEmpty) 'api_key': apiKey,
+    if (apiSecret != null && apiSecret.isNotEmpty) 'api_secret': apiSecret,
+    if (webhookSecret != null && webhookSecret.isNotEmpty)
+      'webhook_secret': webhookSecret,
+  });
+
+  static Future<Map<String, dynamic>> verifyEcommerceStore(String storeId) =>
+      _post(
+        '/mobile/ecommerce/stores/${Uri.encodeComponent(storeId)}/verify',
+        const {},
+      );
+
+  static Future<Map<String, dynamic>> disconnectEcommerceStore(
+    String storeId,
+  ) => _post(
+    '/mobile/ecommerce/stores/${Uri.encodeComponent(storeId)}/disconnect',
+    const {},
+  );
+
   static Future<Map<String, dynamic>> campaignCatalogueOptions({
     required String kind,
     required Map<String, dynamic> catalogue,
@@ -215,11 +251,17 @@ class AdLiveApiService {
   static Future<Map<String, dynamic>> confirmCampaignMetaSetup({
     required String campaignId,
     String? whatsappPhoneNumberId,
+    String? clientMetaDatasetId,
+    String? metaDatasetId,
   }) => _post(
     '/mobile/campaigns/${Uri.encodeComponent(campaignId)}/meta-setup/confirm',
     {
       if (whatsappPhoneNumberId != null && whatsappPhoneNumberId.isNotEmpty)
         'whatsapp_phone_number_id': whatsappPhoneNumberId,
+      if (clientMetaDatasetId != null && clientMetaDatasetId.isNotEmpty)
+        'client_meta_dataset_id': clientMetaDatasetId,
+      if (metaDatasetId != null && metaDatasetId.isNotEmpty)
+        'meta_dataset_id': metaDatasetId,
     },
   );
 

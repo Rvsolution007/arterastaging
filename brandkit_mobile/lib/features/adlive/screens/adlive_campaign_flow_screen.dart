@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 import '../services/adlive_api_service.dart';
@@ -79,6 +80,8 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
   String _format = 'single_image';
   String? _packageId;
   String? _serviceCode;
+  String? _ecommerceStoreId;
+  String? _metaDatasetId;
   int _creativeQuantity = 1;
   String? _mediaPath;
   String? _whatsAppPhoneId;
@@ -90,6 +93,8 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
   Map<String, dynamic> _creative = {};
   Map<String, dynamic> _meta = {};
   List<Map<String, dynamic>> _whatsAppNumbers = [];
+  List<Map<String, dynamic>> _ecommerceStores = [];
+  List<Map<String, dynamic>> _metaDatasets = [];
   final Map<String, TextEditingController> _requirementControllers = {};
   final Map<String, List<String>> _requirementFiles = {};
   final List<_CarouselCard> _carouselCards = [_CarouselCard(), _CarouselCard()];
@@ -158,6 +163,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
       if (!mounted) return;
       setState(() {
         _bootstrap = data;
+        _ecommerceStores = _flowMaps(data['ecommerce_stores']);
         _packageId ??= packages.isEmpty
             ? null
             : _flowText(packages.first['id']);
@@ -215,6 +221,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
     final selections = _flowMap(catalogue['selections']);
     final overrides = _flowMap(payload['targeting_overrides']);
     final planner = _flowMap(payload['planner_state']);
+    final ecommerce = _flowMap(payload['ecommerce']);
     final locations = _flowMaps(planner['meta_locations']);
 
     _campaignName.text = _flowText(payload['campaign_name']);
@@ -229,6 +236,8 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
     _goal = _flowText(payload['goal']).isEmpty
         ? 'whatsapp'
         : _flowText(payload['goal']);
+    final savedStoreId = _flowText(ecommerce['store_connection_id']);
+    if (savedStoreId.isNotEmpty) _ecommerceStoreId = savedStoreId;
     _creativeMode = _flowText(creative['mode']).isEmpty
         ? 'self_upload'
         : _flowText(creative['mode']);
@@ -524,6 +533,11 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
         'website_url': _website.text.trim(),
       },
       'goal': _goal,
+      if (_goal == 'ecommerce_purchase')
+        'ecommerce': {
+          'store_connection_id': _ecommerceStoreId,
+          'conversion_event': 'Purchase',
+        },
       'audience': {
         'target_customer': customerTypes.join(', '),
         'locations': label,
@@ -819,25 +833,56 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
   }
 
   Future<void> _loadWhatsAppNumbers() async {
-    if (_flowText(_meta['connection_mode']) != 'adlive_managed') return;
+    final mode = _flowText(_meta['connection_mode']);
+    if (mode.isEmpty) return;
     try {
-      final assets = await AdLiveApiService.metaAssets('adlive_managed');
-      final selectedId = _flowText(assets['selected_page_id']);
-      Map<String, dynamic>? page;
-      for (final item in _flowMaps(assets['pages'])) {
-        if (_flowText(item['id']) == selectedId) {
-          page = item;
-          break;
+      final assets = await AdLiveApiService.metaAssets(mode);
+      var numbers = <Map<String, dynamic>>[];
+      if (mode == 'adlive_managed') {
+        final selectedId = _flowText(assets['selected_page_id']);
+        Map<String, dynamic>? page;
+        for (final item in _flowMaps(assets['pages'])) {
+          if (_flowText(item['id']) == selectedId) {
+            page = item;
+            break;
+          }
+        }
+        numbers = _flowMaps(page?['whatsapp_numbers']);
+      } else {
+        numbers = _flowMaps(assets['whatsapp_numbers']);
+      }
+      var datasets = _flowMaps(assets['datasets']);
+      if (mode == 'client_owned') {
+        final selectedAccount = _flowText(
+          _flowMap(assets['selection'])['ad_account_id'],
+        );
+        if (selectedAccount.isNotEmpty) {
+          datasets = datasets
+              .where(
+                (dataset) =>
+                    _flowText(dataset['client_meta_ad_account_id']) ==
+                    selectedAccount,
+              )
+              .toList();
         }
       }
-      final numbers = _flowMaps(page?['whatsapp_numbers']);
+      final selectedDataset = mode == 'client_owned'
+          ? _flowText(_meta['selected_dataset_id'])
+          : _flowText(_meta['selected_external_dataset_id']);
       if (mounted) {
         setState(() {
           _whatsAppNumbers = numbers;
+          _metaDatasets = datasets;
+          if (selectedDataset.isNotEmpty) _metaDatasetId = selectedDataset;
           if (!_whatsAppNumbers.any(
             (item) => _flowText(item['id']) == _whatsAppPhoneId,
           )) {
             _whatsAppPhoneId = null;
+          }
+          if (!_metaDatasets.any(
+            (item) => _flowText(item['id']) == _metaDatasetId,
+          )) {
+            _metaDatasetId = null;
           }
         });
       }
@@ -867,8 +912,14 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
         'ad_body': _creativeBody.text.trim(),
         'ad_headline': _headline.text.trim(),
         'ad_description': _description.text.trim(),
-        'ad_link_url': _goal == 'website' ? _website.text.trim() : '',
-        'cta_type': _goal == 'whatsapp' ? 'WHATSAPP_MESSAGE' : 'LEARN_MORE',
+        'ad_link_url': {'website', 'ecommerce_purchase'}.contains(_goal)
+            ? _website.text.trim()
+            : '',
+        'cta_type': _goal == 'whatsapp'
+            ? 'WHATSAPP_MESSAGE'
+            : _goal == 'ecommerce_purchase'
+            ? 'SHOP_NOW'
+            : 'LEARN_MORE',
       };
       if (_format == 'carousel') {
         for (var index = 0; index < _carouselCards.length; index++) {
@@ -1000,6 +1051,13 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
       await AdLiveApiService.confirmCampaignMetaSetup(
         campaignId: _campaignId!,
         whatsappPhoneNumberId: _whatsAppPhoneId,
+        clientMetaDatasetId:
+            _flowText(_meta['connection_mode']) == 'client_owned'
+            ? _metaDatasetId
+            : null,
+        metaDatasetId: _flowText(_meta['connection_mode']) == 'adlive_managed'
+            ? _metaDatasetId
+            : null,
       );
       final data = await AdLiveApiService.campaignMetaSetup(_campaignId!);
       if (mounted) setState(() => _meta = data);
@@ -1250,16 +1308,20 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
           compactTwoColumn: true,
         ),
         const SizedBox(height: 10),
-        _label('Lead destination'),
+        _label('Campaign goal'),
         _choiceGrid(
           const [
             ('whatsapp', 'WhatsApp'),
             ('website', 'Website'),
             ('instant_form', 'Instant form'),
+            ('ecommerce_purchase', 'Ecommerce purchases'),
           ],
           _goal,
-          (value) => setState(() => _goal = value),
-          preferredColumns: 3,
+          (value) => setState(() {
+            _goal = value;
+            if (value != 'ecommerce_purchase') _ecommerceStoreId = null;
+          }),
+          preferredColumns: 2,
         ),
       ]),
       const SizedBox(height: 12),
@@ -1269,9 +1331,18 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
           _field(_product, 'Product or service'),
           compactTwoColumn: true,
         ),
-        if (_goal == 'website') ...[
+        if ({'website', 'ecommerce_purchase'}.contains(_goal)) ...[
           const SizedBox(height: 10),
-          _field(_website, 'Website URL'),
+          _field(
+            _website,
+            _goal == 'ecommerce_purchase'
+                ? 'Product or store URL'
+                : 'Website URL',
+          ),
+        ],
+        if (_goal == 'ecommerce_purchase') ...[
+          const SizedBox(height: 10),
+          _ecommerceStorePicker(),
         ],
         const SizedBox(height: 10),
         _multiSelectField(
@@ -1389,6 +1460,296 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
         _working ? null : _continueFromPlan,
       ),
     ]);
+  }
+
+  Widget _ecommerceStorePicker() {
+    final connected = _ecommerceStores
+        .where((store) => _flowText(store['status']) == 'connected')
+        .toList();
+    final ids = connected.map((store) => _flowText(store['id'])).toSet();
+    final selected = ids.contains(_ecommerceStoreId) ? _ecommerceStoreId : null;
+    return Container(
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: AdLiveDesign.mint.withValues(alpha: .55),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: const Color(0xFFBDE7D3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.storefront_outlined,
+                size: 18,
+                color: AdLiveDesign.deepGreen,
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  'Purchase tracking store',
+                  style: AdLiveDesign.heading(13),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            key: ValueKey('ecommerce-store-${selected ?? ''}'),
+            initialValue: selected,
+            isExpanded: true,
+            isDense: true,
+            decoration: _input('Verified store'),
+            items: connected
+                .map(
+                  (store) => DropdownMenuItem(
+                    value: _flowText(store['id']),
+                    child: Text(
+                      _flowText(store['name']).isEmpty
+                          ? _flowText(store['url'])
+                          : _flowText(store['name']),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: _working
+                ? null
+                : (value) => setState(() => _ecommerceStoreId = value),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  connected.isEmpty
+                      ? 'Connect Shopify, WooCommerce, or a custom HTTPS store.'
+                      : 'Purchase events use this business-scoped connection.',
+                  style: AdLiveDesign.body(size: 10.5),
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton.icon(
+                onPressed: _working ? null : _openEcommerceStoreSheet,
+                icon: const Icon(Icons.add_link_rounded, size: 17),
+                label: Text(connected.isEmpty ? 'Connect' : 'Add store'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _refreshEcommerceStores() async {
+    final data = await AdLiveApiService.ecommerceStores();
+    if (!mounted) return;
+    setState(() => _ecommerceStores = _flowMaps(data['stores']));
+  }
+
+  Future<void> _openEcommerceStoreSheet() async {
+    final name = TextEditingController();
+    final url = TextEditingController();
+    final token = TextEditingController();
+    final webhookSecret = TextEditingController();
+    final key = TextEditingController();
+    final secret = TextEditingController();
+    var platform = 'shopify';
+    var saving = false;
+    String? sheetError;
+    final response = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) => SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              18,
+              16,
+              18,
+              18 + MediaQuery.viewInsetsOf(context).bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Connect ecommerce store',
+                  style: AdLiveDesign.heading(20),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  'Credentials are sent directly to AdLive and encrypted on the server.',
+                  style: AdLiveDesign.body(size: 11),
+                ),
+                const SizedBox(height: 14),
+                DropdownButtonFormField<String>(
+                  initialValue: platform,
+                  isExpanded: true,
+                  decoration: _input('Store platform'),
+                  items: const [
+                    DropdownMenuItem(value: 'shopify', child: Text('Shopify')),
+                    DropdownMenuItem(
+                      value: 'woocommerce',
+                      child: Text('WooCommerce / WordPress'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'custom',
+                      child: Text('Custom website'),
+                    ),
+                  ],
+                  onChanged: saving
+                      ? null
+                      : (value) =>
+                            setSheetState(() => platform = value ?? 'shopify'),
+                ),
+                const SizedBox(height: 10),
+                _field(name, 'Store name'),
+                const SizedBox(height: 10),
+                _field(url, 'HTTPS store URL', keyboard: TextInputType.url),
+                if (platform == 'shopify') ...[
+                  const SizedBox(height: 10),
+                  _field(token, 'Shopify Admin API token', obscure: true),
+                  const SizedBox(height: 10),
+                  _field(
+                    webhookSecret,
+                    'Shopify app API secret',
+                    obscure: true,
+                  ),
+                ],
+                if (platform == 'woocommerce') ...[
+                  const SizedBox(height: 10),
+                  _field(key, 'WooCommerce consumer key', obscure: true),
+                  const SizedBox(height: 10),
+                  _field(secret, 'WooCommerce consumer secret', obscure: true),
+                ],
+                if (platform == 'custom') ...[
+                  const SizedBox(height: 10),
+                  _note(
+                    'After connecting, send signed Purchase events from your order-success backend. AdLive never reads your customer password.',
+                  ),
+                ],
+                if (sheetError != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    sheetError!,
+                    style: AdLiveDesign.body(
+                      size: 11,
+                      color: Colors.red.shade700,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 14),
+                _mainButton(
+                  saving ? 'Verifying securely…' : 'Connect & verify',
+                  Icons.verified_user_outlined,
+                  saving
+                      ? null
+                      : () async {
+                          setSheetState(() {
+                            saving = true;
+                            sheetError = null;
+                          });
+                          try {
+                            final response =
+                                await AdLiveApiService.connectEcommerceStore(
+                                  platform: platform,
+                                  storeName: name.text.trim(),
+                                  storeUrl: url.text.trim(),
+                                  accessToken: token.text.trim(),
+                                  apiKey: key.text.trim(),
+                                  apiSecret: secret.text.trim(),
+                                  webhookSecret: webhookSecret.text.trim(),
+                                );
+                            if (sheetContext.mounted) {
+                              Navigator.of(sheetContext).pop(response);
+                            }
+                          } on AdLiveApiException catch (error) {
+                            if (sheetContext.mounted) {
+                              setSheetState(() {
+                                sheetError = error.message;
+                                saving = false;
+                              });
+                            }
+                          }
+                        },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    name.dispose();
+    url.dispose();
+    token.dispose();
+    webhookSecret.dispose();
+    key.dispose();
+    secret.dispose();
+    if (response == null) return;
+    final storeId = _flowText(_flowMap(response['store'])['id']);
+    if (storeId.isEmpty) return;
+    try {
+      await _refreshEcommerceStores();
+      if (mounted) setState(() => _ecommerceStoreId = storeId);
+      await _showStoreIntegration(_flowMap(response['integration']));
+      _show('Store connected and verified for Purchase tracking.');
+    } on AdLiveApiException catch (error) {
+      _show(error.message, error: true);
+    }
+  }
+
+  Future<void> _showStoreIntegration(Map<String, dynamic> integration) async {
+    final webhookUrl = _flowText(integration['webhook_url']);
+    final signingSecret = _flowText(integration['webhook_secret']);
+    if (!mounted || webhookUrl.isEmpty || signingSecret.isEmpty) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Purchase webhook'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Configure an order-paid webhook. The signing secret is shown for this setup.',
+                style: AdLiveDesign.body(size: 11),
+              ),
+              const SizedBox(height: 12),
+              Text('Webhook URL', style: AdLiveDesign.heading(12)),
+              SelectableText(webhookUrl, style: AdLiveDesign.body(size: 11)),
+              TextButton.icon(
+                onPressed: () =>
+                    Clipboard.setData(ClipboardData(text: webhookUrl)),
+                icon: const Icon(Icons.copy_rounded, size: 16),
+                label: const Text('Copy URL'),
+              ),
+              const SizedBox(height: 8),
+              Text('Signing secret', style: AdLiveDesign.heading(12)),
+              SelectableText(signingSecret, style: AdLiveDesign.body(size: 11)),
+              TextButton.icon(
+                onPressed: () =>
+                    Clipboard.setData(ClipboardData(text: signingSecret)),
+                icon: const Icon(Icons.copy_rounded, size: 16),
+                label: const Text('Copy secret'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _payment() {
@@ -1547,6 +1908,7 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
         _flowMap(_meta['campaign'])['meta_setup_completed'] == true;
     final own = _flowText(brief['mode']) == 'self_upload';
     final requiresWhatsApp = _meta['requires_whatsapp'] == true;
+    final requiresDataset = _meta['requires_dataset'] == true;
     return _flowPage([
       _pageIntro(
         'Creative & Meta setup',
@@ -1573,6 +1935,22 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
           ),
           const SizedBox(height: 10),
         ],
+        if (requiresDataset) ...[
+          _assetDropdown(
+            'Meta Pixel / dataset for Purchase',
+            _metaDatasets,
+            _metaDatasetId,
+            (value) => setState(() => _metaDatasetId = value),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _metaDatasets.isEmpty
+                ? 'Connect or refresh the selected Meta ad account to load its verified datasets.'
+                : 'Purchase is the conversion event. Campaign creation stays paused until review.',
+            style: AdLiveDesign.body(size: 10.5),
+          ),
+          const SizedBox(height: 10),
+        ],
         _responsiveActions(
           _outlineButton(
             'Connect assets',
@@ -1582,7 +1960,9 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
           _mainButton(
             metaReady ? 'Confirmed' : 'Save Meta setup',
             Icons.check_circle_outline_rounded,
-            _working ? null : _confirmMeta,
+            _working || (requiresDataset && _metaDatasetId == null)
+                ? null
+                : _confirmMeta,
           ),
         ),
       ]),
@@ -2571,10 +2951,14 @@ class _AdLiveCampaignFlowScreenState extends State<AdLiveCampaignFlowScreen> {
     String label, {
     int maxLines = 1,
     TextInputType? keyboard,
+    bool obscure = false,
   }) => TextField(
     controller: controller,
     maxLines: maxLines,
     keyboardType: keyboard,
+    obscureText: obscure,
+    enableSuggestions: !obscure,
+    autocorrect: !obscure,
     style: AdLiveDesign.body(size: 12, color: AdLiveDesign.ink),
     decoration: _input(label, alignLabelWithHint: maxLines > 1),
   );
